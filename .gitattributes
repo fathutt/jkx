@@ -24,3 +24,8 @@
 # Set line endings to LF, even on Windows. Otherwise, execution within Docker fails.
 # See https://help.github.com/articles/dealing-with-line-endings/
 *.sh text eol=lf
+
+# cmd.exe mis-parses labels in a batch file with LF endings, so these keep CRLF
+# whatever the checkout platform is.
+*.bat text eol=crlf
+*.cmd text eol=crlf

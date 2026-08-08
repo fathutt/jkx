@@ -2,13 +2,16 @@
 """One command that measures everything the plan is betting on.
 
 The verification checklist in docs/Phase1-Report.md needs a GPU and the retail
-game files, so it cannot run in CI. This turns it into a single command:
+game files, so it cannot run in CI. This turns it into a single command with no
+arguments:
 
-    python tools/verify/verify.py --game "C:/.../Jedi Academy/GameData"
+    python tools/verify/verify.py
 
-It launches the engine several times with generated configs, times each run,
-collects the console output, and writes verification-report.md next to itself.
-Nothing is typed at the console and nothing has to be watched.
+The game is found in the Steam libraries; --game overrides that when it is
+installed somewhere else. It launches the engine several times with generated
+configs, times each run, collects the console output, and writes
+verification-report.md next to itself. Nothing is typed at the console and
+nothing has to be watched.
 
 What it measures, and why each one matters:
 
@@ -35,7 +38,6 @@ import json
 import os
 import platform
 import re
-import shutil
 import statistics
 import subprocess
 import sys
@@ -124,6 +126,191 @@ def parse_console(text: str) -> dict:
             out[key] = match.group(1).strip() if match.groups() else True
     out["validation_hits"] = sorted(set(VALIDATION.findall(text)))
     return out
+
+
+# --------------------------------------------------------------------------
+# finding the games
+# --------------------------------------------------------------------------
+
+# Steam app ids and the directory each one installs into.
+STEAM_GAMES = [
+    (6020, "Jedi Academy", "Star Wars Jedi Knight - Jedi Academy", "jka"),
+    (6030, "Jedi Outcast", "Star Wars Jedi Knight II - Jedi Outcast", "jk2"),
+]
+
+# Folder names Steam has used for these two over the years. Both games have been
+# renamed more than once, so match on any of them rather than on one.
+INSTALL_DIR_ALIASES = {
+    "jka": [
+        "Jedi Academy",
+        "Star Wars Jedi Knight - Jedi Academy",
+        "STAR WARS Jedi Knight - Jedi Academy",
+        "Star Wars Jedi Knight Jedi Academy",
+    ],
+    "jk2": [
+        "Jedi Outcast",
+        "Star Wars Jedi Knight II - Jedi Outcast",
+        "STAR WARS Jedi Knight II - Jedi Outcast",
+        "Star Wars Jedi Knight II Jedi Outcast",
+    ],
+}
+
+
+def steam_roots() -> list[Path]:
+    """Every Steam installation this machine might have."""
+    roots: list[Path] = []
+    system = platform.system()
+
+    if system == "Windows":
+        try:
+            import winreg  # noqa: PLC0415 - Windows only
+
+            for hive, key in ((winreg.HKEY_CURRENT_USER, r"Software\Valve\Steam"),
+                              (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\WOW6432Node\Valve\Steam")):
+                try:
+                    with winreg.OpenKey(hive, key) as handle:
+                        for value in ("SteamPath", "InstallPath"):
+                            try:
+                                roots.append(Path(winreg.QueryValueEx(handle, value)[0]))
+                            except OSError:
+                                pass
+                except OSError:
+                    pass
+        except ImportError:
+            pass
+        roots += [
+            Path(r"C:\Program Files (x86)\Steam"),
+            Path(r"C:\Program Files\Steam"),
+        ]
+    else:
+        home = Path.home()
+        roots += [
+            home / ".steam" / "steam",
+            home / ".steam" / "root",
+            home / ".local" / "share" / "Steam",
+            # flatpak keeps its own copy
+            home / ".var" / "app" / "com.valvesoftware.Steam" / "data" / "Steam",
+        ]
+
+    seen: list[Path] = []
+    for root in roots:
+        try:
+            resolved = root.expanduser().resolve()
+        except OSError:
+            continue
+        if resolved.is_dir() and resolved not in seen:
+            seen.append(resolved)
+    return seen
+
+
+# A quoted absolute path: either a drive letter followed by one or two
+# backslashes, or a leading slash. Steam escapes backslashes in the file, so
+# "D:\\Games" on disk is a single path with doubled separators, but not every
+# writer of this file bothers, hence the optional second one.
+VDF_PATH = re.compile(r'"((?:[A-Za-z]:\\\\?|/)[^"]*)"')
+
+
+def vdf_paths(text: str) -> list[str]:
+    """Absolute paths mentioned in a libraryfolders.vdf, unescaped.
+
+    Valve's key-value format has changed shape twice. Rather than parse it
+    properly, pull out every quoted absolute path; that survives all three
+    versions, and the caller drops the ones that are not directories.
+    """
+    return [m.replace("\\\\", "\\") for m in VDF_PATH.findall(text)]
+
+
+def steam_libraries(root: Path) -> list[Path]:
+    """Every library folder, including the ones on other drives."""
+    libraries = [root]
+
+    for name in ("steamapps", "SteamApps"):
+        vdf = root / name / "libraryfolders.vdf"
+        if not vdf.is_file():
+            continue
+        try:
+            text = vdf.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        for candidate in vdf_paths(text):
+            path = Path(candidate)
+            if path.is_dir() and path not in libraries:
+                libraries.append(path)
+
+    return libraries
+
+
+def find_steam_games() -> list[dict]:
+    """Return the installed games we know how to drive, GameData included."""
+    found: list[dict] = []
+    seen: set[Path] = set()
+
+    for root in steam_roots():
+        for library in steam_libraries(root):
+            for name in ("steamapps", "SteamApps"):
+                common = library / name / "common"
+                if not common.is_dir():
+                    continue
+
+                for appid, label, _default_dir, key in STEAM_GAMES:
+                    for alias in INSTALL_DIR_ALIASES[key]:
+                        install = common / alias
+                        gamedata = install / "GameData"
+                        if not gamedata.is_dir():
+                            continue
+                        resolved = gamedata.resolve()
+                        if resolved in seen:
+                            continue
+                        seen.add(resolved)
+                        found.append({
+                            "key": key,
+                            "label": label,
+                            "appid": appid,
+                            "path": resolved,
+                            "library": library,
+                        })
+    return found
+
+
+def not_found_message() -> str:
+    """Says which of the two things went wrong, because the fix differs."""
+    roots = steam_roots()
+    if not roots:
+        return ("No Steam installation found on this machine.\n"
+                "Pass --game with the path to the game's GameData directory.")
+    return ("Steam is installed, but neither Jedi Academy nor Jedi Outcast is.\n"
+            "Searched: " + ", ".join(str(r) for r in roots) + "\n"
+            "If the game lives elsewhere, pass --game with the path to GameData.")
+
+
+def resolve_game(args) -> Path:
+    """--game if given, otherwise whatever Steam has installed."""
+    if args.game:
+        path = Path(args.game).expanduser().resolve()
+        if not path.is_dir():
+            raise SystemExit(f"game directory not found: {path}")
+        return path
+
+    games = find_steam_games()
+    if not games:
+        raise SystemExit(not_found_message())
+
+    wanted = args.title
+    if wanted:
+        matches = [g for g in games if g["key"] == wanted]
+        if not matches:
+            raise SystemExit(f"{wanted} is not installed; found: "
+                             + ", ".join(g["key"] for g in games))
+    else:
+        # Default to Jedi Academy: it is what the renderer was written against.
+        matches = [g for g in games if g["key"] == "jka"] or games
+
+    chosen = matches[0]
+    print(f"found    : {chosen['label']} (app {chosen['appid']})")
+    if len(games) > 1:
+        others = ", ".join(f"{g['key']}" for g in games if g is not chosen)
+        print(f"           also installed: {others} (use --title to switch)")
+    return chosen["path"]
 
 
 # --------------------------------------------------------------------------
@@ -222,7 +409,7 @@ def write_report(path: Path, results: dict, info: dict, args) -> None:
         f"- date: {time.strftime('%Y-%m-%d %H:%M')}",
         f"- host: {platform.system()} {platform.machine()}",
         f"- binary: `{args.binary or 'auto-detected'}`",
-        f"- game: `{args.game}`",
+        f"- game: `{args.resolved_game}`",
         f"- map: `{args.map}`",
         f"- runs per scenario: {args.runs}",
         "",
@@ -311,7 +498,11 @@ def write_report(path: Path, results: dict, info: dict, args) -> None:
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--game", required=True, help="path to GameData")
+    parser.add_argument("--game", default=None,
+                        help="path to GameData (auto-detected from Steam when omitted)")
+    parser.add_argument("--title", choices=["jka", "jk2"], default=None,
+                        help="which game, when both are installed (default: jka)")
+    parser.add_argument("--list", action="store_true", help="list detected installs and exit")
     parser.add_argument("--binary", default=None, help="engine binary (auto-detected by default)")
     parser.add_argument("--map", default="mp/ffa3", help="map to load")
     parser.add_argument("--runs", type=int, default=3, help="runs per scenario (median is reported)")
@@ -319,9 +510,17 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--out", default=None, help="report path")
     args = parser.parse_args(argv[1:])
 
-    game_dir = Path(args.game).expanduser().resolve()
-    if not game_dir.is_dir():
-        raise SystemExit(f"game directory not found: {game_dir}")
+    if args.list:
+        games = find_steam_games()
+        if not games:
+            print(not_found_message())
+            return 1
+        for g in games:
+            print(f"{g['key']:4s}  {g['label']:16s}  {g['path']}")
+        return 0
+
+    game_dir = resolve_game(args)
+    args.resolved_game = game_dir
 
     binary = find_binary(game_dir, args.binary)
     cfg_dir = game_dir / "base"

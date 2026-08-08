@@ -113,6 +113,11 @@ jobs:
           g++ -std=c++20 -Wall -Wextra -fsanitize=address,undefined -I third_party/volk \
               -o rg_test tests/render_graph_test.cpp code/rd-vulkan/rg_graph.cpp
           ./rg_test
+      # The verification tool cannot be tested end to end without a GPU and the
+      # retail game, but its Steam detection and console parsing can, and both
+      # are written blind against Windows.
+      - name: verification tool
+        run: python3 tools/verify/selftest.py
 
   # ---------------------------------------------------------------------------
   sanitizers:

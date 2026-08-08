@@ -1,26 +1,64 @@
-# Verification run
+# Проверка на железе
 
-One command. It launches the engine a few times with generated configs, times
-each run, reads the console dumps, and writes `verification-report.md` here.
+Всё, что нельзя измерить в CI, измеряется одной командой. Игру искать не надо —
+она находится сама в библиотеках Steam.
+
+## Как запускать
+
+**Windows:** двойной клик по `verify.bat`. По окончании откроется отчёт.
+
+**Linux:** `tools/verify/verify.sh`
+
+Скрипт сам находит установленную Jedi Academy (или Jedi Outcast), несколько раз
+запускает движок с сгенерированными конфигами, замеряет время, читает консольные
+дампы и пишет рядом с собой `verification-report.md` и `.json`. Ничего вводить в
+консоль не нужно, следить за процессом тоже: каждый сценарий заканчивается
+`quit`, движок выходит сам.
+
+Проверить, что игры вообще нашлись, можно заранее:
 
 ```
-python tools/verify/verify.py --game "C:/Program Files (x86)/Steam/steamapps/common/Jedi Academy/GameData"
+tools/verify/verify.sh --list
 ```
 
-Linux:
+## Если что-то не нашлось
+
+| Флаг | Зачем |
+|---|---|
+| `--title jk2` | обе игры установлены, а нужна вторая (по умолчанию — Jedi Academy) |
+| `--game <path>` | игра не из Steam или лежит не там; путь до `GameData` |
+| `--binary <path>` | автоопределение выбрало не тот исполняемый файл |
+| `--map mp/ffa3` | другая карта для замера загрузки |
+| `--runs 5` | больше прогонов на сценарий (в отчёт идёт медиана) |
+| `--out <path>` | положить отчёт в другое место |
+
+Поиск идёт по реестру (`HKCU\Software\Valve\Steam`, `HKLM\...\WOW6432Node`) и
+стандартным путям на Windows, по `~/.steam`, `~/.local/share/Steam` и flatpak на
+Linux, а дальше по `libraryfolders.vdf` — то есть библиотеки на других дисках
+тоже находятся. Обе игры Steam за годы переименовывал, поэтому папка ищется по
+всем известным именам сразу.
+
+## Что попадает в отчёт
+
+- время до главного меню, `vid_restart` и загрузка карты (два последних — за
+  вычетом старта, чтобы видеть чистую стоимость);
+- какой путь освещения реально работал — **PBR или fastlight**. Это важнее
+  самих чисел: при `maxBoundDescriptorSets < 11` PBR раньше выключался молча, и
+  измерение оказывалось не того пути;
+- состояние pipeline cache: переиспользован, сохранён или отвергнут как чужой;
+- количество определений и созданных объектов пайплайнов — база для сравнения
+  после перехода на dynamic rendering;
+- сообщения валидации, если сборка debug.
+
+Три вещи по-прежнему требуют человека, и отчёт заканчивается их списком: FPS
+против `rd-vanilla` на той же сцене, один захват RenderDoc и наличие фризов при
+первом появлении новых материалов.
+
+## Требования и самопроверка
+
+Нужен только Python 3.9+. Логика поиска Steam и разбора дампов написана вслепую
+под Windows из Linux-контейнера, поэтому покрыта тестами, которые гоняет CI:
 
 ```
-python3 tools/verify/verify.py --game ~/.steam/steam/steamapps/common/Jedi\ Academy/GameData
+python3 tools/verify/selftest.py
 ```
-
-Useful flags: `--map mp/ffa3`, `--runs 5`, `--binary <path>` if auto-detection
-picks the wrong executable.
-
-The engine exits on its own after each scenario. Nothing needs to be typed at
-the console and nothing needs watching.
-
-Three things still need a person, and the report ends with them: FPS against
-rd-vanilla on the same scene, one RenderDoc capture, and whether new materials
-cause hitching when they first appear.
-
-Requires Python 3.9+ and nothing else.
