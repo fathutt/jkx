@@ -272,6 +272,71 @@ def test_parsing() -> None:
           "a build predating the diagnostic reports nothing rather than guessing")
 
 
+def test_gamecode() -> None:
+    # On Windows the gamecode ships inside a pk3 and, with sv_pure set, the
+    # engine will only take it from one. So "is the dll on disk" is the wrong
+    # question; "is it inside a game directory the filesystem searches" is the
+    # right one. Getting this wrong looks like reaching the main menu and then
+    # dying with VM_CreateLegacy on ui failed.
+    import zipfile  # noqa: PLC0415
+
+    tmp = Path(tempfile.mkdtemp())
+    game = tmp / "GameData"
+    (game / "base").mkdir(parents=True)
+    binary = game / "eternaljk.x86_64.exe"
+    binary.write_text("", encoding="ascii")
+
+    found = verify.find_gamecode(game, binary)
+    check(all(v is None for v in found.values()), "gamecode absent is detected")
+    message = verify.missing_gamecode_message(game, binary, found)
+    check("bins_" in message and "unpacked into the same folder as base/" in message,
+          "the message explains that the whole archive has to be unpacked")
+
+    # Exactly what the published Windows build looks like: one pk3 in the fork's
+    # own game directory, holding all three modules.
+    mod = game / "EternalJK"
+    mod.mkdir()
+    suffix = ".dll" if verify.platform.system() == "Windows" else ".so"
+    pak = mod / "bins_2026.pk3"
+    with zipfile.ZipFile(pak, "w") as zf:
+        for stem in ("ui", "cgame", "jampgame"):
+            zf.writestr(f"{stem}x86_64{suffix}", "")
+
+    found = verify.find_gamecode(game, binary)
+    check(all(v == pak for v in found.values()), "gamecode inside a pk3 is found")
+
+    # A loose dll next to it wins, which is what a local build produces.
+    loose = mod / f"uix86_64{suffix}"
+    loose.write_text("", encoding="ascii")
+    check(verify.find_gamecode(game, binary)[f"uix86_64{suffix}"] == loose,
+          "a loose module is preferred over the pk3 copy")
+
+    # A 32-bit engine needs 32-bit modules, and must not be told the 64-bit ones
+    # will do.
+    found = verify.find_gamecode(game, game / "eternaljk.x86.exe")
+    check(all(v is None for v in found.values()), "modules of the wrong architecture do not count")
+
+
+def test_merge_into() -> None:
+    # The published archive may unpack one level down. Moving it up has to merge
+    # directories: EternalJK/ holds the gamecode, and a directory that already
+    # exists must not make the move a no-op.
+    tmp = Path(tempfile.mkdtemp())
+    src = tmp / "JediAcademy"
+    dst = tmp / "GameData"
+    (src / "EternalJK").mkdir(parents=True)
+    (dst / "EternalJK").mkdir(parents=True)
+    (src / "eternaljk.x86_64.exe").write_text("new", encoding="ascii")
+    (src / "EternalJK" / "bins.pk3").write_text("new", encoding="ascii")
+    (dst / "eternaljk.x86_64.exe").write_text("old", encoding="ascii")
+
+    verify.merge_into(src, dst)
+    check((dst / "EternalJK" / "bins.pk3").is_file(),
+          "a directory that already exists is merged, not skipped")
+    check((dst / "eternaljk.x86_64.exe").read_text(encoding="ascii") == "new",
+          "existing files are overwritten")
+
+
 def test_startup_cvars() -> None:
     # cl_renderer is CVAR_LATCH. Written from a config that runs after startup
     # it takes effect on the next vid_restart, so the startup scenario would
@@ -417,6 +482,8 @@ def test_end_to_end() -> None:
     engine.write_text(FAKE_ENGINE, encoding="ascii")
     engine.chmod(0o755)
     (game / "rd-vulkan_x86_64.so").write_text("", encoding="ascii")
+    for stem in ("ui", "cgame", "jampgame"):
+        (game / "base" / f"{stem}x86_64.so").write_text("", encoding="ascii")
 
     home = tmp / "home"
     out = tmp / "report.md"
@@ -443,7 +510,8 @@ def test_end_to_end() -> None:
 
 
 def main() -> int:
-    for test in (test_vdf, test_layout, test_detection, test_binary, test_renderer_present, test_startup_cvars,
+    for test in (test_vdf, test_layout, test_detection, test_binary, test_renderer_present, test_gamecode,
+                 test_merge_into, test_startup_cvars,
                  test_parsing, test_report, test_missing, test_end_to_end):
         print(f"\n{test.__name__}")
         test()

@@ -496,6 +496,106 @@ def find_binary(game_dir: Path, explicit: str | None) -> Path:
     )
 
 
+# The gamecode the client cannot start without. On Windows these ship inside a
+# pk3 rather than loose, and with sv_pure set - which is the multiplayer default
+# - the engine will ONLY take them from a pk3: Sys_DLLNeedsUnpacking() returns
+# true, and a failed unpack is returned as failure without falling back to the
+# filesystem. So "the dll is somewhere on disk" is not the question; "is it in a
+# game directory the filesystem searches" is.
+GAMECODE_STEMS = ["ui", "cgame", "jampgame"]
+
+
+def gamecode_dirs(game_dir: Path) -> list[Path]:
+    """Where the engine looks for gamecode, in its own order."""
+    return [game_dir / "EternalJK", game_dir / "base", game_dir]
+
+
+def find_gamecode(game_dir: Path, binary: Path) -> dict:
+    """Locate each gamecode module, loose or inside a pk3."""
+    import zipfile  # noqa: PLC0415 - only needed here
+
+    arch = "x86_64" if "x86_64" in binary.name else "x86"
+    suffix = ".dll" if platform.system() == "Windows" else ".so"
+
+    found: dict = {}
+    for stem in GAMECODE_STEMS:
+        name = f"{stem}{arch}{suffix}"
+        found[name] = None
+        for directory in gamecode_dirs(game_dir):
+            if not directory.is_dir():
+                continue
+            loose = directory / name
+            if loose.is_file():
+                found[name] = loose
+                break
+            for pak in sorted(directory.glob("*.pk3")):
+                try:
+                    with zipfile.ZipFile(pak) as zf:
+                        if any(Path(entry).name.lower() == name.lower() for entry in zf.namelist()):
+                            found[name] = pak
+                            break
+                except (OSError, zipfile.BadZipFile):
+                    continue
+            if found[name] is not None:
+                break
+    return found
+
+
+def missing_gamecode_message(game_dir: Path, binary: Path, found: dict) -> str:
+    missing = [name for name, where in found.items() if where is None]
+    return "\n".join([
+        f"the gamecode is not reachable from {game_dir}",
+        "",
+        "Missing: " + ", ".join(missing),
+        "Looked in: " + ", ".join(str(d.name) or "." for d in gamecode_dirs(game_dir)),
+        "",
+        "The published build ships these inside EternalJK/bins_*.pk3, so the whole",
+        "archive has to be unpacked into the same folder as base/, not just the",
+        "executable and the renderer. Without them the engine reaches the main menu",
+        "and then dies with 'VM_CreateLegacy on ui failed'.",
+        "",
+        "Run with --doctor to see exactly what is where.",
+    ])
+
+
+def doctor(game_dir: Path, args) -> int:
+    """Print what is installed and whether it adds up to a runnable engine."""
+    print(f"game root : {game_dir}")
+    print(f"layout    : {'GameData' if game_dir.name == 'GameData' else 'flat'}")
+    print()
+
+    for directory in [game_dir] + gamecode_dirs(game_dir)[:2]:
+        if not directory.is_dir():
+            print(f"{directory}  (missing)")
+            continue
+        entries = sorted(p.name for p in directory.iterdir() if p.is_file())
+        interesting = [e for e in entries
+                       if e.endswith((".exe", ".dll", ".so", ".pk3"))
+                       or e in ENGINE_NAMES]
+        print(f"{directory}")
+        if not interesting:
+            print("    (nothing relevant)")
+        for name in interesting[:40]:
+            print(f"    {name}")
+        if len(interesting) > 40:
+            print(f"    ... and {len(interesting) - 40} more")
+        print()
+
+    try:
+        binary = find_binary(game_dir, args.binary)
+    except SystemExit as exc:
+        print(str(exc))
+        return 1
+
+    print(f"engine    : {binary}")
+    libs = renderer_libraries(game_dir, binary)
+    print(f"renderer  : {libs[0] if libs else 'MISSING - would silently fall back to OpenGL'}")
+
+    for name, where in find_gamecode(game_dir, binary).items():
+        print(f"{name:20s}: {where if where else 'MISSING'}")
+    return 0
+
+
 def fetch_engine(game_dir: Path) -> None:
     """Download and unpack a build that has the Vulkan renderer.
 
@@ -530,18 +630,28 @@ def fetch_engine(game_dir: Path) -> None:
     archive.unlink()
 
     # The published archives are the install tree, so the engine may have landed
-    # one level down rather than beside base/.
+    # one level down rather than beside base/. Move it up, merging directories
+    # rather than skipping them: EternalJK/ holds the gamecode, and an existing
+    # EternalJK/ from an earlier attempt would otherwise leave it behind.
     for stem in RENDERER_STEMS:
         for suffix in RENDERER_SUFFIXES:
             for found in game_dir.glob(f"*/{stem}{suffix}"):
                 print(f"moving {found.parent.name}/* up next to base/")
-                for item in list(found.parent.iterdir()):
-                    target = game_dir / item.name
-                    if target.exists() and target.is_file():
-                        target.unlink()
-                    if not target.exists():
-                        shutil.move(str(item), str(target))
+                merge_into(found.parent, game_dir)
                 return
+
+
+def merge_into(source: Path, destination: Path) -> None:
+    """Move everything from source into destination, overwriting file by file."""
+    for item in list(source.iterdir()):
+        target = destination / item.name
+        if item.is_dir():
+            target.mkdir(exist_ok=True)
+            merge_into(item, target)
+            continue
+        if target.exists():
+            target.unlink()
+        shutil.move(str(item), str(target))
 
 
 def run_scenario(binary: Path, game_dir: Path, cfg_dir: Path, home: Path, name: str,
@@ -728,6 +838,8 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--title", choices=["jka", "jk2"], default=None,
                         help="which game, when both are installed (default: jka)")
     parser.add_argument("--list", action="store_true", help="list detected installs and exit")
+    parser.add_argument("--doctor", action="store_true",
+                        help="print what is installed and what is missing, then exit")
     parser.add_argument("--fetch-engine", action="store_true",
                         help="download a published build that has the Vulkan renderer")
     parser.add_argument("--binary", default=None, help="engine binary (auto-detected by default)")
@@ -754,12 +866,19 @@ def main(argv: list[str]) -> int:
     if args.fetch_engine:
         fetch_engine(game_dir)
 
+    if args.doctor:
+        return doctor(game_dir, args)
+
     binary = find_binary(game_dir, args.binary)
 
     # Fail here rather than after nine launches: without the renderer the engine
     # runs on OpenGL and every number below would be of the wrong thing.
     if not renderer_libraries(game_dir, binary):
         raise SystemExit(missing_renderer_message(game_dir, binary))
+
+    gamecode = find_gamecode(game_dir, binary)
+    if any(where is None for where in gamecode.values()):
+        raise SystemExit(missing_gamecode_message(game_dir, binary, gamecode))
 
     cfg_dir = game_dir / "base"
     if not cfg_dir.is_dir():
