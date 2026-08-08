@@ -90,6 +90,31 @@ jobs:
           if-no-files-found: warn
 
   # ---------------------------------------------------------------------------
+  # Logic that has no business needing a GPU to test: the shader pak reader and
+  # the render graph core. A wrong barrier does not crash, it corrupts one
+  # vendor at one resolution, so deriving it is checked here rather than in a
+  # frame capture.
+  unit:
+    name: unit tests (asan + ubsan)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y libvulkan-dev
+      - name: shader pak reader
+        run: |
+          g++ -std=c++20 -Wall -Wextra -fsanitize=address,undefined \
+              -o pak_test tests/shader_pak_test.cpp code/rd-vulkan/vk_shader_pak.cpp
+          ./pak_test
+      - name: render graph core
+        run: |
+          g++ -std=c++20 -Wall -Wextra -fsanitize=address,undefined -I third_party/volk \
+              -o rg_test tests/render_graph_test.cpp code/rd-vulkan/rg_graph.cpp
+          ./rg_test
+
+  # ---------------------------------------------------------------------------
   sanitizers:
     name: sanitizers (asan + ubsan)
     runs-on: ubuntu-24.04
