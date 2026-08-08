@@ -83,6 +83,11 @@ SCENARIOS = {
 }
 
 
+# The condumps the scenarios above produce, in the order they are concatenated
+# before parsing.
+DUMPS = ("jkx_startup.txt", "jkx_vidrestart.txt", "jkx_map.txt")
+
+
 # Set on the command line rather than in the config, because +set is applied
 # before subsystems start. cl_renderer in particular is CVAR_LATCH: written from
 # a config that runs after startup it would take effect on the next vid_restart,
@@ -422,31 +427,21 @@ def find_binary(game_dir: Path, explicit: str | None) -> Path:
     )
 
 
-def home_path(game_dir: Path) -> Path:
-    """Where the engine writes condumps, unless it is a portable build."""
-    system = platform.system()
-    if system == "Windows":
-        base = Path(os.environ.get("USERPROFILE", "~")).expanduser() / "Documents"
-        for name in ("EternalJK", "OpenJK", "JKX"):
-            candidate = base / name / "base"
-            if candidate.is_dir():
-                return candidate
-        return base / "EternalJK" / "base"
-    base = Path.home() / ".local" / "share"
-    for name in ("EternalJK", "OpenJK", "JKX"):
-        candidate = base / name / "base"
-        if candidate.is_dir():
-            return candidate
-    return base / "EternalJK" / "base"
-
-
-def run_scenario(binary: Path, game_dir: Path, cfg_dir: Path, name: str, mapname: str,
-                 timeout: int) -> tuple[float, int]:
+def run_scenario(binary: Path, game_dir: Path, cfg_dir: Path, home: Path, name: str,
+                 mapname: str, timeout: int) -> tuple[float, int]:
     scenario = SCENARIOS[name]
     cfg_name = f"jkx_verify_{name}.cfg"
     (cfg_dir / cfg_name).write_text(build_cfg(scenario["cfg"], mapname), encoding="ascii")
 
-    cmd = [str(binary), "+set", "fs_basepath", str(game_dir), "+set", "fs_game", ""]
+    # fs_homepath is forced so the dumps, the pipeline cache and the configs this
+    # run writes all land somewhere known and disposable. Without it the engine
+    # picks a per-platform directory under a mod name that depends on the build,
+    # and the run also edits the player's own configuration.
+    cmd = [
+        str(binary),
+        "+set", "fs_basepath", str(game_dir),
+        "+set", "fs_homepath", str(home),
+    ]
     for cvar, value in STARTUP_CVARS:
         cmd += ["+set", cvar, value]
     cmd += ["+exec", cfg_name]
@@ -460,9 +455,31 @@ def run_scenario(binary: Path, game_dir: Path, cfg_dir: Path, name: str, mapname
     return (time.perf_counter() - start, code)
 
 
-def read_dump(home: Path, name: str) -> str:
-    path = home / name
-    if not path.is_file():
+def find_dump(roots: list[Path], name: str) -> Path | None:
+    """Locate a condump wherever the engine decided to put it.
+
+    condump writes into fs_homepath/<fs_gamedir>, and fs_gamedir is the mod
+    directory: "base" for OpenJK, "EternalJK" for the fork, something else for a
+    build with its own basegame. A portable build ignores fs_homepath entirely
+    and writes next to the executable. Rather than encode all of that, look for
+    the file and take the newest match.
+    """
+    best: Path | None = None
+    for root in roots:
+        if not root.is_dir():
+            continue
+        for candidate in root.glob(f"*/{name}"):
+            if best is None or candidate.stat().st_mtime > best.stat().st_mtime:
+                best = candidate
+        direct = root / name
+        if direct.is_file() and (best is None or direct.stat().st_mtime > best.stat().st_mtime):
+            best = direct
+    return best
+
+
+def read_dump(roots: list[Path], name: str) -> str:
+    path = find_dump(roots, name)
+    if path is None:
         return ""
     return path.read_text(encoding="utf-8", errors="replace")
 
@@ -590,7 +607,7 @@ def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--game", default=None,
-                        help="path to GameData (auto-detected from Steam when omitted)")
+                        help="the game's install folder (auto-detected from Steam when omitted)")
     parser.add_argument("--title", choices=["jka", "jk2"], default=None,
                         help="which game, when both are installed (default: jka)")
     parser.add_argument("--list", action="store_true", help="list detected installs and exit")
@@ -598,6 +615,8 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--map", default="mp/ffa3", help="map to load")
     parser.add_argument("--runs", type=int, default=3, help="runs per scenario (median is reported)")
     parser.add_argument("--timeout", type=int, default=300, help="seconds before a run is abandoned")
+    parser.add_argument("--home", default=None,
+                        help="fs_homepath for the runs (default: run-home next to this script)")
     parser.add_argument("--out", default=None, help="report path")
     args = parser.parse_args(argv[1:])
 
@@ -618,7 +637,10 @@ def main(argv: list[str]) -> int:
     if not cfg_dir.is_dir():
         raise SystemExit(f"no base/ directory under {game_dir}")
 
-    home = home_path(game_dir)
+    home = Path(args.home).expanduser().resolve() if args.home \
+        else Path(__file__).resolve().parent / "run-home"
+    home.mkdir(parents=True, exist_ok=True)
+
     print(f"binary   : {binary}")
     print(f"game     : {game_dir}")
     print(f"homepath : {home}")
@@ -626,17 +648,19 @@ def main(argv: list[str]) -> int:
     print()
 
     # Old dumps would otherwise be parsed as if they were from this run.
-    for stale in ("jkx_startup.txt", "jkx_vidrestart.txt", "jkx_map.txt"):
-        target = home / stale
-        if target.is_file():
-            target.unlink()
+    dump_roots = [home, game_dir]
+    for stale in DUMPS:
+        found = find_dump(dump_roots, stale)
+        if found is not None:
+            found.unlink()
 
     results: dict = {}
     for name, scenario in SCENARIOS.items():
         samples = []
         print(f"{scenario['label']}: ", end="", flush=True)
         for run in range(args.runs):
-            elapsed, code = run_scenario(binary, game_dir, cfg_dir, name, args.map, args.timeout)
+            elapsed, code = run_scenario(binary, game_dir, cfg_dir, home, name, args.map,
+                                         args.timeout)
             if code == -1:
                 print(f"\n  run {run + 1} timed out after {args.timeout}s; skipping this scenario")
                 samples = []
@@ -647,12 +671,10 @@ def main(argv: list[str]) -> int:
         if samples:
             results[name] = {"samples": samples, "median": statistics.median(samples)}
 
-    console = "\n".join(
-        read_dump(home, name) for name in ("jkx_startup.txt", "jkx_vidrestart.txt", "jkx_map.txt")
-    )
+    console = "\n".join(read_dump(dump_roots, name) for name in DUMPS)
     if not console.strip():
-        print("\nWarning: no console dumps found in the homepath. Timings are still valid,")
-        print("but the device, lighting path and validation sections will be empty.")
+        print("\nWarning: no console dumps were written. Timings are still valid, but the")
+        print("device, lighting path and validation sections will be empty.")
     info = parse_console(console)
 
     out = Path(args.out) if args.out else Path(__file__).resolve().parent / "verification-report.md"

@@ -19,6 +19,20 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+
+# --sync-only stops after the checkout has been patched, so a caller that wants
+# its own generator, toolchain or target set (the Windows packaging job) can
+# configure the build itself instead of inheriting the choices below.
+SYNC_ONLY=0
+ARGS=()
+for arg in "$@"; do
+    case "$arg" in
+        --sync-only) SYNC_ONLY=1 ;;
+        *) ARGS+=("$arg") ;;
+    esac
+done
+set -- ${ARGS[@]+"${ARGS[@]}"}
+
 HARNESS="${1:-${JKX_RENDER_HARNESS:-$HOME/eternaljk}}"
 
 if [ ! -d "$HARNESS/codemp/rd-vulkan" ]; then
@@ -88,6 +102,11 @@ target_compile_features(${MPVulkanRenderer} PRIVATE cxx_std_20)
 # ---------------------------------------------------------------------------
 EOF
     echo "patched harness CMakeLists"
+fi
+
+if [ "$SYNC_ONLY" = "1" ]; then
+    echo "sync only; not building"
+    exit 0
 fi
 
 BUILD="$HARNESS/build-harness"

@@ -13,6 +13,7 @@ here and in CI rather than on the user's machine.
 
 from __future__ import annotations
 
+import json
 import sys
 import tempfile
 from pathlib import Path
@@ -331,9 +332,85 @@ def test_missing() -> None:
         check(True, "a --game path that does not exist is rejected up front")
 
 
+# --------------------------------------------------------------------------
+# the whole thing, against an engine that only pretends to render
+# --------------------------------------------------------------------------
+
+FAKE_ENGINE = r'''#!/usr/bin/env python3
+# Stands in for the engine: reads the config it was told to exec, finds the
+# condump filename in it, and writes a plausible dump where the real engine
+# would - fs_homepath/<mod dir>, not fs_homepath itself.
+import sys
+from pathlib import Path
+
+argv = sys.argv[1:]
+values = {}
+for i, a in enumerate(argv):
+    if a == "+set" and i + 2 < len(argv):
+        values[argv[i + 1]] = argv[i + 2]
+    if a == "+exec" and i + 1 < len(argv):
+        values["cfg"] = argv[i + 1]
+
+cfg = Path(values["fs_basepath"]) / "base" / values["cfg"]
+name = None
+for line in cfg.read_text().splitlines():
+    if line.startswith("condump "):
+        name = line.split(None, 1)[1].strip()
+
+out = Path(values["fs_homepath"]) / "EternalJK"
+out.mkdir(parents=True, exist_ok=True)
+(out / name).write_text(
+    "cl_renderer is " + values.get("cl_renderer", "?") + "\n"
+    "VK_VENDOR: NVIDIA\n"
+    "VK_RENDERER: NVIDIA GeForce RTX 4070\n"
+    "VK_VERSION: 1.3.280\n"
+    "JKX: lighting path = PBR (maxBoundDescriptorSets 32)\n"
+    "pipeline handles: 1712\n"
+    "pipeline descriptors: 2304, base: 12\n")
+'''
+
+
+def test_end_to_end() -> None:
+    import platform  # noqa: PLC0415 - only needed here
+    if platform.system() == "Windows":
+        print("skip  end to end (needs a POSIX shebang)")
+        return
+
+    tmp = Path(tempfile.mkdtemp())
+    game = tmp / "Jedi Academy"
+    (game / "base").mkdir(parents=True)
+
+    engine = game / "jkx_ja.x86_64"
+    engine.write_text(FAKE_ENGINE, encoding="ascii")
+    engine.chmod(0o755)
+
+    home = tmp / "home"
+    out = tmp / "report.md"
+    code = verify.main(["verify.py", "--game", str(game), "--runs", "1",
+                        "--home", str(home), "--out", str(out)])
+    check(code == 0, "a full run exits cleanly")
+    check(out.is_file(), "the report is written where --out asked")
+
+    text = out.read_text(encoding="utf-8")
+    check("**PBR is active**" in text, "the dump written by the run reaches the report")
+    check("NVIDIA GeForce RTX 4070" in text, "the device section is filled in")
+
+    data = json.loads(out.with_suffix(".json").read_text(encoding="utf-8"))
+    check(sorted(data["results"]) == ["map", "startup", "vid_restart"],
+          "all three scenarios ran")
+
+    # The dump was written to home/EternalJK/, not home/, and was still found.
+    check((home / "EternalJK" / "jkx_startup.txt").is_file(),
+          "dumps land in the mod directory, and are found there")
+
+    # And the renderer really was selected on the command line.
+    dump = (home / "EternalJK" / "jkx_startup.txt").read_text(encoding="utf-8")
+    check("cl_renderer is rd-vulkan" in dump, "the engine was started on rd-vulkan")
+
+
 def main() -> int:
     for test in (test_vdf, test_layout, test_detection, test_binary, test_startup_cvars,
-                 test_parsing, test_report, test_missing):
+                 test_parsing, test_report, test_missing, test_end_to_end):
         print(f"\n{test.__name__}")
         test()
     print()
