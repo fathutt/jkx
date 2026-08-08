@@ -496,14 +496,27 @@ static qboolean RawImage_HasAlpha( const byte *scan, const int numPixels )
 	return qfalse;
 }
 #if 0
-void vk_record_buffer_memory_barrier( VkCommandBuffer cb, VkBuffer buffer, VkDeviceSize size, VkDeviceSize offset,
-	VkPipelineStageFlags src_stages, VkPipelineStageFlags dst_stages, 
-	VkAccessFlags src_access, VkAccessFlags dst_access ) {
+void vk_submit_image_barrier( VkCommandBuffer cb, const VkImageMemoryBarrier2 *barrier )
+{
+	VkDependencyInfo dependency;
+	Com_Memset( &dependency, 0, sizeof( dependency ) );
+	dependency.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+	dependency.imageMemoryBarrierCount = 1;
+	dependency.pImageMemoryBarriers = barrier;
 
-	VkBufferMemoryBarrier barrier;
-	barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
-	barrier.pNext = NULL;
+	vkCmdPipelineBarrier2( cb, &dependency );
+}
+
+void vk_record_buffer_memory_barrier( VkCommandBuffer cb, VkBuffer buffer, VkDeviceSize size, VkDeviceSize offset,
+	VkPipelineStageFlags2 src_stages, VkPipelineStageFlags2 dst_stages,
+	VkAccessFlags2 src_access, VkAccessFlags2 dst_access ) {
+
+	VkBufferMemoryBarrier2 barrier;
+	Com_Memset( &barrier, 0, sizeof( barrier ) );
+	barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2;
+	barrier.srcStageMask = src_stages;
 	barrier.srcAccessMask = src_access;
+	barrier.dstStageMask = dst_stages;
 	barrier.dstAccessMask = dst_access;
 	barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 	barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
@@ -511,15 +524,23 @@ void vk_record_buffer_memory_barrier( VkCommandBuffer cb, VkBuffer buffer, VkDev
 	barrier.offset = offset;
 	barrier.size = size;
 
-	vkCmdPipelineBarrier(cb, src_stages, dst_stages, 0, 0, NULL, 1, &barrier, 0, NULL);
+	VkDependencyInfo dependency;
+	Com_Memset( &dependency, 0, sizeof( dependency ) );
+	dependency.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+	dependency.bufferMemoryBarrierCount = 1;
+	dependency.pBufferMemoryBarriers = &barrier;
+
+	vkCmdPipelineBarrier2( cb, &dependency );
 }
 #endif
 void vk_record_image_layout_transition( VkCommandBuffer cmdBuf, VkImage image, 
 	VkImageAspectFlags image_aspect_flags, 
 	VkImageLayout old_layout, VkImageLayout new_layout, uint32_t src_stage_override, uint32_t dst_stage_override )
 {
-	VkImageMemoryBarrier barrier;
-	uint32_t src_stage, dst_stage;
+	VkImageMemoryBarrier2 barrier;
+	VkPipelineStageFlags2 src_stage, dst_stage;
+
+	Com_Memset( &barrier, 0, sizeof( barrier ) );
 
 	switch ( old_layout ) {
 		case VK_IMAGE_LAYOUT_UNDEFINED:
@@ -594,10 +615,9 @@ void vk_record_image_layout_transition( VkCommandBuffer cmdBuf, VkImage image,
 			break;
 	}
 
-	barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-	barrier.pNext = NULL;
-	//barrier.srcAccessMask = src_access_flags;
-	//barrier.dstAccessMask = dst_access_flags;
+	barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
+	barrier.srcStageMask = src_stage;
+	barrier.dstStageMask = dst_stage;
 	barrier.oldLayout = old_layout;
 	barrier.newLayout = new_layout;
 	barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
@@ -610,7 +630,13 @@ void vk_record_image_layout_transition( VkCommandBuffer cmdBuf, VkImage image,
 	barrier.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
 
 
-	vkCmdPipelineBarrier(cmdBuf, src_stage, dst_stage, 0, 0, NULL, 0, NULL, 1, &barrier);
+	VkDependencyInfo dependency;
+	Com_Memset( &dependency, 0, sizeof( dependency ) );
+	dependency.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+	dependency.imageMemoryBarrierCount = 1;
+	dependency.pImageMemoryBarriers = &barrier;
+
+	vkCmdPipelineBarrier2( cmdBuf, &dependency );
 }
 
 static void vk_clear_cube_color( image_t *image, VkClearColorValue color ) 

@@ -125,11 +125,10 @@ static void vk_create_instance( void )
     appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
     appInfo.pEngineName = "Quake3";
     appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-#ifdef _DEBUG
-	appInfo.apiVersion = VK_API_VERSION_1_1;
-#else
-	appInfo.apiVersion = VK_API_VERSION_1_0;
-#endif
+	// JKX targets Vulkan 1.3: dynamic rendering, synchronization2, descriptor
+	// indexing and timeline semaphores are all core there, so none of them needs
+	// an extension dance. See docs/Engine-Design-Roadmap.md section 3.
+	appInfo.apiVersion = VK_API_VERSION_1_3;
 	flags = 0;
     count = 0;
     extension_count = 0;
@@ -652,6 +651,21 @@ static qboolean vk_create_device( VkPhysicalDevice physical_device, int device_i
 		device_desc.enabledExtensionCount = device_extension_count;
 		device_desc.ppEnabledExtensionNames = device_extension_list;
 		device_desc.pEnabledFeatures = &features;
+
+		// Core 1.3 features the renderer relies on. Requested unconditionally:
+		// if the driver cannot provide them it is not a device we support, and
+		// failing at device creation is far better than failing later in a way
+		// that looks like a rendering bug.
+		{
+			static VkPhysicalDeviceVulkan13Features features13;
+			Com_Memset( &features13, 0, sizeof( features13 ) );
+			features13.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
+			features13.synchronization2 = VK_TRUE;
+			features13.dynamicRendering = VK_TRUE;
+			features13.maintenance4 = VK_TRUE;
+			features13.pNext = (void *)device_desc.pNext;
+			device_desc.pNext = &features13;
+		}
 
 #ifdef _DEBUG
 		pNextPtr = (const void **)&device_desc.pNext;

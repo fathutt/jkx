@@ -209,10 +209,10 @@ void vk_add_compute_normalmap( shaderStage_t *stage, image_t *albedo, imgFlags_t
 static void vk_compute_normalmap_mips( VkCommandBuffer cmd, image_t *image, 
     uint32_t width, uint32_t height, uint32_t mipLevels ) 
 {
-    VkImageMemoryBarrier barrier;
+    VkImageMemoryBarrier2 barrier;
     uint32_t i, mipWidth, mipHeight;
 
-    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
     barrier.pNext = NULL;
     barrier.image = image->handle;
     barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
@@ -233,9 +233,9 @@ static void vk_compute_normalmap_mips( VkCommandBuffer cmd, image_t *image,
         barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
         barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
 
-        vkCmdPipelineBarrier( cmd,
-                             VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0,
-                             0, NULL, 0, NULL, 1, &barrier);
+        barrier.srcStageMask = VK_PIPELINE_STAGE_2_BLIT_BIT;
+        barrier.dstStageMask = VK_PIPELINE_STAGE_2_BLIT_BIT;
+        vk_submit_image_barrier( cmd, &barrier );
 
 		// could create mips from base level, to batch blit operations.
 		// but this results in a few artifacts during progressive filtering.
@@ -268,9 +268,9 @@ static void vk_compute_normalmap_mips( VkCommandBuffer cmd, image_t *image,
         barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
         barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
         barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-        vkCmdPipelineBarrier( cmd,
-                             VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0,
-                             0, NULL, 0, NULL, 1, &barrier );
+        barrier.srcStageMask = VK_PIPELINE_STAGE_2_BLIT_BIT;
+        barrier.dstStageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
+        vk_submit_image_barrier( cmd, &barrier );
 
 		mipWidth >>= 1;
 		if (mipWidth < 1) mipWidth = 1;
@@ -285,9 +285,9 @@ static void vk_compute_normalmap_mips( VkCommandBuffer cmd, image_t *image,
     barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
     barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-    vkCmdPipelineBarrier( cmd,
-                         VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0,
-                         0, NULL, 0, NULL, 1, &barrier );
+    barrier.srcStageMask = VK_PIPELINE_STAGE_2_BLIT_BIT;
+    barrier.dstStageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
+    vk_submit_image_barrier( cmd, &barrier );
 }
 
 void vk_dispatch_compute_normalmaps( void )

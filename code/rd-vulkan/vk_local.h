@@ -1058,6 +1058,7 @@ VkCommandBuffer vk_begin_command_buffer( void );
 void		vk_end_command_buffer( VkCommandBuffer command_buffer, const char *location );
 void		vk_create_command_pool( void );
 void		vk_create_command_buffer( void );
+void		vk_submit_image_barrier( VkCommandBuffer cb, const VkImageMemoryBarrier2 *barrier );
 void vk_record_image_layout_transition( VkCommandBuffer cmdBuf, VkImage image, 
 	VkImageAspectFlags image_aspect_flags, 
 	VkImageLayout old_layout, VkImageLayout new_layout, uint32_t src_stage_override, uint32_t dst_stage_override );
@@ -1131,9 +1132,10 @@ void		vk_destroy_samplers( void );
 VkSampler	vk_find_sampler( const Vk_Sampler_Def *def );
 void		vk_delete_textures( void );
 #if 0
-void		vk_record_buffer_memory_barrier( VkCommandBuffer cb, VkBuffer buffer, 
-	VkDeviceSize size, VkDeviceSize offset, VkPipelineStageFlags src_stages, VkPipelineStageFlags dst_stages, 
-	VkAccessFlags src_access, VkAccessFlags dst_access );
+void		vk_record_buffer_memory_barrier( VkCommandBuffer cb, VkBuffer buffer,
+				VkDeviceSize size, VkDeviceSize offset,
+				VkPipelineStageFlags2 src_stages, VkPipelineStageFlags2 dst_stages,
+				VkAccessFlags2 src_access, VkAccessFlags2 dst_access );
 #endif
 // post-processing
 void		vk_begin_post_blend_render_pass( VkRenderPass renderpass, qboolean clearValues );
