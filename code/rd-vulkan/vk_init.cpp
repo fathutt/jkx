@@ -514,8 +514,29 @@ void vk_initialize( void )
 	if ( r_specularMapping->integer )
 		vk.specularMappingActive = qtrue;
 
-	if ( ( !vk.normalMappingActive && !vk.specularMappingActive ) || vk.maxBoundDescriptorSets < 11 )
+	if ( ( !vk.normalMappingActive && !vk.specularMappingActive ) || vk.maxBoundDescriptorSets < 11 ) {
 		vk.useFastLight = qtrue;
+	}
+
+	// Say which lighting path is actually running. This used to be silent: on a
+	// device reporting maxBoundDescriptorSets < 11 the whole PBR path switched
+	// itself off without a word, so the renderer looked like it was doing PBR
+	// while it was not. Silent degradation is exactly what
+	// docs/CODING-STANDARDS.md section 8.2 forbids, and it is also what
+	// tools/verify/verify.py keys on to tell you which path was measured.
+	if ( vk.useFastLight ) {
+		if ( vk.maxBoundDescriptorSets < 11 ) {
+			ri.Printf( PRINT_WARNING,
+				"JKX: lighting path = fastlight (PBR OFF): this device reports maxBoundDescriptorSets %i, "
+				"and the PBR path needs 11. Bindless removes this limit.\n", vk.maxBoundDescriptorSets );
+		} else {
+			ri.Printf( PRINT_ALL,
+				"JKX: lighting path = fastlight (PBR OFF): r_normalMapping and r_specularMapping are both off.\n" );
+		}
+	} else {
+		ri.Printf( PRINT_ALL, "JKX: lighting path = PBR (maxBoundDescriptorSets %i)\n",
+			vk.maxBoundDescriptorSets );
+	}
 
 #ifdef VK_DLIGHT_GPU
 	if ( !vk.useFastLight && r_dlightMethod->integer )
