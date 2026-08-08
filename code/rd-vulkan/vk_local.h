@@ -573,7 +573,7 @@ typedef struct {
 	VkImageView		swapchain_image_views[MAX_SWAPCHAIN_IMAGES];
 	VkSemaphore		swapchain_rendering_finished[MAX_SWAPCHAIN_IMAGES];
 
-	VkDeviceMemory	image_memory[MAX_ATTACHMENTS_IN_POOL];
+	VmaAllocation	image_memory[MAX_ATTACHMENTS_IN_POOL];
 	uint32_t		image_memory_count;
 
 	VkCommandPool	command_pool;
@@ -1172,6 +1172,8 @@ void		vk_create_allocator( void );
 void		vk_destroy_allocator( void );
 qboolean	vk_create_image_memory( const VkImageCreateInfo *desc, VkImage *image, VmaAllocation *allocation, const char *name );
 void		vk_destroy_image_memory( VkImage *image, VmaAllocation *allocation );
+qboolean	vk_alloc_image_memory( VkImage image, qboolean transient, VmaAllocation *allocation, const char *name );
+void		vk_free_image_memory( VmaAllocation *allocation );
 void		vk_print_memory_usage( void );
 
 // vk_pipeline_cache.cpp

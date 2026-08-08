@@ -49,13 +49,7 @@ static void vk_clear_attachment_pool( void )
 static void vk_alloc_attachment_memory( void )
 {
     VkImageViewCreateInfo view_desc;
-    VkMemoryDedicatedAllocateInfoKHR alloc_info2;
-    VkMemoryAllocateInfo alloc_info;
     VkCommandBuffer command_buffer;
-    VkDeviceMemory memory;
-    VkDeviceSize offset;
-    uint32_t memoryTypeBits;
-    uint32_t memoryTypeIndex;
     uint32_t i;
     int layer;
 
@@ -67,67 +61,31 @@ static void vk_alloc_attachment_memory( void )
         ri.Error(ERR_DROP, "vk.image_memory_count == %i", (int)ARRAY_LEN(vk.image_memory));
     }
 
-    memoryTypeBits = ~0U;
-    offset = 0;
-
+    // Each attachment gets its own VMA allocation. The pool this replaces
+    // packed them all into one VkDeviceMemory with offsets computed by hand,
+    // intersecting memoryTypeBits across every attachment so that one
+    // incompatible entry constrained the rest.
     for (i = 0; i < num_attachments; i++) {
-#ifdef MIN_IMAGE_ALIGN
-        VkDeviceSize alignment = MAX(attachments[i].reqs.alignment, MIN_IMAGE_ALIGN);
-#else
-        VkDeviceSize alignment = attachments[i].reqs.alignment;
-#endif
-        memoryTypeBits &= attachments[i].reqs.memoryTypeBits;
-        offset = PAD(offset, alignment);
-        attachments[i].memory_offset = offset;
-        offset += attachments[i].reqs.size;
-#ifdef _DEBUG
-        vk_debug(va("[%i] type %i, size %i, align %i\n", i,
-            attachments[i].reqs.memoryTypeBits,
-            (int)attachments[i].reqs.size,
-            (int)attachments[i].reqs.alignment));
-#endif
-    }
-
-    if (num_attachments == 1 && attachments[0].usage & VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT) {
-        // try lazy memory
-        memoryTypeIndex = vk_find_memory_type_lazy(memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT, NULL);
-        if (memoryTypeIndex == ~0U) {
-            memoryTypeIndex = vk_find_memory_type(memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        if (vk.image_memory_count >= ARRAY_LEN(vk.image_memory)) {
+            ri.Error(ERR_DROP, "attachment allocation overflow (%i)", (int)ARRAY_LEN(vk.image_memory));
+            return;
         }
-    }
-    else {
-        memoryTypeIndex = vk_find_memory_type(memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    }
 
-#ifdef _DEBUG
-    vk_debug(va("memory type bits: %04x\n", memoryTypeBits));
-    vk_debug(va("memory type index: %04x\n", memoryTypeIndex));
-    vk_debug(va("total size: %i\n", (int)offset));
-#endif
+        const qboolean transient =
+            (attachments[i].usage & VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT) ? qtrue : qfalse;
 
-    alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    alloc_info.pNext = NULL;
-    alloc_info.allocationSize = offset;
-    alloc_info.memoryTypeIndex = memoryTypeIndex;
-
-    if (num_attachments == 1) {
-        if (vk.dedicatedAllocation) {
-            Com_Memset(&alloc_info2, 0, sizeof(alloc_info2));
-            alloc_info2.sType = VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO_KHR;
-            alloc_info2.image = attachments[0].descriptor;
-            alloc_info.pNext = &alloc_info2;
+        VmaAllocation allocation = VK_NULL_HANDLE;
+        if (!vk_alloc_image_memory(attachments[i].descriptor, transient, &allocation,
+                                   va("attachment %i", i))) {
+            ri.Error(ERR_DROP, "Vulkan: out of device memory allocating attachment %i", i);
+            return;
         }
+
+        vk.image_memory[vk.image_memory_count++] = allocation;
     }
-
-    // allocate and bind memory
-    VK_ALLOCATE_MEMORY_CHECK(vk.device, &alloc_info, &memory, "attachment memory");
-
-    vk.image_memory[vk.image_memory_count++] = memory;
 
     for ( i = 0; i < num_attachments; i++ ) {
         VkImageViewType viewType = attachments[i].viewType; // preserve original type
-
-        VK_CHECK(vkBindImageMemory(vk.device, attachments[i].descriptor, memory, attachments[i].memory_offset));
 
         layer = 0;
         while ( qtrue ) {
@@ -428,11 +386,6 @@ void vk_create_attachments( void )
 
     vk_alloc_attachment_memory();
 
-    for ( i = 0; i < vk.image_memory_count; i++ )
-    {
-        VK_SET_OBJECT_NAME( vk.image_memory[i], va("framebuffer memory chunk %i", i), VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_MEMORY_EXT );
-    }
-
     VK_SET_OBJECT_NAME( vk.depth_image, "depth attachment", VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT );
     VK_SET_OBJECT_NAME( vk.depth_image_view, "depth attachment", VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT );
 
@@ -652,7 +605,7 @@ void vk_destroy_attachments( void )
 	
     // image memory
     for (i = 0; i < vk.image_memory_count; i++) {
-        VK_FREE_MEMORY(vk.device, vk.image_memory[i]);
+        vk_free_image_memory(&vk.image_memory[i]);
     }
 
     vk.image_memory_count = 0;

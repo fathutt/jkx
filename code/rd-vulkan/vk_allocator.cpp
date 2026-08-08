@@ -156,3 +156,46 @@ void vk_print_memory_usage(void)
                   (unsigned)(b.budget / (1024 * 1024)), b.statistics.blockCount);
     }
 }
+
+qboolean vk_alloc_image_memory(VkImage image, qboolean transient, VmaAllocation* allocation, const char* name)
+{
+    VmaAllocationCreateInfo alloc = {};
+    alloc.usage = VMA_MEMORY_USAGE_AUTO;
+    alloc.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    alloc.priority = 1.0f;
+
+    if (transient) {
+        // Tile-based GPUs can back a transient attachment with memory that is
+        // never written to RAM at all. The old pool asked for this explicitly
+        // and fell back by hand; here it is a preference, so the fallback is
+        // VMA's problem rather than ours.
+        alloc.preferredFlags = VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT;
+    }
+
+    const VkResult result = vmaAllocateMemoryForImage(vk.allocator, image, &alloc, allocation, NULL);
+    if (result != VK_SUCCESS) {
+        ri.Printf(PRINT_WARNING, "Vulkan: attachment allocation failed (%s) for '%s'\n", vk_result_string(result),
+                  name != NULL ? name : "?");
+        return qfalse;
+    }
+
+    if (vmaBindImageMemory(vk.allocator, *allocation, image) != VK_SUCCESS) {
+        vmaFreeMemory(vk.allocator, *allocation);
+        *allocation = VK_NULL_HANDLE;
+        return qfalse;
+    }
+
+    if (name != NULL) {
+        vmaSetAllocationName(vk.allocator, *allocation, name);
+    }
+    return qtrue;
+}
+
+void vk_free_image_memory(VmaAllocation* allocation)
+{
+    if (allocation == NULL || *allocation == VK_NULL_HANDLE) {
+        return;
+    }
+    vmaFreeMemory(vk.allocator, *allocation);
+    *allocation = VK_NULL_HANDLE;
+}
