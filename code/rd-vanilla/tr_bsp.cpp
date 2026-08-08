@@ -489,6 +489,16 @@ static void ParseMesh ( dsurface_t *ds, mapVert_t *verts, msurface_t *surf, worl
 	width = LittleLong( ds->patchWidth );
 	height = LittleLong( ds->patchHeight );
 
+	// SECURITY: patchWidth/patchHeight come straight from the .bsp and used to be
+	// trusted. points[] is a MAX_PATCH_SIZE^2 stack buffer, so a crafted map could
+	// write past it and take control of the process. ioquake3 has always checked
+	// this; the JKA branch never did. See docs/CODING-STANDARDS.md section 5.2.
+	if ( width <= 0 || width > MAX_PATCH_SIZE || height <= 0 || height > MAX_PATCH_SIZE ) {
+		Com_Error( ERR_DROP, "ParseMesh: bad patch size %dx%d in %s (max %d)",
+			width, height, worldData.name, MAX_PATCH_SIZE );
+		return;
+	}
+
 	verts += LittleLong( ds->firstVert );
 	numPoints = width * height;
 	for ( i = 0 ; i < numPoints ; i++ ) {
