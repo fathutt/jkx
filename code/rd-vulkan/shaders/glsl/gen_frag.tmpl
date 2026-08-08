@@ -1,0 +1,501 @@
+#version 450
+#extension GL_GOOGLE_include_directive : enable
+
+#include "global.h"
+
+#if defined (USE_FOG)
+	layout(set = VK_DESC_UNIFORM, binding = VK_DESC_UNIFORM_MAIN_BINDING) uniform UBO {
+		// light/env/material parameters:
+		vec4 eyePos;
+		vec4 lightPos;
+		vec4 lightColor;
+		vec4 lightVector;
+	//#ifdef USE_FOG	
+		// fog parameters:
+		vec4 fogDistanceVector;
+		vec4 fogDepthVector;
+		vec4 fogEyeT;
+		vec4 fogColor;
+	//#endif
+	};
+
+	layout(set = VK_DESC_UNIFORM, binding = VK_DESC_UNIFORM_FOGS_BINDING) uniform Fog {
+		vkUniformFog_t u_fogs;
+	};
+#endif
+
+#if defined (USE_FOG) || defined(PER_PIXEL_LIGHTING) || defined(USE_LIGHT_VECTOR)
+	layout(set = VK_DESC_UNIFORM, binding = VK_DESC_UNIFORM_CAMERA_BINDING) uniform Camera {
+		vkUniformCamera_t u_camera;
+	};
+#endif
+
+#if defined(PER_PIXEL_LIGHTING) || defined(USE_LIGHT_VECTOR)
+	layout(set = VK_DESC_UNIFORM, binding = VK_DESC_UNIFORM_LIGHT_BINDING) uniform Light {
+		vkUniformLight_t u_lights;
+	};
+
+	layout(set = VK_DESC_UNIFORM, binding = VK_DESC_UNIFORM_ENTITY_BINDING) uniform Entity {
+		vkUniformEntity_t u_entity;
+	};
+
+	layout(set = VK_DESC_UNIFORM, binding = VK_DESC_UNIFORM_GLOBAL_BINDING) uniform Global {
+		vkUniformGlobal_t u_global;
+	};	
+#endif
+
+layout(set = VK_DESC_TEXTURE0, binding = 0) uniform sampler2D texture0;
+#ifdef USE_TX1
+layout(set = VK_DESC_TEXTURE1, binding = 0) uniform sampler2D texture1;
+#endif
+#ifdef USE_TX2
+layout(set = VK_DESC_TEXTURE2, binding = 0) uniform sampler2D texture2;
+#endif
+#ifdef USE_FOG
+layout(set = VK_DESC_FOG_COLLAPSE, binding = 0) uniform sampler2D fog_texture;
+#endif
+
+#ifdef USE_CL0_IDENT
+// use fixed color from spec.constant.8
+#else
+layout(location = 0) in vec4 frag_color0;
+#endif
+
+#ifdef USE_CL1
+layout(location = 5) in vec4 frag_color1;
+#endif
+#ifdef USE_CL2
+layout(location = 6) in vec4 frag_color2;
+#endif
+
+layout(location = 1) centroid in vec2 frag_tex_coord0;
+#ifdef USE_TX1
+layout(location = 2) centroid in vec2 frag_tex_coord1;
+#endif
+#ifdef USE_TX2
+layout(location = 3) centroid in vec2 frag_tex_coord2;
+#endif
+#ifdef USE_FOG
+layout(location = 4) in vec3 fog_tex_coord;
+#endif
+
+#ifdef USE_DF
+layout(depth_less) out float gl_FragDepth;
+#else
+layout(location = 0) out vec4 out_color;
+#endif
+
+#ifdef USE_ATEST
+layout (constant_id = 0) const int alpha_test_func = 0;
+layout (constant_id = 1) const float alpha_test_value = 0.0;
+#ifdef USE_DF
+layout (constant_id = 2) const float depth_fragment = 0.85;
+#endif
+#endif
+
+layout (constant_id = 3) const int alpha_to_coverage = 0;
+//layout (constant_id = 4) const int color_mode = 0;
+layout (constant_id = 5) const int hw_fog = 0;
+//layout (constant_id = 6) const int abs_light = 0;
+#if defined (USE_TX1) || defined(USE_TX2)
+layout (constant_id = 7) const int tex_mode = 0; // modulate, add (identity), add(non-identity) etc
+#endif
+layout (constant_id = 8) const int discard_mode = 0;
+#ifdef USE_CL0_IDENT
+layout (constant_id = 9) const float identity_color = 1.0;
+#endif
+
+#define SHADER_FRAG
+#include "common/utils.glsl"
+#include "common/fog.glsl"
+#include "common/color.glsl"
+
+#if defined(PER_PIXEL_LIGHTING)
+	layout (constant_id = 10) const int normal_texture_set = 0;
+	layout (constant_id = 11) const int physical_texture_set = 0;
+	layout (constant_id = 12) const int env_texture_set = 0;
+	layout (constant_id = 13) const int deluxe_mapping = -1; // -1: deluxemapping off, 0: on, 1: on + bound
+	layout (constant_id = 14) const float deluxe_specular_scale = 1.0;
+
+	layout (location = 10) in vec4 var_Normal;
+	layout (location = 11) in vec4 var_LightDir;
+	layout (location = 12) in vec4 var_ViewDir;
+	layout (location = 13) in flat int Var_RenderMode;
+	layout (location = 14) in vec4 var_Tangent;
+
+	layout (set = VK_DESC_PBR_BRDFLUT,	binding = 0) uniform sampler2D brdflut_texture;
+	layout (set = VK_DESC_PBR_NORMAL,	binding = 0) uniform sampler2D normal_texture;
+	layout (set = VK_DESC_PBR_PHYSICAL,	binding = 0) uniform sampler2D physical_texture;
+	layout (set = VK_DESC_PBR_CUBEMAP,	binding = 0) uniform samplerCube env_texture;
+	layout (set = VK_DESC_PBR_DELUXE,	binding = 0) uniform sampler2D deluxe_texture;
+
+	//layout(set = 10, binding = 0) uniform samplerCube irradiance_texture;
+	#include "common/pbr.glsl"
+#endif
+
+void main() {
+	vec4 diffuse;
+	float attenuation;
+	vec3 viewDir, lightColor, ambientColor;
+	vec3 L, N, E;
+
+#ifdef USE_CL0_IDENT
+	vec4 color0 = texture(texture0, frag_tex_coord0) * vec4( identity_color );
+#else
+	vec4 color0 = texture(texture0, frag_tex_coord0) * frag_color0;
+#endif
+
+	vec4 base;
+
+#if defined (USE_TX2)
+#ifdef USE_CL2
+	// soecial blend modes for non-identity colors
+	if ( tex_mode == 1 || tex_mode == 2 )
+	{
+		// add
+		vec4 color1 = texture(texture1, frag_tex_coord1) * frag_color1;
+		vec4 color2 = texture(texture2, frag_tex_coord2) * frag_color2;
+
+		base = vec4( color0.rgb + color1.rgb + color2.rgb, color0.a * color1.a * color2.a );
+	}
+	else if ( tex_mode == 3 )
+	{
+		// modulate by alpha
+		vec4 color1 = texture(texture1, frag_tex_coord1) * frag_color1;
+		vec4 color2 = texture(texture2, frag_tex_coord2) * frag_color2;
+
+		color0 *= color0.a;
+		color1 *= color1.a;
+		color2 *= color2.a;
+		base = vec4( color0.rgb + color1.rgb + color2.rgb, color0.a * color1.a * color2.a );
+	}
+	else if ( tex_mode == 4 )
+	{
+		// modulate by 1.0-alpha
+		vec4 color1 = texture(texture1, frag_tex_coord1) * frag_color1;
+		vec4 color2 = texture(texture2, frag_tex_coord2) * frag_color2;
+
+		color0 *= 1.0-color0.a;
+		color1 *= 1.0-color1.a;
+		color2 *= 1.0-color2.a;
+		base = vec4( color0.rgb + color1.rgb + color2.rgb, color0.a * color1.a * color2.a );
+	}
+	else if ( tex_mode == 5 )
+	{
+		// mix by src alpha
+		vec4 color1 = texture(texture1, frag_tex_coord1) * frag_color1;
+		vec4 color2 = texture(texture2, frag_tex_coord2) * frag_color2;
+
+		//base = mix( color0, color1, color1.a );
+		//base = mix( base, color2, color2.a );
+		base = mix( mix( color0, color1, color1.a ), color2, color2.a );
+	}
+	else if ( tex_mode == 6 )
+	{
+		// mix by 1-src alpha
+		vec4 color1 = texture(texture1, frag_tex_coord1) * frag_color1;
+		vec4 color2 = texture(texture2, frag_tex_coord2) * frag_color2;
+
+		//base = mix( color1, color0, color1.a );
+		//base = mix( color2, base, color2.a );
+		base = mix( color2, mix( color1, color0, color1.a ), color2.a );
+	}
+	else if ( tex_mode == 7 ) // 0 + 2x GLS_DSTBLEND_SRC_ALPHA | GLS_SRCBLEND_DST_COLOR
+	{
+		vec4 color1 = texture(texture1, frag_tex_coord1) * frag_color1;
+		vec4 color2 = texture(texture2, frag_tex_coord2) * frag_color2;
+
+		base = (color2 + color2.a) * (color1 + color1.a) * color0;
+	}
+	else
+	{
+		vec4 color1 = texture(texture1, frag_tex_coord1) * frag_color1;
+		vec4 color2 = texture(texture2, frag_tex_coord2) * frag_color2;
+		base = color0 * color1 * color2;
+	}
+#else
+	// triple-texture blending
+	if ( tex_mode == 1 )
+	{
+		// add (identity)
+		vec4 color1 = texture(texture1, frag_tex_coord1);
+		vec4 color2 = texture(texture2, frag_tex_coord2);
+		base = vec4(color0.rgb + color1.rgb + color2.rgb, color0.a * color1.a * color2.a);
+	}
+	else if ( tex_mode == 2 )
+	{
+		// add
+		vec4 color1 = texture(texture1, frag_tex_coord1) * frag_color0;
+		vec4 color2 = texture(texture2, frag_tex_coord2) * frag_color0;
+		base = vec4(color0.rgb + color1.rgb + color2.rgb, color0.a * color1.a * color2.a);
+	}
+	else 
+	{
+		// default case, modulate
+		vec4 color1 = texture(texture1, frag_tex_coord1);
+		vec4 color2 = texture(texture2, frag_tex_coord2);
+		base = color0 * color1 * color2;
+	}
+#endif // !USE_TX2
+#elif defined(USE_TX1)
+#ifdef USE_CL1
+	// soecial blend modes for non-identity colors
+	if ( tex_mode == 1 || tex_mode == 2 )
+	{
+		// add
+		vec4 color1 = texture(texture1, frag_tex_coord1) * frag_color1;
+		base = vec4( color0.rgb + color1.rgb, color0.a * color1.a );
+	}
+	else if ( tex_mode == 3 ) // 2x GLS_DSTBLEND_ONE | GLS_SRCBLEND_SRC_ALPHA
+	{
+		// modulate by alpha
+		vec4 color1 = texture(texture1, frag_tex_coord1) * frag_color1;
+		color0 *= color0.a;
+		color1 *= color1.a;
+		base = vec4( color0.rgb + color1.rgb, color0.a * color1.a );
+	}
+	else if ( tex_mode == 4 ) // 2x GLS_DSTBLEND_ONE | GLS_SRCBLEND_ONE_MINUS_SRC_ALPHA
+	{
+		// modulate by 1.0-alpha
+		vec4 color1 = texture(texture1, frag_tex_coord1) * frag_color1;
+		color0 *= 1.0-color0.a;
+		color1 *= 1.0-color1.a;
+		base = vec4( color0.rgb + color1.rgb, color0.a * color1.a );
+	}
+	else if ( tex_mode == 5 ) // 0 + GLS_DSTBLEND_ONE_MINUS_SRC_ALPHA | GLS_SRCBLEND_SRC_ALPHA
+	{
+		// mix by src alpha
+		vec4 color1 = texture(texture1, frag_tex_coord1) * frag_color1;
+		base = mix( color0, color1, color1.a );
+	}
+	else if ( tex_mode == 6 ) // 0 + GLS_DSTBLEND_SRC_ALPHA | GLS_SRCBLEND_ONE_MINUS_SRC_ALPHA
+	{
+		// mix by 1-src alpha
+		vec4 color1 = texture(texture1, frag_tex_coord1) * frag_color1;
+		base = mix( color1, color0, color1.a );
+	}
+	else if ( tex_mode == 7 ) // 0 + GLS_DSTBLEND_SRC_ALPHA | GLS_SRCBLEND_DST_COLOR
+	{
+		// modulate color1 by color0
+		// moduleta color0 by color1.alpha
+		vec4 color1 = texture(texture1, frag_tex_coord1) * frag_color1;
+		base = (color1 + color1.a) * color0;
+	}
+	else
+	{
+		// default case, modulate
+		vec4 color1 = texture(texture1, frag_tex_coord1) * frag_color1;
+		base = color0 * color1;
+	}
+#else
+	// double-texture blending
+	if ( tex_mode == 1 )
+	{
+		// add (identity)
+		vec4 color1 = texture(texture1, frag_tex_coord1);
+		base = vec4(color0.rgb + color1.rgb, color0.a * color1.a);
+	}
+	else if ( tex_mode == 2 )
+	{
+		// add
+		vec4 color1 = texture(texture1, frag_tex_coord1) * frag_color0;
+		base = vec4(color0.rgb + color1.rgb, color0.a * color1.a);
+	}
+	else // default case
+	{
+		// modulate
+		vec4 color1 = texture(texture1, frag_tex_coord1);
+		base = color0 * color1;
+	}
+#endif // !USE_CL1
+#endif // !USE_TX1
+
+#ifdef USE_ATEST
+	if (alpha_to_coverage != 0) {
+		if (alpha_test_func == 1) {
+			base.a =  base.a > 0.0 ? 1.0 : 0.0;
+		} else if (alpha_test_func == 2) {
+			base.a = CorrectAlpha(alpha_test_value, 1.0 - base.a, frag_tex_coord0);
+		} else if (alpha_test_func == 3) {
+			base.a = CorrectAlpha(alpha_test_value, base.a, frag_tex_coord0);
+		}
+	} else
+	// specialization: alpha-test function
+	if (alpha_test_func == 1) {
+		if (color0.a == alpha_test_value) discard;
+	} else if (alpha_test_func == 2) {
+		if (color0.a >= alpha_test_value) discard;
+	} else if (alpha_test_func == 3) {
+		if (color0.a < alpha_test_value) discard;
+	}
+#endif
+
+#if !defined(USE_TX1) && !defined(USE_TX2)
+	base = color0;
+#endif
+
+	if ( discard_mode == 1 ) {
+		if ( base.a == 0.0 ) {
+			discard;
+		}
+	} else if ( discard_mode == 2 ) {
+		if ( dot( base.rgb, base.rgb ) == 0.0 ) {
+			discard;
+		}
+	}
+
+#ifdef USE_DF
+	if ( base.a < depth_fragment )
+		discard;
+
+	gl_FragDepth = gl_FragCoord.z;
+#else
+	
+	#if defined(PER_PIXEL_LIGHTING)
+		viewDir = var_ViewDir.xyz;
+		E = normalize(viewDir);
+
+		L = var_LightDir.xyz;
+
+		#if defined(USE_LIGHTMAP) && defined(USE_TX1)
+			if ( deluxe_mapping > 0 )
+				L = ( texture(deluxe_texture, frag_tex_coord1).rgb - vec3(0.5) );
+		#endif
+
+		float sqrLightDist = dot(L, L);
+		L /= sqrt(sqrLightDist);
+		
+		#if defined(USE_LIGHTMAP) && defined(USE_TX1)
+			vec3 lightmapColor = texture(texture1, frag_tex_coord1).rgb;
+			lightColor = lightmapColor * frag_color0.rgb;
+			diffuse = color0;
+			ambientColor = vec3 (0.0);
+			attenuation = 1.0;
+		#elif defined(USE_LIGHT_VECTOR)
+			lightColor = u_entity.directedLight.rgb;
+			ambientColor = u_entity.ambientLight.rgb;
+			diffuse = base;
+			attenuation = 1.0;
+		#elif defined(USE_LIGHT_VERTEX)
+			#ifdef USE_CL0_IDENT
+				lightColor = vec3(identity_color);
+			#else
+				lightColor = frag_color0.rgb;
+			#endif
+			diffuse = base;
+			ambientColor = vec3 (0.0);
+			attenuation = 1.0;
+		#endif
+
+		N = CalcNormal( var_Normal.xyz, var_Tangent, frag_tex_coord0 );	
+
+		#if defined(USE_LIGHTMAP) || defined(USE_LIGHT_VERTEX)
+			ambientColor = lightColor;
+			float surfNL = clamp(dot(var_Normal.xyz, L), 0.0, 1.0);
+			lightColor /= max( surfNL, 0.25 );
+			ambientColor = max( ambientColor - lightColor * surfNL, 0.0 );
+		#endif
+
+		lightColor *= M_PI;
+
+		vec4 specular = vec4( 1.0 );
+		float roughness = 0.99;
+		float AO = 1.0;
+
+		// metallic roughness workflow
+		if ( physical_texture_set < 0 )
+		{
+			vec4 ORMS = texture( physical_texture, frag_tex_coord0 );
+			ORMS.xyzw *= u_global.specularScale.zwxy;
+			specular.rgb = mix( vec3( 0.08 ) * ORMS.w, diffuse.rgb, ORMS.z );
+			diffuse.rgb *= vec3( 1.0 - ORMS.z );
+
+			roughness = mix( 0.01, 1.0, ORMS.y );
+			AO = min( ORMS.x, AO );
+		} 
+		
+		// specular gloss workflow
+		else 
+		{
+			specular = texture( physical_texture, frag_tex_coord0 );
+			specular.rgb *= u_global.specularScale.xyz;
+			roughness = mix( 1.0, 0.01, specular.a * ( 1.0 - u_global.specularScale.w ) );
+		}
+
+
+		ambientColor *= AO;
+
+		vec3  H  = normalize( L + E );
+		float NE = abs( dot( N, E ) ) + 1e-5;
+		float NL = clamp( dot( N, L ), 0.0, 1.0 );
+		float LH = clamp( dot( L, H ), 0.0, 1.0 );
+
+		vec3  Fd = CalcDiffuse( diffuse.rgb, NE, NL, LH, roughness );
+		vec3  Fs = vec3( 0.0 );
+
+		#if defined(USE_LIGHT_VECTOR)
+			float NH = clamp( dot( N, H ), 0.0, 1.0 );
+			float VH = clamp( dot( E, H ), 0.0, 1.0 );
+			Fs = CalcSpecular( specular.rgb, NH, NL, NE, LH, VH, roughness );
+		#endif
+
+		// ~sunny
+		// allow specular highlights even with r_deluxeMapping 0.
+		// lightgrid approximation is sufficient for specular highlights.
+#if 1
+		// deluxe_specular_scale will be 1.0 when r_deluxeMapping = 0
+		// and match r_deuxeSpecular value when r_deluxeMapping = 1
+		#if defined(USE_LIGHTMAP) || defined(USE_LIGHT_VERTEX)
+			if ( deluxe_specular_scale != 0.0 )
+			{
+				float NH = clamp( dot( N, H ), 0.0, 1.0 );
+				float VH = clamp( dot( E, H ), 0.0, 1.0 );
+				Fs = CalcSpecular( specular.rgb, NH, NL, NE, LH, VH, roughness ) * deluxe_specular_scale;
+			}
+		#endif
+#else
+		// rend2 behavior: skip specular when r_deluxeMapping = 0 on lightmapped surfaces
+		#if ( defined(USE_LIGHTMAP) || defined(USE_LIGHT_VERTEX) )
+			if ( deluxe_specular_scale != 0.0 
+			#if defined(USE_LIGHTMAP)
+				&& deluxe_mapping > -1
+			#endif
+				){
+					float NH = clamp(dot(N, H), 0.0, 1.0);
+					float VH = clamp(dot(E, H), 0.0, 1.0);
+					Fs = CalcSpecular( specular.rgb, NH, NL, NE, LH, VH, roughness) * deluxe_specular_scale;
+				}
+		#endif
+#endif
+
+		vec3 reflectance = Fd + Fs;
+
+		out_color.rgb  = lightColor * reflectance * ( attenuation * NL );
+		out_color.rgb += ambientColor * diffuse.rgb;
+
+			
+		#ifdef VK_DLIGHT_GPU
+			out_color.rgb += CalcDynamicLightContribution(roughness, N, E, u_camera.viewOrigin.xyz, viewDir, NE, diffuse.rgb, specular.rgb, var_Normal.xyz);
+		#endif
+
+		if ( env_texture_set > -1 )
+			out_color.rgb += CalcIBLContribution( roughness, N, E, NE, specular.rgb * AO );
+
+		out_color.a = diffuse.a;
+	#else
+		out_color = base;
+	#endif
+
+	#if defined(USE_FOG)
+		if ( hw_fog == 1 ) {
+			int u_fogIndex = int(fogDistanceVector[1]);
+			vec4 fog_color = CalcFog( u_camera.viewOrigin.rgb, fog_tex_coord, u_fogs.fogs[u_fogIndex] );
+			out_color = mix( out_color, fog_color, fog_color.a );
+		} 
+		else {
+			vec4 fog = texture(fog_texture, fog_tex_coord.xy);
+			out_color = mix( out_color, fog * fogColor, fog.a );
+		}
+	#endif
+#endif
+}
