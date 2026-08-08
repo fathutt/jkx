@@ -199,3 +199,63 @@ void vk_free_image_memory(VmaAllocation* allocation)
     vmaFreeMemory(vk.allocator, *allocation);
     *allocation = VK_NULL_HANDLE;
 }
+
+qboolean vk_create_buffer_memory(const VkBufferCreateInfo* desc, vk_buffer_memory_t kind, VkBuffer* buffer,
+                                 VmaAllocation* allocation, void** mapped, const char* name)
+{
+    VmaAllocationCreateInfo alloc = {};
+    alloc.usage = VMA_MEMORY_USAGE_AUTO;
+    alloc.priority = 1.0f;
+
+    switch (kind) {
+    case VK_BUFFER_MEMORY_DEVICE:
+        alloc.flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
+        break;
+
+    case VK_BUFFER_MEMORY_HOST_WRITE:
+        // Written by the CPU, read by the GPU: vertex, index and uniform
+        // streams, and staging. Persistently mapped, which is what every one of
+        // these call sites did by hand with a vkMapMemory that was never
+        // unmapped. VMA also prefers BAR memory here when the device exposes it.
+        alloc.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
+        break;
+
+    case VK_BUFFER_MEMORY_HOST_READ:
+        // Read back by the CPU: screenshots and AVI capture.
+        alloc.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
+        break;
+    }
+
+    VmaAllocationInfo info = {};
+    const VkResult result = vmaCreateBuffer(vk.allocator, desc, &alloc, buffer, allocation, &info);
+    if (result != VK_SUCCESS) {
+        ri.Printf(PRINT_WARNING, "Vulkan: buffer allocation failed (%s) for '%s', %u KiB\n",
+                  vk_result_string(result), name != NULL ? name : "?",
+                  (unsigned)(desc->size / 1024));
+        return qfalse;
+    }
+
+    if (mapped != NULL) {
+        // Non-null only for the mapped kinds; VMA filled it in when it created
+        // the allocation, so there is no separate map call to keep balanced.
+        *mapped = info.pMappedData;
+    }
+
+    if (name != NULL) {
+        vmaSetAllocationName(vk.allocator, *allocation, name);
+        VK_SET_OBJECT_NAME(*buffer, name, VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT);
+    }
+    return qtrue;
+}
+
+void vk_destroy_buffer_memory(VkBuffer* buffer, VmaAllocation* allocation)
+{
+    if (buffer == NULL || *buffer == VK_NULL_HANDLE) {
+        return;
+    }
+    vmaDestroyBuffer(vk.allocator, *buffer, allocation != NULL ? *allocation : VK_NULL_HANDLE);
+    *buffer = VK_NULL_HANDLE;
+    if (allocation != NULL) {
+        *allocation = VK_NULL_HANDLE;
+    }
+}

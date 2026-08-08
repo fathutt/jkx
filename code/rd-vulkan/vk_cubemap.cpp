@@ -45,7 +45,7 @@ typedef struct {
 	struct {
 		VkImage			image;
 		VkImageView		view;
-		VkDeviceMemory	memory;
+		VmaAllocation	allocation;
 		VkFramebuffer	framebuffer;
 	} offscreen;
 } filterDef;
@@ -146,15 +146,11 @@ static void vk_create_prefilter_framebuffer( filterDef *def ) {
 		VK_CHECK( vkCreateImage( vk.device, &desc, nullptr, &def->offscreen.image ) );
 	}
 
-	vkGetImageMemoryRequirements( vk.device, def->offscreen.image, &memory_requirements);
-	
-	alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	alloc_info.pNext = NULL;
-	alloc_info.allocationSize = memory_requirements.size;
-	alloc_info.memoryTypeIndex = vk_find_memory_type( memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT );
-			
-	VK_CHECK( vkAllocateMemory( vk.device, &alloc_info, nullptr, &def->offscreen.memory ) );
-	VK_CHECK( vkBindImageMemory( vk.device, def->offscreen.image, def->offscreen.memory, 0 ) );
+	if ( !vk_alloc_image_memory( def->offscreen.image, qfalse, &def->offscreen.allocation,
+			"cubemap prefilter offscreen" ) ) {
+		ri.Error( ERR_DROP, "Vulkan: could not allocate the cubemap prefilter target" );
+		return;
+	}
 
 	// create image view
 	{
@@ -347,7 +343,7 @@ void vk_destroy_cubemap_prefilter( void ){
 
 		vkDestroyRenderPass( vk.device, def->renderpass, NULL );
 		vkDestroyFramebuffer( vk.device, def->offscreen.framebuffer, NULL );
-		vkFreeMemory( vk.device, def->offscreen.memory, NULL );
+		vk_free_image_memory( &def->offscreen.allocation );
 		vkDestroyImageView( vk.device, def->offscreen.view, NULL );
 		vkDestroyImage( vk.device, def->offscreen.image, NULL );
 		vkDestroyPipeline( vk.device, def->pipeline, NULL );
