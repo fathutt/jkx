@@ -23,10 +23,68 @@ set(CMAKE_OSX_DEPLOYMENT_TARGET "10.9" CACHE STRING "Minimum OS X deployment ver
 
 set(InOpenJK ON)
 
-set(ProjectName "OpenJK" CACHE STRING "Project Name")
+set(ProjectName "JKX" CACHE STRING "Project Name")
 project(${ProjectName})
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+#=============================================================================
+#
+# JKX build policy
+#
+#   Rules live in docs/CODING-STANDARDS.md. Everything enforceable is enforced
+#   here or in tools/ci/. Do not weaken these without updating that document.
+#
+#=============================================================================
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+
+option(JKX_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
+option(JKX_ENABLE_ASAN        "Build with AddressSanitizer" OFF)
+option(JKX_ENABLE_UBSAN       "Build with UndefinedBehaviorSanitizer" OFF)
+option(JKX_ENABLE_TSAN        "Build with ThreadSanitizer" OFF)
+# Vulkan renderer is imported but not yet buildable: the shader toolchain
+# (phase 1) must land first. Generated SPIR-V is deliberately not in git.
+option(JKX_BUILD_VULKAN_RENDERER "Build the Vulkan renderer (needs shader toolchain)" OFF)
+
+if(MSVC)
+    add_compile_options(/utf-8 /permissive- /W4)
+    add_compile_definitions(_CRT_SECURE_NO_WARNINGS _SCL_SECURE_NO_WARNINGS)
+    if(JKX_WARNINGS_AS_ERRORS)
+        add_compile_options(/WX)
+    endif()
+else()
+    add_compile_options(-finput-charset=UTF-8 -fexec-charset=UTF-8)
+    add_compile_options(-Wall -Wextra)
+    # Legacy noise we accept for now; each entry is a debt item, not a policy.
+    add_compile_options(
+        -Wno-unused-parameter        # pervasive in Raven/id code
+        -Wno-missing-field-initializers
+        -Wno-invalid-offsetof
+        -Wno-write-strings
+        -Wno-comment)
+    if(JKX_WARNINGS_AS_ERRORS)
+        add_compile_options(-Werror)
+    endif()
+endif()
+
+if(JKX_ENABLE_ASAN)
+    add_compile_options(-fsanitize=address -fno-omit-frame-pointer)
+    add_link_options(-fsanitize=address)
+endif()
+if(JKX_ENABLE_UBSAN)
+    add_compile_options(-fsanitize=undefined -fno-sanitize-recover=all)
+    add_link_options(-fsanitize=undefined)
+endif()
+if(JKX_ENABLE_TSAN)
+    add_compile_options(-fsanitize=thread)
+    add_link_options(-fsanitize=thread)
+endif()
+
 
 #=============================================================================
 #
@@ -35,21 +93,14 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 #=============================================================================
 option(BuildPortableVersion "Build portable version (does not read or write files from your user/home directory" OFF)
 
-option(BuildMPEngine "Whether to create projects for the MP client (openjk.exe)" ON)
-option(BuildMPRdVanilla "Whether to create projects for the MP default renderer (rd-vanilla_x86.dll)" ON)
-option(BuildMPDed "Whether to create projects for the MP dedicated server (openjkded.exe)" ON)
-option(BuildMPGame "Whether to create projects for the MP server-side gamecode (jampgamex86.dll)" ON)
-option(BuildMPCGame "Whether to create projects for the MP clientside gamecode (cgamex86.dll)" ON)
-option(BuildMPUI "Whether to create projects for the MP UI code (uix86.dll)" ON)
-option(BuildMPRend2 "Whether to create projects for the EXPERIMENTAL MP rend2 renderer (rd-rend2_x86.dll)" ON)
 
 option(BuildSPEngine "Whether to create projects for the SP engine (openjk_sp.exe)" ON)
 option(BuildSPGame "Whether to create projects for the SP gamecode (jagamex86.dll)" ON)
 option(BuildSPRdVanilla "Whether to create projects for the SP default renderer (rdsp-vanilla_x86.dll)" ON)
 
-option(BuildJK2SPEngine "Whether to create projects for the jk2 SP engine (openjo_sp.exe)" OFF)
-option(BuildJK2SPGame "Whether to create projects for the jk2 sp gamecode mod (jk2gamex86.dll)" OFF)
-option(BuildJK2SPRdVanilla "Whether to create projects for the jk2 sp renderer (rdjosp-vanilla_x86.dll)" OFF)
+option(BuildJK2SPEngine "Build the JK2 SP engine" ON)
+option(BuildJK2SPGame "Build the JK2 SP gamecode" ON)
+option(BuildJK2SPRdVanilla "Build the JK2 SP reference renderer" ON)
 
 option(BuildTests "Whether to build automatic unit tests (requires Boost)" OFF)
 option(UseAddressSanitizer "Whether to enable runtime address sanitizer" OFF)
@@ -163,7 +214,7 @@ endif()
 # Binary names
 #
 #=============================================================================
-set(SPEngine "openjk_sp.${Architecture}")
+set(SPEngine "jkx_ja.${Architecture}")
 set(SPGame "jagame${Architecture}")
 set(SPRDVanillaRenderer "rdsp-vanilla_${Architecture}")
 set(MPEngine "openjk.${Architecture}")
@@ -173,7 +224,7 @@ set(MPGame "jampgame${Architecture}")
 set(MPCGame "cgame${Architecture}")
 set(MPUI "ui${Architecture}")
 set(MPRend2 "rd-rend2_${Architecture}")
-set(JK2SPEngine "openjo_sp.${Architecture}")
+set(JK2SPEngine "jkx_jo.${Architecture}")
 set(JK2SPGame "jospgame${Architecture}")
 set(JK2SPVanillaRenderer "rdjosp-vanilla_${Architecture}")
 set(AssetsPk3 "openjk-${Architecture}.pk3")
@@ -187,7 +238,6 @@ set(SharedLib "shared")
 #
 #=============================================================================
 set(SPDir "${CMAKE_SOURCE_DIR}/code")
-set(MPDir "${CMAKE_SOURCE_DIR}/codemp")
 set(JK2SPDir "${CMAKE_SOURCE_DIR}/codeJK2")
 set(SharedDir ${CMAKE_SOURCE_DIR}/shared)
 set(OpenJKLibDir "${CMAKE_SOURCE_DIR}/lib")
@@ -270,8 +320,6 @@ elseif (("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU") OR ("${CMAKE_C_COMPILER_ID}" M
 	set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3")
 	set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
 
-	# enable somewhat modern C++
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
 	if("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
 		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
@@ -417,7 +465,6 @@ if(BuildJK2SPGame)
 	add_subdirectory("${JK2SPDir}/game")
 endif()
 
-add_subdirectory(${MPDir})
 
 if(BuildSymbolServer)
 	add_subdirectory("tools/WinSymbol")
