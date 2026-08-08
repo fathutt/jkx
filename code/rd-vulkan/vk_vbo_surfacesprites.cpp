@@ -137,14 +137,9 @@ void vk_push_surface_sprites_cmd( const vk_ss_group_def_t *def, int firstInstanc
 // 
 static void vk_destroy_surface_sprites_ssbo( vk_storage_buffer_t *buffer )
 {
-	if ( buffer->memory && buffer->buffer_ptr )
-		vkUnmapMemory( vk.device, buffer->memory );
-
-	if ( buffer->buffer )
-		VK_DESTROY_BUFFER( vk.device, buffer->buffer );
-
-	if ( buffer->memory )
-		VK_FREE_MEMORY( vk.device, buffer->memory );
+	// VMA owns the mapping, so there is no unmap to keep balanced here.
+	vk_destroy_buffer_memory( &buffer->buffer, &buffer->allocation );
+	buffer->buffer_ptr = NULL;
 
 	if ( buffer->descriptor )
 		vkFreeDescriptorSets(vk.device, vk.descriptor_pool, 1, &buffer->descriptor);
