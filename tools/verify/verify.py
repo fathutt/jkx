@@ -38,6 +38,7 @@ import json
 import os
 import platform
 import re
+import shutil
 import statistics
 import subprocess
 import sys
@@ -367,27 +368,86 @@ def resolve_game(args) -> Path:
 # running
 # --------------------------------------------------------------------------
 
-# Engines that can run rd-vulkan, best first. JKX is what this tree builds;
-# EternalJK is the fork the renderer came from and the only thing that can run
-# it until phase 2 lands; OpenJK is here because the JKX binaries are its
-# targets renamed, so an older checkout produces those names.
+# Engines that ship a Vulkan renderer, best first. JKX is what this tree will
+# build; EternalJK is the fork the renderer came from, and until phase 2 lands
+# it is the only thing that can run it.
+#
+# OpenJK is deliberately absent. It is a perfectly good engine and it is often
+# already installed next to the retail files, but it has no Vulkan renderer at
+# all - only rd-vanilla and rd-rend2, both OpenGL. Accepting it meant the tool
+# would launch something, everything would appear to work, and the report would
+# describe a renderer this project is not working on.
 ENGINE_NAMES = [
     "jkx_ja.x86_64.exe", "jkx_ja.x86_64", "jkx_ja.exe",
     "jkx_jo.x86_64.exe", "jkx_jo.x86_64", "jkx_jo.exe",
-    "eternaljk.x86_64.exe", "eternaljk.x86.exe", "eternaljk.x86_64",
-    "openjk.x86_64.exe", "openjk.x86.exe", "openjk.x86_64",
-    "openjk_sp.x86_64.exe", "openjk_sp.x86_64",
+    "eternaljk.x86_64.exe", "eternaljk.x86.exe",
+    "eternaljk.x86_64", "eternaljk.x86",
 ]
 
-# The retail executables. Finding one of these means the game is where we think
-# it is and only the engine is missing, which is a different message from "this
-# is not a game directory at all". None of them can run the Vulkan renderer:
-# they are the 2003 binaries, and rd-vulkan is loaded by name from a build of
-# ours. Listing them is how the tool tells the difference.
-RETAIL_NAMES = [
+# Engines with no Vulkan support that are commonly sitting in the same folder.
+# Naming them is the difference between "install the right build" and "something
+# is wrong with your install".
+GL_ONLY_NAMES = [
+    "openjk.x86_64.exe", "openjk.x86.exe", "openjk.x86_64", "openjk.x86",
+    "openjk_sp.x86_64.exe", "openjk_sp.x86.exe", "openjk_sp.x86_64",
+    "japp.x86_64.exe", "japp.x86.exe",
     "JediAcademy.exe", "jasp.exe", "jamp.exe",
-    "JediOutcast.exe", "jk2sp.exe", "jk2mp.exe", "jk2gamex86.exe",
+    "JediOutcast.exe", "jk2sp.exe", "jk2mp.exe",
 ]
+
+# The renderer itself. The engine loads it by name at startup, so its absence is
+# not an error the engine reports loudly - it falls back to OpenGL and carries
+# on, which is exactly the failure this tool exists to catch.
+RENDERER_STEMS = ["rd-vulkan_x86_64", "rd-vulkan_x86"]
+RENDERER_SUFFIXES = [".dll", ".so", ".dylib"]
+
+ENGINE_DOWNLOAD = {
+    "Windows": ("EternalJK-windows-x86_64.zip",
+                "https://github.com/JKSunny/EternalJK/releases/download/"
+                "latest-pbr/EternalJK-windows-x86_64.zip"),
+    "Linux": ("EternalJK-linux-x86_64.tar.gz",
+              "https://github.com/JKSunny/EternalJK/releases/download/"
+              "latest-pbr/EternalJK-linux-x86_64.tar.gz"),
+}
+
+
+def renderer_libraries(game_dir: Path, binary: Path) -> list[Path]:
+    """Every rd-vulkan the engine could load, anywhere it looks for one."""
+    found: list[Path] = []
+    for directory in {game_dir, binary.parent}:
+        if not directory.is_dir():
+            continue
+        for stem in RENDERER_STEMS:
+            for suffix in RENDERER_SUFFIXES:
+                candidate = directory / (stem + suffix)
+                if candidate.is_file():
+                    found.append(candidate)
+    return found
+
+
+def missing_renderer_message(game_dir: Path, binary: Path) -> str:
+    asset, url = ENGINE_DOWNLOAD.get(platform.system(), ("", ""))
+    lines = [
+        f"{binary.name} is there, but no rd-vulkan library is next to it.",
+        "",
+        "The engine loads the renderer by name at startup. When it is missing the",
+        "engine does not fail: it falls back to OpenGL and runs, so the whole",
+        "measurement would be of the wrong renderer.",
+        "",
+        f"Expected one of: {', '.join(s + RENDERER_SUFFIXES[0] for s in RENDERER_STEMS)}",
+        f"next to {binary.parent}",
+    ]
+    if url:
+        lines += [
+            "",
+            "A build with the Vulkan renderer is published by the fork this project",
+            "was started from:",
+            f"  {url}",
+            "",
+            "Unpack it over the game directory, or let this script do it:",
+            "  verify --fetch-engine",
+        ]
+    return "\n".join(lines)
 
 
 def find_binary(game_dir: Path, explicit: str | None) -> Path:
@@ -409,22 +469,79 @@ def find_binary(game_dir: Path, explicit: str | None) -> Path:
             if candidate.is_file():
                 return candidate
 
-    retail = [name for name in RETAIL_NAMES if (game_dir / name).is_file()]
-    if retail:
-        raise SystemExit(
-            f"{game_dir} holds the retail game ({', '.join(retail)}) but no engine of ours.\n"
-            "The retail executables are the 2003 build: they cannot load rd-vulkan,\n"
-            "so there is nothing here to measure.\n"
-            "\n"
-            "Copy the built engine into that folder, or pass --binary with its path.\n"
-            f"Looked for: {', '.join(ENGINE_NAMES[:6])} ..."
-        )
+    others = [name for name in GL_ONLY_NAMES if (game_dir / name).is_file()]
+    if others:
+        asset, url = ENGINE_DOWNLOAD.get(platform.system(), ("", ""))
+        message = [
+            f"{game_dir} has playable engines ({', '.join(others)}), but none of them",
+            "has a Vulkan renderer: the retail executables are the 2003 build, and OpenJK",
+            "ships only the two OpenGL renderers. There is nothing here to measure.",
+        ]
+        if url:
+            message += [
+                "",
+                "The fork this project was started from publishes a build with rd-vulkan:",
+                f"  {url}",
+                "",
+                "Unpack it over the game directory, or let this script do it:",
+                "  verify --fetch-engine",
+            ]
+        message += ["", "Alternatively pass --binary with the path to a build of your own."]
+        raise SystemExit("\n".join(message))
 
     raise SystemExit(
         f"no engine binary found in {game_dir}.\n"
         f"Looked for: {', '.join(ENGINE_NAMES)}\n"
         "Pass --binary to point at it explicitly."
     )
+
+
+def fetch_engine(game_dir: Path) -> None:
+    """Download and unpack a build that has the Vulkan renderer.
+
+    This installs someone else's binaries into the game directory, so it only
+    ever happens because --fetch-engine was passed. The URL is printed first;
+    nothing is downloaded silently.
+    """
+    import tarfile      # noqa: PLC0415 - only needed on this path
+    import urllib.request  # noqa: PLC0415
+    import zipfile      # noqa: PLC0415
+
+    entry = ENGINE_DOWNLOAD.get(platform.system())
+    if entry is None:
+        raise SystemExit(f"no published build for {platform.system()}; build one and use --binary")
+    asset, url = entry
+
+    print(f"downloading {url}")
+    archive = game_dir / asset
+    try:
+        with urllib.request.urlopen(url) as response, archive.open("wb") as out:  # noqa: S310
+            shutil.copyfileobj(response, out)
+    except OSError as exc:
+        raise SystemExit(f"download failed: {exc}\nDownload it by hand and unpack into {game_dir}")
+
+    print(f"unpacking into {game_dir}")
+    if asset.endswith(".zip"):
+        with zipfile.ZipFile(archive) as zf:
+            zf.extractall(game_dir)
+    else:
+        with tarfile.open(archive) as tf:
+            tf.extractall(game_dir)
+    archive.unlink()
+
+    # The published archives are the install tree, so the engine may have landed
+    # one level down rather than beside base/.
+    for stem in RENDERER_STEMS:
+        for suffix in RENDERER_SUFFIXES:
+            for found in game_dir.glob(f"*/{stem}{suffix}"):
+                print(f"moving {found.parent.name}/* up next to base/")
+                for item in list(found.parent.iterdir()):
+                    target = game_dir / item.name
+                    if target.exists() and target.is_file():
+                        target.unlink()
+                    if not target.exists():
+                        shutil.move(str(item), str(target))
+                return
 
 
 def run_scenario(binary: Path, game_dir: Path, cfg_dir: Path, home: Path, name: str,
@@ -611,6 +728,8 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--title", choices=["jka", "jk2"], default=None,
                         help="which game, when both are installed (default: jka)")
     parser.add_argument("--list", action="store_true", help="list detected installs and exit")
+    parser.add_argument("--fetch-engine", action="store_true",
+                        help="download a published build that has the Vulkan renderer")
     parser.add_argument("--binary", default=None, help="engine binary (auto-detected by default)")
     parser.add_argument("--map", default="mp/ffa3", help="map to load")
     parser.add_argument("--runs", type=int, default=3, help="runs per scenario (median is reported)")
@@ -632,7 +751,16 @@ def main(argv: list[str]) -> int:
     game_dir = resolve_game(args)
     args.resolved_game = game_dir
 
+    if args.fetch_engine:
+        fetch_engine(game_dir)
+
     binary = find_binary(game_dir, args.binary)
+
+    # Fail here rather than after nine launches: without the renderer the engine
+    # runs on OpenGL and every number below would be of the wrong thing.
+    if not renderer_libraries(game_dir, binary):
+        raise SystemExit(missing_renderer_message(game_dir, binary))
+
     cfg_dir = game_dir / "base"
     if not cfg_dir.is_dir():
         raise SystemExit(f"no base/ directory under {game_dir}")

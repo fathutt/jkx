@@ -154,19 +154,22 @@ def test_binary() -> None:
     game = tmp / "Jedi Academy"
     (game / "base").mkdir(parents=True)
 
-    # What a fresh Steam install actually contains. None of it can load
-    # rd-vulkan, so the tool has to say so instead of launching the 2003 build
-    # and reporting whatever came out.
-    for name in ("JediAcademy.exe", "jasp.exe", "jamp.exe"):
+    # What a fresh Steam install actually contains, plus the OpenJK build that
+    # tends to be sitting next to it. All of them start and run; none has a
+    # Vulkan renderer, so launching one produces a confident report about the
+    # wrong renderer. That is the failure this refusal exists to prevent.
+    for name in ("JediAcademy.exe", "jasp.exe", "jamp.exe", "openjk.x86.exe"):
         (game / name).write_text("", encoding="ascii")
 
     try:
         verify.find_binary(game, None)
-        check(False, "retail-only install is refused")
+        check(False, "an install with no Vulkan-capable engine is refused")
     except SystemExit as exc:
         message = str(exc)
-        check("cannot load rd-vulkan" in message, "retail-only install is refused")
-        check("JediAcademy.exe" in message, "the message names what it did find")
+        check("none of them" in message, "an install with no Vulkan-capable engine is refused")
+        check("openjk.x86.exe" in message and "JediAcademy.exe" in message,
+              "the message names every engine it did find")
+        check("releases/download" in message, "the message says where to get a Vulkan build")
 
     # Once one of ours is dropped in next to them, it wins.
     (game / "eternaljk.x86_64.exe").write_text("", encoding="ascii")
@@ -193,8 +196,38 @@ def test_binary() -> None:
         verify.find_binary(bare, None)
         check(False, "a directory with neither is refused")
     except SystemExit as exc:
-        check("cannot load rd-vulkan" not in str(exc),
+        check("none of them" not in str(exc),
               "a directory with neither gets the other message")
+
+
+def test_renderer_present() -> None:
+    # An engine that can load rd-vulkan is not enough: the library has to be
+    # there. When it is missing the engine falls back to OpenGL and runs
+    # normally, so nothing downstream would notice.
+    tmp = Path(tempfile.mkdtemp())
+    game = tmp / "Jedi Academy"
+    (game / "base").mkdir(parents=True)
+    engine = game / "eternaljk.x86_64.exe"
+    engine.write_text("", encoding="ascii")
+
+    check(verify.renderer_libraries(game, engine) == [], "no renderer is detected as absent")
+
+    message = verify.missing_renderer_message(game, engine)
+    check("falls back to OpenGL" in message, "the message explains why silence is dangerous")
+    check("releases/download" in message, "the message says where to get one")
+
+    lib = game / "rd-vulkan_x86_64.dll"
+    lib.write_text("", encoding="ascii")
+    check(verify.renderer_libraries(game, engine) == [lib], "the renderer is found next to base/")
+
+    # A build kept elsewhere, with --binary pointing into it, ships its own copy.
+    build = tmp / "build"
+    build.mkdir()
+    other = build / "jkx_ja.x86_64"
+    other.write_text("", encoding="ascii")
+    (build / "rd-vulkan_x86_64.so").write_text("", encoding="ascii")
+    check(len(verify.renderer_libraries(game, other)) == 2,
+          "renderers are looked for next to the binary as well as next to base/")
 
 
 # --------------------------------------------------------------------------
@@ -383,6 +416,7 @@ def test_end_to_end() -> None:
     engine = game / "jkx_ja.x86_64"
     engine.write_text(FAKE_ENGINE, encoding="ascii")
     engine.chmod(0o755)
+    (game / "rd-vulkan_x86_64.so").write_text("", encoding="ascii")
 
     home = tmp / "home"
     out = tmp / "report.md"
@@ -409,7 +443,7 @@ def test_end_to_end() -> None:
 
 
 def main() -> int:
-    for test in (test_vdf, test_layout, test_detection, test_binary, test_startup_cvars,
+    for test in (test_vdf, test_layout, test_detection, test_binary, test_renderer_present, test_startup_cvars,
                  test_parsing, test_report, test_missing, test_end_to_end):
         print(f"\n{test.__name__}")
         test()
