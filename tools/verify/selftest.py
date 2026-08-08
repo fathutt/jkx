@@ -238,6 +238,23 @@ def test_parsing() -> None:
           "a build predating the diagnostic reports nothing rather than guessing")
 
 
+def test_startup_cvars() -> None:
+    # cl_renderer is CVAR_LATCH. Written from a config that runs after startup
+    # it takes effect on the next vid_restart, so the startup scenario would
+    # measure the OpenGL renderer while claiming to measure Vulkan. It has to be
+    # on the command line, and the config must not set it at all.
+    cvars = dict(verify.STARTUP_CVARS)
+    check(cvars.get("cl_renderer") == "rd-vulkan", "cl_renderer is set before startup")
+    check(cvars.get("s_initsound") == "0", "sound init stays out of the timings")
+
+    cfg = verify.build_cfg(verify.SCENARIOS["startup"]["cfg"], "mp/ffa3")
+    check("cl_renderer" not in cfg, "the config does not set cl_renderer")
+    check("vkinfo" in cfg and cfg.strip().endswith("quit"), "the config still ends in quit")
+
+    cfg = verify.build_cfg(verify.SCENARIOS["map"]["cfg"], "t1_sour")
+    check("map t1_sour" in cfg, "the map name is substituted")
+
+
 def test_report() -> None:
     tmp = Path(tempfile.mkdtemp())
 
@@ -265,6 +282,13 @@ def test_report() -> None:
     text = out.read_text(encoding="utf-8")
     check("**PBR is OFF" in text, "report is loud when PBR was off")
     check("VUID-VkImageMemoryBarrier2-oldLayout-01197" in text, "validation messages reach the report")
+
+    # The failure the retail executable produces, and the one an install without
+    # rd-vulkan next to the engine produces: OpenGL ran instead.
+    out = tmp / "gl.md"
+    verify.write_report(out, results, verify.parse_console("GL_VENDOR: NVIDIA\nGL_RENDERER: x\n"), Args())
+    check("did not report itself" in out.read_text(encoding="utf-8"),
+          "report calls out a run where rd-vulkan never loaded")
 
     out = tmp / "empty.md"
     verify.write_report(out, {}, verify.parse_console(""), Args())
@@ -308,8 +332,8 @@ def test_missing() -> None:
 
 
 def main() -> int:
-    for test in (test_vdf, test_layout, test_detection, test_binary, test_parsing, test_report,
-                 test_missing):
+    for test in (test_vdf, test_layout, test_detection, test_binary, test_startup_cvars,
+                 test_parsing, test_report, test_missing):
         print(f"\n{test.__name__}")
         test()
     print()
