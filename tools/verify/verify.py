@@ -240,10 +240,56 @@ def steam_libraries(root: Path) -> list[Path]:
     return libraries
 
 
+# Installs seen in the wild that are worth trying before scanning anything.
+# Cheap to check and skipped when absent, so an entry that is wrong for one
+# machine costs nothing on another.
+KNOWN_INSTALLS = [
+    ("jka", r"D:\Games\Steam\steamapps\common\Jedi Academy"),
+]
+
+
+def game_root(install: Path) -> Path | None:
+    """The directory the engine should treat as fs_basepath.
+
+    Two layouts exist. The retail and older Steam depots put everything under
+    GameData; the current Steam depot of Jedi Academy has base/ directly in the
+    install folder, with JediAcademy.exe next to it. Both are valid, so pick
+    whichever one actually holds base/ rather than insisting on GameData.
+    """
+    if (install / "GameData" / "base").is_dir():
+        return install / "GameData"
+    if (install / "base").is_dir():
+        return install
+    return None
+
+
 def find_steam_games() -> list[dict]:
-    """Return the installed games we know how to drive, GameData included."""
+    """Every install we know how to drive, as a list of game roots."""
     found: list[dict] = []
     seen: set[Path] = set()
+    labels = {key: label for _appid, label, _dir, key in STEAM_GAMES}
+    appids = {key: appid for appid, _label, _dir, key in STEAM_GAMES}
+
+    def add(key: str, install: Path, library: Path | None) -> None:
+        root = game_root(install)
+        if root is None:
+            return  # present in Steam but never fully installed
+        resolved = root.resolve()
+        if resolved in seen:
+            return
+        seen.add(resolved)
+        found.append({
+            "key": key,
+            "label": labels[key],
+            "appid": appids[key],
+            "path": resolved,
+            "library": library,
+        })
+
+    for key, hint in KNOWN_INSTALLS:
+        install = Path(hint)
+        if install.is_dir():
+            add(key, install, None)
 
     for root in steam_roots():
         for library in steam_libraries(root):
@@ -252,23 +298,11 @@ def find_steam_games() -> list[dict]:
                 if not common.is_dir():
                     continue
 
-                for appid, label, _default_dir, key in STEAM_GAMES:
+                for _appid, _label, _default_dir, key in STEAM_GAMES:
                     for alias in INSTALL_DIR_ALIASES[key]:
                         install = common / alias
-                        gamedata = install / "GameData"
-                        if not gamedata.is_dir():
-                            continue
-                        resolved = gamedata.resolve()
-                        if resolved in seen:
-                            continue
-                        seen.add(resolved)
-                        found.append({
-                            "key": key,
-                            "label": label,
-                            "appid": appid,
-                            "path": resolved,
-                            "library": library,
-                        })
+                        if install.is_dir():
+                            add(key, install, library)
     return found
 
 
@@ -277,10 +311,10 @@ def not_found_message() -> str:
     roots = steam_roots()
     if not roots:
         return ("No Steam installation found on this machine.\n"
-                "Pass --game with the path to the game's GameData directory.")
+                "Pass --game with the path to the game's install folder.")
     return ("Steam is installed, but neither Jedi Academy nor Jedi Outcast is.\n"
             "Searched: " + ", ".join(str(r) for r in roots) + "\n"
-            "If the game lives elsewhere, pass --game with the path to GameData.")
+            "If the game lives elsewhere, pass --game with its install folder.")
 
 
 def resolve_game(args) -> Path:
@@ -289,7 +323,12 @@ def resolve_game(args) -> Path:
         path = Path(args.game).expanduser().resolve()
         if not path.is_dir():
             raise SystemExit(f"game directory not found: {path}")
-        return path
+        # Accept either the install folder or the GameData inside it.
+        root = game_root(path)
+        if root is None:
+            raise SystemExit(f"no base/ directory under {path} or {path / 'GameData'}; "
+                             "is this the game's install folder?")
+        return root.resolve()
 
     games = find_steam_games()
     if not games:
@@ -317,26 +356,63 @@ def resolve_game(args) -> Path:
 # running
 # --------------------------------------------------------------------------
 
+# Engines that can run rd-vulkan, best first. JKX is what this tree builds;
+# EternalJK is the fork the renderer came from and the only thing that can run
+# it until phase 2 lands; OpenJK is here because the JKX binaries are its
+# targets renamed, so an older checkout produces those names.
+ENGINE_NAMES = [
+    "jkx_ja.x86_64.exe", "jkx_ja.x86_64", "jkx_ja.exe",
+    "jkx_jo.x86_64.exe", "jkx_jo.x86_64", "jkx_jo.exe",
+    "eternaljk.x86_64.exe", "eternaljk.x86.exe", "eternaljk.x86_64",
+    "openjk.x86_64.exe", "openjk.x86.exe", "openjk.x86_64",
+    "openjk_sp.x86_64.exe", "openjk_sp.x86_64",
+]
+
+# The retail executables. Finding one of these means the game is where we think
+# it is and only the engine is missing, which is a different message from "this
+# is not a game directory at all". None of them can run the Vulkan renderer:
+# they are the 2003 binaries, and rd-vulkan is loaded by name from a build of
+# ours. Listing them is how the tool tells the difference.
+RETAIL_NAMES = [
+    "JediAcademy.exe", "jasp.exe", "jamp.exe",
+    "JediOutcast.exe", "jk2sp.exe", "jk2mp.exe", "jk2gamex86.exe",
+]
+
+
 def find_binary(game_dir: Path, explicit: str | None) -> Path:
     if explicit:
-        candidate = Path(explicit)
+        candidate = Path(explicit).expanduser()
         if not candidate.is_file():
             raise SystemExit(f"binary not found: {candidate}")
         return candidate
 
-    names = [
-        "eternaljk.x86_64.exe", "eternaljk.x86.exe", "eternaljk.x86_64",
-        "jkx_ja.x86_64.exe", "jkx_ja.x86_64", "jkx_ja.exe",
-        "openjk.x86_64.exe", "openjk.x86_64",
-    ]
-    for name in names:
-        candidate = game_dir / name
-        if candidate.is_file():
-            return candidate
+    # The engine has to sit next to base/, but a build directory in this repo is
+    # worth checking too: it saves a copy for anyone measuring a fresh build.
+    search = [game_dir, game_dir.parent]
+    repo = Path(__file__).resolve().parents[2]
+    search += [repo / "build", repo / "build" / "Release", repo / "build-san"]
+
+    for directory in search:
+        for name in ENGINE_NAMES:
+            candidate = directory / name
+            if candidate.is_file():
+                return candidate
+
+    retail = [name for name in RETAIL_NAMES if (game_dir / name).is_file()]
+    if retail:
+        raise SystemExit(
+            f"{game_dir} holds the retail game ({', '.join(retail)}) but no engine of ours.\n"
+            "The retail executables are the 2003 build: they cannot load rd-vulkan,\n"
+            "so there is nothing here to measure.\n"
+            "\n"
+            "Copy the built engine into that folder, or pass --binary with its path.\n"
+            f"Looked for: {', '.join(ENGINE_NAMES[:6])} ..."
+        )
+
     raise SystemExit(
         f"no engine binary found in {game_dir}.\n"
-        f"Looked for: {', '.join(names)}\n"
-        f"Pass --binary to point at it explicitly."
+        f"Looked for: {', '.join(ENGINE_NAMES)}\n"
+        "Pass --binary to point at it explicitly."
     )
 
 
@@ -525,7 +601,7 @@ def main(argv: list[str]) -> int:
     binary = find_binary(game_dir, args.binary)
     cfg_dir = game_dir / "base"
     if not cfg_dir.is_dir():
-        raise SystemExit(f"no base/ directory under {game_dir}; is this GameData?")
+        raise SystemExit(f"no base/ directory under {game_dir}")
 
     home = home_path(game_dir)
     print(f"binary   : {binary}")

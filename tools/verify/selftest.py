@@ -61,6 +61,27 @@ def test_vdf() -> None:
 # Steam detection
 # --------------------------------------------------------------------------
 
+def test_layout() -> None:
+    tmp = Path(tempfile.mkdtemp())
+
+    # Retail and the older Steam depots: everything under GameData.
+    old = tmp / "old"
+    (old / "GameData" / "base").mkdir(parents=True)
+    check(verify.game_root(old) == old / "GameData", "GameData layout resolves to GameData")
+
+    # Current Steam depot of Jedi Academy: base/ sits in the install folder and
+    # JediAcademy.exe next to it, with no GameData at all.
+    flat = tmp / "flat"
+    (flat / "base").mkdir(parents=True)
+    (flat / "JediAcademy.exe").write_text("", encoding="ascii")
+    check(verify.game_root(flat) == flat, "flat layout resolves to the install folder")
+
+    # Present in Steam but never finished downloading.
+    empty = tmp / "empty"
+    empty.mkdir()
+    check(verify.game_root(empty) is None, "install without base/ is not a game root")
+
+
 def test_detection() -> None:
     tmp = Path(tempfile.mkdtemp())
     home = tmp / "home"
@@ -70,11 +91,13 @@ def test_detection() -> None:
     (root / "steamapps" / "common").mkdir(parents=True)
     (other / "steamapps" / "common").mkdir(parents=True)
 
-    # Jedi Academy in the main library under the current long folder name,
-    # Jedi Outcast on a second library under the name Steam used to use.
-    jka = root / "steamapps" / "common" / "STAR WARS Jedi Knight - Jedi Academy" / "GameData"
+    # Jedi Academy in the main library under the current long folder name and
+    # the current flat layout; Jedi Outcast on a second library under the name
+    # Steam used to use, with the GameData layout. Both must be found.
+    jka = root / "steamapps" / "common" / "STAR WARS Jedi Knight - Jedi Academy"
     jk2 = other / "steamapps" / "common" / "Jedi Outcast" / "GameData"
     (jka / "base").mkdir(parents=True)
+    (jka / "JediAcademy.exe").write_text("", encoding="ascii")
     (jk2 / "base").mkdir(parents=True)
 
     (root / "steamapps" / "libraryfolders.vdf").write_text(
@@ -94,16 +117,16 @@ def test_detection() -> None:
     games = verify.find_steam_games()
     by_key = {g["key"]: g for g in games}
     check(sorted(by_key) == ["jk2", "jka"], f"both games detected (got {sorted(by_key)})")
-    check(by_key.get("jka", {}).get("path") == jka.resolve(), "jka resolves to its GameData")
-    check(by_key.get("jk2", {}).get("path") == jk2.resolve(), "jk2 resolves to its GameData")
+    check(by_key.get("jka", {}).get("path") == jka.resolve(), "flat install resolves to itself")
+    check(by_key.get("jk2", {}).get("path") == jk2.resolve(), "GameData install resolves to GameData")
     check(by_key.get("jka", {}).get("appid") == 6020 and by_key.get("jk2", {}).get("appid") == 6030,
           "app ids are right")
     check(len(games) == len({str(g["path"]) for g in games}), "no install reported twice")
 
-    # A copy that exists but was never fully installed has no GameData, and
-    # running against it would fail deep inside the engine instead of here.
+    # A copy that exists but was never fully installed has no base/, and running
+    # against it would fail deep inside the engine instead of here.
     (other / "steamapps" / "common" / "Jedi Academy").mkdir(parents=True)
-    check(len(verify.find_steam_games()) == 2, "install without GameData is not offered")
+    check(len(verify.find_steam_games()) == 2, "install without base/ is not offered")
 
     class Args:
         game = None
@@ -116,6 +139,61 @@ def test_detection() -> None:
     args.title = None
     args.game = str(jka)
     check(verify.resolve_game(args) == jka.resolve(), "--game wins over detection")
+    args.game = str(jk2.parent)
+    check(verify.resolve_game(args) == jk2.resolve(),
+          "--game accepts the install folder and finds GameData under it")
+
+
+# --------------------------------------------------------------------------
+# picking the executable
+# --------------------------------------------------------------------------
+
+def test_binary() -> None:
+    tmp = Path(tempfile.mkdtemp())
+    game = tmp / "Jedi Academy"
+    (game / "base").mkdir(parents=True)
+
+    # What a fresh Steam install actually contains. None of it can load
+    # rd-vulkan, so the tool has to say so instead of launching the 2003 build
+    # and reporting whatever came out.
+    for name in ("JediAcademy.exe", "jasp.exe", "jamp.exe"):
+        (game / name).write_text("", encoding="ascii")
+
+    try:
+        verify.find_binary(game, None)
+        check(False, "retail-only install is refused")
+    except SystemExit as exc:
+        message = str(exc)
+        check("cannot load rd-vulkan" in message, "retail-only install is refused")
+        check("JediAcademy.exe" in message, "the message names what it did find")
+
+    # Once one of ours is dropped in next to them, it wins.
+    (game / "eternaljk.x86_64.exe").write_text("", encoding="ascii")
+    check(verify.find_binary(game, None) == game / "eternaljk.x86_64.exe",
+          "an engine of ours is preferred over the retail executables")
+
+    (game / "jkx_ja.x86_64.exe").write_text("", encoding="ascii")
+    check(verify.find_binary(game, None) == game / "jkx_ja.x86_64.exe",
+          "JKX wins over EternalJK when both are present")
+
+    explicit = game / "custom.exe"
+    explicit.write_text("", encoding="ascii")
+    check(verify.find_binary(game, str(explicit)) == explicit, "--binary is taken as given")
+
+    try:
+        verify.find_binary(game, str(game / "nope.exe"))
+        check(False, "--binary pointing at nothing is rejected")
+    except SystemExit:
+        check(True, "--binary pointing at nothing is rejected")
+
+    bare = tmp / "bare"
+    (bare / "base").mkdir(parents=True)
+    try:
+        verify.find_binary(bare, None)
+        check(False, "a directory with neither is refused")
+    except SystemExit as exc:
+        check("cannot load rd-vulkan" not in str(exc),
+              "a directory with neither gets the other message")
 
 
 # --------------------------------------------------------------------------
@@ -230,7 +308,8 @@ def test_missing() -> None:
 
 
 def main() -> int:
-    for test in (test_vdf, test_detection, test_parsing, test_report, test_missing):
+    for test in (test_vdf, test_layout, test_detection, test_binary, test_parsing, test_report,
+                 test_missing):
         print(f"\n{test.__name__}")
         test()
     print()
