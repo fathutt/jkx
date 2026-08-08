@@ -191,7 +191,7 @@ void vk_get_vulkan_properties( VkPhysicalDeviceProperties *props )
     vk_debug("\nActive 3D API: Vulkan\n");
 
     // To query general properties of physical devices once enumerated
-    qvkGetPhysicalDeviceProperties( vk.physical_device, props );
+    vkGetPhysicalDeviceProperties( vk.physical_device, props );
 
     major = VK_VERSION_MAJOR( props->apiVersion );
     minor = VK_VERSION_MINOR( props->apiVersion );

@@ -577,7 +577,7 @@ void RB_BindDescriptorSets( const DrawItem& drawItem )
 
 	count = end - start + 1;
 
-	qvkCmdBindDescriptorSets(vk.cmd->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+	vkCmdBindDescriptorSets(vk.cmd->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
 		drawItem.pipeline_layout, start, count, drawItem.descriptor_set.current + start, offset_count, offsets);
 }
 
@@ -605,7 +605,7 @@ static void RB_DrawItems( int numDrawItems, const DrawItem *drawItems )
 		vk_bind_pipeline( drawItem.pipeline );
 
 		if( drawItem.bind_count )
-			qvkCmdBindVertexBuffers( vk.cmd->command_buffer, 
+			vkCmdBindVertexBuffers( vk.cmd->command_buffer, 
 			drawItem.bind_base, drawItem.bind_count, 
 			drawItem.shade_buffers, drawItem.shade_offset + drawItem.bind_base );
 
@@ -616,16 +616,16 @@ static void RB_DrawItems( int numDrawItems, const DrawItem *drawItems )
 			get_scissor_rect(&scissor_rect);
 
 			if (memcmp(&vk.cmd->scissor_rect, &scissor_rect, sizeof(scissor_rect)) != 0) {
-				qvkCmdSetScissor(vk.cmd->command_buffer, 0, 1, &scissor_rect);
+				vkCmdSetScissor(vk.cmd->command_buffer, 0, 1, &scissor_rect);
 				vk.cmd->scissor_rect = scissor_rect;
 			}
 
 			get_viewport(&viewport, drawItem.depthRange);
-			qvkCmdSetViewport(vk.cmd->command_buffer, 0, 1, &viewport);
+			vkCmdSetViewport(vk.cmd->command_buffer, 0, 1, &viewport);
 		}
 
 		if ( drawItem.polygonOffset )
-			qvkCmdSetDepthBias( vk.cmd->command_buffer, r_offsetUnits->value, 0.0f, r_offsetFactor->value );
+			vkCmdSetDepthBias( vk.cmd->command_buffer, r_offsetUnits->value, 0.0f, r_offsetFactor->value );
 
 		// push constants
 		// use push constants for materials as well?
@@ -642,7 +642,7 @@ static void RB_DrawItems( int numDrawItems, const DrawItem *drawItems )
 				else
 					vk_bind_index_buffer( drawItem.ibo->buffer, 0 );
 
-				qvkCmdDrawIndexedIndirect( 
+				vkCmdDrawIndexedIndirect( 
 					vk.cmd->command_buffer, 
 					vk.cmd->indirect_buffer,
 					drawItem.draw.params.indexedIndirect.offset,
@@ -653,7 +653,7 @@ static void RB_DrawItems( int numDrawItems, const DrawItem *drawItems )
 			}
 
 			vk_bind_index_buffer( drawItem.ibo->buffer,  drawItem.draw.params.indexed.index_offset );
-			qvkCmdDrawIndexed( vk.cmd->command_buffer, drawItem.draw.params.indexed.num_indexes, 1, 0, 0, 0 );
+			vkCmdDrawIndexed( vk.cmd->command_buffer, drawItem.draw.params.indexed.num_indexes, 1, 0, 0, 0 );
 		}
 
 		// world vbo
@@ -666,12 +666,12 @@ static void RB_DrawItems( int numDrawItems, const DrawItem *drawItems )
 				vk_bind_index_buffer( vk.vbo.vertex_buffer, drawItem.draw.params.indexed.world.ibo_offset );
 
 				for ( j = 0; j < drawItem.draw.params.indexed.world.ibo_items_count; ++j )
-					qvkCmdDrawIndexed( vk.cmd->command_buffer,  drawItem.draw.params.indexed.world.ibo_items[j].indexCount, 1, drawItem.draw.params.indexed.world.ibo_items[j].firstIndex, 0, 0 );
+					vkCmdDrawIndexed( vk.cmd->command_buffer,  drawItem.draw.params.indexed.world.ibo_items[j].indexCount, 1, drawItem.draw.params.indexed.world.ibo_items[j].firstIndex, 0, 0 );
 			}
 
 			if ( drawItem.draw.params.indexed.world.soft_buffer_indexes ) {
 				vk_bind_index_buffer( vk.cmd->vertex_buffer, drawItem.draw.params.indexed.world.soft_buffer_offset );
-				qvkCmdDrawIndexed( vk.cmd->command_buffer, drawItem.draw.params.indexed.world.soft_buffer_indexes, 1, 0, 0, 0 );	
+				vkCmdDrawIndexed( vk.cmd->command_buffer, drawItem.draw.params.indexed.world.soft_buffer_indexes, 1, 0, 0, 0 );	
 			}
 		}
 
@@ -680,11 +680,11 @@ static void RB_DrawItems( int numDrawItems, const DrawItem *drawItems )
 		{
 			if ( drawItem.indexed ) {
 				vk_bind_index_buffer( vk.cmd->vertex_buffer, drawItem.draw.params.indexed.index_offset );
-				qvkCmdDrawIndexed( vk.cmd->command_buffer, drawItem.draw.params.indexed.num_indexes, 1, 0, 0, 0 ) ;
+				vkCmdDrawIndexed( vk.cmd->command_buffer, drawItem.draw.params.indexed.num_indexes, 1, 0, 0, 0 ) ;
 				continue;
 			}
 
-			qvkCmdDraw( vk.cmd->command_buffer, drawItem.draw.params.arrays.num_vertexes, 1, 0, 0 );
+			vkCmdDraw( vk.cmd->command_buffer, drawItem.draw.params.arrays.num_vertexes, 1, 0, 0 );
 		}
 	}
 }

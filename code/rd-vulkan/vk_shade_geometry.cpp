@@ -92,7 +92,7 @@ void vk_update_mvp( const float *m ) {
 	else
 		get_mvp_transform(push_constants.mvp);
 
-	qvkCmdPushConstants(vk.cmd->command_buffer, vk.pipeline_layout, 
+	vkCmdPushConstants(vk.cmd->command_buffer, vk.pipeline_layout, 
 		VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(push_constants), &push_constants);
 
 #ifdef USE_VK_STATS
@@ -168,7 +168,7 @@ uint32_t vk_tess_index( uint32_t numIndexes, const void *src ) {
 void vk_bind_index_buffer( VkBuffer buffer, uint32_t offset, VkIndexType type )
 {
 	if ( vk.cmd->curr_index_buffer != buffer || vk.cmd->curr_index_offset != offset )
-		qvkCmdBindIndexBuffer( vk.cmd->command_buffer, buffer, offset, type );
+		vkCmdBindIndexBuffer( vk.cmd->command_buffer, buffer, offset, type );
 
 	vk.cmd->curr_index_buffer = buffer;
 	vk.cmd->curr_index_offset = offset;
@@ -177,7 +177,7 @@ void vk_bind_index_buffer( VkBuffer buffer, uint32_t offset, VkIndexType type )
 #ifdef USE_VBO
 void vk_draw_indexed( uint32_t indexCount, uint32_t firstIndex )
 {
-	qvkCmdDrawIndexed( vk.cmd->command_buffer, indexCount, 1, firstIndex, 0, 0 );
+	vkCmdDrawIndexed( vk.cmd->command_buffer, indexCount, 1, firstIndex, 0, 0 );
 }
 #endif
 
@@ -186,7 +186,7 @@ void vk_bind_index( void )
 #ifdef USE_VBO
 	if ( tess.vbo_world_index ) {
 		vk.cmd->num_indexes = 0;
-		//qvkCmdBindIndexBuffer( vk.cmd->command_buffer, vk.vbo.index_buffer, tess.shader->iboOffset, VK_INDEX_TYPE_UINT32 );
+		//vkCmdBindIndexBuffer( vk.cmd->command_buffer, vk.vbo.index_buffer, tess.shader->iboOffset, VK_INDEX_TYPE_UINT32 );
 		return;
 	}
 #endif
@@ -280,7 +280,7 @@ static void vk_vbo_bind_geometry_surface_sprites ( uint32_t flags )
 	bind_count = 6;
 	bind_base = 0;
 
-	qvkCmdBindVertexBuffers(vk.cmd->command_buffer, bind_base, bind_count, shade_bufs, vk.cmd->vbo_offset + bind_base);
+	vkCmdBindVertexBuffers(vk.cmd->command_buffer, bind_base, bind_count, shade_bufs, vk.cmd->vbo_offset + bind_base);
 }
 #endif
 
@@ -362,7 +362,7 @@ void vk_bind_geometry( uint32_t flags )
 			vk_bind_index_attr(9);
 		}
 
-		//qvkCmdBindVertexBuffers(vk.cmd->command_buffer, bind_base, bind_count, shade_bufs, vk.cmd->vbo_offset + bind_base);
+		//vkCmdBindVertexBuffers(vk.cmd->command_buffer, bind_base, bind_count, shade_bufs, vk.cmd->vbo_offset + bind_base);
 	}
 	else
 #endif // USE_VBO
@@ -403,18 +403,18 @@ void vk_bind_geometry( uint32_t flags )
 		if (flags & TESS_LIGHTDIR)
 			vk_bind_attr(9, sizeof(tess.lightdir[0]), tess.lightdir);
 
-		//qvkCmdBindVertexBuffers(vk.cmd->command_buffer, bind_base, bind_count, shade_bufs, vk.cmd->buf_offset + bind_base);
+		//vkCmdBindVertexBuffers(vk.cmd->command_buffer, bind_base, bind_count, shade_bufs, vk.cmd->buf_offset + bind_base);
 	}
 }
 
 void vk_bind_geometry_buffer( void ) {
 
 	if ( tess.vbo_world_index ) {
-		qvkCmdBindVertexBuffers(vk.cmd->command_buffer, bind_base, bind_count, shade_bufs, vk.cmd->vbo_offset + bind_base);
+		vkCmdBindVertexBuffers(vk.cmd->command_buffer, bind_base, bind_count, shade_bufs, vk.cmd->vbo_offset + bind_base);
 		return;
 	}
 
-	qvkCmdBindVertexBuffers(vk.cmd->command_buffer, bind_base, bind_count, shade_bufs, vk.cmd->buf_offset + bind_base);
+	vkCmdBindVertexBuffers(vk.cmd->command_buffer, bind_base, bind_count, shade_bufs, vk.cmd->buf_offset + bind_base);
 }
 
 
@@ -479,7 +479,7 @@ void vk_update_uniform_descriptor( VkDescriptorSet descriptor, VkBuffer buffer )
 	vk_write_uniform_descriptor( desc, info, buffer, descriptor, VK_DESC_UNIFORM_FOGS_BINDING, sizeof(vkUniformFog_t) );
 	vk_write_uniform_descriptor( desc, info, buffer, descriptor, VK_DESC_UNIFORM_GLOBAL_BINDING, sizeof(vkUniformGlobal_t) );
 
-	qvkUpdateDescriptorSets(vk.device, VK_DESC_UNIFORM_COUNT, desc, 0, NULL);
+	vkUpdateDescriptorSets(vk.device, VK_DESC_UNIFORM_COUNT, desc, 0, NULL);
 }
 
 void vk_create_storage_buffer( vk_storage_buffer_t *out, uint32_t size, const char *name )
@@ -504,7 +504,7 @@ void vk_create_storage_buffer( vk_storage_buffer_t *out, uint32_t size, const ch
 
 	VK_CREATE_BUFFER(vk.device, &desc, &out->buffer, va( "%s buffer", name ));
 
-	qvkGetBufferMemoryRequirements( vk.device, out->buffer, &memory_requirements );
+	vkGetBufferMemoryRequirements( vk.device, out->buffer, &memory_requirements );
 
 	memory_type_bits = memory_requirements.memoryTypeBits;
 	memory_type = vk_find_memory_type( memory_type_bits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT );
@@ -515,11 +515,11 @@ void vk_create_storage_buffer( vk_storage_buffer_t *out, uint32_t size, const ch
 	alloc_info.memoryTypeIndex = memory_type;
 	VK_ALLOCATE_MEMORY_CHECK(vk.device, &alloc_info, &out->memory, va( "%s memory", name ) );
 
-	VK_CHECK( qvkMapMemory( vk.device, out->memory, 0, VK_WHOLE_SIZE, 0, (void**)&out->buffer_ptr) );
+	VK_CHECK( vkMapMemory( vk.device, out->memory, 0, VK_WHOLE_SIZE, 0, (void**)&out->buffer_ptr) );
 
 	Com_Memset( out->buffer_ptr, 0, memory_requirements.size );
 
-	qvkBindBufferMemory( vk.device, out->buffer, out->memory, 0 );
+	vkBindBufferMemory( vk.device, out->buffer, out->memory, 0 );
 
 	VK_SET_OBJECT_NAME( out->buffer, va( "%s buffer", name ), VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT );
 	VK_SET_OBJECT_NAME( out->descriptor, va( "%s buffer descriptor", name ), VK_DEBUG_REPORT_OBJECT_TYPE_DESCRIPTOR_SET_EXT );
@@ -554,14 +554,14 @@ void vk_update_attachment_descriptors( void ) {
 		desc.pBufferInfo = NULL;
 		desc.pTexelBufferView = NULL;
 
-		qvkUpdateDescriptorSets( vk.device, 1, &desc, 0, NULL );
+		vkUpdateDescriptorSets( vk.device, 1, &desc, 0, NULL );
 		
 		// refraction
 		if ( vk.refractionActive )
 		{
 			info.imageView = vk.refraction_extract_image_view;
 			desc.dstSet = vk.refraction_extract_descriptor;
-			qvkUpdateDescriptorSets( vk.device, 1, &desc, 0, NULL );
+			vkUpdateDescriptorSets( vk.device, 1, &desc, 0, NULL );
 		}
 
 		// screenmap
@@ -574,7 +574,7 @@ void vk_update_attachment_descriptors( void ) {
 		info.imageView = vk.screenMap.color_image_view;
 		desc.dstSet = vk.screenMap.color_descriptor;
 
-		qvkUpdateDescriptorSets( vk.device, 1, &desc, 0, NULL );
+		vkUpdateDescriptorSets( vk.device, 1, &desc, 0, NULL );
 
 		// bloom images
 		if ( vk.bloomActive )
@@ -585,7 +585,7 @@ void vk_update_attachment_descriptors( void ) {
 				info.imageView = vk.bloom_image_view[i];
 				desc.dstSet = vk.bloom_image_descriptor[i];
 
-				qvkUpdateDescriptorSets( vk.device, 1, &desc, 0, NULL );
+				vkUpdateDescriptorSets( vk.device, 1, &desc, 0, NULL );
 			}
 		}
 
@@ -598,7 +598,7 @@ void vk_update_attachment_descriptors( void ) {
 				info.imageView = vk.dglow_image_view[i];
 				desc.dstSet = vk.dglow_image_descriptor[i];
 
-				qvkUpdateDescriptorSets( vk.device, 1, &desc, 0, NULL );
+				vkUpdateDescriptorSets( vk.device, 1, &desc, 0, NULL );
 			}
 		}
 
@@ -609,12 +609,12 @@ void vk_update_attachment_descriptors( void ) {
 			info.imageView = vk.brdflut_image_view;
 			desc.dstSet = vk.brdflut_image_descriptor;
 
-			qvkUpdateDescriptorSets( vk.device, 1, &desc, 0, NULL );	
+			vkUpdateDescriptorSets( vk.device, 1, &desc, 0, NULL );	
 
 			// cubemap
 			info.imageView = vk.cubeMap.color_image_view[0];
 			desc.dstSet = vk.cubeMap.color_descriptor;
-			qvkUpdateDescriptorSets( vk.device, 1, &desc, 0, NULL );	
+			vkUpdateDescriptorSets( vk.device, 1, &desc, 0, NULL );	
 		}
 #endif
 	}
@@ -631,7 +631,7 @@ void vk_init_descriptors( void ) {
 	alloc.descriptorPool = vk.descriptor_pool;
 	alloc.descriptorSetCount = 1;
 	alloc.pSetLayouts = &vk.set_layout_storage;
-	VK_CHECK( qvkAllocateDescriptorSets( vk.device, &alloc, &vk.storage.descriptor ) );
+	VK_CHECK( vkAllocateDescriptorSets( vk.device, &alloc, &vk.storage.descriptor ) );
 
 	info.buffer = vk.storage.buffer;
 	info.offset = 0;
@@ -648,7 +648,7 @@ void vk_init_descriptors( void ) {
 	desc.pBufferInfo = &info;
 	desc.pTexelBufferView = NULL;
 
-	qvkUpdateDescriptorSets( vk.device, 1, &desc, 0, NULL );
+	vkUpdateDescriptorSets( vk.device, 1, &desc, 0, NULL );
 
 	for ( i = 0; i < NUM_COMMAND_BUFFERS; i++ )
 	{
@@ -657,7 +657,7 @@ void vk_init_descriptors( void ) {
 		alloc.descriptorPool = vk.descriptor_pool;
 		alloc.descriptorSetCount = 1;
 		alloc.pSetLayouts = &vk.set_layout_uniform;
-		VK_CHECK( qvkAllocateDescriptorSets( vk.device, &alloc, &vk.tess[i].uniform_descriptor ) );
+		VK_CHECK( vkAllocateDescriptorSets( vk.device, &alloc, &vk.tess[i].uniform_descriptor ) );
 
 		vk_update_uniform_descriptor( vk.tess[i].uniform_descriptor, vk.tess[i].vertex_buffer );
 		VK_SET_OBJECT_NAME( vk.tess[i].uniform_descriptor, "uniform descriptor", VK_DEBUG_REPORT_OBJECT_TYPE_DESCRIPTOR_SET_EXT );
@@ -670,34 +670,34 @@ void vk_init_descriptors( void ) {
 		alloc.descriptorPool = vk.descriptor_pool;
 		alloc.descriptorSetCount = 1;
 		alloc.pSetLayouts = &vk.set_layout_sampler;
-		VK_CHECK( qvkAllocateDescriptorSets( vk.device, &alloc, &vk.color_descriptor ) );
+		VK_CHECK( vkAllocateDescriptorSets( vk.device, &alloc, &vk.color_descriptor ) );
 		
 		// refraction
 		if ( vk.refractionActive )
-			VK_CHECK( qvkAllocateDescriptorSets( vk.device, &alloc, &vk.refraction_extract_descriptor ) );
+			VK_CHECK( vkAllocateDescriptorSets( vk.device, &alloc, &vk.refraction_extract_descriptor ) );
 
 		// bloom images
 		if ( vk.bloomActive ) {
 			for ( i = 0; i < ARRAY_LEN( vk.bloom_image_descriptor ); i++ )
-				VK_CHECK( qvkAllocateDescriptorSets( vk.device, &alloc, &vk.bloom_image_descriptor[i] ) );
+				VK_CHECK( vkAllocateDescriptorSets( vk.device, &alloc, &vk.bloom_image_descriptor[i] ) );
 		}
 
 		// dglow images
 		if ( vk.dglowActive ) {
 			for ( i = 0; i < ARRAY_LEN( vk.dglow_image_descriptor ); i++ )
-				VK_CHECK( qvkAllocateDescriptorSets( vk.device, &alloc, &vk.dglow_image_descriptor[i] ) );
+				VK_CHECK( vkAllocateDescriptorSets( vk.device, &alloc, &vk.dglow_image_descriptor[i] ) );
 		}
 
 		alloc.descriptorSetCount = 1;
-		VK_CHECK( qvkAllocateDescriptorSets( vk.device, &alloc, &vk.screenMap.color_descriptor ) ); // screenmap
+		VK_CHECK( vkAllocateDescriptorSets( vk.device, &alloc, &vk.screenMap.color_descriptor ) ); // screenmap
 
 #ifdef VK_PBR_BRDFLUT
 		if( vk.cubemapActive )
-			VK_CHECK( qvkAllocateDescriptorSets( vk.device, &alloc, &vk.brdflut_image_descriptor ) );
+			VK_CHECK( vkAllocateDescriptorSets( vk.device, &alloc, &vk.brdflut_image_descriptor ) );
 #endif
 
 		// cubemap
-		VK_CHECK( qvkAllocateDescriptorSets( vk.device, &alloc, &vk.cubeMap.color_descriptor ) );
+		VK_CHECK( vkAllocateDescriptorSets( vk.device, &alloc, &vk.cubeMap.color_descriptor ) );
 
 		vk_update_attachment_descriptors();
 	}
@@ -729,7 +729,7 @@ void vk_create_indirect_buffer( VkDeviceSize size )
 		desc.usage = VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
 		VK_CREATE_BUFFER(vk.device, &desc, &vk.tess[i].indirect_buffer, "indirect_buffer");
 
-		qvkGetBufferMemoryRequirements(vk.device, vk.tess[i].indirect_buffer, &vb_memory_requirements);
+		vkGetBufferMemoryRequirements(vk.device, vk.tess[i].indirect_buffer, &vb_memory_requirements);
 	}
 
 	memory_type_bits = vb_memory_requirements.memoryTypeBits;
@@ -742,12 +742,12 @@ void vk_create_indirect_buffer( VkDeviceSize size )
 	vk_debug("Allocate device memory for Indirect Buffer: %ld bytes. \n", alloc_info.allocationSize);
 
 	VK_ALLOCATE_MEMORY_CHECK(vk.device, &alloc_info, &vk.indirect_buffer_memory, "indirect_memory" );
-	VK_CHECK(qvkMapMemory(vk.device, vk.indirect_buffer_memory, 0, VK_WHOLE_SIZE, 0, &data));
+	VK_CHECK(vkMapMemory(vk.device, vk.indirect_buffer_memory, 0, VK_WHOLE_SIZE, 0, &data));
 
 	indirect_buffer_offset = 0;
 
 	for (i = 0; i < NUM_COMMAND_BUFFERS; i++) {
-		qvkBindBufferMemory(vk.device, vk.tess[i].indirect_buffer, vk.indirect_buffer_memory, indirect_buffer_offset);
+		vkBindBufferMemory(vk.device, vk.tess[i].indirect_buffer, vk.indirect_buffer_memory, indirect_buffer_offset);
 		vk.tess[i].indirect_buffer_ptr = (byte*)data + indirect_buffer_offset;
 		vk.tess[i].indirect_buffer_offset = 0;
 		indirect_buffer_offset += vb_memory_requirements.size;
@@ -790,7 +790,7 @@ void vk_create_vertex_buffer( VkDeviceSize size )
 		desc.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
 		VK_CREATE_BUFFER(vk.device, &desc, &vk.tess[i].vertex_buffer, "vertex_buffer");
 
-		qvkGetBufferMemoryRequirements(vk.device, vk.tess[i].vertex_buffer, &vb_memory_requirements);
+		vkGetBufferMemoryRequirements(vk.device, vk.tess[i].vertex_buffer, &vb_memory_requirements);
 	}
 
 	memory_type_bits = vb_memory_requirements.memoryTypeBits;
@@ -803,12 +803,12 @@ void vk_create_vertex_buffer( VkDeviceSize size )
 	vk_debug("Allocate device memory for Vertex Buffer: %ld bytes. \n", alloc_info.allocationSize);
 
 	VK_ALLOCATE_MEMORY_CHECK(vk.device, &alloc_info, &vk.geometry_buffer_memory, "vertex_memory" );
-	VK_CHECK(qvkMapMemory(vk.device, vk.geometry_buffer_memory, 0, VK_WHOLE_SIZE, 0, &data));
+	VK_CHECK(vkMapMemory(vk.device, vk.geometry_buffer_memory, 0, VK_WHOLE_SIZE, 0, &data));
 
 	vertex_buffer_offset = 0;
 
 	for (i = 0; i < NUM_COMMAND_BUFFERS; i++) {
-		qvkBindBufferMemory(vk.device, vk.tess[i].vertex_buffer, vk.geometry_buffer_memory, vertex_buffer_offset);
+		vkBindBufferMemory(vk.device, vk.tess[i].vertex_buffer, vk.geometry_buffer_memory, vertex_buffer_offset);
 		vk.tess[i].vertex_buffer_ptr = (byte*)data + vertex_buffer_offset;
 		vk.tess[i].vertex_buffer_offset = 0;
 		vertex_buffer_offset += vb_memory_requirements.size;
@@ -877,7 +877,7 @@ void vk_bind_descriptor_sets( void )
 		}
 	}
 
-	qvkCmdBindDescriptorSets(vk.cmd->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+	vkCmdBindDescriptorSets(vk.cmd->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
 		vk.pipeline_layout, start, count, vk.cmd->descriptor_set.current + start, offset_count, offsets);
 
 	vk.cmd->descriptor_set.end = 0;
@@ -890,7 +890,7 @@ void vk_bind_pipeline( uint32_t pipeline ) {
 	vkpipe = vk_gen_pipeline(pipeline);
 
 	if (vkpipe != vk.cmd->last_pipeline) {
-		qvkCmdBindPipeline(vk.cmd->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vkpipe);
+		vkCmdBindPipeline(vk.cmd->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vkpipe);
 		vk.cmd->last_pipeline = vkpipe;
 	}
 
@@ -911,12 +911,12 @@ static void vk_update_depth_range( Vk_Depth_Range depth_range )
 	get_scissor_rect( &scissor_rect );
 
 	if ( memcmp( &vk.cmd->scissor_rect, &scissor_rect, sizeof( scissor_rect ) ) != 0 ) {
-		qvkCmdSetScissor( vk.cmd->command_buffer, 0, 1, &scissor_rect );
+		vkCmdSetScissor( vk.cmd->command_buffer, 0, 1, &scissor_rect );
 		vk.cmd->scissor_rect = scissor_rect;
 	}
 
 	get_viewport( &viewport, depth_range);
-	qvkCmdSetViewport( vk.cmd->command_buffer, 0, 1, &viewport );
+	vkCmdSetViewport( vk.cmd->command_buffer, 0, 1, &viewport );
 }
 
 void vk_draw_geometry( Vk_Depth_Range depth_range, qboolean indexed )
@@ -931,7 +931,7 @@ void vk_draw_geometry( Vk_Depth_Range depth_range, qboolean indexed )
 	vk_update_depth_range( depth_range );
 
 	if ( tess.shader->polygonOffset ) {
-		qvkCmdSetDepthBias( vk.cmd->command_buffer, r_offsetUnits->value, 0.0f, r_offsetFactor->value );
+		vkCmdSetDepthBias( vk.cmd->command_buffer, r_offsetUnits->value, 0.0f, r_offsetFactor->value );
 	}
 
 	// issue draw call(s)
@@ -942,9 +942,9 @@ void vk_draw_geometry( Vk_Depth_Range depth_range, qboolean indexed )
 #endif
 	{
 		if (indexed)
-			qvkCmdDrawIndexed( vk.cmd->command_buffer, vk.cmd->num_indexes, 1, 0, 0, 0 );
+			vkCmdDrawIndexed( vk.cmd->command_buffer, vk.cmd->num_indexes, 1, 0, 0, 0 );
 		else
-			qvkCmdDraw( vk.cmd->command_buffer, tess.numVertexes, 1, 0, 0 );
+			vkCmdDraw( vk.cmd->command_buffer, tess.numVertexes, 1, 0, 0 );
 	}
 }
 
@@ -954,12 +954,12 @@ void vk_draw_dot( uint32_t storage_offset )
 	if ( vk.geometry_buffer_size_new )
 		return;
 
-	qvkCmdBindDescriptorSets( vk.cmd->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipeline_layout_storage, VK_DESC_STORAGE, 1, &vk.storage.descriptor, 1, &storage_offset );
+	vkCmdBindDescriptorSets( vk.cmd->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipeline_layout_storage, VK_DESC_STORAGE, 1, &vk.storage.descriptor, 1, &storage_offset );
 
 	// configure pipeline's dynamic state
 	vk_update_depth_range( DEPTH_RANGE_NORMAL );
 
-	qvkCmdDraw( vk.cmd->command_buffer, tess.numVertexes, 1, 0, 0 );
+	vkCmdDraw( vk.cmd->command_buffer, tess.numVertexes, 1, 0, 0 );
 }
 
 void ComputeColors( const int b, color4ub_t *dest, const shaderStage_t *pStage, int forceRGBGen )

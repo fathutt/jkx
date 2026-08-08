@@ -117,7 +117,7 @@ static void vk_create_prefilter_renderpass( filterDef *def )
 	desc.dependencyCount = 2;
 	desc.pDependencies = deps;
 
-	VK_CHECK( qvkCreateRenderPass( vk.device, &desc, nullptr, &def->renderpass ) );
+	VK_CHECK( vkCreateRenderPass( vk.device, &desc, nullptr, &def->renderpass ) );
 }
 
 static void vk_create_prefilter_framebuffer( filterDef *def ) {
@@ -143,18 +143,18 @@ static void vk_create_prefilter_framebuffer( filterDef *def ) {
 
 		desc.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 		desc.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-		VK_CHECK( qvkCreateImage( vk.device, &desc, nullptr, &def->offscreen.image ) );
+		VK_CHECK( vkCreateImage( vk.device, &desc, nullptr, &def->offscreen.image ) );
 	}
 
-	qvkGetImageMemoryRequirements( vk.device, def->offscreen.image, &memory_requirements);
+	vkGetImageMemoryRequirements( vk.device, def->offscreen.image, &memory_requirements);
 	
 	alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 	alloc_info.pNext = NULL;
 	alloc_info.allocationSize = memory_requirements.size;
 	alloc_info.memoryTypeIndex = vk_find_memory_type( memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT );
 			
-	VK_CHECK( qvkAllocateMemory( vk.device, &alloc_info, nullptr, &def->offscreen.memory ) );
-	VK_CHECK( qvkBindImageMemory( vk.device, def->offscreen.image, def->offscreen.memory, 0 ) );
+	VK_CHECK( vkAllocateMemory( vk.device, &alloc_info, nullptr, &def->offscreen.memory ) );
+	VK_CHECK( vkBindImageMemory( vk.device, def->offscreen.image, def->offscreen.memory, 0 ) );
 
 	// create image view
 	{
@@ -170,7 +170,7 @@ static void vk_create_prefilter_framebuffer( filterDef *def ) {
 		desc.subresourceRange.baseArrayLayer = 0;
 		desc.subresourceRange.layerCount = 6;
 		desc.image = def->offscreen.image;
-		VK_CHECK( qvkCreateImageView( vk.device, &desc, nullptr, &def->offscreen.view ) );
+		VK_CHECK( vkCreateImageView( vk.device, &desc, nullptr, &def->offscreen.view ) );
 	}
 
 	// create framebuffer
@@ -183,7 +183,7 @@ static void vk_create_prefilter_framebuffer( filterDef *def ) {
 		desc.width = def->size;
 		desc.height = def->size;
 		desc.layers = 6;
-		VK_CHECK( qvkCreateFramebuffer( vk.device, &desc, nullptr, &def->offscreen.framebuffer));
+		VK_CHECK( vkCreateFramebuffer( vk.device, &desc, nullptr, &def->offscreen.framebuffer));
 	}
 
 	command_buffer = vk_begin_command_buffer();
@@ -229,7 +229,7 @@ static void vk_create_prefilter_pipeline( filterDef *def )
 		pipeline_layout.pPushConstantRanges = NULL;
 	}
 
-	VK_CHECK( qvkCreatePipelineLayout( vk.device, &pipeline_layout, nullptr, &def->pipeline_layout ) );
+	VK_CHECK( vkCreatePipelineLayout( vk.device, &pipeline_layout, nullptr, &def->pipeline_layout ) );
 	
 	input_assembly_state.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
     input_assembly_state.pNext = NULL;
@@ -294,7 +294,7 @@ static void vk_create_prefilter_pipeline( filterDef *def )
 	create_info.stageCount = ARRAY_LEN(shader_stages);
 	create_info.pStages = shader_stages;
 
-	VK_CHECK( qvkCreateGraphicsPipelines( vk.device, vk.pipelineCache, 1, &create_info, nullptr, &def->pipeline ) );	
+	VK_CHECK( vkCreateGraphicsPipelines( vk.device, vk.pipelineCache, 1, &create_info, nullptr, &def->pipeline ) );	
 }
 
 void vk_create_cubemap_prefilter( void )
@@ -345,13 +345,13 @@ void vk_destroy_cubemap_prefilter( void ){
 	{
 		def = &prefilters[i];
 
-		qvkDestroyRenderPass( vk.device, def->renderpass, NULL );
-		qvkDestroyFramebuffer( vk.device, def->offscreen.framebuffer, NULL );
-		qvkFreeMemory( vk.device, def->offscreen.memory, NULL );
-		qvkDestroyImageView( vk.device, def->offscreen.view, NULL );
-		qvkDestroyImage( vk.device, def->offscreen.image, NULL );
-		qvkDestroyPipeline( vk.device, def->pipeline, NULL );
-		qvkDestroyPipelineLayout( vk.device, def->pipeline_layout, NULL );
+		vkDestroyRenderPass( vk.device, def->renderpass, NULL );
+		vkDestroyFramebuffer( vk.device, def->offscreen.framebuffer, NULL );
+		vkFreeMemory( vk.device, def->offscreen.memory, NULL );
+		vkDestroyImageView( vk.device, def->offscreen.view, NULL );
+		vkDestroyImage( vk.device, def->offscreen.image, NULL );
+		vkDestroyPipeline( vk.device, def->pipeline, NULL );
+		vkDestroyPipelineLayout( vk.device, def->pipeline_layout, NULL );
 	}
 
 	Com_Memset( &prefilters, 0, sizeof( prefilters ) );
@@ -383,7 +383,7 @@ static void vk_copy_to_cubemap( filterDef *def, VkImage *image, uint32_t mipLeve
 	region.extent.width = region.extent.height = size;
 	region.extent.depth = 1;
 
-	qvkCmdCopyImage( vk.cmd->command_buffer, def->offscreen.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, *image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region );
+	vkCmdCopyImage( vk.cmd->command_buffer, def->offscreen.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, *image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region );
 
 	vk_record_image_layout_transition( vk.cmd->command_buffer, def->offscreen.image, VK_IMAGE_ASPECT_COLOR_BIT, 
 		VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, 
@@ -450,21 +450,21 @@ void vk_generate_cubemaps( cubemap_t *cube )
 			0 ,0 );
 			
 		for ( j = 0; j < def->mipLevels; j++ ) {
-			qvkCmdSetViewport( vk.cmd->command_buffer, 0, 1, &viewport );
-			qvkCmdSetScissor( vk.cmd->command_buffer, 0, 1, &scissor_rect );
+			vkCmdSetViewport( vk.cmd->command_buffer, 0, 1, &viewport );
+			vkCmdSetScissor( vk.cmd->command_buffer, 0, 1, &scissor_rect );
 
 			// render scene from cube face's point of view
-			qvkCmdBeginRenderPass(vk.cmd->command_buffer, &begin_info, VK_SUBPASS_CONTENTS_INLINE);
+			vkCmdBeginRenderPass(vk.cmd->command_buffer, &begin_info, VK_SUBPASS_CONTENTS_INLINE);
 
 			if ( def->target == PREFILTEREDENV ) {
 				float roughness = (float)j / (float)(def->mipLevels - 1);
-				qvkCmdPushConstants( vk.cmd->command_buffer, def->pipeline_layout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(roughness), &roughness );
+				vkCmdPushConstants( vk.cmd->command_buffer, def->pipeline_layout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(roughness), &roughness );
 			}
 
-			qvkCmdBindPipeline( vk.cmd->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, def->pipeline );
-			qvkCmdBindDescriptorSets( vk.cmd->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, def->pipeline_layout, 0, 1, &vk.cubeMap.color_descriptor, 0, NULL );
-			qvkCmdDraw( vk.cmd->command_buffer, 3, 1, 0, 0 );
-			qvkCmdEndRenderPass( vk.cmd->command_buffer );
+			vkCmdBindPipeline( vk.cmd->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, def->pipeline );
+			vkCmdBindDescriptorSets( vk.cmd->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, def->pipeline_layout, 0, 1, &vk.cubeMap.color_descriptor, 0, NULL );
+			vkCmdDraw( vk.cmd->command_buffer, 3, 1, 0, 0 );
+			vkCmdEndRenderPass( vk.cmd->command_buffer );
 
 			vk_copy_to_cubemap( def, &cubemap->handle, j, static_cast<uint32_t>(viewport.width) );
 		

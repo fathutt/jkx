@@ -138,7 +138,7 @@ void vk_push_surface_sprites_cmd( const vk_ss_group_def_t *def, int firstInstanc
 static void vk_destroy_surface_sprites_ssbo( vk_storage_buffer_t *buffer )
 {
 	if ( buffer->memory && buffer->buffer_ptr )
-		qvkUnmapMemory( vk.device, buffer->memory );
+		vkUnmapMemory( vk.device, buffer->memory );
 
 	if ( buffer->buffer )
 		VK_DESTROY_BUFFER( vk.device, buffer->buffer );
@@ -147,7 +147,7 @@ static void vk_destroy_surface_sprites_ssbo( vk_storage_buffer_t *buffer )
 		VK_FREE_MEMORY( vk.device, buffer->memory );
 
 	if ( buffer->descriptor )
-		qvkFreeDescriptorSets(vk.device, vk.descriptor_pool, 1, &buffer->descriptor);
+		vkFreeDescriptorSets(vk.device, vk.descriptor_pool, 1, &buffer->descriptor);
 
 	Com_Memset( buffer, 0, sizeof( *buffer ) );
 }
@@ -172,7 +172,7 @@ static void vk_create_surface_sprites_ssbo_descriptor( vk_storage_buffer_t *buff
 	alloc.descriptorPool = vk.descriptor_pool;
 	alloc.descriptorSetCount = 1;
 	alloc.pSetLayouts = &vk.set_layout_storage;
-	VK_CHECK( qvkAllocateDescriptorSets( vk.device, &alloc, &buffer->descriptor ) );
+	VK_CHECK( vkAllocateDescriptorSets( vk.device, &alloc, &buffer->descriptor ) );
 
 	info.buffer = buffer->buffer;
 	info.offset = 0;
@@ -189,7 +189,7 @@ static void vk_create_surface_sprites_ssbo_descriptor( vk_storage_buffer_t *buff
 	desc.pBufferInfo = &info;
 	desc.pTexelBufferView = NULL;
 
-	qvkUpdateDescriptorSets(vk.device, 1, &desc, 0, NULL);
+	vkUpdateDescriptorSets(vk.device, 1, &desc, 0, NULL);
 	VK_SET_OBJECT_NAME( buffer->descriptor, va("surface sprite world data: [%d]", index), VK_DEBUG_REPORT_OBJECT_TYPE_DESCRIPTOR_SET_EXT );
 }
 

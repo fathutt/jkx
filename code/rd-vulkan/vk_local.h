@@ -47,7 +47,20 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #pragma once
 
 //#define VK_NO_PROTOTYPES
-#include "vulkan/vulkan.h"
+// volk owns the Vulkan prototypes: it defines VK_NO_PROTOTYPES and provides
+// every entry point as a loaded pointer, which is why the 111 hand-written
+// PFN_vk* declarations that used to live below are gone. Headers come from the
+// system Vulkan SDK rather than a vendored copy.
+#include "volk.h"
+
+#ifndef VK_CREATE_BUFFER
+	#define VK_CREATE_BUFFER(device, info, outBuffer, name)				VK_CHECK( vkCreateBuffer( device, info, NULL, outBuffer ) )
+	#define VK_DESTROY_BUFFER(device, buffer)							vkDestroyBuffer( device, buffer, NULL )
+	#define VK_ALLOCATE_MEMORY(device, info, outMemory, name)			vkAllocateMemory( device, info, NULL, outMemory )
+	#define VK_ALLOCATE_MEMORY_CHECK(device, info, outMemory, name)		VK_CHECK( vkAllocateMemory( device, info, NULL, outMemory ) )
+	#define VK_FREE_MEMORY(device, memory)								vkFreeMemory( device, memory, NULL )
+#endif
+
 
 #if defined (_DEBUG)
 #if defined (_WIN32)
@@ -327,134 +340,11 @@ typedef enum {
 	POINT_LIST
 } Vk_Primitive_Topology;
 
-// Instance
-extern PFN_vkGetInstanceProcAddr						qvkGetInstanceProcAddr;
-extern PFN_vkCreateInstance							    qvkCreateInstance;
-extern PFN_vkEnumerateInstanceExtensionProperties		qvkEnumerateInstanceExtensionProperties;
-extern PFN_vkCreateDevice								qvkCreateDevice;
-extern PFN_vkDestroyInstance							qvkDestroyInstance;
-extern PFN_vkEnumerateDeviceExtensionProperties	    	qvkEnumerateDeviceExtensionProperties;
-extern PFN_vkEnumeratePhysicalDevices					qvkEnumeratePhysicalDevices;
-extern PFN_vkGetDeviceProcAddr							qvkGetDeviceProcAddr;
-extern PFN_vkGetPhysicalDeviceFeatures					qvkGetPhysicalDeviceFeatures;
-extern PFN_vkGetPhysicalDeviceFormatProperties			qvkGetPhysicalDeviceFormatProperties;
-extern PFN_vkGetPhysicalDeviceMemoryProperties			qvkGetPhysicalDeviceMemoryProperties;
-extern PFN_vkGetPhysicalDeviceProperties				qvkGetPhysicalDeviceProperties;
-extern PFN_vkGetPhysicalDeviceQueueFamilyProperties	    qvkGetPhysicalDeviceQueueFamilyProperties;
-extern PFN_vkDestroySurfaceKHR							qvkDestroySurfaceKHR;
-extern PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR	qvkGetPhysicalDeviceSurfaceCapabilitiesKHR;
-extern PFN_vkGetPhysicalDeviceSurfaceFormatsKHR		    qvkGetPhysicalDeviceSurfaceFormatsKHR;
-extern PFN_vkGetPhysicalDeviceSurfacePresentModesKHR	qvkGetPhysicalDeviceSurfacePresentModesKHR;
-extern PFN_vkGetPhysicalDeviceSurfaceSupportKHR		    qvkGetPhysicalDeviceSurfaceSupportKHR;
-#ifdef USE_VK_VALIDATION
-	#ifdef USE_DEBUG_REPORT
-		extern PFN_vkCreateDebugReportCallbackEXT				qvkCreateDebugReportCallbackEXT;
-		extern PFN_vkDestroyDebugReportCallbackEXT				qvkDestroyDebugReportCallbackEXT;
-	#endif
-	#ifdef USE_DEBUG_UTILS
-		extern PFN_vkCreateDebugUtilsMessengerEXT				qvkCreateDebugUtilsMessengerEXT;
-		extern PFN_vkDestroyDebugUtilsMessengerEXT				qvkDestroyDebugUtilsMessengerEXT;
-	#endif
-#endif
-extern PFN_vkAllocateCommandBuffers					    qvkAllocateCommandBuffers;
-extern PFN_vkAllocateDescriptorSets					    qvkAllocateDescriptorSets;
-extern PFN_vkAllocateMemory							    qvkAllocateMemory;
-extern PFN_vkBeginCommandBuffer					    	qvkBeginCommandBuffer;
-extern PFN_vkBindBufferMemory							qvkBindBufferMemory;
-extern PFN_vkBindImageMemory							qvkBindImageMemory;
-extern PFN_vkCmdBeginRenderPass					    	qvkCmdBeginRenderPass;
-extern PFN_vkCmdBindDescriptorSets						qvkCmdBindDescriptorSets;
-extern PFN_vkCmdBindIndexBuffer					    	qvkCmdBindIndexBuffer;
-extern PFN_vkCmdBindPipeline							qvkCmdBindPipeline;
-extern PFN_vkCmdBindVertexBuffers						qvkCmdBindVertexBuffers;
-extern PFN_vkCmdBlitImage								qvkCmdBlitImage;
-extern PFN_vkCmdClearAttachments						qvkCmdClearAttachments;
-extern PFN_vkCmdCopyBuffer								qvkCmdCopyBuffer;
-extern PFN_vkCmdCopyBufferToImage						qvkCmdCopyBufferToImage;
-extern PFN_vkCmdCopyImage								qvkCmdCopyImage;
-extern PFN_vkCmdCopyImageToBuffer                       qvkCmdCopyImageToBuffer;
-extern PFN_vkCmdDraw									qvkCmdDraw;
-extern PFN_vkCmdDrawIndexed						    	qvkCmdDrawIndexed;
-extern PFN_vkCmdEndRenderPass							qvkCmdEndRenderPass;
-extern PFN_vkCmdPipelineBarrier					    	qvkCmdPipelineBarrier;
-extern PFN_vkCmdPushConstants							qvkCmdPushConstants;
-extern PFN_vkCmdSetDepthBias							qvkCmdSetDepthBias;
-extern PFN_vkCmdSetScissor								qvkCmdSetScissor;
-extern PFN_vkCmdSetViewport						    	qvkCmdSetViewport;
-extern PFN_vkCreateBuffer								qvkCreateBuffer;
-extern PFN_vkCreateCommandPool							qvkCreateCommandPool;
-extern PFN_vkCreateDescriptorPool						qvkCreateDescriptorPool;
-extern PFN_vkCreateDescriptorSetLayout					qvkCreateDescriptorSetLayout;
-extern PFN_vkCreateFence								qvkCreateFence;
-extern PFN_vkCreateFramebuffer							qvkCreateFramebuffer;
-extern PFN_vkCreateGraphicsPipelines					qvkCreateGraphicsPipelines;
-extern PFN_vkCreateImage								qvkCreateImage;
-extern PFN_vkCreateImageView							qvkCreateImageView;
-extern PFN_vkCreatePipelineLayout						qvkCreatePipelineLayout;
-extern PFN_vkCreatePipelineCache						qvkCreatePipelineCache;
-extern PFN_vkCreateRenderPass							qvkCreateRenderPass;
-extern PFN_vkCreateSampler								qvkCreateSampler;
-extern PFN_vkCreateSemaphore							qvkCreateSemaphore;
-extern PFN_vkCreateShaderModule				    		qvkCreateShaderModule;
-extern PFN_vkDestroyBuffer								qvkDestroyBuffer;
-extern PFN_vkDestroyCommandPool					    	qvkDestroyCommandPool;
-extern PFN_vkDestroyDescriptorPool						qvkDestroyDescriptorPool;
-extern PFN_vkDestroyDescriptorSetLayout			    	qvkDestroyDescriptorSetLayout;
-extern PFN_vkDestroyPipelineCache						qvkDestroyPipelineCache;
-extern PFN_vkDestroyDevice								qvkDestroyDevice;
-extern PFN_vkDestroyFence								qvkDestroyFence;
-extern PFN_vkDestroyFramebuffer					    	qvkDestroyFramebuffer;
-extern PFN_vkDestroyImage								qvkDestroyImage;
-extern PFN_vkDestroyImageView							qvkDestroyImageView;
-extern PFN_vkDestroyPipeline							qvkDestroyPipeline;
-extern PFN_vkDestroyPipelineLayout						qvkDestroyPipelineLayout;
-extern PFN_vkDestroyRenderPass							qvkDestroyRenderPass;
-extern PFN_vkDestroySampler						    	qvkDestroySampler;
-extern PFN_vkDestroySemaphore							qvkDestroySemaphore;
-extern PFN_vkDestroyShaderModule						qvkDestroyShaderModule;
-extern PFN_vkDeviceWaitIdle						    	qvkDeviceWaitIdle;
-extern PFN_vkEndCommandBuffer							qvkEndCommandBuffer;
-extern PFN_vkResetCommandBuffer							qvkResetCommandBuffer;
-extern PFN_vkFreeCommandBuffers					    	qvkFreeCommandBuffers;
-extern PFN_vkFreeDescriptorSets					    	qvkFreeDescriptorSets;
-extern PFN_vkFreeMemory							    	qvkFreeMemory;
-extern PFN_vkGetBufferMemoryRequirements				qvkGetBufferMemoryRequirements;
-extern PFN_vkGetDeviceQueue						    	qvkGetDeviceQueue;
-extern PFN_vkGetImageMemoryRequirements			    	qvkGetImageMemoryRequirements;
-extern PFN_vkGetImageSubresourceLayout					qvkGetImageSubresourceLayout;
-extern PFN_vkInvalidateMappedMemoryRanges				qvkInvalidateMappedMemoryRanges;
-extern PFN_vkMapMemory									qvkMapMemory;
-extern PFN_vkUnmapMemory                                qvkUnmapMemory;
-extern PFN_vkQueueSubmit								qvkQueueSubmit;
-extern PFN_vkQueueWaitIdle								qvkQueueWaitIdle;
-extern PFN_vkResetDescriptorPool						qvkResetDescriptorPool;
-extern PFN_vkResetFences								qvkResetFences;
-extern PFN_vkUpdateDescriptorSets						qvkUpdateDescriptorSets;
-extern PFN_vkWaitForFences								qvkWaitForFences;
-extern PFN_vkAcquireNextImageKHR						qvkAcquireNextImageKHR;
-extern PFN_vkCreateSwapchainKHR				    		qvkCreateSwapchainKHR;
-extern PFN_vkDestroySwapchainKHR						qvkDestroySwapchainKHR;
-extern PFN_vkGetSwapchainImagesKHR						qvkGetSwapchainImagesKHR;
-extern PFN_vkQueuePresentKHR							qvkQueuePresentKHR;
-
-extern PFN_vkGetBufferMemoryRequirements2KHR			qvkGetBufferMemoryRequirements2KHR;
-extern PFN_vkGetImageMemoryRequirements2KHR				qvkGetImageMemoryRequirements2KHR;
-
-extern PFN_vkDebugMarkerSetObjectNameEXT				qvkDebugMarkerSetObjectNameEXT;
-
-extern PFN_vkCmdClearColorImage							qvkCmdClearColorImage;
-
+// tr_main.cpp
 void Matrix16Identity( mat4_t out );
 void Matrix16Copy( const mat4_t in, mat4_t out );
 
-#ifdef USE_VK_IMGUI
-extern PFN_vkFlushMappedMemoryRanges					qvkFlushMappedMemoryRanges;
-extern PFN_vkResetCommandPool							qvkResetCommandPool;
-#endif
-
-extern PFN_vkCmdDrawIndexedIndirect						qvkCmdDrawIndexedIndirect;
-extern PFN_vkCmdDispatch								qvkCmdDispatch;
-extern PFN_vkCreateComputePipelines						qvkCreateComputePipelines;
+// Instance
 
 typedef union floatint_u
 {
@@ -1273,6 +1163,11 @@ void		vk_create_brfdlut( void );
 // info
 const char	*vk_format_string( VkFormat format );
 const char	*vk_result_string( VkResult code );
+
+// vk_pipeline_cache.cpp
+void		vk_create_pipeline_cache( void );
+void		vk_save_pipeline_cache( void );
+void		vk_destroy_pipeline_cache( void );
 const char	*vk_shadertype_string( Vk_Shader_Type code );
 const char	*renderer_name( const VkPhysicalDeviceProperties *props );
 void		vk_get_vulkan_properties( VkPhysicalDeviceProperties *props );
@@ -1318,9 +1213,9 @@ void		R_DebugGraphics( void );
 
 	#define	VK_FREE_MEMORY( device, memory )								vk_free_tracked_memory( device, memory )
 #else
-	#define VK_CREATE_BUFFER(device, info, outBuffer, name)				VK_CHECK( qvkCreateBuffer( device, info, NULL, outBuffer ) )
-	#define VK_DESTROY_BUFFER(device, buffer)							qvkDestroyBuffer( device, buffer, NULL )
-	#define VK_ALLOCATE_MEMORY(device, info, outMemory, name)			qvkAllocateMemory( device, info, NULL, outMemory )
-	#define VK_ALLOCATE_MEMORY_CHECK(device, info, outMemory, name)		VK_CHECK( qvkAllocateMemory( device, info, NULL, outMemory ) )
-	#define VK_FREE_MEMORY(device, memory)								qvkFreeMemory( device, memory, NULL )
+	#define VK_CREATE_BUFFER(device, info, outBuffer, name)				VK_CHECK( vkCreateBuffer( device, info, NULL, outBuffer ) )
+	#define VK_DESTROY_BUFFER(device, buffer)							vkDestroyBuffer( device, buffer, NULL )
+	#define VK_ALLOCATE_MEMORY(device, info, outMemory, name)			vkAllocateMemory( device, info, NULL, outMemory )
+	#define VK_ALLOCATE_MEMORY_CHECK(device, info, outMemory, name)		VK_CHECK( vkAllocateMemory( device, info, NULL, outMemory ) )
+	#define VK_FREE_MEMORY(device, memory)								vkFreeMemory( device, memory, NULL )
 #endif // USE_VK_OBJECT_TRACKER

@@ -30,14 +30,14 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #endif // USE_VK_OBJECT_TRACKER
 
 void vk_set_object_name( uint64_t obj, const char *objName, VkDebugReportObjectTypeEXT objType ) {
-	if ( qvkDebugMarkerSetObjectNameEXT && obj ) {
+	if ( vkDebugMarkerSetObjectNameEXT && obj ) {
 		VkDebugMarkerObjectNameInfoEXT info;
 		info.sType = VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT;
 		info.pNext = VK_NULL_HANDLE;
 		info.objectType = objType;
 		info.object = obj;
 		info.pObjectName = objName;
-		qvkDebugMarkerSetObjectNameEXT( vk.device, &info );
+		vkDebugMarkerSetObjectNameEXT( vk.device, &info );
 	}
 }
 
@@ -127,7 +127,7 @@ void vk_create_debug_callback(void)
 		desc.pfnCallback = &vk_debug_callback;
 		desc.pUserData = NULL;
 
-		VK_CHECK(qvkCreateDebugReportCallbackEXT(vk.instance, &desc, NULL, &vk.debug_callback));
+		VK_CHECK(vkCreateDebugReportCallbackEXT(vk.instance, &desc, NULL, &vk.debug_callback));
 	}
 #endif
 
@@ -137,7 +137,7 @@ void vk_create_debug_callback(void)
 		Com_Memset( &desc, 0, sizeof(VkDebugUtilsMessengerCreateInfoEXT) );
 		vk_create_debug_utils( desc );
 
-		VkResult result = qvkCreateDebugUtilsMessengerEXT(vk.instance, &desc, nullptr, &vk.debug_utils_messenger);
+		VkResult result = vkCreateDebugUtilsMessengerEXT(vk.instance, &desc, nullptr, &vk.debug_utils_messenger);
 	}
 #endif	
 
@@ -574,7 +574,7 @@ void vk_dump_tracked_objects( void )
 // buffer
 void vk_create_tracked_buffer( VkDevice device, const VkBufferCreateInfo* createInfo, VkBuffer* outBuffer, const char* debugName, const char* file, int line, const char* function )
 {
-    VK_CHECK( qvkCreateBuffer( device, createInfo, NULL, outBuffer ) );
+    VK_CHECK( vkCreateBuffer( device, createInfo, NULL, outBuffer ) );
 
 	VulkanObjectTracker::Get().Register( (uint64_t)(*outBuffer), VK_OBJECT_TYPE_BUFFER, debugName, file, line, function );
 }
@@ -586,13 +586,13 @@ void vk_destroy_tracked_buffer( VkDevice device, VkBuffer buffer )
 
     VulkanObjectTracker::Get().Unregister( (uint64_t)buffer );
 
-    qvkDestroyBuffer( device, buffer, NULL );
+    vkDestroyBuffer( device, buffer, NULL );
 }
 
 // memory
 VkResult vk_allocate_tracked_memory( VkDevice device, const VkMemoryAllocateInfo* allocInfo, VkDeviceMemory* outMemory, const char* debugName, const char* file, int line, const char* function )
 {
-    VkResult result = qvkAllocateMemory( device, allocInfo, NULL, outMemory );
+    VkResult result = vkAllocateMemory( device, allocInfo, NULL, outMemory );
 
     if ( result == VK_SUCCESS )
         VulkanObjectTracker::Get().Register( (uint64_t)(*outMemory), VK_OBJECT_TYPE_DEVICE_MEMORY, debugName, file, line, function );
@@ -602,7 +602,7 @@ VkResult vk_allocate_tracked_memory( VkDevice device, const VkMemoryAllocateInfo
 
 void vk_allocate_tracked_memory_checked( VkDevice device, const VkMemoryAllocateInfo* allocInfo, VkDeviceMemory* outMemory, const char* debugName, const char* file, int line, const char* function )
 {
-    VK_CHECK( qvkAllocateMemory( device, allocInfo, NULL, outMemory ) );
+    VK_CHECK( vkAllocateMemory( device, allocInfo, NULL, outMemory ) );
 
     VulkanObjectTracker::Get().Register( (uint64_t)(*outMemory), VK_OBJECT_TYPE_DEVICE_MEMORY, debugName, file, line, function );
 }
@@ -614,6 +614,6 @@ void vk_free_tracked_memory( VkDevice device, VkDeviceMemory memory )
 
     VulkanObjectTracker::Get().Unregister( (uint64_t)memory );
 
-    qvkFreeMemory( device, memory, NULL );
+    vkFreeMemory( device, memory, NULL );
 }
 #endif // USE_VK_OBJECT_TRACKER

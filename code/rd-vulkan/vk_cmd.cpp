@@ -31,7 +31,7 @@ void vk_create_command_pool( void )
     desc.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
     desc.queueFamilyIndex = vk.queue_family_index;
 
-    VK_CHECK( qvkCreateCommandPool( vk.device, &desc, NULL, &vk.command_pool ) );
+    VK_CHECK( vkCreateCommandPool( vk.device, &desc, NULL, &vk.command_pool ) );
     VK_SET_OBJECT_NAME( vk.command_pool, "command pool", VK_DEBUG_REPORT_OBJECT_TYPE_COMMAND_POOL_EXT );
 
     vk_debug("Create command pool: vk.command_pool \n");
@@ -49,7 +49,7 @@ void vk_create_command_buffer( void )
         alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
         alloc_info.commandBufferCount = 1;
 
-        VK_CHECK( qvkAllocateCommandBuffers( vk.device, &alloc_info, &vk.tess[i].command_buffer ) );
+        VK_CHECK( vkAllocateCommandBuffers( vk.device, &alloc_info, &vk.tess[i].command_buffer ) );
 
         vk_debug( va("Create command buffer: vk.cmd->command_buffer[%d] \n", i ) );
     }
@@ -64,7 +64,7 @@ void vk_create_command_buffer( void )
 		alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 		alloc_info.commandBufferCount = 1;
 
-		VK_CHECK( qvkAllocateCommandBuffers( vk.device, &alloc_info, &vk.staging_command_buffer ) );
+		VK_CHECK( vkAllocateCommandBuffers( vk.device, &alloc_info, &vk.staging_command_buffer ) );
 	}
 #endif
 }
@@ -80,13 +80,13 @@ VkCommandBuffer vk_begin_command_buffer( void )
     alloc_info.commandPool = vk.command_pool;
     alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     alloc_info.commandBufferCount = 1;
-    VK_CHECK(qvkAllocateCommandBuffers(vk.device, &alloc_info, &command_buffer));
+    VK_CHECK(vkAllocateCommandBuffers(vk.device, &alloc_info, &command_buffer));
 
     begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     begin_info.pNext = NULL;
     begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
     begin_info.pInheritanceInfo = NULL;
-    VK_CHECK(qvkBeginCommandBuffer(command_buffer, &begin_info));
+    VK_CHECK(vkBeginCommandBuffer(command_buffer, &begin_info));
 
     return command_buffer;
 }
@@ -103,7 +103,7 @@ void vk_end_command_buffer( VkCommandBuffer command_buffer, const char *location
 
     cmdbuf[0] = command_buffer;
 
-    VK_CHECK(qvkEndCommandBuffer(command_buffer));
+    VK_CHECK(vkEndCommandBuffer(command_buffer));
 
     submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     submit_info.pNext = NULL;
@@ -126,9 +126,9 @@ void vk_end_command_buffer( VkCommandBuffer command_buffer, const char *location
     submit_info.signalSemaphoreCount = 0;
     submit_info.pSignalSemaphores = NULL;
 
-    VK_CHECK( qvkQueueSubmit( vk.queue, 1, &submit_info, VK_NULL_HANDLE ) );
+    VK_CHECK( vkQueueSubmit( vk.queue, 1, &submit_info, VK_NULL_HANDLE ) );
 
-	VK_CHECK( qvkQueueWaitIdle( vk.queue ) );
+	VK_CHECK( vkQueueWaitIdle( vk.queue ) );
 
-    qvkFreeCommandBuffers(vk.device, vk.command_pool, 1, cmdbuf);
+    vkFreeCommandBuffers(vk.device, vk.command_pool, 1, cmdbuf);
 }

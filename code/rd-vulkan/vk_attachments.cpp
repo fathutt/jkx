@@ -127,7 +127,7 @@ static void vk_alloc_attachment_memory( void )
     for ( i = 0; i < num_attachments; i++ ) {
         VkImageViewType viewType = attachments[i].viewType; // preserve original type
 
-        VK_CHECK(qvkBindImageMemory(vk.device, attachments[i].descriptor, memory, attachments[i].memory_offset));
+        VK_CHECK(vkBindImageMemory(vk.device, attachments[i].descriptor, memory, attachments[i].memory_offset));
 
         layer = 0;
         while ( qtrue ) {
@@ -148,7 +148,7 @@ static void vk_alloc_attachment_memory( void )
             view_desc.subresourceRange.baseArrayLayer = MAX( ( layer - 1 ), 0 );
             view_desc.subresourceRange.layerCount = ( viewType == VK_IMAGE_VIEW_TYPE_CUBE ) ? 6 : 1;
 
-            VK_CHECK(qvkCreateImageView(vk.device, &view_desc, NULL, attachments[i].image_view + layer));
+            VK_CHECK(vkCreateImageView(vk.device, &view_desc, NULL, attachments[i].image_view + layer));
         
             // discard if not a cube or the 6th face/layer view has been created
             if ( attachments[i].viewType != VK_IMAGE_VIEW_TYPE_CUBE || layer == 6 )
@@ -193,12 +193,12 @@ static void vk_get_image_memory_requirements( VkImage image, VkMemoryRequirement
         memory_requirements2.sType = VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2_KHR;
         memory_requirements2.pNext = &mem_req2;
 
-        qvkGetImageMemoryRequirements2KHR(vk.device, &image_requirements2, &memory_requirements2);
+        vkGetImageMemoryRequirements2KHR(vk.device, &image_requirements2, &memory_requirements2);
 
         *memory_requirements = memory_requirements2.memoryRequirements;
     }
     else {
-        qvkGetImageMemoryRequirements(vk.device, image, memory_requirements);
+        vkGetImageMemoryRequirements(vk.device, image, memory_requirements);
     }
 }
 
@@ -251,7 +251,7 @@ static void create_color_attachment( uint32_t width, uint32_t height, VkSampleCo
     desc.queueFamilyIndexCount = 0;
     desc.pQueueFamilyIndices = NULL;
     desc.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    VK_CHECK(qvkCreateImage(vk.device, &desc, NULL, image));
+    VK_CHECK(vkCreateImage(vk.device, &desc, NULL, image));
 
     vk_get_image_memory_requirements(*image, &memory_requirements);
 
@@ -297,7 +297,7 @@ static void create_depth_attachment( uint32_t width, uint32_t height, VkSampleCo
     if ( glConfig.stencilBits > 0 )
         image_aspect_flags |= VK_IMAGE_ASPECT_STENCIL_BIT;
 
-    VK_CHECK(qvkCreateImage(vk.device, &desc, NULL, image));
+    VK_CHECK(vkCreateImage(vk.device, &desc, NULL, image));
 
     vk_get_image_memory_requirements(*image, &memory_requirements);
 
@@ -506,7 +506,7 @@ void vk_clear_depthstencil_attachments( qboolean clear_stencil ) {
     clear_rect[0].baseArrayLayer = 0;
     clear_rect[0].layerCount = 1;
 
-    qvkCmdClearAttachments( vk.cmd->command_buffer, 1, &attachment, 1, clear_rect );
+    vkCmdClearAttachments( vk.cmd->command_buffer, 1, &attachment, 1, clear_rect );
 }
 
 void vk_clear_color_attachments( const vec4_t color )
@@ -528,7 +528,7 @@ void vk_clear_color_attachments( const vec4_t color )
     clear_rect.baseArrayLayer = 0;
     clear_rect.layerCount = 1;
 
-    qvkCmdClearAttachments( vk.cmd->command_buffer, 1, &attachment, 1, &clear_rect );
+    vkCmdClearAttachments( vk.cmd->command_buffer, 1, &attachment, 1, &clear_rect );
 }
 
 void vk_destroy_attachments( void )
@@ -537,32 +537,32 @@ void vk_destroy_attachments( void )
 
     // depth
     if (vk.depth_image) {
-        qvkDestroyImage(vk.device, vk.depth_image, NULL);
-        qvkDestroyImageView(vk.device, vk.depth_image_view, NULL);
+        vkDestroyImage(vk.device, vk.depth_image, NULL);
+        vkDestroyImageView(vk.device, vk.depth_image_view, NULL);
         vk.depth_image = VK_NULL_HANDLE;
         vk.depth_image_view = VK_NULL_HANDLE;
     }
 
     // MSAA
     if (vk.msaa_image) {
-        qvkDestroyImage(vk.device, vk.msaa_image, NULL);
-        qvkDestroyImageView(vk.device, vk.msaa_image_view, NULL);
+        vkDestroyImage(vk.device, vk.msaa_image, NULL);
+        vkDestroyImageView(vk.device, vk.msaa_image_view, NULL);
         vk.msaa_image = VK_NULL_HANDLE;
         vk.msaa_image_view = VK_NULL_HANDLE;
     }
 
     // color
     if (vk.color_image) {
-        qvkDestroyImage(vk.device, vk.color_image, NULL);
-        qvkDestroyImageView(vk.device, vk.color_image_view, NULL);
+        vkDestroyImage(vk.device, vk.color_image, NULL);
+        vkDestroyImageView(vk.device, vk.color_image_view, NULL);
         vk.color_image = VK_NULL_HANDLE;
         vk.color_image_view = VK_NULL_HANDLE;
     }
 
     // color copy
     if (vk.refraction_extract_image) {
-        qvkDestroyImage(vk.device, vk.refraction_extract_image, NULL);
-        qvkDestroyImageView(vk.device, vk.refraction_extract_image_view, NULL);
+        vkDestroyImage(vk.device, vk.refraction_extract_image, NULL);
+        vkDestroyImageView(vk.device, vk.refraction_extract_image_view, NULL);
         vk.refraction_extract_image = VK_NULL_HANDLE;
         vk.refraction_extract_image_view = VK_NULL_HANDLE;
     }
@@ -570,8 +570,8 @@ void vk_destroy_attachments( void )
     // bloom
     if (vk.bloom_image[0]) {
         for (i = 0; i < ARRAY_LEN(vk.bloom_image); i++) {
-            qvkDestroyImage(vk.device, vk.bloom_image[i], NULL);
-            qvkDestroyImageView(vk.device, vk.bloom_image_view[i], NULL);
+            vkDestroyImage(vk.device, vk.bloom_image[i], NULL);
+            vkDestroyImageView(vk.device, vk.bloom_image_view[i], NULL);
             vk.bloom_image[i] = VK_NULL_HANDLE;
             vk.bloom_image_view[i] = VK_NULL_HANDLE;
         }
@@ -579,29 +579,29 @@ void vk_destroy_attachments( void )
 
     // screenmap
     if (vk.screenMap.color_image) {
-        qvkDestroyImage(vk.device, vk.screenMap.color_image, NULL);
-        qvkDestroyImageView(vk.device, vk.screenMap.color_image_view, NULL);
+        vkDestroyImage(vk.device, vk.screenMap.color_image, NULL);
+        vkDestroyImageView(vk.device, vk.screenMap.color_image_view, NULL);
         vk.screenMap.color_image = VK_NULL_HANDLE;
         vk.screenMap.color_image_view = VK_NULL_HANDLE;
     }
 
     if (vk.screenMap.color_image_msaa) {
-        qvkDestroyImage(vk.device, vk.screenMap.color_image_msaa, NULL);
-        qvkDestroyImageView(vk.device, vk.screenMap.color_image_view_msaa, NULL);
+        vkDestroyImage(vk.device, vk.screenMap.color_image_msaa, NULL);
+        vkDestroyImageView(vk.device, vk.screenMap.color_image_view_msaa, NULL);
         vk.screenMap.color_image_msaa = VK_NULL_HANDLE;
         vk.screenMap.color_image_view_msaa = VK_NULL_HANDLE;
     }
 
     if (vk.screenMap.depth_image) {
-        qvkDestroyImage(vk.device, vk.screenMap.depth_image, NULL);
-        qvkDestroyImageView(vk.device, vk.screenMap.depth_image_view, NULL);
+        vkDestroyImage(vk.device, vk.screenMap.depth_image, NULL);
+        vkDestroyImageView(vk.device, vk.screenMap.depth_image_view, NULL);
         vk.screenMap.depth_image = VK_NULL_HANDLE;
         vk.screenMap.depth_image_view = VK_NULL_HANDLE;
     }
 
     if (vk.capture.image) {
-        qvkDestroyImage(vk.device, vk.capture.image, NULL);
-        qvkDestroyImageView(vk.device, vk.capture.image_view, NULL);
+        vkDestroyImage(vk.device, vk.capture.image, NULL);
+        vkDestroyImageView(vk.device, vk.capture.image_view, NULL);
         vk.capture.image = VK_NULL_HANDLE;
         vk.capture.image_view = VK_NULL_HANDLE;
     }
@@ -609,24 +609,24 @@ void vk_destroy_attachments( void )
     // dynamic glow
     if ( vk.dglow_image[0] ) {
         for ( i = 0; i < ARRAY_LEN(vk.dglow_image); i++ ) {
-            qvkDestroyImage( vk.device, vk.dglow_image[i], NULL );
-            qvkDestroyImageView( vk.device, vk.dglow_image_view[i], NULL );
+            vkDestroyImage( vk.device, vk.dglow_image[i], NULL );
+            vkDestroyImageView( vk.device, vk.dglow_image_view[i], NULL );
             vk.dglow_image[i] = VK_NULL_HANDLE;
             vk.dglow_image_view[i] = VK_NULL_HANDLE;
         }
     }
 
     if ( vk.dglow_msaa_image_view ) {
-        qvkDestroyImage(vk.device, vk.dglow_msaa_image, NULL);
-        qvkDestroyImageView(vk.device, vk.dglow_msaa_image_view, NULL);
+        vkDestroyImage(vk.device, vk.dglow_msaa_image, NULL);
+        vkDestroyImageView(vk.device, vk.dglow_msaa_image_view, NULL);
         vk.dglow_msaa_image = VK_NULL_HANDLE;
         vk.dglow_msaa_image_view = VK_NULL_HANDLE;
     }
 
 #ifdef VK_PBR_BRDFLUT
     if ( vk.brdflut_image_view ) {
-        qvkDestroyImage(vk.device, vk.brdflut_image, NULL);
-        qvkDestroyImageView(vk.device, vk.brdflut_image_view, NULL);
+        vkDestroyImage(vk.device, vk.brdflut_image, NULL);
+        vkDestroyImageView(vk.device, vk.brdflut_image_view, NULL);
         vk.brdflut_image = VK_NULL_HANDLE;
         vk.brdflut_image_view = VK_NULL_HANDLE;
     }
@@ -634,18 +634,18 @@ void vk_destroy_attachments( void )
 
     // render world to cubemap
     if ( vk.cubeMap.color_image ) {
-        qvkDestroyImage(vk.device, vk.cubeMap.color_image, NULL);
+        vkDestroyImage(vk.device, vk.cubeMap.color_image, NULL);
         vk.cubeMap.color_image = VK_NULL_HANDLE;
     }
     
     for ( i = 0; i < ARRAY_LEN(vk.cubeMap.color_image_view); i++) {      
-        qvkDestroyImageView(vk.device, vk.cubeMap.color_image_view[i], NULL);
+        vkDestroyImageView(vk.device, vk.cubeMap.color_image_view[i], NULL);
         vk.cubeMap.color_image_view[i] = VK_NULL_HANDLE;
     }
 
     if ( vk.cubeMap.depth_image ) {
-        qvkDestroyImage(vk.device, vk.cubeMap.depth_image, NULL);
-        qvkDestroyImageView(vk.device, vk.depth_image_view, NULL);
+        vkDestroyImage(vk.device, vk.cubeMap.depth_image, NULL);
+        vkDestroyImageView(vk.device, vk.depth_image_view, NULL);
         vk.cubeMap.depth_image = VK_NULL_HANDLE;
         vk.cubeMap.depth_image_view = VK_NULL_HANDLE;
     }

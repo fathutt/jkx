@@ -32,11 +32,11 @@ void vk_restart_swapchain( const char *funcname )
     vk_wait_idle();
 
     for ( i = 0; i < NUM_COMMAND_BUFFERS; i++ ) {
-        qvkResetCommandBuffer( vk.tess[i].command_buffer, 0 );
+        vkResetCommandBuffer( vk.tess[i].command_buffer, 0 );
     }
 
 #ifdef USE_UPLOAD_QUEUE
-	qvkResetCommandBuffer( vk.staging_command_buffer, 0 );
+	vkResetCommandBuffer( vk.staging_command_buffer, 0 );
 
 #endif
 
@@ -98,7 +98,7 @@ void vk_create_swapchain( VkPhysicalDevice physical_device, VkDevice device,
     qboolean                    fifo_relaxed_supported = qfalse;
  
 
-    VK_CHECK( qvkGetPhysicalDeviceSurfaceCapabilitiesKHR( physical_device, surface, &surface_caps ) );
+    VK_CHECK( vkGetPhysicalDeviceSurfaceCapabilitiesKHR( physical_device, surface, &surface_caps ) );
 
     image_extent = surface_caps.currentExtent;
     if ( image_extent.width == 0xffffffff && image_extent.height == 0xffffffff ) {
@@ -116,11 +116,11 @@ void vk_create_swapchain( VkPhysicalDevice physical_device, VkDevice device,
     vk.clearAttachment = qtrue;
 
     // determine present mode and swapchain image count
-    VK_CHECK( qvkGetPhysicalDeviceSurfacePresentModesKHR( physical_device, surface, &present_mode_count, NULL ) );
+    VK_CHECK( vkGetPhysicalDeviceSurfacePresentModesKHR( physical_device, surface, &present_mode_count, NULL ) );
 
     present_modes = (VkPresentModeKHR*)malloc( present_mode_count * sizeof( VkPresentModeKHR ) );
     //present_modes = (VkPresentModeKHR*)ri.Z_Malloc(present_mode_count * sizeof(VkPresentModeKHR));
-    VK_CHECK( qvkGetPhysicalDeviceSurfacePresentModesKHR( physical_device, surface, &present_mode_count, present_modes ) );
+    VK_CHECK( vkGetPhysicalDeviceSurfacePresentModesKHR( physical_device, surface, &present_mode_count, present_modes ) );
 
     ri.Printf( PRINT_ALL, "----- Presentation modes -----\n" );
 
@@ -198,11 +198,11 @@ void vk_create_swapchain( VkPhysicalDevice physical_device, VkDevice device,
     desc.clipped = VK_TRUE;
     desc.oldSwapchain = VK_NULL_HANDLE;
 
-    VK_CHECK( qvkCreateSwapchainKHR( device, &desc, NULL, swapchain ) );
+    VK_CHECK( vkCreateSwapchainKHR( device, &desc, NULL, swapchain ) );
 
-    VK_CHECK( qvkGetSwapchainImagesKHR( vk.device, vk.swapchain, &vk.swapchain_image_count, NULL ) );
+    VK_CHECK( vkGetSwapchainImagesKHR( vk.device, vk.swapchain, &vk.swapchain_image_count, NULL ) );
     vk.swapchain_image_count = MIN(vk.swapchain_image_count, MAX_SWAPCHAIN_IMAGES );
-    VK_CHECK( qvkGetSwapchainImagesKHR( vk.device, vk.swapchain, &vk.swapchain_image_count, vk.swapchain_images ) );
+    VK_CHECK( vkGetSwapchainImagesKHR( vk.device, vk.swapchain, &vk.swapchain_image_count, vk.swapchain_images ) );
 
     for ( i = 0; i < vk.swapchain_image_count; i++ ) {
 
@@ -222,7 +222,7 @@ void vk_create_swapchain( VkPhysicalDevice physical_device, VkDevice device,
         view.subresourceRange.baseArrayLayer = 0;
         view.subresourceRange.layerCount = 1;
 
-        VK_CHECK( qvkCreateImageView( vk.device, &view, NULL, &vk.swapchain_image_views[i] ) );
+        VK_CHECK( vkCreateImageView( vk.device, &view, NULL, &vk.swapchain_image_views[i] ) );
 
         VK_SET_OBJECT_NAME( vk.swapchain_images[i], va( "swapchain image %i", i ), VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT );
         VK_SET_OBJECT_NAME( vk.swapchain_image_views[i], va( "swapchain image %i", i ), VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT );
@@ -233,7 +233,7 @@ void vk_create_swapchain( VkPhysicalDevice physical_device, VkDevice device,
 		s.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 		s.pNext = NULL;
 		s.flags = 0;
-		VK_CHECK( qvkCreateSemaphore( vk.device, &s, NULL, &vk.swapchain_rendering_finished[i] ) );
+		VK_CHECK( vkCreateSemaphore( vk.device, &s, NULL, &vk.swapchain_rendering_finished[i] ) );
 		VK_SET_OBJECT_NAME( vk.swapchain_rendering_finished[i], va( "swapchain_rendering_finished semaphore %i", i ), VK_DEBUG_REPORT_OBJECT_TYPE_SEMAPHORE_EXT );
 	}
 #if 0
@@ -266,14 +266,14 @@ void vk_destroy_swapchain ( void ) {
 
     for ( i = 0; i < vk.swapchain_image_count; i++ ) {
         if ( vk.swapchain_image_views[i] != VK_NULL_HANDLE ) {
-            qvkDestroyImageView( vk.device, vk.swapchain_image_views[i], NULL );
+            vkDestroyImageView( vk.device, vk.swapchain_image_views[i], NULL );
             vk.swapchain_image_views[i] = VK_NULL_HANDLE;
         }
 		if ( vk.swapchain_rendering_finished[i] != VK_NULL_HANDLE ) {
-			qvkDestroySemaphore( vk.device, vk.swapchain_rendering_finished[i], NULL );
+			vkDestroySemaphore( vk.device, vk.swapchain_rendering_finished[i], NULL );
 			vk.swapchain_rendering_finished[i] = VK_NULL_HANDLE;
 		}
     }
 
-    qvkDestroySwapchainKHR( vk.device, vk.swapchain, NULL );
+    vkDestroySwapchainKHR( vk.device, vk.swapchain, NULL );
 }

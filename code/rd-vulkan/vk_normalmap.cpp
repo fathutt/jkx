@@ -78,7 +78,7 @@ void vk_create_compute_normalmap_pipelines()
     desc.bindingCount = 2,
     desc.pBindings = bind;
 
-    qvkCreateDescriptorSetLayout( vk.device, &desc, NULL, &vk.set_layout_compute_normalmap );
+    vkCreateDescriptorSetLayout( vk.device, &desc, NULL, &vk.set_layout_compute_normalmap );
 
     // pipeline layout
     VkPipelineLayoutCreateInfo pipeline_layout;
@@ -89,7 +89,7 @@ void vk_create_compute_normalmap_pipelines()
     pipeline_layout.pushConstantRangeCount = 0;
     pipeline_layout.pPushConstantRanges = NULL;
 
-    VkResult res = qvkCreatePipelineLayout( vk.device, &pipeline_layout,
+    VkResult res = vkCreatePipelineLayout( vk.device, &pipeline_layout,
         NULL,  &vk.pipeline_layout_compute_normalmap );
 
     if ( res != VK_SUCCESS )
@@ -112,7 +112,7 @@ void vk_create_compute_normalmap_pipelines()
     info.stage  = stage;
     info.layout = vk.pipeline_layout_compute_normalmap;
 
-    qvkCreateComputePipelines( vk.device, VK_NULL_HANDLE, 1, &info, NULL, &vk.compute_normalmap_pipeline );
+    vkCreateComputePipelines( vk.device, VK_NULL_HANDLE, 1, &info, NULL, &vk.compute_normalmap_pipeline );
 }
 
 void vk_add_compute_normalmap( shaderStage_t *stage, image_t *albedo, imgFlags_t flags ) 
@@ -171,10 +171,10 @@ void vk_add_compute_normalmap( shaderStage_t *stage, image_t *albedo, imgFlags_t
 	alloc.descriptorPool = vk.descriptor_pool;
 	alloc.descriptorSetCount = 1;
 	alloc.pSetLayouts = &vk.set_layout_compute_normalmap;
-	//VK_CHECK( qvkAllocateDescriptorSets( vk.device, &alloc, &vk.storage.descriptor ) );
+	//VK_CHECK( vkAllocateDescriptorSets( vk.device, &alloc, &vk.storage.descriptor ) );
 
 	VkDescriptorSet descriptor_set;
-	VkResult res = qvkAllocateDescriptorSets( vk.device, &alloc, &descriptor_set );
+	VkResult res = vkAllocateDescriptorSets( vk.device, &alloc, &descriptor_set );
 	if ( res != VK_SUCCESS ) {
 		Com_Error( ERR_FATAL, "Failed to allocate descriptor set for normal map generation" );
 	}
@@ -195,7 +195,7 @@ void vk_add_compute_normalmap( shaderStage_t *stage, image_t *albedo, imgFlags_t
 	writes[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
 	writes[1].pImageInfo = &normal_info;
 
-	qvkUpdateDescriptorSets( vk.device, 2, writes, 0, NULL );
+	vkUpdateDescriptorSets( vk.device, 2, writes, 0, NULL );
 
 	stage->normalMap = normal;
 	stage->vk_pbr_flags |= PBR_HAS_NORMALMAP;
@@ -233,7 +233,7 @@ static void vk_compute_normalmap_mips( VkCommandBuffer cmd, image_t *image,
         barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
         barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
 
-        qvkCmdPipelineBarrier( cmd,
+        vkCmdPipelineBarrier( cmd,
                              VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0,
                              0, NULL, 0, NULL, 1, &barrier);
 
@@ -259,7 +259,7 @@ static void vk_compute_normalmap_mips( VkCommandBuffer cmd, image_t *image,
             1  
         };
 
-        qvkCmdBlitImage( cmd,
+        vkCmdBlitImage( cmd,
                        image->handle, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                        image->handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                        1, &region, VK_FILTER_LINEAR );
@@ -268,7 +268,7 @@ static void vk_compute_normalmap_mips( VkCommandBuffer cmd, image_t *image,
         barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
         barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
         barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-        qvkCmdPipelineBarrier( cmd,
+        vkCmdPipelineBarrier( cmd,
                              VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0,
                              0, NULL, 0, NULL, 1, &barrier );
 
@@ -285,7 +285,7 @@ static void vk_compute_normalmap_mips( VkCommandBuffer cmd, image_t *image,
     barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
     barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-    qvkCmdPipelineBarrier( cmd,
+    vkCmdPipelineBarrier( cmd,
                          VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0,
                          0, NULL, 0, NULL, 1, &barrier );
 }
@@ -306,13 +306,13 @@ void vk_dispatch_compute_normalmaps( void )
 				VK_IMAGE_LAYOUT_GENERAL,
 				0, 0);
 
-			qvkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, vk.compute_normalmap_pipeline);
-			qvkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE,
+			vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, vk.compute_normalmap_pipeline);
+			vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE,
 				vk.pipeline_layout_compute_normalmap, 0, 1, &item->descriptor_set, 0, NULL);
 
 			uint32_t groupsX = (item->normal->width + 7) / 8;
 			uint32_t groupsY = (item->normal->height + 7) / 8;
-			qvkCmdDispatch(command_buffer, groupsX, groupsY, 1);
+			vkCmdDispatch(command_buffer, groupsX, groupsY, 1);
 
 			vk_record_image_layout_transition(
 				command_buffer,

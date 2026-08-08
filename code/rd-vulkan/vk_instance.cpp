@@ -32,136 +32,27 @@ unsigned char s_gammatable[256];
 unsigned char s_gammatable_linear[256];
 
 // Vulkan API functions used by the renderer.
-PFN_vkGetInstanceProcAddr						qvkGetInstanceProcAddr;
-
-PFN_vkCreateInstance							qvkCreateInstance;
-PFN_vkEnumerateInstanceExtensionProperties		qvkEnumerateInstanceExtensionProperties;
-
-PFN_vkCreateDevice								qvkCreateDevice;
-PFN_vkDestroyInstance							qvkDestroyInstance;
-PFN_vkEnumerateDeviceExtensionProperties		qvkEnumerateDeviceExtensionProperties;
-PFN_vkEnumeratePhysicalDevices					qvkEnumeratePhysicalDevices;
-PFN_vkGetDeviceProcAddr							qvkGetDeviceProcAddr;
-PFN_vkGetPhysicalDeviceFeatures					qvkGetPhysicalDeviceFeatures;
-PFN_vkGetPhysicalDeviceFormatProperties			qvkGetPhysicalDeviceFormatProperties;
-PFN_vkGetPhysicalDeviceMemoryProperties			qvkGetPhysicalDeviceMemoryProperties;
-PFN_vkGetPhysicalDeviceProperties				qvkGetPhysicalDeviceProperties;
-PFN_vkGetPhysicalDeviceQueueFamilyProperties	qvkGetPhysicalDeviceQueueFamilyProperties;
 
 
-PFN_vkDestroySurfaceKHR							qvkDestroySurfaceKHR;
-PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR	qvkGetPhysicalDeviceSurfaceCapabilitiesKHR;
-PFN_vkGetPhysicalDeviceSurfaceFormatsKHR		qvkGetPhysicalDeviceSurfaceFormatsKHR;
-PFN_vkGetPhysicalDeviceSurfacePresentModesKHR	qvkGetPhysicalDeviceSurfacePresentModesKHR;
-PFN_vkGetPhysicalDeviceSurfaceSupportKHR		qvkGetPhysicalDeviceSurfaceSupportKHR;
+
+
 
 #ifdef USE_VK_VALIDATION
 	#ifdef USE_DEBUG_REPORT
-		PFN_vkCreateDebugReportCallbackEXT		qvkCreateDebugReportCallbackEXT;
-		PFN_vkDestroyDebugReportCallbackEXT		qvkDestroyDebugReportCallbackEXT;
 	#endif
 	#ifdef USE_DEBUG_UTILS
-		PFN_vkCreateDebugUtilsMessengerEXT		qvkCreateDebugUtilsMessengerEXT;
-		PFN_vkDestroyDebugUtilsMessengerEXT		qvkDestroyDebugUtilsMessengerEXT;
 	#endif
 #endif
 
-PFN_vkAllocateCommandBuffers					qvkAllocateCommandBuffers;
-PFN_vkAllocateDescriptorSets					qvkAllocateDescriptorSets;
-PFN_vkAllocateMemory							qvkAllocateMemory;
-PFN_vkBeginCommandBuffer						qvkBeginCommandBuffer;
-PFN_vkBindBufferMemory							qvkBindBufferMemory;
-PFN_vkBindImageMemory							qvkBindImageMemory;
-PFN_vkCmdBeginRenderPass						qvkCmdBeginRenderPass;
-PFN_vkCmdBindDescriptorSets						qvkCmdBindDescriptorSets;
-PFN_vkCmdBindIndexBuffer						qvkCmdBindIndexBuffer;
-PFN_vkCmdBindPipeline							qvkCmdBindPipeline;
-PFN_vkCmdBindVertexBuffers						qvkCmdBindVertexBuffers;
-PFN_vkCmdBlitImage								qvkCmdBlitImage;
-PFN_vkCmdClearAttachments						qvkCmdClearAttachments;
-PFN_vkCmdCopyBuffer								qvkCmdCopyBuffer;
-PFN_vkCmdCopyBufferToImage						qvkCmdCopyBufferToImage;
-PFN_vkCmdCopyImage								qvkCmdCopyImage;
-PFN_vkCmdCopyImageToBuffer                      qvkCmdCopyImageToBuffer;
-PFN_vkCmdDraw									qvkCmdDraw;
-PFN_vkCmdDrawIndexed							qvkCmdDrawIndexed;
-PFN_vkCmdEndRenderPass							qvkCmdEndRenderPass;
-PFN_vkCmdPipelineBarrier						qvkCmdPipelineBarrier;
-PFN_vkCmdPushConstants							qvkCmdPushConstants;
-PFN_vkCmdSetDepthBias							qvkCmdSetDepthBias;
-PFN_vkCmdSetScissor								qvkCmdSetScissor;
-PFN_vkCmdSetViewport							qvkCmdSetViewport;
-PFN_vkCreateBuffer								qvkCreateBuffer;
-PFN_vkCreateCommandPool							qvkCreateCommandPool;
-PFN_vkCreateDescriptorPool						qvkCreateDescriptorPool;
-PFN_vkCreateDescriptorSetLayout					qvkCreateDescriptorSetLayout;
-PFN_vkCreateFence								qvkCreateFence;
-PFN_vkCreateFramebuffer							qvkCreateFramebuffer;
-PFN_vkCreateGraphicsPipelines					qvkCreateGraphicsPipelines;
-PFN_vkCreateImage								qvkCreateImage;
-PFN_vkCreateImageView							qvkCreateImageView;
-PFN_vkCreatePipelineLayout						qvkCreatePipelineLayout;
-PFN_vkCreatePipelineCache						qvkCreatePipelineCache;
-PFN_vkCreateRenderPass							qvkCreateRenderPass;
-PFN_vkCreateSampler								qvkCreateSampler;
-PFN_vkCreateSemaphore							qvkCreateSemaphore;
-PFN_vkCreateShaderModule						qvkCreateShaderModule;
-PFN_vkDestroyBuffer								qvkDestroyBuffer;
-PFN_vkDestroyCommandPool						qvkDestroyCommandPool;
-PFN_vkDestroyDescriptorPool						qvkDestroyDescriptorPool;
-PFN_vkDestroyDescriptorSetLayout				qvkDestroyDescriptorSetLayout;
-PFN_vkDestroyPipelineCache						qvkDestroyPipelineCache;
-PFN_vkDestroyDevice								qvkDestroyDevice;
-PFN_vkDestroyFence								qvkDestroyFence;
-PFN_vkDestroyFramebuffer						qvkDestroyFramebuffer;
-PFN_vkDestroyImage								qvkDestroyImage;
-PFN_vkDestroyImageView							qvkDestroyImageView;
-PFN_vkDestroyPipeline							qvkDestroyPipeline;
-PFN_vkDestroyPipelineLayout						qvkDestroyPipelineLayout;
-PFN_vkDestroyRenderPass							qvkDestroyRenderPass;
-PFN_vkDestroySampler							qvkDestroySampler;
-PFN_vkDestroySemaphore							qvkDestroySemaphore;
-PFN_vkDestroyShaderModule						qvkDestroyShaderModule;
-PFN_vkDeviceWaitIdle							qvkDeviceWaitIdle;
-PFN_vkEndCommandBuffer							qvkEndCommandBuffer;
-PFN_vkResetCommandBuffer						qvkResetCommandBuffer;
-PFN_vkFreeCommandBuffers						qvkFreeCommandBuffers;
-PFN_vkFreeDescriptorSets						qvkFreeDescriptorSets;
-PFN_vkFreeMemory								qvkFreeMemory;
-PFN_vkGetBufferMemoryRequirements				qvkGetBufferMemoryRequirements;
-PFN_vkGetDeviceQueue							qvkGetDeviceQueue;
-PFN_vkGetImageMemoryRequirements				qvkGetImageMemoryRequirements;
-PFN_vkGetImageSubresourceLayout					qvkGetImageSubresourceLayout;
-PFN_vkInvalidateMappedMemoryRanges				qvkInvalidateMappedMemoryRanges;
-PFN_vkMapMemory									qvkMapMemory;
-PFN_vkUnmapMemory                               qvkUnmapMemory;
-PFN_vkQueueSubmit								qvkQueueSubmit;
-PFN_vkQueueWaitIdle								qvkQueueWaitIdle;
-PFN_vkResetDescriptorPool						qvkResetDescriptorPool;
-PFN_vkResetFences								qvkResetFences;
-PFN_vkUpdateDescriptorSets						qvkUpdateDescriptorSets;
-PFN_vkWaitForFences								qvkWaitForFences;
-PFN_vkAcquireNextImageKHR						qvkAcquireNextImageKHR;
-PFN_vkCreateSwapchainKHR						qvkCreateSwapchainKHR;
-PFN_vkDestroySwapchainKHR						qvkDestroySwapchainKHR;
-PFN_vkGetSwapchainImagesKHR						qvkGetSwapchainImagesKHR;
-PFN_vkQueuePresentKHR							qvkQueuePresentKHR;
 
-PFN_vkGetBufferMemoryRequirements2KHR			qvkGetBufferMemoryRequirements2KHR;
-PFN_vkGetImageMemoryRequirements2KHR			qvkGetImageMemoryRequirements2KHR;
+PFN_vkGetBufferMemoryRequirements2KHR			vkGetBufferMemoryRequirements2KHR;
+PFN_vkGetImageMemoryRequirements2KHR			vkGetImageMemoryRequirements2KHR;
 
-PFN_vkDebugMarkerSetObjectNameEXT				qvkDebugMarkerSetObjectNameEXT;
 
-PFN_vkCmdClearColorImage						qvkCmdClearColorImage;
 
 #ifdef USE_VK_IMGUI
-PFN_vkFlushMappedMemoryRanges					qvkFlushMappedMemoryRanges;
-PFN_vkResetCommandPool							qvkResetCommandPool;
 #endif
 
-PFN_vkCmdDrawIndexedIndirect					qvkCmdDrawIndexedIndirect;
-PFN_vkCmdDispatch								qvkCmdDispatch;
-PFN_vkCreateComputePipelines					qvkCreateComputePipelines;
 
 static char *Q_stradd( char *dst, const char *src )
 {
@@ -243,13 +134,13 @@ static void vk_create_instance( void )
     count = 0;
     extension_count = 0;
 
-    VK_CHECK(qvkEnumerateInstanceExtensionProperties(NULL, &count, NULL));
+    VK_CHECK(vkEnumerateInstanceExtensionProperties(NULL, &count, NULL));
     assert(count > 0);
 
     extension_properties = (VkExtensionProperties*)malloc(sizeof(VkExtensionProperties) * count);
     extension_names = (const char**)malloc(sizeof(char*) * (count));
 
-    VK_CHECK(qvkEnumerateInstanceExtensionProperties(NULL, &count, extension_properties));
+    VK_CHECK(vkEnumerateInstanceExtensionProperties(NULL, &count, extension_properties));
 
 	// fill vk.instance_extensions_string
 	str = vk.instance_extensions_string; *str = '\0';
@@ -315,14 +206,14 @@ static void vk_create_instance( void )
 	desc.pNext = &debug_utils_create_info;
 #endif
 
-    result = qvkCreateInstance(&desc, NULL, &vk.instance);
+    result = vkCreateInstance(&desc, NULL, &vk.instance);
 
     if (result == VK_ERROR_LAYER_NOT_PRESENT) {
 
         desc.enabledLayerCount = 1;
         desc.ppEnabledLayerNames = &validation_layer_name_khronos;
 
-        result = qvkCreateInstance(&desc, NULL, &vk.instance);
+        result = vkCreateInstance(&desc, NULL, &vk.instance);
 
         if (result == VK_ERROR_LAYER_NOT_PRESENT) {
 
@@ -335,19 +226,19 @@ static void vk_create_instance( void )
 			desc.pNext = NULL;
 #endif
 
-            result = qvkCreateInstance(&desc, NULL, &vk.instance);
+            result = vkCreateInstance(&desc, NULL, &vk.instance);
         }
     }
 #else
     desc.enabledLayerCount = 0;
     desc.ppEnabledLayerNames = NULL;
 
-    result = qvkCreateInstance(&desc, NULL, &vk.instance);
+    result = vkCreateInstance(&desc, NULL, &vk.instance);
 #endif
 
 	// hotfix: reintroduce duplicate instance creation. 
 	// mysterious x64-linux configuration causing a crash after vid_restart.
-	result = qvkCreateInstance(&desc, NULL, &vk.instance);
+	result = vkCreateInstance(&desc, NULL, &vk.instance);
 
     switch (result) {
         case VK_SUCCESS:
@@ -357,7 +248,7 @@ static void vk_create_instance( void )
         case VK_ERROR_EXTENSION_NOT_PRESENT:
             vk_debug("Cannot find a specified extension library.\n"); break;
         default:
-            vk_debug("%d, returned by qvkCreateInstance.\n", result); break;
+            vk_debug("%d, returned by vkCreateInstance.\n", result); break;
     }
 
     free((void*)extension_names);
@@ -391,7 +282,7 @@ static VkFormat get_depth_format( VkPhysicalDevice physical_device ) {
     }
 
     for (i = 0; i < ARRAY_LEN(formats); i++) {
-        qvkGetPhysicalDeviceFormatProperties(physical_device, formats[i], &props);
+        vkGetPhysicalDeviceFormatProperties(physical_device, formats[i], &props);
         if ((props.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) != 0) {
             return formats[i];
         }
@@ -405,12 +296,12 @@ static qboolean vk_blit_enabled( VkPhysicalDevice physical_device, const VkForma
 {
     VkFormatProperties formatProps;
 
-    qvkGetPhysicalDeviceFormatProperties(physical_device, srcFormat, &formatProps);
+    vkGetPhysicalDeviceFormatProperties(physical_device, srcFormat, &formatProps);
 	if ((formatProps.optimalTilingFeatures & VK_FORMAT_FEATURE_BLIT_SRC_BIT) == 0) {
 		return qfalse;
 	}
 
-    qvkGetPhysicalDeviceFormatProperties(physical_device, dstFormat, &formatProps);
+    vkGetPhysicalDeviceFormatProperties(physical_device, dstFormat, &formatProps);
 	if ((formatProps.linearTilingFeatures & VK_FORMAT_FEATURE_BLIT_DST_BIT) == 0) {
 		return qfalse;
 	}
@@ -462,7 +353,7 @@ qboolean vk_select_surface_format( VkPhysicalDevice physical_device, VkSurfaceKH
     uint32_t format_count;
     VkResult result;
 
-    result = qvkGetPhysicalDeviceSurfaceFormatsKHR(physical_device, surface, &format_count, NULL);
+    result = vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device, surface, &format_count, NULL);
     if (result < 0) {
         ri.Printf(PRINT_ERROR, "vkGetPhysicalDeviceSurfaceFormatsKHR returned error %i\n", result);
         return qfalse;
@@ -475,7 +366,7 @@ qboolean vk_select_surface_format( VkPhysicalDevice physical_device, VkSurfaceKH
 
     candidates = (VkSurfaceFormatKHR*)malloc(format_count * sizeof(VkSurfaceFormatKHR));
 
-    VK_CHECK(qvkGetPhysicalDeviceSurfaceFormatsKHR(physical_device, surface, &format_count, candidates));
+    VK_CHECK(vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device, surface, &format_count, candidates));
 
 	get_present_format(24, &base_bgr, &base_rgb);
 	get_present_format(r_presentBits->integer, &ext_bgr, &ext_rgb);
@@ -550,15 +441,15 @@ static qboolean vk_create_device( VkPhysicalDevice physical_device, int device_i
 		uint32_t queue_family_count;
 		uint32_t i;
 
-		qvkGetPhysicalDeviceQueueFamilyProperties(physical_device, &queue_family_count, NULL);
+		vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &queue_family_count, NULL);
 		queue_families = (VkQueueFamilyProperties*)malloc(queue_family_count * sizeof(VkQueueFamilyProperties));
-		qvkGetPhysicalDeviceQueueFamilyProperties(physical_device, &queue_family_count, queue_families);
+		vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &queue_family_count, queue_families);
 
 		// select queue family with presentation and graphics support
 		vk.queue_family_index = ~0U;
 		for (i = 0; i < queue_family_count; i++) {
 			VkBool32 presentation_supported;
-			VK_CHECK(qvkGetPhysicalDeviceSurfaceSupportKHR(physical_device, i, vk.surface, &presentation_supported));
+			VK_CHECK(vkGetPhysicalDeviceSurfaceSupportKHR(physical_device, i, vk.surface, &presentation_supported));
 
 			if (presentation_supported && (queue_families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) != 0) {
 				vk.queue_family_index = i;
@@ -602,9 +493,9 @@ static qboolean vk_create_device( VkPhysicalDevice physical_device, int device_i
 #endif
 		uint32_t i, len, count = 0;
 
-		VK_CHECK(qvkEnumerateDeviceExtensionProperties(physical_device, NULL, &count, NULL));
+		VK_CHECK(vkEnumerateDeviceExtensionProperties(physical_device, NULL, &count, NULL));
 		extension_properties = (VkExtensionProperties*)malloc(count * sizeof(VkExtensionProperties));
-		VK_CHECK(qvkEnumerateDeviceExtensionProperties(physical_device, NULL, &count, extension_properties));
+		VK_CHECK(vkEnumerateDeviceExtensionProperties(physical_device, NULL, &count, extension_properties));
 
 		// fill glConfig.extensions_string
 		str = vk.device_extensions_string; *str = '\0';
@@ -700,7 +591,7 @@ static qboolean vk_create_device( VkPhysicalDevice physical_device, int device_i
 		}
 #endif // _DEBUG
 
-		qvkGetPhysicalDeviceFeatures(physical_device, &device_features);
+		vkGetPhysicalDeviceFeatures(physical_device, &device_features);
 
 		if (device_features.fillModeNonSolid == VK_FALSE) {
 			ri.Printf(PRINT_ERROR, "...fillModeNonSolid feature is not supported\n");
@@ -801,7 +692,10 @@ static qboolean vk_create_device( VkPhysicalDevice physical_device, int device_i
 		}
 #endif
 
-		result = qvkCreateDevice(physical_device, &device_desc, NULL, &vk.device);
+		result = vkCreateDevice(physical_device, &device_desc, NULL, &vk.device);
+		if (result == VK_SUCCESS) {
+			volkLoadDevice(vk.device);
+		}
 		if (result < 0) {
 			ri.Printf(PRINT_ERROR, "vkCreateDevice returned %s\n", vk_result_string(result));
 			return qfalse;
@@ -811,24 +705,10 @@ static qboolean vk_create_device( VkPhysicalDevice physical_device, int device_i
 	return qtrue;
 }
 
-#define INIT_INSTANCE_FUNCTION(func) \
-	q##func = (PFN_ ## func)qvkGetInstanceProcAddr(vk.instance, #func); \
-	if (q##func == NULL) {											\
-		ri.Error(ERR_FATAL, "Failed to find entrypoint %s", #func);	\
-	}
-
-#define INIT_INSTANCE_FUNCTION_EXT(func) \
-	q##func = (PFN_ ## func)qvkGetInstanceProcAddr(vk.instance, #func);
 
 
-#define INIT_DEVICE_FUNCTION(func) \
-	q##func = (PFN_ ## func) qvkGetDeviceProcAddr(vk.device, #func);\
-	if (q##func == NULL) {											\
-		ri.Error(ERR_FATAL, "Failed to find entrypoint %s", #func);	\
-	}
 
-#define INIT_DEVICE_FUNCTION_EXT(func) \
-	q##func = (PFN_ ## func) qvkGetDeviceProcAddr(vk.device, #func);
+
 
 void vk_init_library( void )
 {
@@ -844,45 +724,29 @@ __initStart:
 
 	Com_Memset(&vk, 0, sizeof(vk));
 
-	qvkGetInstanceProcAddr = (PFN_vkGetInstanceProcAddr)ri.VK_GetInstanceProcAddress();
-	if (qvkGetInstanceProcAddr == NULL)
-		vk_debug("Failed to find entrypoint vkGetInstanceProcAddr\n");
+	// The loader comes from SDL, not from a linked libvulkan, so volk is
+	// initialised with that address rather than by volkInitialize().
+	{
+		PFN_vkGetInstanceProcAddr getProcAddr = (PFN_vkGetInstanceProcAddr)ri.VK_GetInstanceProcAddress();
+		if (getProcAddr == NULL) {
+			ri.Error(ERR_FATAL, "Vulkan: failed to find entrypoint vkGetInstanceProcAddr");
+			return;
+		}
+		volkInitializeCustom(getProcAddr);
+	}
 
-	//
-	// Get functions that do not depend on VkInstance (vk.instance == nullptr at this point).
-	//
-	INIT_INSTANCE_FUNCTION(vkCreateInstance)
-	INIT_INSTANCE_FUNCTION(vkEnumerateInstanceExtensionProperties)
-
-	//
-	// Get instance level functions.
-	//
 	vk_create_instance();
 
-	INIT_INSTANCE_FUNCTION(vkCreateDevice)
-	INIT_INSTANCE_FUNCTION(vkDestroyInstance)
-	INIT_INSTANCE_FUNCTION(vkEnumerateDeviceExtensionProperties)
-	INIT_INSTANCE_FUNCTION(vkEnumeratePhysicalDevices)
-	INIT_INSTANCE_FUNCTION(vkGetDeviceProcAddr)
-	INIT_INSTANCE_FUNCTION(vkGetPhysicalDeviceFeatures)
-	INIT_INSTANCE_FUNCTION(vkGetPhysicalDeviceFormatProperties)
-	INIT_INSTANCE_FUNCTION(vkGetPhysicalDeviceMemoryProperties)
-	INIT_INSTANCE_FUNCTION(vkGetPhysicalDeviceProperties)
-	INIT_INSTANCE_FUNCTION(vkGetPhysicalDeviceQueueFamilyProperties)
-	INIT_INSTANCE_FUNCTION(vkDestroySurfaceKHR)
-	INIT_INSTANCE_FUNCTION(vkGetPhysicalDeviceSurfaceCapabilitiesKHR)
-	INIT_INSTANCE_FUNCTION(vkGetPhysicalDeviceSurfaceFormatsKHR)
-	INIT_INSTANCE_FUNCTION(vkGetPhysicalDeviceSurfacePresentModesKHR)
-	INIT_INSTANCE_FUNCTION(vkGetPhysicalDeviceSurfaceSupportKHR)
+	// Instance-level entry points only; device-level ones are loaded once the
+	// device exists, so they resolve directly instead of going through the
+	// loader trampoline.
+	volkLoadInstanceOnly(vk.instance);
+
 
 #ifdef USE_VK_VALIDATION
 	#ifdef USE_DEBUG_REPORT
-		INIT_INSTANCE_FUNCTION_EXT(vkCreateDebugReportCallbackEXT)
-		INIT_INSTANCE_FUNCTION_EXT(vkDestroyDebugReportCallbackEXT)
 	#endif
 	#ifdef USE_DEBUG_UTILS
-		INIT_INSTANCE_FUNCTION_EXT(vkCreateDebugUtilsMessengerEXT)
-		INIT_INSTANCE_FUNCTION_EXT(vkDestroyDebugUtilsMessengerEXT)
 	#endif
 
 	vk_create_debug_callback();
@@ -899,7 +763,7 @@ __initStart:
 		return;
 	}
 
-	res = qvkEnumeratePhysicalDevices(vk.instance, &device_count, NULL);
+	res = vkEnumeratePhysicalDevices(vk.instance, &device_count, NULL);
 	if (device_count == 0) {
 #ifdef _WIN32
 		if (!deviceCountRetried) {
@@ -908,18 +772,18 @@ __initStart:
 			ri.Printf(PRINT_WARNING, "Vulkan: No physical devices found. Retrying with AMD_SWITCHABLE_GRAPHICS disabled.\n");
 
 			// Clear instance with a subset of vk_shutdown
-			qvkDestroySurfaceKHR(vk.instance, vk.surface, NULL);
+			vkDestroySurfaceKHR(vk.instance, vk.surface, NULL);
 #ifdef USE_VK_VALIDATION
 	#ifdef USE_DEBUG_REPORT
-			if (qvkDestroyDebugReportCallbackEXT && vk.debug_callback)
-				qvkDestroyDebugReportCallbackEXT(vk.instance, vk.debug_callback, NULL);
+			if (vkDestroyDebugReportCallbackEXT && vk.debug_callback)
+				vkDestroyDebugReportCallbackEXT(vk.instance, vk.debug_callback, NULL);
 	#endif
 	#ifdef USE_DEBUG_UTILS
-			if (qvkDestroyDebugUtilsMessengerEXT && vk.debug_utils_messenger)
-				qvkDestroyDebugUtilsMessengerEXT(vk.instance, vk.debug_utils_messenger, NULL);
+			if (vkDestroyDebugUtilsMessengerEXT && vk.debug_utils_messenger)
+				vkDestroyDebugUtilsMessengerEXT(vk.instance, vk.debug_utils_messenger, NULL);
 	#endif
 #endif
-			qvkDestroyInstance(vk.instance, NULL);
+			vkDestroyInstance(vk.instance, NULL);
 			vk_deinit_library();
 
 			// Disable the AMD layer and try again.
@@ -937,14 +801,14 @@ __initStart:
 	}
 
 	physical_devices = (VkPhysicalDevice*)malloc(device_count * sizeof(VkPhysicalDevice));
-	VK_CHECK(qvkEnumeratePhysicalDevices(vk.instance, &device_count, physical_devices));
+	VK_CHECK(vkEnumeratePhysicalDevices(vk.instance, &device_count, physical_devices));
 
 	// initial physical device index
 	device_index = r_device->integer;
 
 	ri.Printf(PRINT_ALL, "\n\n----- Available physical devices -----\n");
 	for (i = 0; i < device_count; i++) {
-		qvkGetPhysicalDeviceProperties(physical_devices[i], &props);
+		vkGetPhysicalDeviceProperties(physical_devices[i], &props);
 		ri.Printf(PRINT_ALL, " %i: %s\n", i, renderer_name(&props));
 		if (device_index == -1 && props.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) {
 			device_index = i;
@@ -976,244 +840,28 @@ __initStart:
 	//
 	// Get device level functions.
 	//
-	INIT_DEVICE_FUNCTION(vkAllocateCommandBuffers)
-	INIT_DEVICE_FUNCTION(vkAllocateDescriptorSets)
-	INIT_DEVICE_FUNCTION(vkAllocateMemory)
-	INIT_DEVICE_FUNCTION(vkBeginCommandBuffer)
-	INIT_DEVICE_FUNCTION(vkBindBufferMemory)
-	INIT_DEVICE_FUNCTION(vkBindImageMemory)
-	INIT_DEVICE_FUNCTION(vkCmdBeginRenderPass)
-	INIT_DEVICE_FUNCTION(vkCmdBindDescriptorSets)
-	INIT_DEVICE_FUNCTION(vkCmdBindIndexBuffer)
-	INIT_DEVICE_FUNCTION(vkCmdBindPipeline)
-	INIT_DEVICE_FUNCTION(vkCmdBindVertexBuffers)
-	INIT_DEVICE_FUNCTION(vkCmdBlitImage)
-	INIT_DEVICE_FUNCTION(vkCmdClearAttachments)
-	INIT_DEVICE_FUNCTION(vkCmdCopyBuffer)
-	INIT_DEVICE_FUNCTION(vkCmdCopyBufferToImage)
-	INIT_DEVICE_FUNCTION(vkCmdCopyImage)
-	INIT_DEVICE_FUNCTION(vkCmdDraw)
-	INIT_DEVICE_FUNCTION(vkCmdDrawIndexed)
-	INIT_DEVICE_FUNCTION(vkCmdEndRenderPass)
-	//INIT_DEVICE_FUNCTION(vkCmdNextSubpass)
-	INIT_DEVICE_FUNCTION(vkCmdPipelineBarrier)
-	INIT_DEVICE_FUNCTION(vkCmdPushConstants)
-	INIT_DEVICE_FUNCTION(vkCmdSetDepthBias)
-	INIT_DEVICE_FUNCTION(vkCmdSetScissor)
-	INIT_DEVICE_FUNCTION(vkCmdSetViewport)
-	INIT_DEVICE_FUNCTION(vkCreateBuffer)
-	INIT_DEVICE_FUNCTION(vkCreateCommandPool)
-	INIT_DEVICE_FUNCTION(vkCreateDescriptorPool)
-	INIT_DEVICE_FUNCTION(vkCreateDescriptorSetLayout)
-	INIT_DEVICE_FUNCTION(vkCreateFence)
-	INIT_DEVICE_FUNCTION(vkCreateFramebuffer)
-	INIT_DEVICE_FUNCTION(vkCreateGraphicsPipelines)
-	INIT_DEVICE_FUNCTION(vkCreateImage)
-	INIT_DEVICE_FUNCTION(vkCreateImageView)
-	INIT_DEVICE_FUNCTION(vkCreatePipelineCache)
-	INIT_DEVICE_FUNCTION(vkCreatePipelineLayout)
-	INIT_DEVICE_FUNCTION(vkCreateRenderPass)
-	INIT_DEVICE_FUNCTION(vkCreateSampler)
-	INIT_DEVICE_FUNCTION(vkCreateSemaphore)
-	INIT_DEVICE_FUNCTION(vkCreateShaderModule)
-	INIT_DEVICE_FUNCTION(vkDestroyBuffer)
-	INIT_DEVICE_FUNCTION(vkDestroyCommandPool)
-	INIT_DEVICE_FUNCTION(vkDestroyDescriptorPool)
-	INIT_DEVICE_FUNCTION(vkDestroyDescriptorSetLayout)
-	INIT_DEVICE_FUNCTION(vkDestroyDevice)
-	INIT_DEVICE_FUNCTION(vkDestroyFence)
-	INIT_DEVICE_FUNCTION(vkDestroyFramebuffer)
-	INIT_DEVICE_FUNCTION(vkDestroyImage)
-	INIT_DEVICE_FUNCTION(vkDestroyImageView)
-	INIT_DEVICE_FUNCTION(vkDestroyPipeline)
-	INIT_DEVICE_FUNCTION(vkDestroyPipelineCache)
-	INIT_DEVICE_FUNCTION(vkDestroyPipelineLayout)
-	INIT_DEVICE_FUNCTION(vkDestroyRenderPass)
-	INIT_DEVICE_FUNCTION(vkDestroySampler)
-	INIT_DEVICE_FUNCTION(vkDestroySemaphore)
-	INIT_DEVICE_FUNCTION(vkDestroyShaderModule)
-	INIT_DEVICE_FUNCTION(vkDeviceWaitIdle)
-	INIT_DEVICE_FUNCTION(vkEndCommandBuffer)
-	//INIT_DEVICE_FUNCTION(vkFlushMappedMemoryRanges)
-	INIT_DEVICE_FUNCTION(vkFreeCommandBuffers)
-	INIT_DEVICE_FUNCTION(vkFreeDescriptorSets)
-	INIT_DEVICE_FUNCTION(vkFreeMemory)
-	INIT_DEVICE_FUNCTION(vkGetBufferMemoryRequirements)
-	INIT_DEVICE_FUNCTION(vkGetDeviceQueue)
-	INIT_DEVICE_FUNCTION(vkGetImageMemoryRequirements)
-	INIT_DEVICE_FUNCTION(vkGetImageSubresourceLayout)
-	INIT_DEVICE_FUNCTION(vkInvalidateMappedMemoryRanges)
-	INIT_DEVICE_FUNCTION(vkMapMemory)
-	INIT_DEVICE_FUNCTION(vkQueueSubmit)
-	INIT_DEVICE_FUNCTION(vkQueueWaitIdle)
-	INIT_DEVICE_FUNCTION(vkResetCommandBuffer)
-	INIT_DEVICE_FUNCTION(vkResetDescriptorPool)
-	INIT_DEVICE_FUNCTION(vkResetFences)
-	INIT_DEVICE_FUNCTION(vkUnmapMemory)
-	INIT_DEVICE_FUNCTION(vkUpdateDescriptorSets)
-	INIT_DEVICE_FUNCTION(vkWaitForFences)
-	INIT_DEVICE_FUNCTION(vkAcquireNextImageKHR)
-	INIT_DEVICE_FUNCTION(vkCreateSwapchainKHR)
-	INIT_DEVICE_FUNCTION(vkDestroySwapchainKHR)
-	INIT_DEVICE_FUNCTION(vkGetSwapchainImagesKHR)
-	INIT_DEVICE_FUNCTION(vkQueuePresentKHR)
 
 	if (vk.dedicatedAllocation) {
-		INIT_DEVICE_FUNCTION_EXT(vkGetBufferMemoryRequirements2KHR);
-		INIT_DEVICE_FUNCTION_EXT(vkGetImageMemoryRequirements2KHR);
-		if (!qvkGetBufferMemoryRequirements2KHR || !qvkGetImageMemoryRequirements2KHR) {
+		if (!vkGetBufferMemoryRequirements2KHR || !vkGetImageMemoryRequirements2KHR) {
 			vk.dedicatedAllocation = qfalse;
 		}
 	}
 
 	if (vk.debugMarkers) {
-		INIT_DEVICE_FUNCTION_EXT(vkDebugMarkerSetObjectNameEXT)
 	}
 
-	INIT_DEVICE_FUNCTION_EXT(vkCmdClearColorImage)
 
-	INIT_DEVICE_FUNCTION(vkCmdDrawIndexedIndirect)
-	INIT_DEVICE_FUNCTION(vkCmdDispatch)
-	INIT_DEVICE_FUNCTION(vkCreateComputePipelines)
 
 #ifdef USE_VK_IMGUI
-	INIT_DEVICE_FUNCTION(vkFlushMappedMemoryRanges)
-	INIT_DEVICE_FUNCTION(vkResetCommandPool)
 #endif
 }
 
-#undef INIT_INSTANCE_FUNCTION
-#undef INIT_INSTANCE_FUNCTION_EXT
-#undef INIT_DEVICE_FUNCTION
-#undef INIT_DEVICE_FUNCTION_EXT
 
 void vk_deinit_library( void )
 {
-	qvkCreateInstance = NULL;
-	qvkEnumerateInstanceExtensionProperties = NULL;
-
-	qvkCreateDevice = NULL;
-	qvkDestroyInstance = NULL;
-	qvkEnumerateDeviceExtensionProperties = NULL;
-	qvkEnumeratePhysicalDevices = NULL;
-	qvkGetDeviceProcAddr = NULL;
-	qvkGetPhysicalDeviceFeatures = NULL;
-	qvkGetPhysicalDeviceFormatProperties = NULL;
-	qvkGetPhysicalDeviceMemoryProperties = NULL;
-	qvkGetPhysicalDeviceProperties = NULL;
-	qvkGetPhysicalDeviceQueueFamilyProperties = NULL;
-	qvkDestroySurfaceKHR = NULL;
-	qvkGetPhysicalDeviceSurfaceCapabilitiesKHR = NULL;
-	qvkGetPhysicalDeviceSurfaceFormatsKHR = NULL;
-	qvkGetPhysicalDeviceSurfacePresentModesKHR = NULL;
-	qvkGetPhysicalDeviceSurfaceSupportKHR = NULL;
-#ifdef USE_VK_VALIDATION
-	#ifdef USE_DEBUG_REPORT
-		qvkCreateDebugReportCallbackEXT = NULL;
-		qvkDestroyDebugReportCallbackEXT = NULL;
-	#endif
-	#ifdef USE_DEBUG_UTILS
-		qvkCreateDebugUtilsMessengerEXT = NULL;
-		qvkDestroyDebugUtilsMessengerEXT = NULL;
-	#endif
-#endif
-	qvkAllocateCommandBuffers = NULL;
-	qvkAllocateDescriptorSets = NULL;
-	qvkAllocateMemory = NULL;
-	qvkBeginCommandBuffer = NULL;
-	qvkBindBufferMemory = NULL;
-	qvkBindImageMemory = NULL;
-	qvkCmdBeginRenderPass = NULL;
-	qvkCmdBindDescriptorSets = NULL;
-	qvkCmdBindIndexBuffer = NULL;
-	qvkCmdBindPipeline = NULL;
-	qvkCmdBindVertexBuffers = NULL;
-	qvkCmdBlitImage = NULL;
-	qvkCmdClearAttachments = NULL;
-	qvkCmdCopyBuffer = NULL;
-	qvkCmdCopyBufferToImage = NULL;
-	qvkCmdCopyImage = NULL;
-	qvkCmdDraw = NULL;
-	qvkCmdDrawIndexed = NULL;
-	qvkCmdEndRenderPass = NULL;
-	//qvkCmdNextSubpass = NULL;
-	qvkCmdPipelineBarrier = NULL;
-	qvkCmdPushConstants = NULL;
-	qvkCmdSetDepthBias = NULL;
-	qvkCmdSetScissor = NULL;
-	qvkCmdSetViewport = NULL;
-	qvkCreateBuffer = NULL;
-	qvkCreateCommandPool = NULL;
-	qvkCreateDescriptorPool = NULL;
-	qvkCreateDescriptorSetLayout = NULL;
-	qvkCreateFence = NULL;
-	qvkCreateFramebuffer = NULL;
-	qvkCreateGraphicsPipelines = NULL;
-	qvkCreateImage = NULL;
-	qvkCreateImageView = NULL;
-	qvkCreatePipelineCache = NULL;
-	qvkCreatePipelineLayout = NULL;
-	qvkCreateRenderPass = NULL;
-	qvkCreateSampler = NULL;
-	qvkCreateSemaphore = NULL;
-	qvkCreateShaderModule = NULL;
-	qvkDestroyBuffer = NULL;
-	qvkDestroyCommandPool = NULL;
-	qvkDestroyDescriptorPool = NULL;
-	qvkDestroyDescriptorSetLayout = NULL;
-	qvkDestroyDevice = NULL;
-	qvkDestroyFence = NULL;
-	qvkDestroyFramebuffer = NULL;
-	qvkDestroyImage = NULL;
-	qvkDestroyImageView = NULL;
-	qvkDestroyPipeline = NULL;
-	qvkDestroyPipelineCache = NULL;
-	qvkDestroyPipelineLayout = NULL;
-	qvkDestroyRenderPass = NULL;
-	qvkDestroySampler = NULL;
-	qvkDestroySemaphore = NULL;
-	qvkDestroyShaderModule = NULL;
-	qvkDeviceWaitIdle = NULL;
-	qvkEndCommandBuffer = NULL;
-	//qvkFlushMappedMemoryRanges = NULL;
-	qvkFreeCommandBuffers = NULL;
-	qvkFreeDescriptorSets = NULL;
-	qvkFreeMemory = NULL;
-	qvkGetBufferMemoryRequirements = NULL;
-	qvkGetDeviceQueue = NULL;
-	qvkGetImageMemoryRequirements = NULL;
-	qvkGetImageSubresourceLayout = NULL;
-	qvkInvalidateMappedMemoryRanges = NULL;
-	qvkMapMemory = NULL;
-	qvkQueueSubmit = NULL;
-	qvkQueueWaitIdle = NULL;
-	qvkResetCommandBuffer = NULL;
-	qvkResetDescriptorPool = NULL;
-	qvkResetFences = NULL;
-	qvkUnmapMemory = NULL;
-	qvkUpdateDescriptorSets = NULL;
-	qvkWaitForFences = NULL;
-	qvkAcquireNextImageKHR = NULL;
-	qvkCreateSwapchainKHR = NULL;
-	qvkDestroySwapchainKHR = NULL;
-	qvkGetSwapchainImagesKHR = NULL;
-	qvkQueuePresentKHR = NULL;
-
-	qvkGetBufferMemoryRequirements2KHR = NULL;
-	qvkGetImageMemoryRequirements2KHR = NULL;
-
-	qvkDebugMarkerSetObjectNameEXT = NULL;
-
-	qvkCmdClearColorImage = NULL;
-
-#ifdef USE_VK_IMGUI
-	qvkFlushMappedMemoryRanges = NULL;
-	qvkResetCommandPool = NULL;
-#endif
-
-	qvkCmdDrawIndexedIndirect = NULL;
-	qvkCmdDispatch = NULL;
-	qvkCreateComputePipelines = NULL;
+	// volk holds the loaded entry points; clearing them by hand used to be ~110
+	// assignments that had to be kept in step with the load side.
+	volkFinalize();
 }
 
 #define FORMAT_DEPTH(format, r_bits, g_bits, b_bits) case(VK_FORMAT_##format): *r = r_bits; *b = b_bits; *g = g_bits; return qtrue;

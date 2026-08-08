@@ -44,7 +44,7 @@ static VkShaderModule SHADER_MODULE( const uint8_t *bytes, const int count ) {
     desc.codeSize = count;
     desc.pCode = (const uint32_t*)bytes;
 
-    VK_CHECK(qvkCreateShaderModule(vk.device, &desc, NULL, &module));
+    VK_CHECK(vkCreateShaderModule(vk.device, &desc, NULL, &module));
 
     return module;
 }
@@ -192,7 +192,7 @@ void vk_destroy_shader_modules( void )
                         for ( n = 0; n < 2; n++ ) {
                             for ( o = 0; o < 2; o++ ) {
                                 if ( vk.shaders.vert.gen[i][j][k][l][m][n][o] != VK_NULL_HANDLE ) {
-                                    qvkDestroyShaderModule( vk.device, vk.shaders.vert.gen[i][j][k][l][m][n][o], NULL );
+                                    vkDestroyShaderModule( vk.device, vk.shaders.vert.gen[i][j][k][l][m][n][o], NULL );
                                     vk.shaders.vert.gen[i][j][k][l][m][n][o] = VK_NULL_HANDLE;
                                 }
                             }
@@ -209,7 +209,7 @@ void vk_destroy_shader_modules( void )
                 for ( m = 0; m < 2; m++ ) {
                     for ( n = 0; n < 2; n++ ) {
                         if ( vk.shaders.frag.gen[j][k][l][m][n] != VK_NULL_HANDLE ) {
-                            qvkDestroyShaderModule( vk.device, vk.shaders.frag.gen[j][k][l][m][n], NULL );
+                            vkDestroyShaderModule( vk.device, vk.shaders.frag.gen[j][k][l][m][n], NULL );
                             vk.shaders.frag.gen[j][k][l][m][n] = VK_NULL_HANDLE;
                         }
                     }
@@ -221,12 +221,12 @@ void vk_destroy_shader_modules( void )
 
     for (i = 0; i < 2; i++) {
         if (vk.shaders.vert.light[i] != VK_NULL_HANDLE) {
-            qvkDestroyShaderModule(vk.device, vk.shaders.vert.light[i], NULL);
+            vkDestroyShaderModule(vk.device, vk.shaders.vert.light[i], NULL);
             vk.shaders.vert.light[i] = VK_NULL_HANDLE;
         }
         for (j = 0; j < 2; j++) {
             if (vk.shaders.frag.light[i][j] != VK_NULL_HANDLE) {
-                qvkDestroyShaderModule(vk.device, vk.shaders.frag.light[i][j], NULL);
+                vkDestroyShaderModule(vk.device, vk.shaders.frag.light[i][j], NULL);
                 vk.shaders.frag.light[i][j] = VK_NULL_HANDLE;
             }
         }
@@ -234,54 +234,54 @@ void vk_destroy_shader_modules( void )
 
     for (i = 0; i < 2; i++) {
         if (vk.shaders.frag.fog[i] != VK_NULL_HANDLE) {
-            qvkDestroyShaderModule(vk.device, vk.shaders.frag.fog[i], NULL);
+            vkDestroyShaderModule(vk.device, vk.shaders.frag.fog[i], NULL);
             vk.shaders.frag.fog[i] = VK_NULL_HANDLE;
         }
 
         for (j = 0; j < 3; j++) {
             if (vk.shaders.vert.fog[j][i] != VK_NULL_HANDLE) {
-                qvkDestroyShaderModule(vk.device, vk.shaders.vert.fog[j][i], NULL);
+                vkDestroyShaderModule(vk.device, vk.shaders.vert.fog[j][i], NULL);
                 vk.shaders.vert.fog[j][i] = VK_NULL_HANDLE;
             }
         }
     }
 
-    qvkDestroyShaderModule(vk.device, vk.shaders.vert.gen0_ident, NULL);
-    qvkDestroyShaderModule(vk.device, vk.shaders.frag.gen0_ident, NULL);
+    vkDestroyShaderModule(vk.device, vk.shaders.vert.gen0_ident, NULL);
+    vkDestroyShaderModule(vk.device, vk.shaders.frag.gen0_ident, NULL);
 
-    qvkDestroyShaderModule(vk.device, vk.shaders.frag.gen0_df, NULL);
+    vkDestroyShaderModule(vk.device, vk.shaders.frag.gen0_df, NULL);
 
-    qvkDestroyShaderModule(vk.device, vk.shaders.color_fs, NULL);
-    qvkDestroyShaderModule(vk.device, vk.shaders.color_vs, NULL);
+    vkDestroyShaderModule(vk.device, vk.shaders.color_fs, NULL);
+    vkDestroyShaderModule(vk.device, vk.shaders.color_vs, NULL);
 
     for ( i = 0; i < 3; i++ )
-        qvkDestroyShaderModule(vk.device, vk.shaders.refraction_vs[i], NULL);
+        vkDestroyShaderModule(vk.device, vk.shaders.refraction_vs[i], NULL);
 
-    qvkDestroyShaderModule(vk.device, vk.shaders.refraction_fs, NULL);
+    vkDestroyShaderModule(vk.device, vk.shaders.refraction_fs, NULL);
 
-    qvkDestroyShaderModule(vk.device, vk.shaders.dot_vs, NULL);
-    qvkDestroyShaderModule(vk.device, vk.shaders.dot_fs, NULL);
+    vkDestroyShaderModule(vk.device, vk.shaders.dot_vs, NULL);
+    vkDestroyShaderModule(vk.device, vk.shaders.dot_fs, NULL);
 
-    qvkDestroyShaderModule(vk.device, vk.shaders.bloom_fs, NULL);
-    qvkDestroyShaderModule(vk.device, vk.shaders.blur_fs, NULL);
-    qvkDestroyShaderModule(vk.device, vk.shaders.blend_fs, NULL);
+    vkDestroyShaderModule(vk.device, vk.shaders.bloom_fs, NULL);
+    vkDestroyShaderModule(vk.device, vk.shaders.blur_fs, NULL);
+    vkDestroyShaderModule(vk.device, vk.shaders.blend_fs, NULL);
 
-    qvkDestroyShaderModule(vk.device, vk.shaders.gamma_vs, NULL);
-    qvkDestroyShaderModule(vk.device, vk.shaders.gamma_fs, NULL);
+    vkDestroyShaderModule(vk.device, vk.shaders.gamma_vs, NULL);
+    vkDestroyShaderModule(vk.device, vk.shaders.gamma_fs, NULL);
 
 #ifdef VK_PBR_BRDFLUT
-    qvkDestroyShaderModule(vk.device, vk.shaders.brdflut_fs, NULL);
+    vkDestroyShaderModule(vk.device, vk.shaders.brdflut_fs, NULL);
 #endif
 
-    qvkDestroyShaderModule(vk.device, vk.shaders.filtercube_vs, NULL);
-    qvkDestroyShaderModule(vk.device, vk.shaders.filtercube_gm, NULL);
-    qvkDestroyShaderModule(vk.device, vk.shaders.prefilterenvmap_fs, NULL);
-    qvkDestroyShaderModule(vk.device, vk.shaders.irradiancecube_fs, NULL);
+    vkDestroyShaderModule(vk.device, vk.shaders.filtercube_vs, NULL);
+    vkDestroyShaderModule(vk.device, vk.shaders.filtercube_gm, NULL);
+    vkDestroyShaderModule(vk.device, vk.shaders.prefilterenvmap_fs, NULL);
+    vkDestroyShaderModule(vk.device, vk.shaders.irradiancecube_fs, NULL);
 
 #ifdef USE_VBO_SS
     for ( i = 0; i < 2; i++ ) {
-        qvkDestroyShaderModule(vk.device, vk.shaders.surface_sprite_fs[i], NULL);
-        qvkDestroyShaderModule(vk.device, vk.shaders.surface_sprite_vs[i], NULL);
+        vkDestroyShaderModule(vk.device, vk.shaders.surface_sprite_fs[i], NULL);
+        vkDestroyShaderModule(vk.device, vk.shaders.surface_sprite_vs[i], NULL);
     }
  #endif
 }
