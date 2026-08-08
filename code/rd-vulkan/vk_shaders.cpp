@@ -22,38 +22,89 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "tr_local.h"
-#include "shaders/spirv/shader_data.c"
+#include "vk_shader_pak.h"
 
-// Vulkan has to be specified in a bytecode format which is called SPIR-V
-// and is designed to be work with both Vulkan and OpenCL.
+// SPIR-V now comes from base/shaders.pak, built by tools/shadergen/shadergen.py.
+// It used to come from shaders/spirv/shader_data.c: 61.7 MB and 1.9 million
+// lines of generated C, committed to git and compiled into this translation
+// unit at a cost of 32.7 s and 1.5 GB of compiler memory.
 //
-// The graphics pipeline is the sequence of the operations that take the
-// vertices and textures of your meshes all way to the pixels in the
-// render targets.
-static VkShaderModule SHADER_MODULE( const uint8_t *bytes, const int count ) {
-    VkShaderModuleCreateInfo desc;
-    VkShaderModule module;
+// The slot table below is still generated, but it is only the mapping from a
+// vk.shaders slot to a variant name; the bytes live in the pak.
 
-    if (count % 4 != 0) {
-        ri.Error(ERR_FATAL, "Vulkan: SPIR-V binary buffer size is not a multiple of 4");
-    }
+static void *s_pakData;
+static ShaderPak s_pak;
 
-    desc.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-    desc.pNext = NULL;
-    desc.flags = 0;
-    desc.codeSize = count;
-    desc.pCode = (const uint32_t*)bytes;
+static void vk_open_shader_pak( void )
+{
+	if ( s_pak.isOpen() ) {
+		return;
+	}
 
-    VK_CHECK(vkCreateShaderModule(vk.device, &desc, NULL, &module));
+	const long size = ri.FS_ReadFile( "shaders.pak", &s_pakData );
+	if ( s_pakData == NULL || size <= 0 ) {
+		ri.Error( ERR_FATAL, "Vulkan: shaders.pak is missing. It is produced by the build; "
+			"see tools/shadergen/shadergen.py" );
+		return;
+	}
 
-    return module;
+	if ( !s_pak.open( s_pakData, (size_t)size ) ) {
+		ri.FS_FreeFile( s_pakData );
+		s_pakData = NULL;
+		ri.Error( ERR_FATAL, "Vulkan: shaders.pak is corrupt or was built for another version" );
+	}
 }
-#define SHADER_MODULE( name ) SHADER_MODULE( name, sizeof( name ) )
 
-#include "shaders/spirv/shader_binding.c"
+static void vk_close_shader_pak( void )
+{
+	s_pak.close();
+	if ( s_pakData != NULL ) {
+		ri.FS_FreeFile( s_pakData );
+		s_pakData = NULL;
+	}
+}
+
+static VkShaderModule vk_shader_module( const char *name )
+{
+	size_t size = 0;
+	const uint32_t *code = s_pak.find( name, &size );
+
+	if ( code == NULL ) {
+		// A missing variant means the manifest and this file disagree, which is
+		// a build error rather than something to limp along with.
+		ri.Error( ERR_FATAL, "Vulkan: shader variant '%s' is not in shaders.pak", name );
+		return VK_NULL_HANDLE;
+	}
+
+	VkShaderModuleCreateInfo desc;
+	desc.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+	desc.pNext = NULL;
+	desc.flags = 0;
+	desc.codeSize = size;
+	desc.pCode = code;
+
+	VkShaderModule module;
+	VK_CHECK( vkCreateShaderModule( vk.device, &desc, NULL, &module ) );
+	VK_SET_OBJECT_NAME( module, name, VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT );
+
+	return module;
+}
+
+// Keeps every hand-written binding line below unchanged: the identifier that
+// used to name a C array now names a pak entry.
+#define SHADER_MODULE( name ) vk_shader_module( #name )
+
+static void vk_bind_generated_shaders( void )
+{
+#define JKX_SHADER_SLOT( slot, name ) slot = vk_shader_module( name );
+#include "shader_slots.inl"
+#undef JKX_SHADER_SLOT
+}
 
 void vk_create_shader_modules( void )
 {
+    vk_open_shader_pak();
+
     vk_bind_generated_shaders();
 
 #if 0
@@ -178,6 +229,8 @@ void vk_create_shader_modules( void )
 
     vk.shaders.filtercube_gm = SHADER_MODULE(filtercube_geom_spv);
     VK_SET_OBJECT_NAME(vk.shaders.filtercube_gm, "filter cube geometry shader", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
+
+    vk_close_shader_pak();
 }
 
 void vk_destroy_shader_modules( void )

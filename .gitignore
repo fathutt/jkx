@@ -10,3 +10,4 @@ code/rd-vulkan/shaders/spirv/
 *.user
 .DS_Store
 base/shaders.pak
+code/rd-vulkan/shader_slots.inl

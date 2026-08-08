@@ -54,6 +54,12 @@ if [ -d "$REPO_ROOT/third_party" ]; then
     echo "synced third_party/"
 fi
 
+# vk_shaders.cpp includes a generated slot table; produce it where the harness
+# compiler can find it.
+python3 "$REPO_ROOT/tools/shadergen/shadergen.py" \
+    --manifest "$REPO_ROOT/code/rd-vulkan/shaders/shaders.json" \
+    bind --out "$DST/shader_slots.inl"
+
 # The harness CMakeLists is the fork's, so teach it about the sources and
 # include paths the modernised renderer needs. Idempotent.
 HARNESS_CMAKE="$DST/CMakeLists.txt"

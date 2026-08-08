@@ -50,6 +50,20 @@ function(jkx_add_shaders TARGET_NAME)
     message(STATUS "${plan_output}")
     set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${MANIFEST}")
 
+    # The slot table is generated too, and consumed by vk_shaders.cpp.
+    set(SLOT_FILE "${CMAKE_CURRENT_BINARY_DIR}/generated/shader_slots.inl")
+    execute_process(
+        COMMAND "${Python3_EXECUTABLE}" "${SHADERGEN}"
+                --manifest "${MANIFEST}" bind --out "${SLOT_FILE}"
+        RESULT_VARIABLE bind_result
+        OUTPUT_VARIABLE bind_output
+        ERROR_VARIABLE  bind_output)
+    if(NOT bind_result EQUAL 0)
+        message(FATAL_ERROR "shadergen bind failed:\n${bind_output}")
+    endif()
+    message(STATUS "${bind_output}")
+    set(JKX_SHADER_GENERATED_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated" PARENT_SCOPE)
+
     include("${PLAN_FILE}")
 
     file(MAKE_DIRECTORY "${SPV_DIR}")

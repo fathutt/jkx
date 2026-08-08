@@ -26,6 +26,9 @@ jobs:
       - name: Layer dependencies (ratchet, may shrink but never grow)
         run: python3 tools/ci/check_layering.py .
 
+      - name: Shader manifest matches renderer usage
+        run: python3 tools/shadergen/shadergen.py verify --strict
+
       - name: clang-format
         run: |
           sudo apt-get update -qq
