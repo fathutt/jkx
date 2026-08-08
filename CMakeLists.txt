@@ -151,6 +151,7 @@ endif()
 #
 #=============================================================================
 list(INSERT CMAKE_MODULE_PATH 0 "${CMAKE_SOURCE_DIR}/cmake/Modules")
+list(INSERT CMAKE_MODULE_PATH 0 "${CMAKE_SOURCE_DIR}/cmake")
 
 if(CMAKE_EXPORT_COMPILE_COMMANDS)
 	add_custom_target(
@@ -454,6 +455,15 @@ if(UseInternalPNG)
   add_subdirectory(lib/libpng)
 else()
   find_package(PNG REQUIRED)
+endif()
+
+# Shader toolchain: GLSL -> SPIR-V -> shaders.pak. Runs regardless of whether
+# the Vulkan renderer target itself is enabled, so shader edits are validated
+# even while the renderer is being ported (phase 2).
+option(JKX_BUILD_SHADERS "Compile GLSL to shaders.pak" ON)
+if(JKX_BUILD_SHADERS)
+    include(Shaders)
+    jkx_add_shaders(shaders)
 endif()
 
 # Always use bundled minizip (sets MINIZIP_{LIBRARIES,INCLUDE_DIR})

@@ -1,0 +1,108 @@
+{
+  "$comment": [
+    "Declarative description of every SPIR-V module the renderer needs.",
+    "Replaces the hand-written nested loops in tools/compile_threaded.cpp.",
+    "",
+    "An axis is a named list of alternatives; each contributes defines to the",
+    "command line and a fragment to the generated name. 'product' expands the",
+    "cartesian product of the listed axes. An alternative may carry a 'when'",
+    "guard evaluated against the indices already chosen, which is how the",
+    "colour axis stays tied to the texture axis.",
+    "",
+    "Adding a permutation must never again mean editing C++ and a .bat file."
+  ],
+
+  "glsl_version": "vulkan1.3",
+  "include_dirs": ["."],
+
+  "axes": {
+    "vbo": [
+      { "id": "",        "defines": [] },
+      { "id": "ghoul2_", "defines": ["USE_VBO_GHOUL2"] },
+      { "id": "mdv_",    "defines": ["USE_VBO_MDV"] }
+    ],
+    "fastlight": [
+      { "id": "",           "defines": [] },
+      { "id": "fastlight_", "defines": ["USE_FAST_LIGHT"] }
+    ],
+    "light": [
+      { "id": "",         "defines": [] },
+      { "id": "lightmap_", "defines": ["USE_LIGHTMAP"] },
+      { "id": "vector_",  "defines": ["USE_LIGHT_VECTOR"] },
+      { "id": "vertex_",  "defines": ["USE_LIGHT_VERTEX"] }
+    ],
+    "tx": [
+      { "id": "tx0", "defines": [] },
+      { "id": "tx1", "defines": ["USE_TX1"] },
+      { "id": "tx2", "defines": ["USE_TX2"] }
+    ],
+    "cl": [
+      { "id": "",     "defines": [] },
+      { "id": "_cl",  "defines": ["USE_CL{tx.index}"], "when": "tx.index != 0" }
+    ],
+    "env": [
+      { "id": "",     "defines": [] },
+      { "id": "_env", "defines": ["USE_ENV"] }
+    ],
+    "fog": [
+      { "id": "",     "defines": [] },
+      { "id": "_fog", "defines": ["USE_FOG"] }
+    ],
+    "fogmode": [
+      { "id": "linear", "defines": ["USE_FOG_LINEAR"] },
+      { "id": "exp",    "defines": ["USE_FOG_EXP"] }
+    ]
+  },
+
+  "programs": [
+    { "name": "vert_tx0_ident", "source": "gen_vert.tmpl", "stage": "vert",
+      "defines": ["USE_CL0_IDENT"] },
+    { "name": "frag_tx0_ident", "source": "gen_frag.tmpl", "stage": "frag",
+      "defines": ["USE_CL0_IDENT"] },
+    { "name": "frag_tx0_df",    "source": "gen_frag.tmpl", "stage": "frag",
+      "defines": ["USE_ATEST", "USE_DF"] },
+
+    { "name": "vert_light",          "source": "light_vert.tmpl", "stage": "vert", "defines": [] },
+    { "name": "vert_light_fog",      "source": "light_vert.tmpl", "stage": "vert", "defines": ["USE_FOG"] },
+    { "name": "frag_light",          "source": "light_frag.tmpl", "stage": "frag", "defines": [] },
+    { "name": "frag_light_fog",      "source": "light_frag.tmpl", "stage": "frag", "defines": ["USE_FOG"] },
+    { "name": "frag_light_line",     "source": "light_frag.tmpl", "stage": "frag", "defines": ["USE_LINE"] },
+    { "name": "frag_light_line_fog", "source": "light_frag.tmpl", "stage": "frag", "defines": ["USE_LINE", "USE_FOG"] },
+
+    { "name": "vert_surface_sprites",     "source": "surface_sprite_vert.tmpl", "stage": "vert", "defines": [] },
+    { "name": "vert_surface_sprites_fog", "source": "surface_sprite_vert.tmpl", "stage": "vert", "defines": ["USE_FOG"] },
+    { "name": "frag_surface_sprites",     "source": "surface_sprite_frag.tmpl", "stage": "frag", "defines": ["USE_ATEST"] },
+    { "name": "frag_surface_sprites_fog", "source": "surface_sprite_frag.tmpl", "stage": "frag", "defines": ["USE_ATEST", "USE_FOG"] },
+
+    { "source": "fog_vert.tmpl", "stage": "vert",
+      "product": ["vbo", "fogmode"],
+      "name": "vert_fog_only_{vbo}{fogmode}",
+      "slot": "vert.fog[{vbo.index}][{fogmode.index}]" },
+
+    { "source": "fog_frag.tmpl", "stage": "frag",
+      "product": ["fogmode"],
+      "name": "frag_fog_only_{fogmode}",
+      "slot": "frag.fog[{fogmode.index}]" },
+
+    { "source": "refraction.tmpl", "stage": "vert",
+      "product": ["vbo"],
+      "name": "refraction_{vbo}",
+      "slot": "refraction_vs[{vbo.index}]" },
+
+    { "source": "gen_vert.tmpl", "stage": "vert",
+      "product": ["vbo", "fastlight", "light", "tx", "cl", "env", "fog"],
+      "name": "vert_{vbo}{fastlight}{light}{tx}{cl}{env}{fog}",
+      "slot": "vert.gen[{vbo.index}][{fastlight.index}][{light.index}][{tx.index}][{cl.index}][{env.index}][{fog.index}]" },
+
+    { "source": "gen_frag.tmpl", "stage": "frag",
+      "product": ["fastlight", "light", "tx", "cl", "fog"],
+      "name": "frag_{fastlight}{light}{tx}{cl}{fog}",
+      "extra_defines_when": [{ "condition": "tx.index == 0", "defines": ["USE_ATEST"] }],
+      "slot": "frag.gen[{fastlight.index}][{light.index}][{tx.index}][{cl.index}][{fog.index}]" }
+  ],
+
+  "standalone": {
+    "$comment": "Single-variant shaders picked up by extension; no permutations.",
+    "extensions": { ".vert": "vert", ".frag": "frag", ".geom": "geom", ".comp": "comp" }
+  }
+}

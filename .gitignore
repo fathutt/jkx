@@ -9,3 +9,4 @@ code/rd-vulkan/shaders/spirv/
 .idea/
 *.user
 .DS_Store
+base/shaders.pak
