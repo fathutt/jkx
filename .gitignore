@@ -11,3 +11,7 @@ code/rd-vulkan/shaders/spirv/
 .DS_Store
 base/shaders.pak
 code/rd-vulkan/shader_slots.inl
+
+# Python bytecode from the tooling in tools/
+__pycache__/
+*.pyc
