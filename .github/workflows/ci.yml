@@ -1,0 +1,132 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Cheap gates first: they fail in seconds and catch the mistakes that are
+  # easiest to make. See docs/CODING-STANDARDS.md sections 1, 3 and 6.1.
+  # ---------------------------------------------------------------------------
+  policy:
+    name: policy (ascii / layering / format)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Rule 1 - code is Latin-only
+        run: python3 tools/ci/check_ascii.py
+
+      - name: Layer dependencies (ratchet, may shrink but never grow)
+        run: python3 tools/ci/check_layering.py .
+
+      - name: clang-format
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y clang-format-18
+          # Only files touched by this PR: reformatting the whole tree at once
+          # would destroy git blame (standards 7.2).
+          base="${{ github.event.pull_request.base.sha }}"
+          if [ -z "$base" ]; then echo "push build, skipping diff format check"; exit 0; fi
+          git fetch --no-tags --depth=1 origin "$base"
+          changed=$(git diff --name-only --diff-filter=ACMR "$base"...HEAD \
+                    -- '*.c' '*.cpp' '*.h' '*.hpp' | grep -v '^lib/' || true)
+          [ -z "$changed" ] && exit 0
+          clang-format-18 --dry-run --Werror $changed
+
+  # ---------------------------------------------------------------------------
+  build:
+    name: build ${{ matrix.os }} ${{ matrix.config }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2022]
+        config: [Release, Debug]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ninja-build libsdl2-dev libjpeg-dev libpng-dev \
+                                  zlib1g-dev libopenal-dev libgl1-mesa-dev \
+                                  libvulkan-dev
+
+      - name: Install dependencies (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          vcpkg install sdl2:x64-windows libjpeg-turbo:x64-windows libpng:x64-windows zlib:x64-windows
+        shell: bash
+
+      - name: Configure
+        run: >
+          cmake -B build -G Ninja
+          -DCMAKE_BUILD_TYPE=${{ matrix.config }}
+          -DJKX_WARNINGS_AS_ERRORS=OFF
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - uses: actions/upload-artifact@v4
+        if: matrix.config == 'Release'
+        with:
+          name: jkx-${{ runner.os }}
+          path: |
+            build/*.x86_64
+            build/*.exe
+            build/**/*.so
+            build/**/*.dll
+          if-no-files-found: warn
+
+  # ---------------------------------------------------------------------------
+  sanitizers:
+    name: sanitizers (asan + ubsan)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ninja-build libsdl2-dev libjpeg-dev libpng-dev \
+                                  zlib1g-dev libopenal-dev libgl1-mesa-dev libvulkan-dev
+      - name: Configure
+        run: >
+          cmake -B build-san -G Ninja
+          -DCMAKE_BUILD_TYPE=Debug
+          -DJKX_ENABLE_ASAN=ON
+          -DJKX_ENABLE_UBSAN=ON
+      - name: Build
+        run: cmake --build build-san --parallel
+
+  # ---------------------------------------------------------------------------
+  # The entire Vulkan 1.3 baseline this project targets is supported by
+  # lavapipe, so the renderer can be validated on CI without a GPU.
+  # Verified 2026-08-08: dynamicRendering, synchronization2, timelineSemaphore,
+  # descriptorIndexing, runtimeDescriptorArray, nonUniformIndexing,
+  # descriptorBindingPartiallyBound, maintenance4 and all six
+  # extendedDynamicState3 features we need are present.
+  # ---------------------------------------------------------------------------
+  vulkan-baseline:
+    name: vulkan 1.3 baseline (lavapipe)
+    runs-on: ubuntu-24.04
+    env:
+      VK_ICD_FILENAMES: /usr/share/vulkan/icd.d/lvp_icd.json
+      VK_LOADER_LAYERS_ENABLE: VK_LAYER_KHRONOS_validation
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Vulkan software stack
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y mesa-vulkan-drivers vulkan-tools vulkan-validationlayers
+      - name: Assert required features are present
+        run: python3 tools/ci/check_vulkan_baseline.py
+      # Once the renderer builds (phase 1 shader toolchain), this job also runs
+      # a headless frame with sync-validation enabled and fails on any message.

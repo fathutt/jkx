@@ -1,0 +1,54 @@
+# JKX static analysis. See docs/CODING-STANDARDS.md.
+#
+# The tree carries 24 years of legacy, so a maximal check set would produce
+# noise nobody reads. This list is deliberately narrow: every check here maps
+# to a defect class found in the audit, and is expected to stay at zero for
+# NEW code. Legacy files are filtered by HeaderFilterRegex + line-filter in CI.
+---
+Checks: >
+  -*,
+  bugprone-assert-side-effect,
+  bugprone-branch-clone,
+  bugprone-macro-parentheses,
+  bugprone-misplaced-widening-cast,
+  bugprone-not-null-terminated-result,
+  bugprone-signed-char-misuse,
+  bugprone-sizeof-expression,
+  bugprone-string-constructor,
+  bugprone-suspicious-memory-comparison,
+  bugprone-suspicious-memset-usage,
+  bugprone-suspicious-string-compare,
+  bugprone-too-small-loop-variable,
+  bugprone-undefined-memory-manipulation,
+  bugprone-unhandled-self-assignment,
+  bugprone-use-after-move,
+  cert-flp30-c,
+  cert-str34-c,
+  clang-analyzer-core.*,
+  clang-analyzer-security.*,
+  clang-analyzer-unix.Malloc,
+  cppcoreguidelines-init-variables,
+  cppcoreguidelines-pro-type-cstyle-cast,
+  misc-definitions-in-headers,
+  misc-misplaced-const,
+  misc-redundant-expression,
+  misc-static-assert,
+  modernize-use-nullptr,
+  modernize-use-override,
+  performance-faster-string-find,
+  performance-for-range-copy,
+  performance-move-const-arg,
+  performance-unnecessary-value-param,
+  readability-non-const-parameter,
+  readability-redundant-control-flow
+
+# Only our own headers; vendored and generated code is out of scope.
+HeaderFilterRegex: '^(code|shared|tools)/.*\.(h|hpp|inl)$'
+
+WarningsAsErrors: ''
+
+CheckOptions:
+  - key:   bugprone-too-small-loop-variable.MagnitudeBitsUpperLimit
+    value: '16'
+  - key:   cppcoreguidelines-pro-type-cstyle-cast.IgnoreUnsafeFunctionCasts
+    value: 'true'

@@ -1,0 +1,52 @@
+# JKX code style. See docs/CODING-STANDARDS.md section 3.
+# Do not argue about formatting in review: change this file or stay silent.
+---
+Language:        Cpp
+BasedOnStyle:    LLVM
+
+ColumnLimit:     120
+IndentWidth:     4
+TabWidth:        4
+UseTab:          Never
+AccessModifierOffset: -4
+
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterClass:      true
+  AfterEnum:       true
+  AfterFunction:   true
+  AfterNamespace:  false
+  AfterStruct:     true
+  AfterUnion:      true
+  AfterControlStatement: Never
+  BeforeCatch:     false
+  BeforeElse:      false
+  SplitEmptyFunction: false
+  SplitEmptyRecord: false
+
+PointerAlignment: Left
+ReferenceAlignment: Left
+DerivePointerAlignment: false
+
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AllowShortCaseLabelsOnASingleLine: false
+
+AlignAfterOpenBracket: Align
+AlignConsecutiveAssignments: false
+AlignConsecutiveDeclarations: false
+AlignTrailingComments: true
+
+BinPackArguments: true
+BinPackParameters: true
+IndentCaseLabels: true
+NamespaceIndentation: None
+FixNamespaceComments: true
+SortIncludes: false          # legacy headers are order-sensitive (exe_headers.h)
+SeparateDefinitionBlocks: Always
+InsertNewlineAtEOF: true
+KeepEmptyLinesAtTheStartOfBlocks: false
+MaxEmptyLinesToKeep: 1
+SpaceAfterCStyleCast: false
+Cpp11BracedListStyle: true
