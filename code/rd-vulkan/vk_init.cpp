@@ -590,12 +590,7 @@ void vk_initialize( void )
 	vk_create_storage_buffer( &vk.storage, MAX_FLARES * vk.storage_alignment, "storage (flares)" );
 	vk_create_shader_modules();
 
-	{
-		VkPipelineCacheCreateInfo ci;
-		Com_Memset(&ci, 0, sizeof(ci));
-		ci.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
-		VK_CHECK(vkCreatePipelineCache(vk.device, &ci, VK_NULL_HANDLE, &vk.pipelineCache));
-	}
+	vk_create_pipeline_cache();
 
 #ifdef VK_COMPUTE_NORMALMAP
 	vk_create_compute_normalmap_pipelines();
@@ -640,10 +635,7 @@ void vk_shutdown( void )
 	vk_destroy_cubemap_prefilter();
 #endif
 
-	if (vk.pipelineCache != VK_NULL_HANDLE) {
-		vkDestroyPipelineCache(vk.device, vk.pipelineCache, NULL);
-		vk.pipelineCache = VK_NULL_HANDLE;
-	}
+	vk_destroy_pipeline_cache();
 
 	vkDestroyCommandPool(vk.device, vk.command_pool, NULL);
 
