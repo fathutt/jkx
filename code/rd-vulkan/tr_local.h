@@ -321,7 +321,7 @@ typedef struct VBO_s
 	int				index;
 
 	VkBuffer		buffer;
-	VkDeviceMemory	memory;
+	VmaAllocation	allocation;
 
 	uint32_t		offsets[12];
 
@@ -329,21 +329,21 @@ typedef struct VBO_s
 	void			*mapped;
 	struct {
 		VkBuffer		buffer;
-		VkDeviceMemory	memory;
+		VmaAllocation	allocation;
 	} staging;
 } VBO_t;
 
 typedef struct IBO_s
 {
 	VkBuffer		buffer;
-	VkDeviceMemory	memory;
+	VmaAllocation	allocation;
 
 	int				size;
 	void			*mapped;
 
 	struct {
 		VkBuffer		buffer;
-		VkDeviceMemory	memory;
+		VmaAllocation	allocation;
 	} staging;	
 } IBO_t;
 

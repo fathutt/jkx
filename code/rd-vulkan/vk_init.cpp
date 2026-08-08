@@ -673,8 +673,7 @@ void vk_shutdown( void )
     vk_destroy_sync_primitives();
    
 	// storage buffer
-	VK_DESTROY_BUFFER(vk.device, vk.storage.buffer);
-	VK_FREE_MEMORY(vk.device, vk.storage.memory);
+	vk_destroy_buffer_memory(&vk.storage.buffer, &vk.storage.allocation);
 
 #ifdef USE_VBO_SS
 	vk_clean_surface_sprites();

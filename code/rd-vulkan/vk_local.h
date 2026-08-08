@@ -57,6 +57,12 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 VK_DEFINE_HANDLE(VmaAllocator)
 VK_DEFINE_HANDLE(VmaAllocation)
 
+typedef enum {
+	VK_BUFFER_MEMORY_DEVICE,      // GPU only
+	VK_BUFFER_MEMORY_HOST_WRITE,  // CPU writes, GPU reads; persistently mapped
+	VK_BUFFER_MEMORY_HOST_READ    // GPU writes, CPU reads; persistently mapped
+} vk_buffer_memory_t;
+
 #ifndef VK_CREATE_BUFFER
 	#define VK_CREATE_BUFFER(device, info, outBuffer, name)				VK_CHECK( vkCreateBuffer( device, info, NULL, outBuffer ) )
 	#define VK_DESTROY_BUFFER(device, buffer)							vkDestroyBuffer( device, buffer, NULL )
@@ -361,7 +367,7 @@ typedef union floatint_u
 typedef struct vk_storage_buffer_s {
 	VkBuffer			buffer;
 	byte				*buffer_ptr;
-	VkDeviceMemory		memory;
+	VmaAllocation		allocation;
 	VkDescriptorSet		descriptor;
 } vk_storage_buffer_t;
 
@@ -452,13 +458,6 @@ typedef struct {
 	qboolean noAnisotropy;
 } Vk_Sampler_Def;
 
-struct ImageChunk_t {
-	VkDeviceMemory memory;
-	uint32_t used;
-	uint32_t size;
-	uint32_t items;
-};
-
 struct Image_Upload_Data  {
 	byte *buffer;
 	int buffer_size;
@@ -501,10 +500,12 @@ typedef struct vk_tess_s {
 	qboolean			waitForFence;
 	
 	VkBuffer			vertex_buffer;
+	VmaAllocation		vertex_buffer_allocation;
 	byte				*vertex_buffer_ptr; // pointer to mapped vertex buffer
 	VkDeviceSize		vertex_buffer_offset; // moved to uint32_t in q3e:63d6d7402d78254bebe28035006fe600f645c8de
 
 	VkBuffer			indirect_buffer;
+	VmaAllocation		indirect_buffer_allocation;
 	byte				*indirect_buffer_ptr; // pointer to mapped indirect buffer
 	VkDeviceSize		indirect_buffer_offset;
 
@@ -724,7 +725,7 @@ typedef struct {
 
 	struct {
 		VkBuffer		vertex_buffer;
-		VkDeviceMemory	buffer_memory;
+		VmaAllocation	buffer_memory;
 	} vbo;
 
 #ifdef USE_VBO_SS
@@ -740,12 +741,10 @@ typedef struct {
 	} stats;
 
 	// host visible memory that holds vertex, index and uniform data
-	VkDeviceMemory		geometry_buffer_memory;
 	VkDeviceSize		geometry_buffer_size;
 	VkDeviceSize		geometry_buffer_size_new;
 
 	// host visible memory that holds indirect drawdata
-	VkDeviceMemory		indirect_buffer_memory;
 	VkDeviceSize		indirect_buffer_size;
 	VkDeviceSize		indirect_buffer_size_new;
 
@@ -960,7 +959,7 @@ typedef struct {
 
 	struct staging_buffer_s {
 		VkBuffer handle;
-		VkDeviceMemory memory;
+		VmaAllocation allocation;
 		VkDeviceSize size;
 		byte *ptr; // pointer to mapped staging buffer
 #ifdef USE_UPLOAD_QUEUE
@@ -1175,6 +1174,9 @@ void		vk_destroy_allocator( void );
 qboolean	vk_create_image_memory( const VkImageCreateInfo *desc, VkImage *image, VmaAllocation *allocation, const char *name );
 void		vk_destroy_image_memory( VkImage *image, VmaAllocation *allocation );
 qboolean	vk_alloc_image_memory( VkImage image, qboolean transient, VmaAllocation *allocation, const char *name );
+qboolean	vk_create_buffer_memory( const VkBufferCreateInfo *desc, vk_buffer_memory_t kind, VkBuffer *buffer,
+				VmaAllocation *allocation, void **mapped, const char *name );
+void		vk_destroy_buffer_memory( VkBuffer *buffer, VmaAllocation *allocation );
 void		vk_free_image_memory( VmaAllocation *allocation );
 void		vk_print_memory_usage( void );
 

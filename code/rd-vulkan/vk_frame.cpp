@@ -1441,12 +1441,8 @@ void vk_release_indirect_buffers( void )
     uint32_t i;
 
     for (i = 0; i < NUM_COMMAND_BUFFERS; i++) {
-        VK_DESTROY_BUFFER(vk.device, vk.tess[i].indirect_buffer);
-        vk.tess[i].indirect_buffer = VK_NULL_HANDLE;
+        vk_destroy_buffer_memory(&vk.tess[i].indirect_buffer, &vk.tess[i].indirect_buffer_allocation);
     }
-
-    VK_FREE_MEMORY(vk.device, vk.indirect_buffer_memory);
-    vk.indirect_buffer_memory = VK_NULL_HANDLE;
 }
 
 void vk_release_geometry_buffers( void )
@@ -1454,12 +1450,8 @@ void vk_release_geometry_buffers( void )
     uint32_t i;
 
     for (i = 0; i < NUM_COMMAND_BUFFERS; i++) {
-        VK_DESTROY_BUFFER(vk.device, vk.tess[i].vertex_buffer);
-        vk.tess[i].vertex_buffer = VK_NULL_HANDLE;
+        vk_destroy_buffer_memory(&vk.tess[i].vertex_buffer, &vk.tess[i].vertex_buffer_allocation);
     }
-
-    VK_FREE_MEMORY(vk.device, vk.geometry_buffer_memory);
-    vk.geometry_buffer_memory = VK_NULL_HANDLE;
 }
 
 static void vk_resize_geometry_buffer( void )
@@ -1505,11 +1497,7 @@ void vk_release_resources( void ) {
 
     vk_clean_staging_buffer();
 
-    if (vk.staging_buffer.handle != VK_NULL_HANDLE)
-        VK_DESTROY_BUFFER(vk.device, vk.staging_buffer.handle);
-
-    if (vk.staging_buffer.memory != VK_NULL_HANDLE)
-        VK_FREE_MEMORY(vk.device, vk.staging_buffer.memory);
+    // vk_clean_staging_buffer() already released it through VMA.
 
 #ifdef USE_VBO_SS
     vk_clean_surface_sprites();

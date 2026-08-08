@@ -943,14 +943,7 @@ static VkCommandBuffer staging_command_buffer = VK_NULL_HANDLE;
 
 void vk_clean_staging_buffer( void )
 {
-	if ( vk.staging_buffer.handle != VK_NULL_HANDLE ) {
-		VK_DESTROY_BUFFER( vk.device, vk.staging_buffer.handle );
-		vk.staging_buffer.handle = VK_NULL_HANDLE;
-	}
-	if ( vk.staging_buffer.memory != VK_NULL_HANDLE ) {
-		VK_FREE_MEMORY( vk.device, vk.staging_buffer.memory );
-		vk.staging_buffer.memory = VK_NULL_HANDLE;
-	}
+	vk_destroy_buffer_memory( &vk.staging_buffer.handle, &vk.staging_buffer.allocation );
 
 	vk.staging_buffer.ptr = NULL;
 	vk.staging_buffer.size = 0;
@@ -1061,27 +1054,16 @@ void vk_alloc_staging_buffer( VkDeviceSize size )
 	buffer_desc.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 	buffer_desc.queueFamilyIndexCount = 0;
 	buffer_desc.pQueueFamilyIndices = NULL;
-	VK_CREATE_BUFFER(vk.device, &buffer_desc, &vk.staging_buffer.handle, "main staging buffer" );
+	if ( !vk_create_buffer_memory( &buffer_desc, VK_BUFFER_MEMORY_HOST_WRITE, &vk.staging_buffer.handle,
+			&vk.staging_buffer.allocation, &data, "staging buffer" ) ) {
+		ri.Error( ERR_DROP, "Vulkan: could not allocate a %i KiB staging buffer", (int)( size / 1024 ) );
+		return;
+	}
 
-	vkGetBufferMemoryRequirements( vk.device, vk.staging_buffer.handle, &memory_requirements );
-
-	memory_type = vk_find_memory_type(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-
-	alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	alloc_info.pNext = NULL;
-	alloc_info.allocationSize = memory_requirements.size;
-	alloc_info.memoryTypeIndex = memory_type;
-
-    VK_ALLOCATE_MEMORY_CHECK(vk.device, &alloc_info, &vk.staging_buffer.memory, "main staging memory");
-	VK_CHECK(vkBindBufferMemory(vk.device, vk.staging_buffer.handle, vk.staging_buffer.memory, 0));
-
-	VK_CHECK(vkMapMemory(vk.device, vk.staging_buffer.memory, 0, VK_WHOLE_SIZE, 0, &data));
 	vk.staging_buffer.ptr = (byte*)data;
 #ifdef USE_UPLOAD_QUEUE
 	vk.staging_buffer.offset = 0;
 #endif
-	VK_SET_OBJECT_NAME(vk.staging_buffer.handle, "staging buffer", VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT);
-	VK_SET_OBJECT_NAME(vk.staging_buffer.memory, "staging buffer memory", VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_MEMORY_EXT);
 }
 
 byte *vk_resample_image_data( const int target_format, byte *data, const int data_size, int *bytes_per_pixel )
