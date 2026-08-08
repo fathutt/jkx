@@ -1,0 +1,11 @@
+build*/
+out/
+cmake-build-*/
+compile_commands.json
+code/rd-vulkan/shaders/spirv/
+*.spv
+.vs/
+.vscode/
+.idea/
+*.user
+.DS_Store
