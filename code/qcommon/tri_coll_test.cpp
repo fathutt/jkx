@@ -4,7 +4,7 @@
  * Journal of Graphics Tools, 2(2), 1997
  *
  *
- * Copyright (C) 1997 Tomas Möller
+ * Copyright (C) 1997 Tomas Moller
  * Copyright (C) 2000-2013 Raven Software, Inc.
  * Copyright (C) 2001-2013 Activision, Inc.
  *

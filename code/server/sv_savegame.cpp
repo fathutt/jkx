@@ -148,7 +148,7 @@ void SV_WipeGame_f(void)
 		return;
 	}
 	SG_WipeSavegame(Cmd_Argv(1));
-//	Com_Printf("%s has been wiped\n", Cmd_Argv(1));	// wurde gelöscht in german, but we've only got one string
+//	Com_Printf("%s has been wiped\n", Cmd_Argv(1));	// "wurde geloescht" in German, but we've only got one string
 //	Com_Printf("Ok\n"); // no localization of this
 }
 
