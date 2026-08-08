@@ -52,6 +52,10 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 // PFN_vk* declarations that used to live below are gone. Headers come from the
 // system Vulkan SDK rather than a vendored copy.
 #include "volk.h"
+// Forward-declared so the 20k line VMA header is included by exactly one
+// translation unit (vk_allocator.cpp) rather than by everything.
+VK_DEFINE_HANDLE(VmaAllocator)
+VK_DEFINE_HANDLE(VmaAllocation)
 
 #ifndef VK_CREATE_BUFFER
 	#define VK_CREATE_BUFFER(device, info, outBuffer, name)				VK_CHECK( vkCreateBuffer( device, info, NULL, outBuffer ) )
@@ -474,8 +478,6 @@ extern unsigned char s_gammatable_linear[256];
 // It is reinitialized on a map change.
 typedef struct {
 	// memory allocations.
-	int				num_image_chunks;
-	ImageChunk_t	image_chunks[MAX_IMAGE_CHUNKS];
 
 	// This flag is used to decide whether framebuffer's depth attachment should be cleared
 	// with vmCmdClearAttachment (dirty_depth_attachment != 0), or it have just been
@@ -823,6 +825,7 @@ typedef struct {
 
 	VK_Pipeline_t	pipelines[MAX_VK_PIPELINES];
 	VkPipelineCache pipelineCache;
+	VmaAllocator	allocator;
 
 	uint32_t	pipelines_count;
 	uint32_t	pipelines_world_base;
@@ -1163,6 +1166,13 @@ void		vk_create_brfdlut( void );
 // info
 const char	*vk_format_string( VkFormat format );
 const char	*vk_result_string( VkResult code );
+
+// vk_allocator.cpp
+void		vk_create_allocator( void );
+void		vk_destroy_allocator( void );
+qboolean	vk_create_image_memory( const VkImageCreateInfo *desc, VkImage *image, VmaAllocation *allocation, const char *name );
+void		vk_destroy_image_memory( VkImage *image, VmaAllocation *allocation );
+void		vk_print_memory_usage( void );
 
 // vk_pipeline_cache.cpp
 void		vk_create_pipeline_cache( void );

@@ -1500,8 +1500,8 @@ void vk_release_resources( void ) {
 
     vk_wait_idle();
 
-    for (i = 0; i < vk_world.num_image_chunks; i++)
-        VK_FREE_MEMORY(vk.device, vk_world.image_chunks[i].memory);
+    // Texture memory is owned by VMA now and released with each image, so
+    // there is no chunk array to walk here any more.
 
     vk_clean_staging_buffer();
 
@@ -1534,18 +1534,6 @@ void vk_release_resources( void ) {
 
     VK_CHECK(vkResetDescriptorPool(vk.device, vk.descriptor_pool, 0));
 
-    if (vk_world.num_image_chunks > 1) {
-        // if we allocated more than 2 image chunks - use doubled default size
-        vk.image_chunk_size = (IMAGE_CHUNK_SIZE * 2);
-    }
-#if 0 // do not reduce chunk size
-    else if (vk_world.num_image_chunks == 1) {
-        // otherwise set to default if used less than a half
-        if (vk_world.image_chunks[0].used < (IMAGE_CHUNK_SIZE - (IMAGE_CHUNK_SIZE / 10))) {
-            vk.image_chunk_size = IMAGE_CHUNK_SIZE;
-        }
-    }
-#endif
 
     Com_Memset(&vk_world, 0, sizeof(vk_world));
 

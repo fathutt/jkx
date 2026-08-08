@@ -293,6 +293,7 @@ typedef struct image_s {
 	uint32_t				type;
 	uint32_t				layers;
 	VkImage					handle;
+	VmaAllocation			allocation;
 	VkImageView				view;
 	VkDescriptorSet			descriptor_set;
 	qboolean				isLightmap;

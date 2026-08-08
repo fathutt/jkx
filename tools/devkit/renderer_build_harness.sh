@@ -67,6 +67,7 @@ target_include_directories(${MPVulkanRenderer} PRIVATE
 target_sources(${MPVulkanRenderer} PRIVATE
     "${CMAKE_SOURCE_DIR}/third_party/volk/volk.c"
     # Files added since the fork; the harness CMakeLists lists sources by hand.
+    "${MPDir}/rd-vulkan/vk_allocator.cpp"
     "${MPDir}/rd-vulkan/vk_pipeline_cache.cpp"
     "${MPDir}/rd-vulkan/vk_shader_pak.cpp")
 find_package(Vulkan REQUIRED)

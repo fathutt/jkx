@@ -590,6 +590,7 @@ void vk_initialize( void )
 	vk_create_storage_buffer( &vk.storage, MAX_FLARES * vk.storage_alignment, "storage (flares)" );
 	vk_create_shader_modules();
 
+	vk_create_allocator();
 	vk_create_pipeline_cache();
 
 #ifdef VK_COMPUTE_NORMALMAP
@@ -636,6 +637,7 @@ void vk_shutdown( void )
 #endif
 
 	vk_destroy_pipeline_cache();
+	vk_destroy_allocator();
 
 	vkDestroyCommandPool(vk.device, vk.command_pool, NULL);
 

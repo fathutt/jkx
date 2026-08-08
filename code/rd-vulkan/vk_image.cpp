@@ -1273,82 +1273,6 @@ void vk_upload_image_data( image_t *image, int x, int y, int width,
 	}
 }
 
-static void allocate_and_bind_image_memory( VkImage image ) {
-	VkMemoryRequirements memory_requirements;
-	VkDeviceSize		alignment, size;
-	ImageChunk_t		*chunk;
-	int i;
-
-	vkGetImageMemoryRequirements(vk.device, image, &memory_requirements);
-
-	// allow up to double the chunk size, if required
-	if ( memory_requirements.size > (vk.image_chunk_size * 2) ) {
-		Com_Error(ERR_DROP, "Vulkan: could not allocate memory, image is too large (%ikbytes).",
-			(int)(memory_requirements.size / 1024));
-	}
-
-	chunk = VK_NULL_HANDLE;
-
-	// Try to find an existing chunk of sufficient capacity.
-	alignment = memory_requirements.alignment;
-	for (i = 0; i < vk_world.num_image_chunks; i++) {
-		// ensure that memory region has proper alignment
-		VkDeviceSize offset = PAD(vk_world.image_chunks[i].used, alignment);
-
-		if (offset + memory_requirements.size <= vk_world.image_chunks[i].size) {
-			chunk = &vk_world.image_chunks[i];
-			chunk->used = offset + memory_requirements.size;
-			chunk->items++;
-			break;
-		}
-	}
-
-	// Allocate a new chunk in case we couldn't find suitable existing chunk.
-	if (chunk == NULL) {
-		VkMemoryAllocateInfo alloc_info;
-		VkDeviceMemory memory;
-		VkResult result;
-
-		if (vk_world.num_image_chunks >= MAX_IMAGE_CHUNKS) {
-			Com_Error(ERR_DROP, "Image chunk limit has been reached");
-			vk_restart_swapchain( __func__ );
-		}
-
-		// default size is sufficient or create larger chunk
-		if ( memory_requirements.size <= vk.image_chunk_size )
-			size = vk.image_chunk_size;
-		else {
-			size = (vk.image_chunk_size * 2);
-
-			ri.Printf(PRINT_DEVELOPER, "Vulkan: create new large memory chunk for image with size (%ikbytes)\n", 
-				(int)(memory_requirements.size / 1024));
-		}
-
-		alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-		alloc_info.pNext = NULL;
-		alloc_info.allocationSize = size;
-		alloc_info.memoryTypeIndex = vk_find_memory_type(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
-		result = VK_ALLOCATE_MEMORY(vk.device, &alloc_info, &memory, "imag memory" );
-		
-		if (result < 0) {
-			ri.Error(ERR_DROP, "%s", va("GPU memory heap overflow: Code %i", result));
-			vk_restart_swapchain( __func__ );
-		}
-
-		chunk = &vk_world.image_chunks[vk_world.num_image_chunks];
-		chunk->memory = memory;
-		chunk->used = memory_requirements.size;
-		chunk->size = size;
-		chunk->items = 1;
-
-		VK_SET_OBJECT_NAME(memory, va("image memory chunk %i", vk_world.num_image_chunks), VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_MEMORY_EXT);
-
-		vk_world.num_image_chunks++;
-	}
-
-	VK_CHECK(vkBindImageMemory(vk.device, image, chunk->memory, chunk->used - memory_requirements.size));
-}
 
 void vk_update_descriptor_set( image_t *image, qboolean mipmap ) {
 	Vk_Sampler_Def sampler_def;
@@ -1433,9 +1357,12 @@ void vk_create_image( image_t *image, int width, int height, int mip_levels ) {
 		desc.queueFamilyIndexCount = 0;
 		desc.pQueueFamilyIndices = NULL;
 		desc.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		VK_CHECK( vkCreateImage( vk.device, &desc, NULL, &image->handle ) );
 
-		allocate_and_bind_image_memory( image->handle );
+		if ( !vk_create_image_memory( &desc, &image->handle, &image->allocation, image->imgName ) ) {
+			ri.Error( ERR_DROP, "Vulkan: out of device memory creating image '%s' (%ix%i)",
+				image->imgName, width, height );
+			return;
+		}
 	}
 
 	// create image view
@@ -1479,13 +1406,10 @@ void vk_create_image( image_t *image, int width, int height, int mip_levels ) {
 	VK_SET_OBJECT_NAME( image->descriptor_set, image->imgName, VK_DEBUG_REPORT_OBJECT_TYPE_DESCRIPTOR_SET_EXT );
 }
 
-static void vk_destroy_image_resources( VkImage *image, VkImageView *imageView )
+static void vk_destroy_image_resources( VkImage *image, VkImageView *imageView, VmaAllocation *allocation )
 {
 	if ( image != NULL ) {
-		if ( *image != VK_NULL_HANDLE ) {
-			vkDestroyImage( vk.device, *image, NULL );
-			*image = VK_NULL_HANDLE;
-		}
+		vk_destroy_image_memory( image, allocation );
 	}
 	if ( imageView != NULL ) {
 		if ( *imageView != VK_NULL_HANDLE ) {
@@ -1506,7 +1430,7 @@ void vk_delete_textures( void ) {
 
 	for (i = 0; i < tr.images.count; i++) {
 		image_t *img = tr.images.items[i];
-		vk_destroy_image_resources( &img->handle, &img->view );
+		vk_destroy_image_resources( &img->handle, &img->view, &img->allocation );
 
 		// img->descriptor will be released with pool reset
 	}
