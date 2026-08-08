@@ -70,7 +70,11 @@ fi
 
 # vk_shaders.cpp includes a generated slot table; produce it where the harness
 # compiler can find it.
-python3 "$REPO_ROOT/tools/shadergen/shadergen.py" \
+# Windows runners have python.exe but not always python3.
+PYTHON="${PYTHON:-python3}"
+command -v "$PYTHON" >/dev/null 2>&1 || PYTHON=python
+
+"$PYTHON" "$REPO_ROOT/tools/shadergen/shadergen.py" \
     --manifest "$REPO_ROOT/code/rd-vulkan/shaders/shaders.json" \
     bind --out "$DST/shader_slots.inl"
 
