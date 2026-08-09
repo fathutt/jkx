@@ -33,6 +33,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #if !defined(G2_H_INC)
 	#include "../ghoul2/G2.h"
 #endif
+#include "G2_internal.h"
 
 #define G2_MODEL_OK(g) ((g)&&(g)->mValid&&(g)->aHeader&&(g)->currentModel&&(g)->animModel)
 

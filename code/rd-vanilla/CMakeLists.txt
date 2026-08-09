@@ -41,6 +41,7 @@ if(BuildSPRdVanilla OR BuildJK2SPRdVanilla)
 	# GHOUL 2
 	set(SPRDVanillaG2Files
 		"${SPDir}/ghoul2/G2.h"
+		"${SPDir}/rd-vanilla/G2_internal.h"
 		"${SPDir}/ghoul2/ghoul2_gore.h"
 		"${SPDir}/rd-vanilla/G2_API.cpp"
 		"${SPDir}/rd-vanilla/G2_bolts.cpp"
