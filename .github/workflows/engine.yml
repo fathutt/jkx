@@ -107,12 +107,17 @@ jobs:
           PYTHON: ${{ matrix.python }}
         run: bash jkx/tools/devkit/renderer_build_harness.sh "$PWD/eternaljk" --sync-only
 
+      # $GITHUB_WORKSPACE rather than the expression: on Windows the expression
+      # expands to D:\a\jkx\jkx before bash sees it, and bash then eats the
+      # backslashes as escapes, so the install prefix silently became a
+      # different, wrong directory. Through a variable the value is passed
+      # verbatim.
       - name: Configure
         shell: bash
         run: >
           cmake -S eternaljk -B build ${{ matrix.configure_extra }}
           -DCMAKE_BUILD_TYPE=Release
-          -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/package
+          -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/package"
           -DBuildPortableVersion=OFF
           -DBuildMPEngine=ON
           -DBuildMPRdVulkan=ON
@@ -146,8 +151,13 @@ jobs:
       - name: Stage the shader pak
         shell: bash
         run: |
-          tree=$(find package -maxdepth 2 -type d -name JediAcademy | head -1)
-          if [ -z "$tree" ]; then echo "install tree not found under package/" >&2; exit 1; fi
+          tree=$(find "$GITHUB_WORKSPACE/package" -maxdepth 2 -type d -name JediAcademy | head -1)
+          if [ -z "$tree" ]; then
+              echo "install tree not found under $GITHUB_WORKSPACE/package" >&2
+              echo "what is there:" >&2
+              ls -la "$GITHUB_WORKSPACE" >&2
+              exit 1
+          fi
           dest="$tree/EternalJK"
           [ -d "$dest" ] || dest="$tree/base"
           mkdir -p "$dest"
