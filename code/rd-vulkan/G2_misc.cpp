@@ -20,6 +20,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 ===========================================================================
 */
 
+#include "tr_local.h"
 #include "qcommon/matcomp.h"
 #include "ghoul2/G2.h"
 #include "qcommon/MiniHeap.h"
@@ -30,7 +31,6 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #include "ghoul2/G2_gore.h"
 #include "G2_gore_r2.h"
 
-#include "tr_local.h"
 
 #define GORE_TAG_UPPER (256)
 #define GORE_TAG_MASK (~255)

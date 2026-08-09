@@ -20,6 +20,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 ===========================================================================
 */
 
+#include "tr_local.h"
 #include "qcommon/matcomp.h"
 
 #include "ghoul2/G2.h"
@@ -32,7 +33,6 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #include <math.h>
 #endif
 #include "ghoul2/G2_gore.h"
-#include "tr_local.h"
 
 //#define RAG_TRACE_DEBUG_LINES
 

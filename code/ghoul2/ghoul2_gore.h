@@ -114,6 +114,12 @@ public:
 
 	int groundEnt;
 
+	// Set by the ragdoll code to tell the caller that ragdoll is starting and
+	// the NPC side of it needs to happen. Multiplayer's copy of this class has
+	// it and the ragdoll sources this project imported write it in two places;
+	// single-player's did not, because single-player never ran that code.
+	qboolean CallRagDollBegin;
+
 	virtual void EffectorCollision(const SRagDollEffectorCollision &data)
 	{
 		assert(0); // you probably meant to override this
