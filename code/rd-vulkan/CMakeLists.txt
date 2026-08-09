@@ -253,12 +253,17 @@ if(WIN32)
 endif()
 
 if(MSVC)
-	# Symbols in the shipped release build. /Zi and /DEBUG cost a PDB beside the
-	# DLL and nothing at runtime; /OPT:REF and /OPT:ICF put back the folding
-	# that /DEBUG otherwise turns off, so this is not a slower binary - it is
-	# the same binary with a symbol file. The crash handler finds the PDB by
-	# looking next to the module.
-	target_compile_options(${SPRDVulkanRenderer} PRIVATE /Zi)
+	# Symbols in the shipped release build. /DEBUG costs a PDB beside the DLL
+	# and nothing at runtime; /OPT:REF and /OPT:ICF put back the folding that
+	# /DEBUG otherwise turns off, so this is not a slower binary - it is the
+	# same binary with a symbol file. The crash handler finds the PDB by looking
+	# next to the module.
+	#
+	# /Z7 rather than /Zi: it puts the debug information in the object file
+	# instead of a compiler-managed PDB, which is the same symbols to the linker
+	# and the difference between a build a compiler cache can reuse and one it
+	# cannot.
+	target_compile_options(${SPRDVulkanRenderer} PRIVATE /Z7)
 	target_link_options(${SPRDVulkanRenderer} PRIVATE /DEBUG /OPT:REF /OPT:ICF)
 endif()
 

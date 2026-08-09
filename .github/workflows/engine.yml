@@ -9,8 +9,19 @@
 
 name: engine
 
+# A run that is already obsolete is 15 minutes of waiting for an answer about
+# code that has been replaced. Newer push wins.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   workflow_dispatch:
+    inputs:
+      trace:
+        description: "Also package the Windows build with the renderer trace compiled in"
+        type: boolean
+        default: false
   push:
     branches: [main]
     paths:
@@ -21,6 +32,11 @@ on:
       - 'third_party/**'
       - 'tools/shadergen/**'
       - '.github/workflows/engine.yml'
+
+env:
+  # sccache stores its objects in the Actions cache rather than on the runner,
+  # which is what makes it survive from one run to the next.
+  SCCACHE_GHA_ENABLED: "true"
 
 jobs:
   # The shader pak is platform independent - SPIR-V, compiled by glslc - so it
@@ -71,17 +87,21 @@ jobs:
           # the struct layouts the gamecode interface depends on, and the result
           # dies before it can write a single line.
           - name: windows-x86_64-trace
+            when: trace
             os: windows-2022
             configure_extra: -G "Visual Studio 17 2022" -A x64 -DCMAKE_TOOLCHAIN_FILE=$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x64-windows
             python: python
             config: Release
-            trace: "1"
           - name: linux-x86_64
             os: ubuntu-24.04
             configure_extra: -G Ninja
             python: python3
             config: Release
     runs-on: ${{ matrix.os }}
+    # The trace package doubles the Windows work for a compile define, and it is
+    # wanted when something needs diagnosing rather than on every push. Ask for
+    # it from the Actions tab.
+    if: ${{ matrix.when != 'trace' || inputs.trace }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -103,6 +123,12 @@ jobs:
         shell: bash
         run: vcpkg install sdl2:x64-windows
 
+      # Most of a rebuild is the same objects again. sccache keys on the
+      # preprocessed source and the flags, so a push that changes one file
+      # recompiles one file - which is the difference between waiting nine
+      # minutes for an answer and waiting two.
+      - uses: mozilla-actions/sccache-action@v0.0.9
+
       # $GITHUB_WORKSPACE rather than the expression: on Windows the expression
       # expands to D:\a\jkx\jkx before bash sees it, and bash then eats the
       # backslashes as escapes, so the install prefix silently became a
@@ -122,7 +148,9 @@ jobs:
           -DBuildJK2SPEngine=OFF
           -DBuildJK2SPGame=OFF
           -DBuildJK2SPRdVanilla=OFF
-          -DJKX_VK_TRACE=${{ matrix.trace && 'ON' || 'OFF' }}
+          -DJKX_VK_TRACE=${{ matrix.when == 'trace' && 'ON' || 'OFF' }}
+          -DCMAKE_C_COMPILER_LAUNCHER=sccache
+          -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
           ${{ runner.os == 'Linux' && '-DUseInternalSDL2=OFF -DUseInternalZlib=OFF -DUseInternalPNG=OFF -DUseInternalJPEG=OFF' || '' }}
 
       # The interesting line of a failed MSBuild run is somewhere in three

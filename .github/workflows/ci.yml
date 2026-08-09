@@ -9,6 +9,11 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # sccache stores its objects in the Actions cache rather than on the runner,
+  # which is what makes it survive from one run to the next.
+  SCCACHE_GHA_ENABLED: "true"
+
 jobs:
   # ---------------------------------------------------------------------------
   # Cheap gates first: they fail in seconds and catch the mistakes that are
@@ -79,10 +84,14 @@ jobs:
       # libraries: SDL2main.lib pulled in _RTC_CheckStackVars and friends, which
       # are MSVC runtime-check symbols that GCC has never heard of. Naming the
       # generator picks the toolchain deliberately instead of by PATH order.
+      - uses: mozilla-actions/sccache-action@v0.0.9
+
       - name: Configure
         shell: bash
         run: >
           cmake -B build
+          -DCMAKE_C_COMPILER_LAUNCHER=sccache
+          -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
           ${{ runner.os == 'Windows' && '-G "Visual Studio 17 2022" -A x64
           -DCMAKE_TOOLCHAIN_FILE=$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake
           -DVCPKG_TARGET_TRIPLET=x64-windows' || '-G Ninja' }}
@@ -164,9 +173,13 @@ jobs:
           sudo apt-get install -y ninja-build libsdl2-dev libjpeg-dev libpng-dev \
                                   zlib1g-dev libopenal-dev libgl1-mesa-dev libvulkan-dev \
                                   glslc
+      - uses: mozilla-actions/sccache-action@v0.0.9
+
       - name: Configure
         run: >
           cmake -B build-san -G Ninja
+          -DCMAKE_C_COMPILER_LAUNCHER=sccache
+          -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
           -DCMAKE_BUILD_TYPE=Debug
           -DBuildSPRdVulkan=ON
           -DJKX_ENABLE_ASAN=ON
@@ -202,9 +215,12 @@ jobs:
           sudo apt-get install -y ninja-build xvfb glslc libsdl2-dev libjpeg-dev \
                                   libpng-dev zlib1g-dev libopenal-dev libgl1-mesa-dev
 
+      - uses: mozilla-actions/sccache-action@v0.0.9
+
       - name: Build
         run: |
           cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache \
             -DBuildSPRdVulkan=ON -DBuildJK2SPEngine=OFF -DBuildJK2SPGame=OFF \
             -DBuildJK2SPRdVanilla=OFF
           cmake --build build --target jkx_ja.x86_64 rdsp-vulkan_x86_64 --parallel
