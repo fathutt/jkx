@@ -45,8 +45,11 @@ unsigned char s_gammatable_linear[256];
 #endif
 
 
-PFN_vkGetBufferMemoryRequirements2KHR			vkGetBufferMemoryRequirements2KHR;
-PFN_vkGetImageMemoryRequirements2KHR			vkGetImageMemoryRequirements2KHR;
+// These two used to be defined here as well as in volk, which owns every other
+// entry point in this renderer. Two definitions of the same global: whichever
+// one volkLoadDevice filled, the other stayed null, and which one a translation
+// unit saw depended on its include order. The linker only complained once the
+// single-player target linked volk.c into the same module.
 
 
 

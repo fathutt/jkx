@@ -48,6 +48,14 @@ char *		G2API_GetSurfaceName( CGhoul2Info *ghlInfo, int surfNumber );
 // Widened here as well: multiplayer's header declares the two-argument form and
 // the definition in G2_bones.cpp now takes single-player's add-if-missing flag.
 int			G2_Get_Bone_Index( CGhoul2Info *ghoul2, const char *boneName, qboolean bAddIfNotFound );
+qboolean	G2API_SetBoneAnim( CGhoul2Info *ghlInfo, const char *boneName, const int startFrame, const int endFrame, const int flags, const float animSpeed, const int currentTime, const float setFrame, const int blendTime );
+qboolean	G2API_SetBoneAngles( CGhoul2Info *ghlInfo, const char *boneName, const vec3_t angles, const int flags, const Eorientations up, const Eorientations left, const Eorientations forward, qhandle_t *modelList, int blendTime, int currentTime );
+qboolean	G2API_GetBoneAnim( CGhoul2Info *ghlInfo, const char *boneName, const int currentTime, float *currentFrame, int *startFrame, int *endFrame, int *flags, float *animSpeed, int *modelList );
+qboolean	G2API_AttachEnt( int *boltInfo, CGhoul2Info *ghlInfoTo, int toBoltIndex, int entNum, int toModelNum );
+qboolean	G2API_AttachG2Model( CGhoul2Info *ghlInfo, CGhoul2Info *ghlInfoTo, int toBoltIndex, int toModel );
+void		G2API_CollisionDetect( CollisionRecord_t *collRecMap, CGhoul2Info_v &ghoul2, const vec3_t angles, const vec3_t position,
+				int frameNumber, int entNum, vec3_t rayStart, vec3_t rayEnd, vec3_t scale, IHeapAllocator *G2VertSpace,
+				int traceFlags, int useLod, float fRadius );
 
 #ifdef _FULL_G2_LEAK_CHECKING
 int g_Ghoul2Allocations = 0;
@@ -826,6 +834,79 @@ qhandle_t G2API_PrecacheGhoul2Model( const char *fileName )
 }
 
 // initialise all that needs to be on a new Ghoul II model
+// Who owns the instance vector.
+//
+// Multiplayer's Ghoul2 API takes a CGhoul2Info_v ** because the renderer
+// allocates and frees the vector itself: its callers live in a virtual machine
+// and hold a handle, not storage. Single-player's callers hold the vector as a
+// member and never hand ownership over, so the same three calls take a
+// reference and allocate nothing. That is not a signature difference, it is a
+// different ownership model, so these three are written out rather than
+// forwarded - and guarded, because the multiplayer bodies below still own
+// theirs.
+#ifdef JKX_SP_FIELDS
+
+int G2API_InitGhoul2Model(CGhoul2Info_v &ghoul2, const char *fileName, int modelIndex, qhandle_t customSkin,
+						  qhandle_t customShader, int modelFlags, int lodBias)
+{
+	int				model;
+
+	if (!fileName || !fileName[0])
+	{
+		assert(0);
+		return -1;
+	}
+
+	// find a free spot in the list
+	for (model=0; model < (int)ghoul2.size(); model++)
+	{
+		if (ghoul2[model].mModelindex == -1)
+		{
+			ghoul2[model]=CGhoul2Info();
+			break;
+		}
+	}
+	if (model == (int)ghoul2.size())
+	{	//init should not be used to create additional models, only the first one
+		assert(ghoul2.size() < 4); //use G2API_CopySpecificG2Model to add models
+		ghoul2.push_back(CGhoul2Info());
+	}
+
+	strcpy(ghoul2[model].mFileName, fileName);
+	ghoul2[model].mModelindex = model;
+	if (!G2_TestModelPointers(&ghoul2[model]))
+	{
+		ghoul2[model].mFileName[0]=0;
+		ghoul2[model].mModelindex = -1;
+	}
+	else
+	{
+		G2_Init_Bone_List(ghoul2[model].mBlist, ghoul2[model].aHeader->numBones);
+		G2_Init_Bolt_List(ghoul2[model].mBltlist);
+		ghoul2[model].mCustomShader = customShader;
+		ghoul2[model].mCustomSkin = customSkin;
+		ghoul2[model].mLodBias = lodBias;
+		ghoul2[model].mAnimFrameDefault = 0;
+		ghoul2[model].mFlags = 0;
+
+		ghoul2[model].mModelBoltLink = -1;
+	}
+	return ghoul2[model].mModelindex;
+}
+
+// The vector is a handle onto a pooled array and its destructor releases the
+// handle; the destructor's own comment says this call is what is meant to do
+// it. Nothing is deleted because nothing here was allocated.
+void G2API_CleanGhoul2Models(CGhoul2Info_v &ghoul2)
+{
+#ifdef _G2_GORE
+	G2API_ClearSkinGore( ghoul2 );
+#endif
+	ghoul2.~CGhoul2Info_v();
+}
+
+#endif // JKX_SP_FIELDS
+
 int G2API_InitGhoul2Model(CGhoul2Info_v **ghoul2Ptr, const char *fileName, int modelIndex, qhandle_t customSkin,
 						  qhandle_t customShader, int modelFlags, int lodBias)
 {
@@ -1026,6 +1107,69 @@ qboolean G2API_HasGhoul2ModelOnIndex(CGhoul2Info_v **ghlRemove, const int modelI
 
 	return qtrue;
 }
+
+#ifdef JKX_SP_FIELDS
+
+// Same ownership split as the two above: the tail of the multiplayer version
+// deletes the vector once it is empty, and here there is nothing to delete.
+qboolean G2API_RemoveGhoul2Model(CGhoul2Info_v &ghlInfo, const int modelIndex)
+{
+	// sanity check
+	if (!ghlInfo.size() || modelIndex < 0 || ((int)ghlInfo.size() <= modelIndex) || (ghlInfo[modelIndex].mModelindex == -1))
+	{
+		// if we hit this assert then we are trying to delete a ghoul2 model on a ghoul2 instance that
+		// one way or another is already gone.
+		assert(0);
+		return qfalse;
+	}
+
+#ifdef _G2_GORE
+	// Cleanup the gore attached to this model
+	if ( ghlInfo[modelIndex].mGoreSetTag )
+	{
+		DeleteGoreSet ( ghlInfo[modelIndex].mGoreSetTag );
+		ghlInfo[modelIndex].mGoreSetTag = 0;
+	}
+#endif
+
+	if (ghlInfo[modelIndex].mBoneCache)
+	{
+		RemoveBoneCache(ghlInfo[modelIndex].mBoneCache);
+		ghlInfo[modelIndex].mBoneCache=0;
+	}
+
+	// clear out the vectors this model used.
+	ghlInfo[modelIndex].mBlist.clear();
+	ghlInfo[modelIndex].mBltlist.clear();
+	ghlInfo[modelIndex].mSlist.clear();
+
+	// set us to be the 'not active' state
+	ghlInfo[modelIndex].mModelindex = -1;
+
+	// now look through the list from the back and see if there is a block of
+	// -1's we can resize off the end of the list
+	int newSize = ghlInfo.size();
+	for (int i=(int)ghlInfo.size()-1; i>-1; i--)
+	{
+		if (ghlInfo[i].mModelindex == -1)
+		{
+			newSize = i;
+		}
+		// once we hit one that isn't a -1, we are done.
+		else
+		{
+			break;
+		}
+	}
+	if (newSize != (int)ghlInfo.size())
+	{
+		ghlInfo.resize(newSize);
+	}
+
+	return qtrue;
+}
+
+#endif // JKX_SP_FIELDS
 
 qboolean G2API_RemoveGhoul2Model(CGhoul2Info_v **ghlRemove, const int modelIndex)
 {
@@ -1300,7 +1444,7 @@ qboolean G2API_SetBoneAnimIndex(CGhoul2Info *ghlInfo, const int index, const int
 
 #define _PLEASE_SHUT_THE_HELL_UP
 
-qboolean G2API_SetBoneAnim(CGhoul2Info_v &ghoul2, const int modelIndex, const char *boneName, const int AstartFrame, const int AendFrame, const int flags, const float animSpeed, const int currentTime, const float AsetFrame, const int blendTime)
+qboolean G2API_SetBoneAnim(CGhoul2Info *ghlInfo, const char *boneName, const int AstartFrame, const int AendFrame, const int flags, const float animSpeed, const int currentTime, const float AsetFrame, const int blendTime)
 {
 	int endFrame=AendFrame;
 	int startFrame=AstartFrame;
@@ -1337,39 +1481,27 @@ qboolean G2API_SetBoneAnim(CGhoul2Info_v &ghoul2, const int modelIndex, const ch
 	{
 		setFrame=0.0f;
 	}
-	if (ghoul2.size()>modelIndex)
+	if (G2_SetupModelPointers(ghlInfo))
 	{
-		CGhoul2Info *ghlInfo = &ghoul2[modelIndex];
-		qboolean setPtrs = qfalse;
-		qboolean res = qfalse;
-
 		//rww - RAGDOLL_BEGIN
-		if (ghlInfo)
+		if (ghlInfo->mFlags & GHOUL2_RAG_STARTED)
 		{
-			res = G2_SetupModelPointers(ghlInfo) ? qtrue : qfalse;
-			setPtrs = qtrue;
-
-			if (res)
-			{
-				if (ghlInfo->mFlags & GHOUL2_RAG_STARTED)
-				{
-					return qfalse;
-				}
-			}
+			return qfalse;
 		}
 		//rww - RAGDOLL_END
 
-		if (!setPtrs)
-		{
-			res = G2_SetupModelPointers(ghlInfo) ? qtrue : qfalse;
-		}
+		// ensure we flush the cache
+		ghlInfo->mSkelFrameNum = 0;
+		return G2_Set_Bone_Anim(ghlInfo, ghlInfo->mBlist, boneName, startFrame, endFrame, flags, animSpeed, currentTime, setFrame, blendTime);
+	}
+	return qfalse;
+}
 
-		if (res)
-		{
-			// ensure we flush the cache
-			ghlInfo->mSkelFrameNum = 0;
- 			return G2_Set_Bone_Anim(ghlInfo, ghlInfo->mBlist, boneName, startFrame, endFrame, flags, animSpeed, currentTime, setFrame, blendTime);
-		}
+qboolean G2API_SetBoneAnim(CGhoul2Info_v &ghoul2, const int modelIndex, const char *boneName, const int AstartFrame, const int AendFrame, const int flags, const float animSpeed, const int currentTime, const float AsetFrame, const int blendTime)
+{
+	if (modelIndex >= 0 && (size_t)modelIndex < ghoul2.size())
+	{
+		return G2API_SetBoneAnim(&ghoul2[modelIndex], boneName, AstartFrame, AendFrame, flags, animSpeed, currentTime, AsetFrame, blendTime);
 	}
 	return qfalse;
 }
@@ -1377,12 +1509,17 @@ qboolean G2API_SetBoneAnim(CGhoul2Info_v &ghoul2, const int modelIndex, const ch
 qboolean G2API_GetBoneAnim(CGhoul2Info_v& ghoul2, int modelIndex, const char *boneName, const int currentTime, float *currentFrame,
 						   int *startFrame, int *endFrame, int *flags, float *animSpeed, int *modelList)
 {
+	return G2API_GetBoneAnim(&ghoul2[modelIndex], boneName, currentTime, currentFrame,
+		startFrame, endFrame, flags, animSpeed, modelList);
+}
+
+qboolean G2API_GetBoneAnim(CGhoul2Info *ghlInfo, const char *boneName, const int currentTime, float *currentFrame,
+						   int *startFrame, int *endFrame, int *flags, float *animSpeed, int *modelList)
+{
 	assert(startFrame!=endFrame); //this is bad
 	assert(startFrame!=flags); //this is bad
 	assert(endFrame!=flags); //this is bad
 	assert(currentFrame!=animSpeed); //this is bad
-
-	CGhoul2Info *ghlInfo = &ghoul2[modelIndex];
 
 	if (G2_SetupModelPointers(ghlInfo))
 	{
@@ -1535,43 +1672,33 @@ qboolean G2API_SetBoneAnglesIndex(CGhoul2Info *ghlInfo, const int index, const v
 	return qfalse;
 }
 
+qboolean G2API_SetBoneAngles(CGhoul2Info *ghlInfo, const char *boneName, const vec3_t angles, const int flags,
+							 const Eorientations up, const Eorientations left, const Eorientations forward,
+							 qhandle_t *modelList, int blendTime, int currentTime )
+{
+	if (G2_SetupModelPointers(ghlInfo))
+	{
+		//rww - RAGDOLL_BEGIN
+		if (ghlInfo->mFlags & GHOUL2_RAG_STARTED)
+		{
+			return qfalse;
+		}
+		//rww - RAGDOLL_END
+
+		// ensure we flush the cache
+		ghlInfo->mSkelFrameNum = 0;
+		return G2_Set_Bone_Angles(ghlInfo, ghlInfo->mBlist, boneName, angles, flags, up, left, forward, modelList, ghlInfo->mModelindex, blendTime, currentTime);
+	}
+	return qfalse;
+}
+
 qboolean G2API_SetBoneAngles(CGhoul2Info_v &ghoul2, const int modelIndex, const char *boneName, const vec3_t angles, const int flags,
 							 const Eorientations up, const Eorientations left, const Eorientations forward,
 							 qhandle_t *modelList, int blendTime, int currentTime )
 {
-	if (ghoul2.size()>modelIndex)
+	if (modelIndex >= 0 && (size_t)modelIndex < ghoul2.size())
 	{
-		CGhoul2Info *ghlInfo = &ghoul2[modelIndex];
-		qboolean setPtrs = qfalse;
-		qboolean res = qfalse;
-
-		//rww - RAGDOLL_BEGIN
-		if (ghlInfo)
-		{
-			res = G2_SetupModelPointers(ghlInfo) ? qtrue : qfalse;
-			setPtrs = qtrue;
-
-			if (res)
-			{
-				if (ghlInfo->mFlags & GHOUL2_RAG_STARTED)
-				{
-					return qfalse;
-				}
-			}
-		}
-		//rww - RAGDOLL_END
-
-		if (!setPtrs)
-		{
-			res = G2_SetupModelPointers(ghoul2) ? qtrue : qfalse;
-		}
-
-		if (res)
-		{
-				// ensure we flush the cache
-			ghlInfo->mSkelFrameNum = 0;
-			return G2_Set_Bone_Angles(ghlInfo, ghlInfo->mBlist, boneName, angles, flags, up, left, forward, modelList, ghlInfo->mModelindex, blendTime, currentTime);
-		}
+		return G2API_SetBoneAngles(&ghoul2[modelIndex], boneName, angles, flags, up, left, forward, modelList, blendTime, currentTime);
 	}
 	return qfalse;
 }
@@ -1903,26 +2030,40 @@ int G2API_AddBoltSurfNum(CGhoul2Info *ghlInfo, const int surfIndex)
 }
 
 
-qboolean G2API_AttachG2Model(CGhoul2Info_v &ghoul2From, int modelFrom, CGhoul2Info_v &ghoul2To, int toBoltIndex, int toModel)
+qboolean G2API_AttachG2Model(CGhoul2Info *ghlInfo, CGhoul2Info *ghlInfoTo, int toBoltIndex, int toModel)
 {
 	assert( toBoltIndex >= 0 );
 	if ( toBoltIndex < 0 )
 	{
 		return qfalse;
 	}
-	if (G2_SetupModelPointers(ghoul2From)&&G2_SetupModelPointers(ghoul2To))
+	if (G2_SetupModelPointers(ghlInfo)&&G2_SetupModelPointers(ghlInfoTo))
 	{
 		// make sure we have a model to attach, a model to attach to, and a bolt on that model
-		if ((ghoul2From.size() > modelFrom) &&
-			(ghoul2To.size() > toModel) &&
-			((ghoul2To[toModel].mBltlist[toBoltIndex].boneNumber != -1) || (ghoul2To[toModel].mBltlist[toBoltIndex].surfaceNumber != -1)))
+		//
+		// The bolt list size is checked here and was not before: the two model
+		// indexes were bounds-checked and the bolt index was not, so a bolt
+		// index past the end read out of bounds. G2API_AttachEnt beside this
+		// one always checked.
+		if ((size_t)toBoltIndex < ghlInfoTo->mBltlist.size() &&
+			((ghlInfoTo->mBltlist[toBoltIndex].boneNumber != -1) || (ghlInfoTo->mBltlist[toBoltIndex].surfaceNumber != -1)))
 		{
 			// encode the bolt address into the model bolt link
 		   toModel &= MODEL_AND;
 		   toBoltIndex &= BOLT_AND;
-		   ghoul2From[modelFrom].mModelBoltLink = (toModel << MODEL_SHIFT)  | (toBoltIndex << BOLT_SHIFT);
+		   ghlInfo->mModelBoltLink = (toModel << MODEL_SHIFT)  | (toBoltIndex << BOLT_SHIFT);
 		   return qtrue;
 		}
+	}
+	return qfalse;
+}
+
+qboolean G2API_AttachG2Model(CGhoul2Info_v &ghoul2From, int modelFrom, CGhoul2Info_v &ghoul2To, int toBoltIndex, int toModel)
+{
+	if (modelFrom >= 0 && (size_t)modelFrom < ghoul2From.size() &&
+		toModel >= 0 && (size_t)toModel < ghoul2To.size())
+	{
+		return G2API_AttachG2Model(&ghoul2From[modelFrom], &ghoul2To[toModel], toBoltIndex, toModel);
 	}
 	return qfalse;
 }
@@ -1947,8 +2088,11 @@ qboolean G2API_DetachG2Model(CGhoul2Info *ghlInfo)
 
 qboolean G2API_AttachEnt(int *boltInfo, CGhoul2Info_v& ghoul2, int modelIndex, int toBoltIndex, int entNum, int toModelNum)
 {
-	CGhoul2Info *ghlInfoTo = &ghoul2[modelIndex];
+	return G2API_AttachEnt(boltInfo, &ghoul2[modelIndex], toBoltIndex, entNum, toModelNum);
+}
 
+qboolean G2API_AttachEnt(int *boltInfo, CGhoul2Info *ghlInfoTo, int toBoltIndex, int entNum, int toModelNum)
+{
 	if (boltInfo && G2_SetupModelPointers(ghlInfoTo))
 	{
 		// make sure we have a model to attach, a model to attach to, and a bolt on that model
@@ -2037,8 +2181,23 @@ void G2_GetBoneMatrixLow(CGhoul2Info &ghoul2,int boneNum,const vec3_t scale,mdxa
 
 //qboolean G2API_GetBoltMatrix(CGhoul2Info_v &ghoul2, const int modelIndex, const int boltIndex, mdxaBone_t *matrix, const vec3_t angles,
 //							 const vec3_t position, const int AframeNum, qhandle_t *modelList, const vec3_t scale )
+// Multiplayer's export table wants the non-const spelling, which is a different
+// symbol for the same call. Goes with the harness.
+#ifndef JKX_SP_FIELDS
+qboolean G2API_GetBoltMatrix(CGhoul2Info_v &ghoul2, const int modelIndex, const int boltIndex, mdxaBone_t *matrix, const vec3_t angles,
+							 const vec3_t position, const int frameNum, qhandle_t *modelList, const vec3_t scale );
+
 qboolean G2API_GetBoltMatrix(CGhoul2Info_v &ghoul2, const int modelIndex, const int boltIndex, mdxaBone_t *matrix, const vec3_t angles,
 							 const vec3_t position, const int frameNum, qhandle_t *modelList, vec3_t scale )
+{
+	return G2API_GetBoltMatrix(ghoul2, modelIndex, boltIndex, matrix, angles, position, frameNum, modelList, (const float *)scale);
+}
+#endif
+
+// scale is const: the body only reads it, and single-player's declaration says
+// so. Multiplayer's does not, which made the two a different symbol.
+qboolean G2API_GetBoltMatrix(CGhoul2Info_v &ghoul2, const int modelIndex, const int boltIndex, mdxaBone_t *matrix, const vec3_t angles,
+							 const vec3_t position, const int frameNum, qhandle_t *modelList, const vec3_t scale )
 {
 //	G2ERROR(ghoul2.IsValid(),"Invalid ghlInfo");
 	G2ERROR(matrix,"NULL matrix");
@@ -2367,6 +2526,17 @@ void G2API_CollisionDetectCache(CollisionRecord_t *collRecMap, CGhoul2Info_v &gh
 	}
 }
 
+
+// Single-player names the trace type with the enum it belongs to; multiplayer
+// passes it as a bare int, and the two are a different symbol for it.
+#ifdef JKX_SP_FIELDS
+void G2API_CollisionDetect(CollisionRecord_t *collRecMap, CGhoul2Info_v &ghoul2, const vec3_t angles, const vec3_t position,
+										  int frameNumber, int entNum, vec3_t rayStart, vec3_t rayEnd, vec3_t scale, IHeapAllocator *G2VertSpace, EG2_Collision eG2TraceType, int useLod, float fRadius)
+{
+	G2API_CollisionDetect(collRecMap, ghoul2, angles, position, frameNumber, entNum,
+		rayStart, rayEnd, scale, G2VertSpace, (int)eG2TraceType, useLod, fRadius);
+}
+#endif
 
 void G2API_CollisionDetect(CollisionRecord_t *collRecMap, CGhoul2Info_v &ghoul2, const vec3_t angles, const vec3_t position,
 										  int frameNumber, int entNum, vec3_t rayStart, vec3_t rayEnd, vec3_t scale, IHeapAllocator *G2VertSpace, int traceFlags, int useLod, float fRadius)
