@@ -378,8 +378,8 @@ int Com_HexStrToInt( const char *str );
 
 int	QDECL Com_sprintf (char *dest, int size, const char *fmt, ...);
 
-char *Com_SkipTokens( char *s, int numTokens, char *sep );
-char *Com_SkipCharset( char *s, char *sep );
+char *Com_SkipTokens( char *s, int numTokens, const char *sep );
+char *Com_SkipCharset( char *s, const char *sep );
 
 
 // mode parm for FS_FOpenFile

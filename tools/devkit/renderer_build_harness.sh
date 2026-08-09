@@ -61,6 +61,21 @@ done < <(find "$SRC" \( -name '*.cpp' -o -name '*.h' -o -name '*.hpp' -o -name '
 
 echo "synced $count file(s)"
 
+# The fork ships a gsl-lite from before the cstring_span -> cstring_view rename,
+# which does not compile against a C++17 standard library at all: every use of
+# std:: inside namespace gsl resolves to gsl::std. This tree carries the newer
+# one, and the five safe/ wrappers that go with the renamed API.
+if [ -d "$REPO_ROOT/lib/gsl-lite" ]; then
+    mkdir -p "$HARNESS/lib/gsl-lite"
+    cp -r "$REPO_ROOT/lib/gsl-lite/." "$HARNESS/lib/gsl-lite/"
+    echo "synced lib/gsl-lite"
+fi
+if [ -d "$REPO_ROOT/shared/qcommon/safe" ]; then
+    mkdir -p "$HARNESS/shared/qcommon/safe"
+    cp "$REPO_ROOT"/shared/qcommon/safe/* "$HARNESS/shared/qcommon/safe/"
+    echo "synced shared/qcommon/safe"
+fi
+
 # Third-party headers the modernised renderer now expects.
 if [ -d "$REPO_ROOT/third_party" ]; then
     mkdir -p "$HARNESS/third_party"
@@ -94,7 +109,19 @@ target_sources(${MPVulkanRenderer} PRIVATE
     "${MPDir}/rd-vulkan/vk_allocator.cpp"
     "${MPDir}/rd-vulkan/vk_pipeline_cache.cpp"
     "${MPDir}/rd-vulkan/vk_shader_pak.cpp")
-find_package(Vulkan REQUIRED)
+# Headers only - the renderer resolves every entry point through volk, so there
+# is nothing to link against. A machine with the Vulkan SDK has them; a CI
+# runner does not, and installing the whole SDK to get a directory of headers is
+# not a trade worth making.
+find_package(Vulkan QUIET)
+if(NOT TARGET Vulkan::Headers)
+    include(FetchContent)
+    FetchContent_Declare(VulkanHeaders
+        GIT_REPOSITORY https://github.com/KhronosGroup/Vulkan-Headers.git
+        GIT_TAG v1.3.290
+        GIT_SHALLOW TRUE)
+    FetchContent_MakeAvailable(VulkanHeaders)
+endif()
 target_link_libraries(${MPVulkanRenderer} Vulkan::Headers)
 target_compile_definitions(${MPVulkanRenderer} PRIVATE VK_NO_PROTOTYPES)
 # JKX is C++20; the fork still appends -std=c++11 to CMAKE_CXX_FLAGS, and a

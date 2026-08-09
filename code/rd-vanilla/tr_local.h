@@ -1385,7 +1385,7 @@ IMPLEMENTATION SPECIFIC FUNCTIONS
 
 ====================================================================
 */
-static inline void GLimp_LogComment( char *comment ) {}
+static inline void GLimp_LogComment( const char *comment ) {}
 
 
 /*

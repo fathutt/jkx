@@ -918,7 +918,7 @@ void Info_SetValueForKey( char *s, const char *key, const char *value ) {
 Com_CharIsOneOfCharset
 ==================
 */
-static qboolean Com_CharIsOneOfCharset( char c, char *set ) {
+static qboolean Com_CharIsOneOfCharset( char c, const char *set ) {
 	size_t i;
 
 	for ( i=0; i<strlen( set ); i++ ) {
@@ -934,7 +934,7 @@ static qboolean Com_CharIsOneOfCharset( char c, char *set ) {
 Com_SkipCharset
 ==================
 */
-char *Com_SkipCharset( char *s, char *sep ) {
+char *Com_SkipCharset( char *s, const char *sep ) {
 	char *p = s;
 
 	while ( p ) {
@@ -952,7 +952,7 @@ char *Com_SkipCharset( char *s, char *sep ) {
 Com_SkipTokens
 ==================
 */
-char *Com_SkipTokens( char *s, int numTokens, char *sep ) {
+char *Com_SkipTokens( char *s, int numTokens, const char *sep ) {
 	int sepCount = 0;
 	char *p = s;
 

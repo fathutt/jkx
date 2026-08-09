@@ -831,7 +831,7 @@ void GLimp_EnableLogging( qboolean enable )
 {
 }
 
-void GLimp_LogComment( char *comment )
+void GLimp_LogComment( const char *comment )
 {
 }
 
