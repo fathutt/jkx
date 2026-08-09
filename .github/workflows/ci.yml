@@ -93,7 +93,15 @@ jobs:
       # --config is what a multi-config generator reads; single-config ones
       # ignore it and use CMAKE_BUILD_TYPE from the configure step.
       - name: Build
-        run: cmake --build build --config ${{ matrix.config }} --parallel
+        shell: bash
+        run: |
+          set -o pipefail
+          cmake --build build --config ${{ matrix.config }} --parallel 2>&1 | tee build.log || {
+            echo "::group::compiler and linker errors"
+            grep -aE "error [A-Z]+[0-9]+|error:|LNK[0-9]+" build.log | sort -u | head -60
+            echo "::endgroup::"
+            exit 1
+          }
 
       - uses: actions/upload-artifact@v4
         if: matrix.config == 'Release'

@@ -244,6 +244,25 @@ target_link_libraries(${SPRDVulkanRenderer} ${SPRDVulkanLibraries} Vulkan::Heade
 jkx_no_undefined_symbols(${SPRDVulkanRenderer})
 
 if(WIN32)
+	# vk_crash.cpp walks the stack and resolves the frames through dbghelp. It
+	# is the difference between a crash report and a column of addresses, and
+	# the import library has to be named or the link fails on SymFromAddr and
+	# friends. This lived in the build harness until the harness went; nothing
+	# on Linux needs it, which is why nothing here noticed.
+	target_link_libraries(${SPRDVulkanRenderer} dbghelp)
+endif()
+
+if(MSVC)
+	# Symbols in the shipped release build. /Zi and /DEBUG cost a PDB beside the
+	# DLL and nothing at runtime; /OPT:REF and /OPT:ICF put back the folding
+	# that /DEBUG otherwise turns off, so this is not a slower binary - it is
+	# the same binary with a symbol file. The crash handler finds the PDB by
+	# looking next to the module.
+	target_compile_options(${SPRDVulkanRenderer} PRIVATE /Zi)
+	target_link_options(${SPRDVulkanRenderer} PRIVATE /DEBUG /OPT:REF /OPT:ICF)
+endif()
+
+if(WIN32)
 	install(TARGETS ${SPRDVulkanRenderer}
 		RUNTIME DESTINATION ${JKAInstallDir} COMPONENT ${JKASPClientComponent})
 else()

@@ -125,9 +125,19 @@ jobs:
           -DJKX_VK_TRACE=${{ matrix.trace && 'ON' || 'OFF' }}
           ${{ runner.os == 'Linux' && '-DUseInternalSDL2=OFF -DUseInternalZlib=OFF -DUseInternalPNG=OFF -DUseInternalJPEG=OFF' || '' }}
 
+      # The interesting line of a failed MSBuild run is somewhere in three
+      # thousand lines of warnings, and the tail of the log is whichever project
+      # happened to finish last. Pull the errors out rather than going looking.
       - name: Build
         shell: bash
-        run: cmake --build build --config ${{ matrix.config }} --parallel
+        run: |
+          set -o pipefail
+          cmake --build build --config ${{ matrix.config }} --parallel 2>&1 | tee build.log || {
+            echo "::group::compiler and linker errors"
+            grep -aE "error [A-Z]+[0-9]+|error:|LNK[0-9]+" build.log | sort -u | head -60
+            echo "::endgroup::"
+            exit 1
+          }
 
       - name: Install into a package tree
         shell: bash
