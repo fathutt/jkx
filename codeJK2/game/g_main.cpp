@@ -1520,3 +1520,22 @@ IGhoul2InfoArray &TheGameGhoul2InfoArray()
 {
 	return gi.TheGhoul2InfoArray();
 }
+
+/*
+============
+Zone_GameMalloc / Zone_GameFree
+
+The zone allocator in qcommon/safe/memory.h used to reach into the gamecode for
+these. It is a qcommon header, so it does not any more: the gamecode supplies
+them and the engine build uses Z_Malloc directly.
+============
+*/
+void *Zone_GameMalloc( int iSize, memtag_t eTag, qboolean bZeroit )
+{
+	return gi.Malloc( iSize, eTag, bZeroit );
+}
+
+int Zone_GameFree( void *pvAddress )
+{
+	return gi.Free( pvAddress );
+}

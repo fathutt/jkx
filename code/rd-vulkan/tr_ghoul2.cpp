@@ -31,7 +31,6 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #include "G2_gore_r2.h"
 #endif
 
-#include "qcommon/disablewarnings.h"
 #include "tr_cache.h"
 
 #define	LL(x) x=LittleLong(x)

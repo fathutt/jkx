@@ -88,3 +88,24 @@ Foundation.
 // under multiplayer headers and appears the moment the types become ours.
 // That is the same convention upstream already uses for its own multiplayer-
 // only flags (RF_NOLOD, RDF_AUTOMAP and the rest).
+
+// Lightstyle "none". Multiplayer renamed it to LS_LSNONE because its gamecode
+// has a saber lightstyle enum with an LS_NONE in it; single-player keeps the
+// original name and the renderer never sees the saber enum.
+#ifndef LS_LSNONE
+#define LS_LSNONE	LS_NONE
+#endif
+
+// One-line helper multiplayer added to q_shared.h.
+#ifndef Square
+#define Square( x )	( ( x ) * ( x ) )
+#endif
+
+// Memory tags. Single-player's tag list is not multiplayer's, and these two
+// have no counterpart: grid meshes and the image workspace both fall under the
+// temporary-workspace tag, which is freed at the same points.
+#ifndef JKX_SP_FIELDS
+#else
+#define TAG_GRIDMESH	TAG_TEMP_WORKSPACE
+#define TAG_TEMP_IMAGE	TAG_TEMP_WORKSPACE
+#endif

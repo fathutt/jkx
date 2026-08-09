@@ -38,7 +38,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 //
 #include "snd_music.h"
 
-#include "../game/genericparser2.h"
+#include "../qcommon/GenericParser2.h"
 
 extern qboolean S_FileExists( const char *psFilename );
 

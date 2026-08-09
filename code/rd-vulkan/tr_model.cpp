@@ -24,7 +24,6 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 #include "tr_local.h"
 #include "tr_cache.h"
-#include "qcommon/disablewarnings.h"
 #include "qcommon/sstring.h"	// #include <string>
 
 #include <vector>

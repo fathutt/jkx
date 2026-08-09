@@ -241,7 +241,7 @@ if(BuildSPEngine OR BuildJK2SPEngine)
 
 	# Game files
 	set(SPEngineGameFiles
-		"${SPDir}/game/genericparser2.cpp"
+		"${SPDir}/qcommon/GenericParser2.cpp"
 		"${SPDir}/game/channels.h"
 		"${SPDir}/game/anims.h"
 		"${SPDir}/game/b_public.h"
@@ -255,7 +255,7 @@ if(BuildSPEngine OR BuildJK2SPEngine)
 		"${SPDir}/game/g_nav.h"
 		"${SPDir}/game/g_public.h"
 		"${SPDir}/game/g_shared.h"
-		"${SPDir}/game/genericparser2.h"
+		"${SPDir}/qcommon/GenericParser2.h"
 		"${SPDir}/game/statindex.h"
 		"${SPDir}/game/teams.h"
 		"${SPDir}/game/weapons.h"

@@ -22,12 +22,17 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 // Filename:-	genericparser2.cpp
 
-#include "common_headers.h"
-#include "genericparser2.h"
+// This was including game/common_headers.h, which drags in b_local.h and the
+// rest of the gamecode. A general-purpose text parser has no business with any
+// of it, and neither does the zone allocator it uses - see the note in
+// qcommon/safe/memory.h, which had the same problem and had to be fixed first.
+#include "../qcommon/q_shared.h"
 
 #ifdef _JK2EXE
-#include "../qcommon/qcommon.h"
+	#include "../qcommon/qcommon.h"
 #endif
+
+#include "GenericParser2.h"
 
 #include <algorithm>
 #include <cctype>

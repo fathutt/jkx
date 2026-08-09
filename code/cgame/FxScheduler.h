@@ -28,7 +28,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #include "../qcommon/sstring.h"
 typedef sstring_t fxString_t;
 
-#include "../game/genericparser2.h"
+#include "../qcommon/GenericParser2.h"
 #include "qcommon/safe/string.h"
 
 #include <algorithm>

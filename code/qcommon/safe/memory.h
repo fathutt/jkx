@@ -3,7 +3,14 @@
 #ifdef _JK2EXE
 # include "qcommon/qcommon.h"
 #else
-# include "game/g_shared.h"
+// Not game/g_shared.h. This is a qcommon header and including a gamecode one
+// made every qcommon file that uses the zone allocator depend on the gamecode -
+// including through GenericParser2.h, which is why moving that parser out of
+// game/ needed this first. The gamecode allocates through gi.Malloc, so it
+// supplies these two; the engine build has Z_Malloc directly.
+# include "qcommon/q_shared.h"
+void *	Zone_GameMalloc( int iSize, memtag_t eTag, qboolean bZeroit );
+int		Zone_GameFree( void *pvAddress );
 #endif
 
 #include <type_traits>
@@ -18,7 +25,7 @@ namespace Zone
 #ifdef _JK2EXE
 			return Z_Malloc( iSize, eTag, bZeroit );
 #else
-			return gi.Malloc( iSize, eTag, bZeroit );
+			return Zone_GameMalloc( iSize, eTag, bZeroit );
 #endif
 		}
 		inline int Free( void* pvAddress )
@@ -26,7 +33,7 @@ namespace Zone
 #ifdef _JK2EXE
 			return Z_Free( pvAddress );
 #else
-			return gi.Free( pvAddress );
+			return Zone_GameFree( pvAddress );
 #endif
 		}
 	}
