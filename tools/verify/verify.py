@@ -16,13 +16,16 @@ nothing has to be watched.
 What it measures, and why each one matters:
 
   startup            what a persistent pipeline cache saves. Upstream created
-                     the cache with no initial data and never saved it, so up
-                     to 2304 pipeline definitions were compiled from scratch on
-                     every launch.
+                     the cache with no initial data and never saved it, so
+                     every pipeline is compiled from scratch on every launch.
+                     Measured on an RTX 3070: 2.5 s to the menu, where only 64
+                     pipeline objects exist. The cache matters in a loaded map,
+                     not at the menu.
   vid_restart        the same cost again, and the one players hit most.
-  map load           dominated by the IBL bake: every cubemap probe is six full
-                     scene renders plus convolution. At 128 probes that is 768
-                     renders, and it is the argument for caching the bake.
+  map load           geometry, textures, and the IBL bake where there is one.
+                     The bake only runs for maps shipping cubemaps/<map>/
+                     env.json, which retail maps do not, so on a stock install
+                     it is not in this number.
   lighting path      whether PBR is actually on. On a device reporting
                      maxBoundDescriptorSets < 11 it silently switched itself
                      off, so a measurement could be of the wrong path entirely.
