@@ -860,6 +860,14 @@ def write_report(path: Path, results: dict, info: dict, args, stages: dict | Non
         lines.append("fewer than 11 descriptor sets, that is the limit bindless removes; it is why")
         lines.append("bindless is on the critical path rather than an optimisation.")
 
+    map_stage = stages.get("map") or {}
+    if map_stage.get("cgame_init"):
+        map_note = f"of which client game init is {map_stage['cgame_init']} s"
+    elif map_stage.get("ibl"):
+        map_note = "includes the IBL bake"
+    else:
+        map_note = "geometry and textures"
+
     lines += [
         "",
         "## Timings",
@@ -868,7 +876,7 @@ def write_report(path: Path, results: dict, info: dict, args, stages: dict | Non
         "|---|---|---|",
         f"| startup to main menu | {fmt(startup)} | cost a persistent pipeline cache removes |",
         f"| vid_restart alone | {fmt(restart_only)} | the same cost, and the one players hit |",
-        f"| map load alone | {fmt(map_only)} | dominated by the IBL bake |",
+        f"| map load alone | {fmt(map_only)} | {map_note} |",
         "",
     ]
 
@@ -933,7 +941,6 @@ def write_report(path: Path, results: dict, info: dict, args, stages: dict | Non
     # Did the map come up at all? A map that failed to load costs almost
     # nothing, so the "map load" row above would be a failure wearing the
     # costume of a result.
-    map_stage = stages.get("map", {})
     if results.get("map"):
         lines += ["", "## Map", ""]
         if map_stage.get("map_failed"):
@@ -980,6 +987,11 @@ def write_report(path: Path, results: dict, info: dict, args, stages: dict | Non
         lines.append(f"| overall | {info.get('pipeline_defs', '?')} "
                      f"| {info.get('pipeline_handles', '?')} |")
     lines.append("")
+    lines.append("")
+    lines.append("Pipelines are created on demand, so the menu number is a fraction of what a")
+    lines.append("loaded map needs. Dynamic rendering plus extended dynamic state should cut the")
+    lines.append("object count by roughly an order of magnitude; this is the before number.")
+
     chunks = (stages.get("map") or {}).get("image_chunks") \
         or (stages.get("startup") or {}).get("image_chunks")
     size = (stages.get("map") or {}).get("chunk_size") \
@@ -992,11 +1004,6 @@ def write_report(path: Path, results: dict, info: dict, args, stages: dict | Non
                   "Upstream allocates textures out of fixed chunks and never returns any of it",
                   "until the map changes, so this is a high-water mark that stays. Replacing that",
                   "with VMA is one of the phase 1 changes; this is the number to compare against."]
-
-    lines.append("")
-    lines.append("Pipelines are created on demand, so the menu number is a fraction of what a")
-    lines.append("loaded map needs. Dynamic rendering plus extended dynamic state should cut the")
-    lines.append("object count by roughly an order of magnitude; this is the before number.")
 
     hits = info.get("validation_hits") or []
     lines += ["", "## Validation", ""]
@@ -1013,11 +1020,12 @@ def write_report(path: Path, results: dict, info: dict, args, stages: dict | Non
         "",
         "## Still needs a human",
         "",
-        "- FPS against rd-vanilla on the same scene (`/cl_renderer rd-vanilla; vid_restart`)",
+        "- FPS against the OpenGL renderer on the same scene",
+        "  (`/cl_renderer rd-eternaljk; vid_restart`, or rd-vanilla in a build that has it)",
         "- one RenderDoc capture: draw call count, pipeline switches, where time goes",
         "- hitching when new materials first appear, which is the lazy pipeline creation",
         "",
-        "Attach this file and the console dumps from the homepath.",
+        "Attach this file together with the dumps/ directory next to it.",
         "",
     ]
     path.write_text("\n".join(lines), encoding="utf-8")
