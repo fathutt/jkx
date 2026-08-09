@@ -447,7 +447,11 @@ GL_ONLY_NAMES = [
 # The renderer itself. The engine loads it by name at startup, so its absence is
 # not an error the engine reports loudly - it falls back to OpenGL and carries
 # on, which is exactly the failure this tool exists to catch.
-RENDERER_STEMS = ["rd-vulkan_x86_64", "rd-vulkan_x86"]
+# rd-jkx is what the engine workflow packages: our renderer under a name of our
+# own, so it cannot be confused with, or silently replaced by, the upstream
+# rd-vulkan that ships in the fork's releases. Ours is preferred when both are
+# present, and cl_renderer follows whichever was found.
+RENDERER_STEMS = ["rd-jkx_x86_64", "rd-jkx_x86", "rd-vulkan_x86_64", "rd-vulkan_x86"]
 RENDERER_SUFFIXES = [".dll", ".so", ".dylib"]
 
 ENGINE_DOWNLOAD = {
@@ -458,6 +462,24 @@ ENGINE_DOWNLOAD = {
               "https://github.com/JKSunny/EternalJK/releases/download/"
               "latest-pbr/EternalJK-linux-x86_64.tar.gz"),
 }
+
+
+def strays(game_dir: Path) -> list[Path]:
+    """Engines and renderers sitting next to the game directory instead of in it."""
+    found: list[Path] = []
+    for directory in (game_dir.parent, game_dir.parent / "GameData"):
+        if not directory.is_dir() or directory == game_dir:
+            continue
+        for name in ENGINE_NAMES:
+            candidate = directory / name
+            if candidate.is_file():
+                found.append(candidate)
+        for stem in RENDERER_STEMS:
+            for suffix in RENDERER_SUFFIXES:
+                candidate = directory / (stem + suffix)
+                if candidate.is_file():
+                    found.append(candidate)
+    return found
 
 
 def describe_file(path: Path) -> str:
@@ -736,6 +758,14 @@ TRIAGE = [
     ("a different map", [], "mp/ffa1"),
     ("the driver's own video mode", [("r_mode", "-1")], None),
 ]
+
+
+def renderer_cvar(libs: list[Path]) -> str:
+    """The name the engine loads the renderer by: the file name minus arch."""
+    if not libs:
+        return "rd-vulkan"
+    stem = libs[0].stem
+    return stem.split("_x86")[0]
 
 
 def run_scenario(binary: Path, game_dir: Path, cfg_dir: Path, home: Path, name: str,
@@ -1118,6 +1148,24 @@ def main(argv: list[str]) -> int:
 
     libs = renderer_libraries(game_dir, binary)
     args.resolved_renderer = describe_file(libs[0]) if libs else None
+
+    # Which renderer the engine will be told to load. Following the file that is
+    # actually there beats hardcoding a name that may belong to another build.
+    STARTUP_CVARS[0] = ("cl_renderer", renderer_cvar(libs))
+    if libs and not libs[0].name.startswith("rd-jkx"):
+        print(f"NOTE: {libs[0].name} is upstream's renderer name, not ours. If you meant to")
+        print("      measure a JKX package, its rd-jkx library is not in this folder.")
+
+    # A package unpacked one directory too high is invisible from here: the game
+    # root is wherever base/ is, and everything next to it keeps working, so the
+    # run measures whatever was already installed. Say where the other copy is.
+    stray = [p for p in strays(game_dir) if p.parent != game_dir]
+    if stray:
+        print()
+        print("NOTE: there is another engine or renderer outside the game directory:")
+        for p in stray[:6]:
+            print(f"      {describe_file(p)}")
+        print(f"      Nothing there is used. {game_dir} is what runs.")
 
     gamecode = find_gamecode(game_dir, binary)
     if any(where is None for where in gamecode.values()):

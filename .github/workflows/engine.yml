@@ -162,6 +162,22 @@ jobs:
           [ -d "$dest" ] || dest="$tree/base"
           mkdir -p "$dest"
           cp pak/shaders.pak "$dest/shaders.pak"
+
+          # Ship the renderer under a name of our own. Upstream calls it
+          # rd-vulkan_<arch>, so a package unpacked over an existing install
+          # either overwrites it or, if the unpack skips existing files, leaves
+          # the old one in place and everything still runs - which is how a
+          # measurement of the baseline once got mistaken for a measurement of
+          # this tree. Different name, no ambiguity: either rd-jkx is there and
+          # is ours, or it is not there at all.
+          for lib in "$tree"/rd-vulkan_*; do
+              [ -e "$lib" ] || continue
+              mv "$lib" "$(echo "$lib" | sed 's/rd-vulkan_/rd-jkx_/')"
+          done
+
+          git -C jkx rev-parse HEAD > "$tree/jkx-build.txt"
+          date -u +"%Y-%m-%dT%H:%M:%SZ" >> "$tree/jkx-build.txt"
+
           echo "packaged:"
           find "$tree" -maxdepth 2 -type f | sort
           echo "PACKAGE_DIR=$tree" >> "$GITHUB_ENV"
