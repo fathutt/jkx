@@ -879,6 +879,80 @@ def fmt(seconds: float | None) -> str:
     return "-" if seconds is None else f"{seconds:.1f} s"
 
 
+def tool_revision() -> str:
+    """The revision of this script, so a report says which tool wrote it.
+
+    A copy of this tool unpacked from an old archive produced a report that was
+    simply missing the sections added since, and nothing in the report said so -
+    it read as if the new checks had run and found nothing. The tool has to
+    identify itself for the same reason the package does.
+    """
+    here = Path(__file__).resolve().parent
+    try:
+        out = subprocess.run(["git", "-C", str(here), "rev-parse", "--short", "HEAD"],
+                             capture_output=True, timeout=10)
+        if out.returncode == 0:
+            rev = out.stdout.decode("ascii", "replace").strip()
+            dirty = subprocess.run(["git", "-C", str(here), "status", "--porcelain"],
+                                   capture_output=True, timeout=10)
+            if dirty.returncode == 0 and dirty.stdout.strip():
+                rev += " (modified)"
+            return rev
+    except (OSError, subprocess.SubprocessError):
+        pass
+    return "unknown - not run from a git checkout"
+
+
+def package_stamp(game_dir: Path | None) -> dict:
+    """Read jkx-build.txt, which the packaging workflow writes beside the engine.
+
+    Three lines: the commit the package was built from, when, and which matrix
+    entry produced it.
+    """
+    if game_dir is None:
+        return {}
+    for candidate in (Path(game_dir) / "jkx-build.txt",
+                      Path(game_dir).parent / "jkx-build.txt"):
+        if not candidate.is_file():
+            continue
+        lines = [ln.strip() for ln in
+                 candidate.read_text(encoding="utf-8", errors="replace").splitlines()
+                 if ln.strip()]
+        stamp = {"path": str(candidate)}
+        if lines:
+            stamp["commit"] = lines[0]
+        if len(lines) > 1:
+            stamp["built"] = lines[1]
+        for line in lines[2:]:
+            if line.startswith("package:"):
+                stamp["package"] = line.split(":", 1)[1].strip()
+        return stamp
+    return {}
+
+
+def provenance_section(tool_rev: str, stamp: dict) -> list[str]:
+    lines = [f"- verify: {tool_rev}"]
+    if not stamp:
+        lines.append("- package: no jkx-build.txt beside the engine, so this is not a")
+        lines.append("  packaged build - probably a local build or an older artifact.")
+        return lines
+
+    if stamp.get("package"):
+        lines.append(f"- package: {stamp['package']}, built {stamp.get('built', '?')}")
+    else:
+        lines.append(f"- package: built {stamp.get('built', '?')}")
+    commit = stamp.get("commit", "")
+    if commit:
+        lines.append(f"- package commit: {commit}")
+
+    short = commit[:len(tool_rev.split()[0])] if commit else ""
+    if short and not tool_rev.startswith("unknown") and not short.startswith(tool_rev.split()[0]):
+        lines.append("- **the tool and the package are from different commits.** Sections this")
+        lines.append("  report does not contain may simply not exist in this copy of verify.py;")
+        lines.append("  re-run it from the checkout the package was built from.")
+    return lines
+
+
 def crash_section(crashes: list[Path]) -> list[str]:
     """Quote the fault handler's stacks straight into the report.
 
@@ -937,6 +1011,9 @@ def write_report(path: Path, results: dict, info: dict, args, stages: dict | Non
         lines.append(f"- {label}: {info.get(key, '?')}")
 
     lines += ["", "## Build", ""]
+    lines += provenance_section(tool_revision(),
+                                package_stamp(Path(args.resolved_game)
+                                              if getattr(args, "resolved_game", None) else None))
     if info.get("engine_build"):
         lines.append(f"- engine: {info['engine_build']}")
     # The files as they were on disk. Names collide between builds, so the size
@@ -1352,6 +1429,12 @@ def main(argv: list[str]) -> int:
     print(f"dumps : {evidence}")
     if crashes:
         print(f"NOTE: {len(crashes)} crash stack(s) captured; they are quoted in the report.")
+    stamp = package_stamp(Path(args.resolved_game) if getattr(args, "resolved_game", None) else None)
+    rev = tool_revision().split()[0]
+    if stamp.get("commit") and not rev.startswith("unknown") \
+            and not stamp["commit"].startswith(rev):
+        print("NOTE: this tool and the package were built from different commits. Re-run")
+        print("      verify from the checkout the package came from; see the report.")
     if console.strip() and not info.get("vendor"):
         print("NOTE: rd-vulkan did not run - the engine fell back to OpenGL. See the report.")
     elif info.get("vendor") and not info.get("jkx_marker"):

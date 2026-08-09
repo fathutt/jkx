@@ -29,6 +29,9 @@ jobs:
       - name: Shader manifest matches renderer usage
         run: python3 tools/shadergen/shadergen.py verify --strict
 
+      - name: Renderer source list matches the directory
+        run: python3 tools/ci/check_sources.py
+
       - name: clang-format
         run: |
           sudo apt-get update -qq
@@ -133,6 +136,44 @@ jobs:
       # are written blind against Windows.
       - name: verification tool
         run: python3 tools/verify/selftest.py
+
+  # ---------------------------------------------------------------------------
+  # The renderer is the part of this repository that changes most and is checked
+  # least: it cannot be built here until phase 2, so until now it was compiled
+  # only by the packaging workflow, which runs on pushes to main. A renderer
+  # that does not build therefore reached main first and was discovered second.
+  #
+  # This is the same harness the packaging job and a developer machine use, cut
+  # down to the one target that matters, so a green result here means the same
+  # thing all three places.
+  renderer:
+    name: renderer (harness build)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: jkx
+
+      # Pinned to the same commit engine.yml packages from. Two different
+      # revisions would make a green check here and a red one there, with
+      # nothing in this repository to explain the difference.
+      - uses: actions/checkout@v4
+        with:
+          repository: JKSunny/EternalJK
+          ref: 7762e3c83a66b2bdfcb1e5df2d304a3b40d1abb5
+          path: eternaljk
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ninja-build libsdl2-dev libjpeg-dev libpng-dev \
+                                  zlib1g-dev libopenal-dev libgl1-mesa-dev libvulkan-dev
+
+      # The harness configures this link with -Wl,--no-undefined, so a function
+      # that is declared, called and never defined fails here rather than on the
+      # Windows packaging job days later.
+      - name: Sync and build rd-vulkan
+        run: JOBS=4 bash jkx/tools/devkit/renderer_build_harness.sh "$PWD/eternaljk"
 
   # ---------------------------------------------------------------------------
   sanitizers:

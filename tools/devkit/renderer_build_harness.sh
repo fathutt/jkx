@@ -177,7 +177,15 @@ fi
 
 BUILD="$HARNESS/build-harness"
 if [ ! -f "$BUILD/CMakeCache.txt" ]; then
+    # --no-undefined so this build answers the question Windows asks by default.
+    # ELF happily links a shared object referring to functions nothing defines
+    # and fails at the first call instead; that is how two real defects passed
+    # every Linux build in this project and surfaced on the Windows packaging
+    # job a week later. The renderer is self-contained - it reaches the engine
+    # through the refimport struct, not through the dynamic linker - so there is
+    # nothing legitimate for this to break.
     cmake -S "$HARNESS" -B "$BUILD" -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_SHARED_LINKER_FLAGS="-Wl,--no-undefined" \
         -DBuildMPRdVulkan=ON -DBuildMPRdVanilla=OFF -DBuildMPDed=OFF \
         -DBuildMPEngine=OFF -DBuildMPGame=OFF -DBuildMPCGame=OFF -DBuildMPUI=OFF \
         -DBuildDiscordRichPresence=OFF \

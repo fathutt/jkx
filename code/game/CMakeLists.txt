@@ -378,6 +378,7 @@ add_library(${SPGame} SHARED ${SPGameFiles})
 # gamecode is covered here. See jkx_legacy_string_literals in the root
 # CMakeLists for why, and for what it would take to drop this line.
 jkx_legacy_string_literals(${SPGame})
+jkx_no_undefined_symbols(${SPGame})
 
 # Hide symbols not explicitly marked public.
 set_property(TARGET ${SPGame} APPEND PROPERTY COMPILE_OPTIONS ${OPENJK_VISIBILITY_FLAGS})

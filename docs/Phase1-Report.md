@@ -165,11 +165,22 @@ tools/devkit/renderer_build_harness.sh <path-to-EternalJK@pbr>
 # гейты
 python3 tools/ci/check_ascii.py
 python3 tools/ci/check_layering.py .
+python3 tools/ci/check_sources.py
 python3 tools/ci/check_vulkan_baseline.py
 python3 tools/shadergen/shadergen.py verify --strict
 ```
 
 Харнесс копирует исходники **только в одну сторону**. Обратно из него не берётся ничего.
+Он линкует рендерер с `-Wl,--no-undefined`, поэтому объявленная и вызванная, но
+нигде не определённая функция падает здесь, а не через неделю на Windows-упаковке.
+То же самое включено для всех наших `.so` в основном дереве — кроме сборок с
+санитайзерами, где неразрешённые символы рантайма это норма.
+
+`check_sources.py` сравнивает список исходников в `code/rd-vulkan/CMakeLists.txt`
+с содержимым каталога. Этот CMakeLists пока ничем не собирается (ждёт фазу 2),
+то есть работает как документация, а незамеченная документация расходится с
+реальностью: на момент появления гейта в нём не хватало пяти файлов и лишними
+числились девятнадцать вендоренных Vulkan-заголовков, удалённых при переходе на volk.
 
 Всё, что требует железа и ретейл-контента, вынесено в одну команду без аргументов:
 на Windows — двойной клик по `tools/verify/verify.bat`, на Linux — `tools/verify/verify.sh`.

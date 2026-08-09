@@ -29,7 +29,6 @@ set(MPVulkanRendererIncludeDirectories
 	${SharedDir}
 	${MPDir}
 	"${MPDir}/rd-vulkan"
-	"${MPDir}/rd-vulkan/vulkan"
 	"${GSLIncludeDirectory}"
 	)
 
@@ -41,6 +40,8 @@ set(MPVulkanRendererFiles
 	"${MPDir}/rd-vulkan/G2_gore_r2.h"
 	"${MPDir}/rd-vulkan/G2_misc.cpp"
 	"${MPDir}/rd-vulkan/G2_surfaces.cpp"
+	"${MPDir}/rd-vulkan/rg_graph.cpp"
+	"${MPDir}/rd-vulkan/rg_graph.h"
 	"${MPDir}/rd-vulkan/tr_allocator.h"
 	"${MPDir}/rd-vulkan/tr_allocator.cpp"
 	"${MPDir}/rd-vulkan/tr_backend.cpp"
@@ -71,11 +72,13 @@ set(MPVulkanRendererFiles
 	"${MPDir}/rd-vulkan/tr_subs.cpp"
 	"${MPDir}/rd-vulkan/tr_surface.cpp"
 	"${MPDir}/rd-vulkan/tr_surfacesprites.cpp"
+	"${MPDir}/rd-vulkan/tr_terrain.cpp"
 	"${MPDir}/rd-vulkan/tr_world.cpp"
 	"${MPDir}/rd-vulkan/tr_WorldEffects.cpp"
 	"${MPDir}/rd-vulkan/tr_WorldEffects.h"
 	"${MPDir}/rd-vulkan/vk_attachments.cpp"
 	"${MPDir}/rd-vulkan/vk_bloom.cpp"
+	"${MPDir}/rd-vulkan/vk_allocator.cpp"
 	"${MPDir}/rd-vulkan/vk_cmd.cpp"
 	"${MPDir}/rd-vulkan/vk_crash.cpp"
 	"${MPDir}/rd-vulkan/vk_cubemap.cpp"
@@ -89,11 +92,14 @@ set(MPVulkanRendererFiles
 	"${MPDir}/rd-vulkan/vk_init.cpp"
 	"${MPDir}/rd-vulkan/vk_instance.cpp"
 	"${MPDir}/rd-vulkan/vk_local.h"
+	"${MPDir}/rd-vulkan/vk_pipeline_cache.cpp"
 	"${MPDir}/rd-vulkan/vk_pipelines.cpp"
 	"${MPDir}/rd-vulkan/vk_mikktspace.cpp"
 	"${MPDir}/rd-vulkan/vk_normalmap.cpp"
 	"${MPDir}/rd-vulkan/vk_shaders.cpp"
 	"${MPDir}/rd-vulkan/vk_shade_geometry.cpp"
+	"${MPDir}/rd-vulkan/vk_shader_pak.cpp"
+	"${MPDir}/rd-vulkan/vk_shader_pak.h"
 	"${MPDir}/rd-vulkan/vk_swapchain.cpp"
 	"${MPDir}/rd-vulkan/vk_vbo.cpp"
 	"${MPDir}/rd-vulkan/vk_vbo_surfacesprites.cpp"
@@ -123,32 +129,9 @@ set(MPVulkanRendererRdCommonFiles
 source_group("rd-common" FILES ${MPVulkanRendererRdCommonFiles})
 set(MPVulkanRendererFiles ${MPVulkanRendererFiles} ${MPVulkanRendererRdCommonFiles})
 
-set(MPVulkanRendererVulkanAssets
-	"${MPDir}/rd-vulkan/vulkan/vk_platform.h"
-	"${MPDir}/rd-vulkan/vulkan/vulkan.h"
-	"${MPDir}/rd-vulkan/vulkan/vulkan_core.h"
-	"${MPDir}/rd-vulkan/vulkan/vulkan_win32.h"
-	"${MPDir}/rd-vulkan/vulkan/vulkan_xlib.h"
-	"${MPDir}/rd-vulkan/vulkan/vulkan_xlib_xrandr.h")
-source_group("renderer\\vulkan" FILES ${MPVulkanRendererVulkanAssets})
-set(MPVulkanRendererFiles ${MPVulkanRendererFiles} ${MPVulkanRendererVulkanAssets})
-
-set(MPVulkanRendererVulkanVideoAssets
-    "${MPDir}/rd-vulkan/vulkan/vk_video/vulkan_video_codecs_common.h"
-    "${MPDir}/rd-vulkan/vulkan/vk_video/vulkan_video_codec_av1std.h"
-    "${MPDir}/rd-vulkan/vulkan/vk_video/vulkan_video_codec_av1std_decode.h"
-    "${MPDir}/rd-vulkan/vulkan/vk_video/vulkan_video_codec_av1std_encode.h"
-    "${MPDir}/rd-vulkan/vulkan/vk_video/vulkan_video_codec_h264std.h"
-    "${MPDir}/rd-vulkan/vulkan/vk_video/vulkan_video_codec_h264std_decode.h"
-    "${MPDir}/rd-vulkan/vulkan/vk_video/vulkan_video_codec_h264std_encode.h"
-    "${MPDir}/rd-vulkan/vulkan/vk_video/vulkan_video_codec_h265std.h"
-    "${MPDir}/rd-vulkan/vulkan/vk_video/vulkan_video_codec_h265std_decode.h"
-    "${MPDir}/rd-vulkan/vulkan/vk_video/vulkan_video_codec_h265std_encode.h"
-    "${MPDir}/rd-vulkan/vulkan/vk_video/vulkan_video_codec_vp9std.h"
-    "${MPDir}/rd-vulkan/vulkan/vk_video/vulkan_video_codec_vp9std_decode.h"
-)
-source_group("renderer\\vulkan\\vk_video" FILES ${MPVulkanRendererVulkanVideoAssets})
-set(MPVulkanRendererFiles ${MPVulkanRendererFiles} ${MPVulkanRendererVulkanVideoAssets})
+# The vendored Vulkan headers this used to list are gone: the renderer resolves
+# every entry point through volk, and the headers come from the SDK or, on a
+# machine without one, from FetchContent. Nothing to list here any more.
 
 set(MPVulkanRendererUtils
 	"${MPDir}/rd-vulkan/utils/stb_dxt.h"

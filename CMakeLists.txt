@@ -91,6 +91,33 @@ function(jkx_legacy_string_literals target)
     endif()
 endfunction()
 
+# Make a shared module link like a Windows DLL: refuse to produce one with
+# symbols nothing defines.
+#
+# ELF is happy to link an .so full of undefined symbols and only fail when the
+# process tries to call one. That is how a function whose body had been
+# overwritten under a neighbour's name, and a definition left inside an #if 0,
+# both survived every Linux build in this project and surfaced a week later as
+# unresolved externals on the Windows packaging job - after the change they
+# belonged to had already been merged. The link is the right place to find out.
+#
+# Not applied when a sanitizer is on: the runtime's symbols are resolved from
+# the executable at load time, so a sanitized module is undefined by design.
+function(jkx_no_undefined_symbols target)
+    if(MSVC)
+        return() # already the default, and there is no equivalent flag
+    endif()
+    if(UseAddressSanitizer OR UseUndefinedSanitizer OR UseThreadSanitizer
+       OR JKX_ENABLE_ASAN OR JKX_ENABLE_UBSAN OR JKX_ENABLE_TSAN)
+        return()
+    endif()
+    if(APPLE)
+        target_link_options(${target} PRIVATE "LINKER:-undefined,error")
+    else()
+        target_link_options(${target} PRIVATE "LINKER:--no-undefined")
+    endif()
+endfunction()
+
 if(JKX_ENABLE_ASAN)
     add_compile_options(-fsanitize=address -fno-omit-frame-pointer)
     add_link_options(-fsanitize=address)

@@ -420,6 +420,39 @@ def test_crash_reporting() -> None:
           "a clean run says nothing about crashes")
 
 
+def test_provenance() -> None:
+    """A report has to say which tool wrote it and which package it measured."""
+    stamp = {"commit": "861b650deadbeef", "built": "2026-08-09T11:00:00Z",
+             "package": "windows-x86_64"}
+
+    agreed = "\n".join(verify.provenance_section("861b650", stamp))
+    check("verify: 861b650" in agreed, "the report names the tool revision")
+    check("windows-x86_64" in agreed, "the report names the package")
+    check("different commits" not in agreed,
+          "matching revisions produce no warning")
+
+    mismatched = "\n".join(verify.provenance_section("0000000", stamp))
+    check("different commits" in mismatched,
+          "a tool older than the package is called out")
+
+    unpackaged = "\n".join(verify.provenance_section("861b650", {}))
+    check("no jkx-build.txt" in unpackaged,
+          "a build with no stamp is described, not silently accepted")
+
+    unknown = "\n".join(verify.provenance_section("unknown - not run from a git checkout", stamp))
+    check("different commits" not in unknown,
+          "an unknown tool revision does not fake a mismatch")
+
+    tmp = Path(tempfile.mkdtemp())
+    (tmp / "jkx-build.txt").write_text(
+        "861b650deadbeef\n2026-08-09T11:00:00Z\npackage: windows-x86_64\n", encoding="utf-8")
+    read = verify.package_stamp(tmp)
+    check(read.get("commit") == "861b650deadbeef", "the stamp's commit is read")
+    check(read.get("package") == "windows-x86_64", "the stamp's package name is read")
+    check(verify.package_stamp(Path(tempfile.mkdtemp()) / "sub" / "dir") == {},
+          "a missing stamp is an empty dict, not an error")
+
+
 def test_crash_stack() -> None:
     """The fault handler's output has to reach the report, not just dumps/."""
     tmp = Path(tempfile.mkdtemp())
@@ -724,6 +757,7 @@ def main() -> int:
     for test in (test_vdf, test_layout, test_detection, test_binary, test_renderer_present, test_gamecode,
                  test_merge_into, test_startup_cvars, test_map_detection,
                  test_crash_reporting,
+                 test_provenance,
                  test_crash_stack,
                  test_fault_handler_reported,
                  test_parsing, test_build_identity, test_report, test_missing, test_end_to_end):

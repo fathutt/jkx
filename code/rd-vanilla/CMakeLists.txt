@@ -190,6 +190,7 @@ if(BuildSPRdVanilla OR BuildJK2SPRdVanilla)
 		set_target_properties(${ProjectName} PROPERTIES PROJECT_LABEL ${Label})
 
 		target_link_libraries(${ProjectName} ${SPRDVanillaRendererLibraries})
+		jkx_no_undefined_symbols(${ProjectName})
 	endfunction(add_sp_renderer_project)
 
 	if(BuildSPRdVanilla)

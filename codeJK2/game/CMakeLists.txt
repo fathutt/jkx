@@ -289,6 +289,7 @@ add_library(${JK2SPGame} SHARED ${JK2SPGameFiles})
 # gamecode is covered here. See jkx_legacy_string_literals in the root
 # CMakeLists for why, and for what it would take to drop this line.
 jkx_legacy_string_literals(${JK2SPGame})
+jkx_no_undefined_symbols(${JK2SPGame})
 
 if(NOT MSVC)
 	# remove "lib" prefix for .so/.dylib files
