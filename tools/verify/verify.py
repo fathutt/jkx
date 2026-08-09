@@ -81,6 +81,9 @@ SCENARIOS = {
             # Frames only tick once the map is up, so this is a few seconds of
             # rendering after the load, not a timeout on the load itself.
             "wait 250",
+            # In a loaded map this is the number that matters: pipelines are
+            # created on demand, so the menu count says almost nothing.
+            "vkinfo",
             "condump jkx_map.txt",
             "quit",
         ],
@@ -690,6 +693,13 @@ def run_scenario(binary: Path, game_dir: Path, cfg_dir: Path, home: Path, name: 
         code = proc.returncode
     except subprocess.TimeoutExpired:
         return (float(timeout), -1)
+
+    # Kept because a scenario that produces no condump leaves nothing else to
+    # look at, and "it did not work" is not a diagnosis.
+    stream = (proc.stdout or b"") + (proc.stderr or b"")
+    if stream.strip():
+        (home / f"jkx_{name}_stdout.txt").write_bytes(stream)
+
     return (time.perf_counter() - start, code)
 
 
@@ -830,9 +840,16 @@ def write_report(path: Path, results: dict, info: dict, args, stages: dict | Non
                 lines.append("the load cost above is geometry and textures only. The bake only")
                 lines.append("applies to maps shipping cubemaps/<map>/env.json, which retail maps")
                 lines.append("do not - that is worth knowing before optimising it.")
+        elif map_stage.get("dump") is None:
+            lines.append("**No console dump was written for this scenario**, so there is nothing")
+            lines.append("to say about what happened. The timing above is still wall clock, and if")
+            lines.append("it is well above the startup row then the map very likely did load and")
+            lines.append("only the dump is missing. Look in dumps/ next to this report.")
         else:
-            lines.append("**The map never started.** No server initialisation appeared in the dump,")
-            lines.append("so the row above is startup plus nothing. Check the map name.")
+            lines.append("**No server initialisation appeared in the dump.** Either the map never")
+            lines.append("started, or the console buffer no longer held the line by the time it was")
+            lines.append("dumped. Compare the timing above with the startup row: a load that took")
+            lines.append("seconds happened, whatever the dump says.")
 
     lines += ["", "## Pipelines", ""]
     lines.append("| stage | definitions | created objects |")
@@ -966,9 +983,15 @@ def main(argv: list[str]) -> int:
     # Parsed per scenario as well as together: "how many pipelines exist" means
     # something different at the main menu and in a loaded map, and merging the
     # dumps first would have silently reported the menu number for both.
-    stages = {scenario: parse_console(read_dump(dump_roots, name))
-              for scenario, name in zip(SCENARIOS, DUMPS)}
-    console = "\n".join(read_dump(dump_roots, name) for name in DUMPS)
+    dump_paths = {scenario: find_dump(dump_roots, name)
+                  for scenario, name in zip(SCENARIOS, DUMPS)}
+    stages = {}
+    for scenario, path in dump_paths.items():
+        stages[scenario] = parse_console(path.read_text(encoding="utf-8", errors="replace")) \
+            if path else {}
+        stages[scenario]["dump"] = str(path) if path else None
+    console = "\n".join(
+        path.read_text(encoding="utf-8", errors="replace") for path in dump_paths.values() if path)
     if not console.strip():
         print("\nWarning: no console dumps were written. Timings are still valid, but the")
         print("device, lighting path and validation sections will be empty.")
@@ -977,8 +1000,15 @@ def main(argv: list[str]) -> int:
     out = Path(args.out) if args.out else Path(__file__).resolve().parent / "verification-report.md"
     write_report(out, results, info, args, stages)
 
+    evidence = out.parent / "dumps"
+    evidence.mkdir(exist_ok=True)
+    for path in list(dump_paths.values()) + sorted(home.glob("jkx_*_stdout.txt")):
+        if path and path.is_file():
+            shutil.copy2(path, evidence / path.name)
+
     print()
     print(f"report: {out}")
+    print(f"dumps : {evidence}")
     if console.strip() and not info.get("vendor"):
         print("NOTE: rd-vulkan did not run - the engine fell back to OpenGL. See the report.")
     if info.get("lighting_path") == "fastlight":

@@ -431,6 +431,22 @@ def test_report() -> None:
     check("failed to load" in out.read_text(encoding="utf-8"),
           "a map that never loaded is called out, not reported as a fast load")
 
+    # Silence has two causes and they need different answers: no dump file at
+    # all, versus a dump that simply does not contain the line. Reporting the
+    # second as "the map never started" contradicts a timing that says it did.
+    out = tmp / "nodump.md"
+    verify.write_report(out, results, verify.parse_console(PBR_DUMP), Args(),
+                        {"map": {"dump": None}})
+    check("No console dump was written" in out.read_text(encoding="utf-8"),
+          "a missing dump is reported as a missing dump")
+
+    out = tmp / "quiet.md"
+    verify.write_report(out, results, verify.parse_console(PBR_DUMP), Args(),
+                        {"map": {"dump": "/somewhere/jkx_map.txt"}})
+    text = out.read_text(encoding="utf-8")
+    check("a load that took" in text,
+          "a dump without the marker defers to the timing instead of contradicting it")
+
     # The failure the retail executable produces, and the one an install without
     # rd-vulkan next to the engine produces: OpenGL ran instead.
     out = tmp / "gl.md"
