@@ -165,6 +165,7 @@ PATTERNS = {
     # artifact was unpacked over an install that already had one.
     "engine_build": re.compile(r"(\w+: [A-Z][a-z]{2}\s+\d{1,2} \d{4} \S+)"),
     "jkx_marker": re.compile(r"JKX: "),
+    "trace_build": re.compile(r"JKX: trace build"),
     # A portable build ignores fs_homepath entirely and writes next to itself,
     # so forcing a homepath does nothing and the run does touch the game folder.
     "portable": re.compile(r"fs_portable enabled"),
@@ -903,6 +904,11 @@ def write_report(path: Path, results: dict, info: dict, args, stages: dict | Non
             lines.append(f"- {label}: `{entry}`")
     if info.get("jkx_marker"):
         lines.append("- **this is a JKX build**: the renderer identified itself.")
+    if info.get("trace_build"):
+        lines.append("- diagnostics: on. vk_log.log is in dumps/ next to this report.")
+    elif info.get("jkx_marker"):
+        lines.append("- diagnostics: off. The windows-x86_64-trace package writes an operation")
+        lines.append("  trace and validation messages; this one does not.")
     elif info.get("vendor"):
         lines.append("- **this is NOT a JKX build.** rd-vulkan ran, but it never printed a")
         lines.append("  JKX line, so it is the upstream renderer. Everything below measures the")

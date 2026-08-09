@@ -518,6 +518,13 @@ void vk_initialize( void )
 		vk.useFastLight = qtrue;
 	}
 
+#if defined(JKX_VK_TRACE)
+	// So a report can state which package produced it. A trace build and a
+	// plain release build are otherwise indistinguishable from the outside,
+	// and one of them answers questions the other cannot.
+	ri.Printf( PRINT_ALL, "JKX: trace build, writing vk_log.log next to the executable\n" );
+#endif
+
 	// Say which lighting path is actually running. This used to be silent: on a
 	// device reporting maxBoundDescriptorSets < 11 the whole PBR path switched
 	// itself off without a word, so the renderer looked like it was doing PBR
