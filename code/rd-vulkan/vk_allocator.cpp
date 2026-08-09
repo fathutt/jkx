@@ -82,6 +82,15 @@ void vk_destroy_allocator(void)
 qboolean vk_create_image_memory(const VkImageCreateInfo* desc, VkImage* image, VmaAllocation* allocation,
                                 const char* name)
 {
+    // The allocator is infrastructure: nothing may allocate before it exists.
+    // Without this check a null allocator reaches VMA and the process dies with
+    // an access violation and no message at all, which is how an initialisation
+    // order mistake cost a full round of hardware testing.
+    if (vk.allocator == VK_NULL_HANDLE) {
+        ri.Error(ERR_FATAL, "Vulkan: %s called before vk_create_allocator()", __func__);
+        return qfalse;
+    }
+
     VmaAllocationCreateInfo alloc = {};
     alloc.usage = VMA_MEMORY_USAGE_AUTO;
     // Let VMA decide between sub-allocation and a dedicated block; it applies
@@ -159,6 +168,15 @@ void vk_print_memory_usage(void)
 
 qboolean vk_alloc_image_memory(VkImage image, qboolean transient, VmaAllocation* allocation, const char* name)
 {
+    // The allocator is infrastructure: nothing may allocate before it exists.
+    // Without this check a null allocator reaches VMA and the process dies with
+    // an access violation and no message at all, which is how an initialisation
+    // order mistake cost a full round of hardware testing.
+    if (vk.allocator == VK_NULL_HANDLE) {
+        ri.Error(ERR_FATAL, "Vulkan: %s called before vk_create_allocator()", __func__);
+        return qfalse;
+    }
+
     VmaAllocationCreateInfo alloc = {};
     alloc.usage = VMA_MEMORY_USAGE_AUTO;
     alloc.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
@@ -203,6 +221,15 @@ void vk_free_image_memory(VmaAllocation* allocation)
 qboolean vk_create_buffer_memory(const VkBufferCreateInfo* desc, vk_buffer_memory_t kind, VkBuffer* buffer,
                                  VmaAllocation* allocation, void** mapped, const char* name)
 {
+    // The allocator is infrastructure: nothing may allocate before it exists.
+    // Without this check a null allocator reaches VMA and the process dies with
+    // an access violation and no message at all, which is how an initialisation
+    // order mistake cost a full round of hardware testing.
+    if (vk.allocator == VK_NULL_HANDLE) {
+        ri.Error(ERR_FATAL, "Vulkan: %s called before vk_create_allocator()", __func__);
+        return qfalse;
+    }
+
     VmaAllocationCreateInfo alloc = {};
     alloc.usage = VMA_MEMORY_USAGE_AUTO;
     alloc.priority = 1.0f;

@@ -598,6 +598,12 @@ void vk_initialize( void )
 	vk_texture_mode( r_textureMode->string, qtrue );
 	r_textureMode->modified = qfalse;
 
+	// Before anything allocates. The geometry, indirect and storage buffers
+	// below all go through VMA, so an allocator created after them is an
+	// allocator that does not exist when they run - which cost an access
+	// violation on the first hardware launch of this renderer.
+	vk_create_allocator();
+
 	vk_create_sync_primitives();
 	vk_create_command_pool();
 	vk_create_command_buffer();
@@ -611,7 +617,6 @@ void vk_initialize( void )
 	vk_create_storage_buffer( &vk.storage, MAX_FLARES * vk.storage_alignment, "storage (flares)" );
 	vk_create_shader_modules();
 
-	vk_create_allocator();
 	vk_create_pipeline_cache();
 
 #ifdef VK_COMPUTE_NORMALMAP
