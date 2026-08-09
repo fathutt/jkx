@@ -134,6 +134,15 @@ if(APPLE)
   set(UseInternalPNGDefault  ON)
 endif()
 
+# lib/SDL2 was a checked-in Windows SDK - headers, import libraries and DLLs -
+# and it went out with the rest of the committed binaries in phase 0. Defaulting
+# to "bundled" on Windows therefore points the linker at files that are not
+# there, which is how the Windows CI job failed on a missing SDL2main.lib. Track
+# what is actually present instead of what the platform used to imply.
+if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/lib/SDL2/include/SDL.h")
+  set(UseInternalSDL2Default OFF)
+endif()
+
 option(UseInternalOpenAL "If set, use bundled OpenAL."  ${UseInternalOpenALDefault})
 option(UseInternalZlib   "If set, use bundled zlib."    ${UseInternalZlibDefault})
 option(UseInternalPNG    "If set, use bundled libpng."  ${UseInternalPNGDefault})

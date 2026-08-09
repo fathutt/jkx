@@ -63,17 +63,21 @@ jobs:
                                   zlib1g-dev libopenal-dev libgl1-mesa-dev \
                                   libvulkan-dev glslc
 
+      # Only SDL2: zlib, libpng and libjpeg are still vendored in lib/ and build
+      # from source. lib/SDL2 was a checked-in Windows SDK and went out with the
+      # other committed binaries, so this is where SDL2 comes from now.
       - name: Install dependencies (Windows)
         if: runner.os == 'Windows'
-        run: |
-          vcpkg install sdl2:x64-windows libjpeg-turbo:x64-windows libpng:x64-windows zlib:x64-windows
+        run: vcpkg install sdl2:x64-windows
         shell: bash
 
       - name: Configure
+        shell: bash
         run: >
           cmake -B build -G Ninja
           -DCMAKE_BUILD_TYPE=${{ matrix.config }}
           -DJKX_WARNINGS_AS_ERRORS=OFF
+          ${{ runner.os == 'Windows' && '-DCMAKE_TOOLCHAIN_FILE=$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x64-windows' || '' }}
 
       - name: Build
         run: cmake --build build --parallel

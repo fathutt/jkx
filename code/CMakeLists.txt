@@ -102,8 +102,19 @@ if(BuildSPEngine OR BuildJK2SPEngine)
 		if (TARGET SDL2::SDL2)
 			set(SDL2_INCLUDE_DIRS "")
 			set(SDL2_LIBRARIES SDL2::SDL2)
+			# A WIN32 executable enters at WinMain, and SDL provides it in a
+			# separate library. The bundled path linked SDL2main.lib by hand;
+			# the packaged one exposes it as a target, and without it the link
+			# fails on an unresolved WinMain rather than on anything obvious.
+			if (WIN32 AND TARGET SDL2::SDL2main)
+				set(SDL2_LIBRARIES SDL2::SDL2main ${SDL2_LIBRARIES})
+			endif()
+		else()
+			# Some SDL2Config.cmake versions hand back a path with whitespace
+			# around it. STRIP takes exactly one string, so it cannot run on the
+			# target list above.
+			string(STRIP "${SDL2_LIBRARIES}" SDL2_LIBRARIES)
 		endif()
-		string(STRIP ${SDL2_LIBRARIES} SDL2_LIBRARIES)
 		set(SPEngineIncludeDirectories ${SPEngineIncludeDirectories} ${SDL2_INCLUDE_DIRS})
 		set(SPEngineLibraries ${SPEngineLibraries} ${SDL2_LIBRARIES})
 	endif()
