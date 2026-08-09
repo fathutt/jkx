@@ -460,10 +460,31 @@ endif()
 # Shader toolchain: GLSL -> SPIR-V -> shaders.pak. Runs regardless of whether
 # the Vulkan renderer target itself is enabled, so shader edits are validated
 # even while the renderer is being ported (phase 2).
-option(JKX_BUILD_SHADERS "Compile GLSL to shaders.pak" ON)
+#
+# Defaults to whether glslc is actually installed. It is not a build dependency
+# of the engine - the renderer that consumes the pak is not built here yet - so
+# a missing shader compiler must not stop someone building the game, and did:
+# every Linux CI job failed at configure time on a machine without it. Asking
+# for shaders explicitly on a machine without glslc is still an error.
+find_program(GLSLC_EXECUTABLE
+    NAMES glslc
+    HINTS "$ENV{VULKAN_SDK}/bin" "$ENV{VULKAN_SDK}/Bin"
+    DOC "glslc from shaderc (ships with the Vulkan SDK)")
+
+if(GLSLC_EXECUTABLE OR JKX_BUILD_VULKAN_RENDERER)
+    set(JKX_SHADERS_DEFAULT ON)
+else()
+    set(JKX_SHADERS_DEFAULT OFF)
+endif()
+
+option(JKX_BUILD_SHADERS "Compile GLSL to shaders.pak" ${JKX_SHADERS_DEFAULT})
 if(JKX_BUILD_SHADERS)
     include(Shaders)
     jkx_add_shaders(shaders)
+else()
+    message(STATUS
+        "Shaders: skipped, glslc not found. The engine builds without it; install "
+        "the shaderc package (or the Vulkan SDK) to build base/shaders.pak.")
 endif()
 
 # Always use bundled minizip (sets MINIZIP_{LIBRARIES,INCLUDE_DIR})
