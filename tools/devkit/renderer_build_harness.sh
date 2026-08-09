@@ -107,6 +107,7 @@ target_sources(${MPVulkanRenderer} PRIVATE
     "${CMAKE_SOURCE_DIR}/third_party/volk/volk.c"
     # Files added since the fork; the harness CMakeLists lists sources by hand.
     "${MPDir}/rd-vulkan/vk_allocator.cpp"
+    "${MPDir}/rd-vulkan/vk_crash.cpp"
     "${MPDir}/rd-vulkan/vk_pipeline_cache.cpp"
     "${MPDir}/rd-vulkan/vk_shader_pak.cpp")
 # Headers only - the renderer resolves every entry point through volk, so there
@@ -124,11 +125,6 @@ if(NOT TARGET Vulkan::Headers)
 endif()
 target_link_libraries(${MPVulkanRenderer} Vulkan::Headers)
 target_compile_definitions(${MPVulkanRenderer} PRIVATE VK_NO_PROTOTYPES)
-if(DEFINED ENV{JKX_VK_TRACE})
-    # Release build, renderer diagnostics on. See the comment on JKX_VK_TRACE in
-    # vk_local.h for why this is not simply a debug build.
-    target_compile_definitions(${MPVulkanRenderer} PRIVATE JKX_VK_TRACE)
-endif()
 # JKX is C++20; the fork still appends -std=c++11 to CMAKE_CXX_FLAGS, and a
 # target-level standard would lose to a flag that appears later on the command
 # line, so override the flag itself.
@@ -143,10 +139,35 @@ if(MSVC)
     # rather than carrying a patch against the upstream we do not merge into.
     # The single-player tree keeps /permissive- and has been made to satisfy it.
     target_compile_options(${MPVulkanRenderer} PRIVATE /permissive /Zc:strictStrings-)
+    # Symbols in the shipped release build. /Zi and /DEBUG cost a PDB beside the
+    # DLL and nothing at runtime; /OPT:REF,ICF put back the folding that /DEBUG
+    # would otherwise turn off, so the binary is the same one either way. This
+    # is what makes a crash report name a function instead of an address.
+    target_compile_options(${MPVulkanRenderer} PRIVATE /Zi)
+    target_link_options(${MPVulkanRenderer} PRIVATE /DEBUG /OPT:REF /OPT:ICF)
+endif()
+if(WIN32)
+    # vk_crash.cpp walks the stack and resolves symbols through dbghelp, which
+    # ships with Windows itself - no SDK component to install.
+    target_link_libraries(${MPVulkanRenderer} dbghelp)
 endif()
 # ---------------------------------------------------------------------------
 EOF
     echo "patched harness CMakeLists"
+fi
+
+# Baked in here rather than tested inside CMake. The environment belongs to this
+# script's step; the configure step that reads the CMakeLists is a different one
+# and does not have it, so an if(DEFINED ENV{...}) there is always false and the
+# trace build silently comes out identical to the plain one - which is exactly
+# what happened.
+if [ -n "${JKX_VK_TRACE:-}" ] && ! grep -q "JKX_VK_TRACE" "$HARNESS_CMAKE"; then
+    cat >> "$HARNESS_CMAKE" <<'EOF'
+# Release build, renderer diagnostics on. See the comment on JKX_VK_TRACE in
+# vk_local.h for why this is not simply a debug build.
+target_compile_definitions(${MPVulkanRenderer} PRIVATE JKX_VK_TRACE)
+EOF
+    echo "trace build: JKX_VK_TRACE defined"
 fi
 
 if [ "$SYNC_ONLY" = "1" ]; then
