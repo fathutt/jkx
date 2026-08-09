@@ -1332,6 +1332,43 @@ void C_LevelLoadEnd( void )
 	ri.S_RestartMusic();
 }
 
+
+#ifdef JKX_SP_FIELDS
+// Declarations for the single-player export table below. These are not in any
+// header: single-player's Ghoul2 API header does not declare the ragdoll and IK
+// entries, and rd-vanilla declares them here too, for the same reason.
+//
+// Every signature is transcribed from the definition in our own sources, not
+// from rd-vanilla. A declaration that disagrees with its definition compiles
+// and then misbehaves, which is the most expensive way to be wrong in this
+// port - see docs/Phase2-Ghoul2.md.
+extern qboolean	G2API_GetRagBonePos( CGhoul2Info_v &ghoul2, const char *boneName, vec3_t pos, vec3_t entAngles, vec3_t entPos, vec3_t entScale );
+extern qboolean	G2API_RagEffectorGoal( CGhoul2Info_v &ghoul2, const char *boneName, vec3_t pos );
+extern qboolean	G2API_RagEffectorKick( CGhoul2Info_v &ghoul2, const char *boneName, vec3_t velocity );
+extern qboolean	G2API_RagForceSolve( CGhoul2Info_v &ghoul2, qboolean force );
+extern qboolean	G2API_RagPCJConstraint( CGhoul2Info_v &ghoul2, const char *boneName, vec3_t min, vec3_t max );
+extern qboolean	G2API_RagPCJGradientSpeed( CGhoul2Info_v &ghoul2, const char *boneName, const float speed );
+extern qboolean	G2API_SetBoneIKState( CGhoul2Info_v &ghoul2, int time, const char *boneName, int ikState, sharedSetBoneIKStateParams_t *params );
+extern qboolean	G2API_IKMove( CGhoul2Info_v &ghoul2, int time, sharedIKMoveParams_t *params );
+extern void		G2API_SetRagDoll( CGhoul2Info_v &ghoul2, CRagDollParams *parms );
+extern IGhoul2InfoArray &TheGhoul2InfoArray( void );
+
+#ifdef G2_PERFORMANCE_ANALYSIS
+extern void		G2Time_ResetTimers( void );
+extern void		G2Time_ReportTimers( void );
+#endif
+
+// The weather system. Single-player reaches it through the export table; the
+// renderer's own header declares only part of it.
+extern bool		R_GetWindGusting( void );
+extern bool		R_IsOutside( vec3_t pos );
+extern float	R_IsOutsideCausingPain( vec3_t pos );
+extern float	R_GetChanceOfSaberFizz( void );
+extern bool		R_IsShaking( void );
+
+#include "tr_sp_exports.h"
+#endif // JKX_SP_FIELDS
+
 /*
 @@@@@@@@@@@@@@@@@@@@@
 GetRefAPI
@@ -1353,6 +1390,238 @@ Q_EXPORT refexport_t* QDECL GetRefAPI( int apiVersion, refimport_t *rimp ) {
 	}
 
 	// the RE_ functions are Renderer Entry points
+
+#ifdef JKX_SP_FIELDS
+	// Single-player's export table, in its own declaration order. It is not a
+	// subset of multiplayer's - the two diverged in both directions - so this
+	// is a second table rather than the first one with holes in it. It goes
+	// away with the module boundary in 2.2, when the engine calls these
+	// directly and there is no table to fill.
+	//
+	// The comments are single-player's own, carried over from the declaration.
+
+	// called before the library is unloaded
+	// if the system is just reconfiguring, pass destroyWindow = qfalse,
+	// which will keep the screen from flashing to the desktop.
+	re.Shutdown                               = RE_Shutdown;
+
+	// All data that will be used in a level should be
+	// registered before rendering any frames to prevent disk hits,
+	// but they can still be registered at a later time
+	// if necessary.
+	//
+	// BeginRegistration makes any existing media pointers invalid
+	// and returns the current gl configuration, including screen width
+	// and height, which can be used by the client to intelligently
+	// size display elements
+	re.BeginRegistration                      = RE_BeginRegistration;
+	re.RegisterModel                          = RE_RegisterModel;
+	re.RegisterSkin                           = RE_RegisterSkin;
+	re.GetAnimationCFG                        = RE_GetAnimationCFG;
+	re.RegisterShader                         = RE_RegisterShader;
+	re.RegisterShaderNoMip                    = RE_RegisterShaderNoMip;
+	re.LoadWorld                              = RE_LoadWorldMap;
+	re.R_LoadImage                            = R_LoadImage;
+
+	// these two functions added to help with the new model alloc scheme...
+	//
+	re.RegisterMedia_LevelLoadBegin           = RE_SP_RegisterMedia_LevelLoadBegin;
+	re.RegisterMedia_LevelLoadEnd             = C_LevelLoadEnd;
+	re.RegisterMedia_GetLevel                 = C_GetLevel;
+	re.RegisterModels_LevelLoadEnd            = C_Models_LevelLoadEnd;
+	re.RegisterImages_LevelLoadEnd            = C_Images_LevelLoadEnd;
+
+	// the vis data is a large enough block of data that we go to the trouble
+	// of sharing it with the clipmodel subsystem
+	re.SetWorldVisData                        = RE_SetWorldVisData;
+
+	// EndRegistration will draw a tiny polygon with each texture, forcing
+	// them to be loaded into card memory
+	re.EndRegistration                        = RE_EndRegistration;
+
+	// a scene is built up by calls to R_ClearScene and the various R_Add functions.
+	// Nothing is drawn until R_RenderScene is called.
+	re.ClearScene                             = RE_ClearScene;
+	re.AddRefEntityToScene                    = RE_AddRefEntityToScene;
+	re.AddPolyToScene                         = RE_SP_AddPolyToScene;
+	re.AddLightToScene                        = RE_AddLightToScene;
+	re.RenderScene                            = RE_RenderScene;
+	re.GetLighting                            = RE_GetLighting;
+
+	re.SetColor                               = RE_SetColor;
+	re.DrawStretchPic                         = RE_StretchPic;
+	re.DrawRotatePic                          = RE_RotatePic;
+	re.DrawRotatePic2                         = RE_RotatePic2;
+	re.LAGoggles                              = RE_LAGoggles;
+	re.Scissor                                = RE_Scissor;
+
+	// Draw images for cinematic rendering, pass as 32 bit rgba
+	re.DrawStretchRaw                         = RE_StretchRaw;
+	re.UploadCinematic                        = RE_UploadCinematic;
+
+	re.BeginFrame                             = RE_BeginFrame;
+
+	// if the pointers are not NULL, timing info will be returned
+	re.EndFrame                               = RE_EndFrame;
+
+	re.ProcessDissolve                        = RE_ProcessDissolve;
+	re.InitDissolve                           = RE_InitDissolve;
+
+
+	// for use with save-games mainly...
+	re.GetScreenShot                          = RE_GetScreenShot;
+
+#ifdef JK2_MODE
+	re.SaveJPGToBuffer                        = RE_SaveJPGToBuffer;
+	re.LoadJPGFromBuffer                      = RE_LoadJPGFromBuffer;
+#endif
+
+	// this is so you can get access to raw pixels from a graphics format (TGA/JPG/BMP etc),
+	//	currently only the save game uses it (to make raw shots for the autosaves)
+	//
+	re.TempRawImage_ReadFromFile              = RE_TempRawImage_ReadFromFile;
+	re.TempRawImage_CleanUp                   = RE_TempRawImage_CleanUp;
+
+	//misc stuff
+	re.MarkFragments                          = R_MarkFragments;
+
+	//model stuff
+	re.LerpTag                                = RE_SP_LerpTag;
+	re.ModelBounds                            = R_ModelBounds;
+
+	re.GetLightStyle                          = RE_GetLightStyle;
+	re.SetLightStyle                          = RE_SetLightStyle;
+
+	re.GetBModelVerts                         = RE_GetBModelVerts;
+	re.WorldEffectCommand                     = RE_WorldEffectCommand;
+	re.GetModelBounds                         = RE_GetModelBounds;
+
+	re.RegisterFont                           = RE_RegisterFont;
+
+	re.Font_HeightPixels                      = RE_Font_HeightPixels;
+	re.Font_StrLenPixels                      = RE_Font_StrLenPixels;
+	re.Font_DrawString                        = RE_Font_DrawString;
+	re.Font_StrLenChars                       = RE_Font_StrLenChars;
+	re.Language_IsAsian                       = Language_IsAsian;
+	re.Language_UsesSpaces                    = Language_UsesSpaces;
+	re.AnyLanguage_ReadCharFromString         = AnyLanguage_ReadCharFromString;
+	re.AnyLanguage_ReadCharFromString2        = AnyLanguage_ReadCharFromString2;
+
+	// Misc
+	re.R_InitWorldEffects                     = R_InitWorldEffects;
+	re.R_ClearStuffToStopGhoul2CrashingThings = R_ClearStuffToStopGhoul2CrashingThings;
+	re.R_inPVS                                = RE_SP_inPVS;
+
+	re.SVModelInit                            = R_SVModelInit;
+
+	// Distortion effects
+	re.tr_distortionAlpha                     = get_tr_distortionAlpha;
+	re.tr_distortionStretch                   = get_tr_distortionStretch;
+	re.tr_distortionPrePost                   = get_tr_distortionPrePost;
+	re.tr_distortionNegate                    = get_tr_distortionNegate;
+
+	// Weather effects
+	re.GetWindVector                          = RE_SP_GetWindVector;
+	re.GetWindGusting                         = RE_SP_GetWindGusting;
+	re.IsOutside                              = R_IsOutside;
+	re.IsOutsideCausingPain                   = R_IsOutsideCausingPain;
+	re.GetChanceOfSaberFizz                   = R_GetChanceOfSaberFizz;
+	re.IsShaking                              = RE_SP_IsShaking;
+	re.AddWeatherZone                         = RE_AddWeatherZone;
+	re.SetTempGlobalFogColor                  = RE_SetTempGlobalFogColor;
+
+	re.SetRangedFog                           = SetRangedFog;
+
+	// GHOUL 2
+	re.TheGhoul2InfoArray                     = TheGhoul2InfoArray;
+
+	// GHOUL 2 API
+	re.G2API_AddBolt                          = G2API_AddBolt;
+	re.G2API_AddBoltSurfNum                   = G2API_AddBoltSurfNum;
+	re.G2API_AddSurface                       = G2API_AddSurface;
+	re.G2API_AnimateG2Models                  = G2API_AnimateG2Models;
+	re.G2API_AttachEnt                        = G2API_AttachEnt;
+	re.G2API_AttachG2Model                    = G2API_AttachG2Model;
+	re.G2API_CollisionDetect                  = G2API_CollisionDetect;
+	re.G2API_CleanGhoul2Models                = G2API_CleanGhoul2Models;
+	re.G2API_CopyGhoul2Instance               = G2API_CopyGhoul2Instance;
+	re.G2API_DetachEnt                        = G2API_DetachEnt;
+	re.G2API_DetachG2Model                    = G2API_DetachG2Model;
+	re.G2API_GetAnimFileName                  = G2API_GetAnimFileName;
+	re.G2API_GetAnimFileNameIndex             = G2API_GetAnimFileNameIndex;
+	re.G2API_GetAnimFileInternalNameIndex     = G2API_GetAnimFileInternalNameIndex;
+	re.G2API_GetAnimIndex                     = G2API_GetAnimIndex;
+	re.G2API_GetAnimRange                     = G2API_GetAnimRange;
+	re.G2API_GetAnimRangeIndex                = G2API_GetAnimRangeIndex;
+	re.G2API_GetBoneAnim                      = G2API_GetBoneAnim;
+	re.G2API_GetBoneAnimIndex                 = G2API_GetBoneAnimIndex;
+	re.G2API_GetBoneIndex                     = G2API_GetBoneIndex;
+	re.G2API_GetBoltMatrix                    = G2API_GetBoltMatrix;
+	re.G2API_GetGhoul2ModelFlags              = G2API_GetGhoul2ModelFlags;
+	re.G2API_GetGLAName                       = G2API_GetGLAName;
+	re.G2API_GetParentSurface                 = G2API_GetParentSurface;
+	re.G2API_GetRagBonePos                    = G2API_GetRagBonePos;
+	re.G2API_GetSurfaceIndex                  = G2API_GetSurfaceIndex;
+	re.G2API_GetSurfaceName                   = G2API_GetSurfaceName;
+	re.G2API_GetSurfaceRenderStatus           = G2API_GetSurfaceRenderStatus;
+	re.G2API_GetTime                          = G2API_GetTime;
+	re.G2API_GiveMeVectorFromMatrix           = G2API_GiveMeVectorFromMatrix;
+	re.G2API_HaveWeGhoul2Models               = G2API_HaveWeGhoul2Models;
+	re.G2API_IKMove                           = G2API_IKMove;
+	re.G2API_InitGhoul2Model                  = G2API_InitGhoul2Model;
+	re.G2API_IsPaused                         = G2API_IsPaused;
+	re.G2API_ListBones                        = G2API_ListBones;
+	re.G2API_ListSurfaces                     = G2API_ListSurfaces;
+	re.G2API_LoadGhoul2Models                 = G2API_LoadGhoul2Models;
+	re.G2API_LoadSaveCodeDestructGhoul2Info   = G2API_LoadSaveCodeDestructGhoul2Info;
+	re.G2API_PauseBoneAnim                    = G2API_PauseBoneAnim;
+	re.G2API_PauseBoneAnimIndex               = G2API_PauseBoneAnimIndex;
+	re.G2API_PrecacheGhoul2Model              = G2API_PrecacheGhoul2Model;
+	re.G2API_RagEffectorGoal                  = G2API_RagEffectorGoal;
+	re.G2API_RagEffectorKick                  = G2API_RagEffectorKick;
+	re.G2API_RagForceSolve                    = G2API_RagForceSolve;
+	re.G2API_RagPCJConstraint                 = G2API_RagPCJConstraint;
+	re.G2API_RagPCJGradientSpeed              = G2API_RagPCJGradientSpeed;
+	re.G2API_RemoveBolt                       = G2API_RemoveBolt;
+	re.G2API_RemoveBone                       = G2API_RemoveBone;
+	re.G2API_RemoveGhoul2Model                = G2API_RemoveGhoul2Model;
+	re.G2API_RemoveSurface                    = G2API_RemoveSurface;
+	re.G2API_SaveGhoul2Models                 = G2API_SaveGhoul2Models;
+	re.G2API_SetAnimIndex                     = G2API_SetAnimIndex;
+	re.G2API_SetBoneAnim                      = G2API_SetBoneAnim;
+	re.G2API_SetBoneAnimIndex                 = G2API_SetBoneAnimIndex;
+	re.G2API_SetBoneAngles                    = G2API_SetBoneAngles;
+	re.G2API_SetBoneAnglesIndex               = G2API_SetBoneAnglesIndex;
+	re.G2API_SetBoneAnglesMatrix              = G2API_SetBoneAnglesMatrix;
+	re.G2API_SetBoneAnglesMatrixIndex         = G2API_SetBoneAnglesMatrixIndex;
+	re.G2API_SetBoneIKState                   = G2API_SetBoneIKState;
+	re.G2API_SetGhoul2ModelFlags              = G2API_SetGhoul2ModelFlags;
+	re.G2API_SetGhoul2ModelIndexes            = G2API_SetGhoul2ModelIndexes;
+	re.G2API_SetLodBias                       = G2API_SetLodBias;
+	re.G2API_SetNewOrigin                     = G2API_SetNewOrigin;
+	re.G2API_SetRagDoll                       = G2API_SetRagDoll;
+	re.G2API_SetRootSurface                   = G2API_SetRootSurface;
+	re.G2API_SetShader                        = G2API_SetShader;
+	re.G2API_SetSkin                          = G2API_SetSkin;
+	re.G2API_SetSurfaceOnOff                  = G2API_SetSurfaceOnOff;
+	re.G2API_SetTime                          = G2API_SetTime;
+	re.G2API_StopBoneAnim                     = G2API_StopBoneAnim;
+	re.G2API_StopBoneAnimIndex                = G2API_StopBoneAnimIndex;
+	re.G2API_StopBoneAngles                   = G2API_StopBoneAngles;
+	re.G2API_StopBoneAnglesIndex              = G2API_StopBoneAnglesIndex;
+
+#ifdef _G2_GORE
+	re.G2API_AddSkinGore                      = G2API_AddSkinGore;
+	re.G2API_ClearSkinGore                    = G2API_ClearSkinGore;
+#endif
+
+	// Performance analysis (perform anal)
+#ifdef G2_PERFORMANCE_ANALYSIS
+	re.G2Time_ResetTimers                     = G2Time_ResetTimers;
+	re.G2Time_ReportTimers                    = G2Time_ReportTimers;
+#endif
+
+#else
 
 	re.Shutdown = RE_Shutdown;
 	re.BeginRegistration					= RE_BeginRegistration;
@@ -1532,6 +1801,8 @@ Q_EXPORT refexport_t* QDECL GetRefAPI( int apiVersion, refimport_t *rimp ) {
 	//re.G2VertSpaceServer	= G2VertSpaceServer;
 
 	re.ext.Font_StrLenPixels				= RE_Font_StrLenPixelsNew;
+
+#endif // JKX_SP_FIELDS
 
 	return &re;
 }

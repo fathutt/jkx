@@ -91,6 +91,8 @@ set(SPRDVulkanFiles
 	"${SPDir}/rd-vulkan/tr_skin.cpp"
 	"${SPDir}/rd-vulkan/tr_sky.cpp"
 	"${SPDir}/rd-vulkan/tr_sp_compat.h"
+	"${SPDir}/rd-vulkan/tr_sp_exports.cpp"
+	"${SPDir}/rd-vulkan/tr_sp_exports.h"
 	"${SPDir}/rd-vulkan/tr_subs.cpp"
 	"${SPDir}/rd-vulkan/tr_surface.cpp"
 	"${SPDir}/rd-vulkan/tr_surfacesprites.cpp"
