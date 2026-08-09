@@ -120,7 +120,12 @@ STARTUP_CVARS = [
     ("com_maxfps", "250"),
     ("r_fullscreen", "0"),
     ("r_mode", "4"),
-    ("s_initsound", "0"),   # keep audio init out of the timings
+    # Sound stays ON. Turning it off to keep audio init out of the timings made
+    # the client die with an access violation the moment cgame started loading -
+    # three runs out of three, and the triage pass proved it was this and not
+    # the renderer. A couple of hundred milliseconds of audio init in every
+    # number is the cheaper problem.
+    ("s_initsound", "1"),
     ("in_joystick", "0"),
 ]
 
@@ -156,6 +161,12 @@ PATTERNS = {
     # A portable build ignores fs_homepath entirely and writes next to itself,
     # so forcing a homepath does nothing and the run does touch the game folder.
     "portable": re.compile(r"fs_portable enabled"),
+    # What the map load actually consists of.
+    "cgame_init": re.compile(r"CL_InitCGame:\s*([\d.]+) seconds"),
+    "vbo_surfaces": re.compile(r"found (\d+) VBO surfaces"),
+    "image_chunks": re.compile(r"image chunks: (\d+)"),
+    "chunk_size": re.compile(r"image chunk\[0\] items: \d+ size: (\d+)kbytes"),
+    "vbo_buffers": re.compile(r"VBO buffers: (\d+)"),
 }
 
 VALIDATION = re.compile(r"(VUID-[A-Za-z0-9_\-]+|validation layer|Validation Error)")
@@ -931,6 +942,11 @@ def write_report(path: Path, results: dict, info: dict, args, stages: dict | Non
         elif map_stage.get("server_init"):
             loaded = map_stage.get("map_name", args.map)
             lines.append(f"`{loaded}` loaded.")
+            if map_stage.get("cgame_init"):
+                lines.append(f"Client game initialisation alone took "
+                             f"{map_stage['cgame_init']} s of it.")
+            if map_stage.get("vbo_surfaces"):
+                lines.append(f"The map is {map_stage['vbo_surfaces']} VBO surfaces.")
             if map_stage.get("ibl"):
                 lines.append(f"IBL probes were baked from `{map_stage['ibl']}`, so the load cost")
                 lines.append("includes the bake.")
@@ -963,6 +979,20 @@ def write_report(path: Path, results: dict, info: dict, args, stages: dict | Non
     if not any((stages.get(n) or {}).get("pipeline_defs") for n in SCENARIOS):
         lines.append(f"| overall | {info.get('pipeline_defs', '?')} "
                      f"| {info.get('pipeline_handles', '?')} |")
+    lines.append("")
+    chunks = (stages.get("map") or {}).get("image_chunks") \
+        or (stages.get("startup") or {}).get("image_chunks")
+    size = (stages.get("map") or {}).get("chunk_size") \
+        or (stages.get("startup") or {}).get("chunk_size")
+    if chunks and size:
+        total = int(chunks) * int(size) // 1024
+        lines += ["", "## Texture memory", "",
+                  f"{chunks} chunks of {int(size) // 1024} MB, {total} MB in total.",
+                  "",
+                  "Upstream allocates textures out of fixed chunks and never returns any of it",
+                  "until the map changes, so this is a high-water mark that stays. Replacing that",
+                  "with VMA is one of the phase 1 changes; this is the number to compare against."]
+
     lines.append("")
     lines.append("Pipelines are created on demand, so the menu number is a fraction of what a")
     lines.append("loaded map needs. Dynamic rendering plus extended dynamic state should cut the")

@@ -344,7 +344,10 @@ def test_startup_cvars() -> None:
     # on the command line, and the config must not set it at all.
     cvars = dict(verify.STARTUP_CVARS)
     check(cvars.get("cl_renderer") == "rd-vulkan", "cl_renderer is set before startup")
-    check(cvars.get("s_initsound") == "0", "sound init stays out of the timings")
+    # Sound off crashed the client during cgame load, three runs out of three,
+    # so it stays on however much noise it adds to the timings.
+    check(cvars.get("s_initsound") == "1", "sound is left enabled")
+    check(cvars.get("logfile") == "2", "the console log is written as it happens")
 
     cfg = verify.build_cfg(verify.SCENARIOS["startup"]["cfg"], "mp/ffa3")
     check("cl_renderer" not in cfg, "the config does not set cl_renderer")
