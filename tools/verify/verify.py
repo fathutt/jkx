@@ -440,6 +440,10 @@ GL_ONLY_NAMES = [
     "openjk.x86_64.exe", "openjk.x86.exe", "openjk.x86_64", "openjk.x86",
     "openjk_sp.x86_64.exe", "openjk_sp.x86.exe", "openjk_sp.x86_64",
     "japp.x86_64.exe", "japp.x86.exe",
+    # OpenDF2, the engine of the Dark Forces II total conversion. Another OpenJK
+    # descendant with OpenGL renderers only, and it installs into the same
+    # directory, so it turns up next to the retail files often enough to name.
+    "opendf2_sp.x86.exe", "opendf2_sp.x86_64.exe", "opendf2.x86.exe",
     "JediAcademy.exe", "jasp.exe", "jamp.exe",
     "JediOutcast.exe", "jk2sp.exe", "jk2mp.exe",
 ]
