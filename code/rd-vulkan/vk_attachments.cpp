@@ -77,7 +77,10 @@ static void vk_alloc_attachment_memory( void )
         VmaAllocation allocation = VK_NULL_HANDLE;
         if (!vk_alloc_image_memory(attachments[i].descriptor, transient, &allocation,
                                    va("attachment %i", i))) {
-            ri.Error(ERR_DROP, "Vulkan: out of device memory allocating attachment %i", i);
+            // Deliberately not "out of memory": the allocator has already
+            // printed the actual result code, and guessing the cause here sent
+            // a whole debugging session looking at a heap that was empty.
+            ri.Error(ERR_DROP, "Vulkan: could not allocate attachment %i, see the message above", i);
             return;
         }
 

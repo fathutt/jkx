@@ -177,8 +177,14 @@ qboolean vk_alloc_image_memory(VkImage image, qboolean transient, VmaAllocation*
         return qfalse;
     }
 
+    // Not VMA_MEMORY_USAGE_AUTO. AUTO decides the memory type by reading the
+    // buffer or image creation info, which vmaAllocateMemoryForImage does not
+    // have - it is handed a VkImage that already exists - so VMA rejects the
+    // combination outright with VK_ERROR_FEATURE_NOT_PRESENT. That is what
+    // "out of device memory allocating attachment 0" was on an 8 GiB card with
+    // nothing allocated yet. The requirements are stated directly instead.
     VmaAllocationCreateInfo alloc = {};
-    alloc.usage = VMA_MEMORY_USAGE_AUTO;
+    alloc.usage = VMA_MEMORY_USAGE_UNKNOWN;
     alloc.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
     alloc.priority = 1.0f;
 
