@@ -45,7 +45,7 @@ void QDECL Com_OPrintf( const char *msg, ... )
 	Q_vsnprintf(text, sizeof(text), msg, argptr);
 	va_end(argptr);
 
-	ri.OPrintf("%s", text);
+	R_OPrintf("%s", text);
 }
 
 void QDECL Com_Error( int level, const char *error, ... )

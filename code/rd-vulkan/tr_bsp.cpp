@@ -3182,9 +3182,9 @@ void RE_LoadWorldMap_Actual( const char *name, world_t &worldData, int index )
 
 	// check for cached disk file from the server first...
 	//
-	if (ri.CM_GetCachedMapDiskImage())
+	if (R_CachedMapImage())
 	{
-		buffer = (byte *)ri.CM_GetCachedMapDiskImage();
+		buffer = (byte *)R_CachedMapImage();
 	}
 	else
 	{
@@ -3290,10 +3290,9 @@ void RE_LoadWorldMap_Actual( const char *name, world_t &worldData, int index )
 	R_BuildSurfaceSpritesVBO( worldData, index );
 #endif
 
-	if (ri.CM_GetCachedMapDiskImage())
+	if (R_CachedMapImage())
 	{
-		R_Z_Free( ri.CM_GetCachedMapDiskImage() );
-		ri.CM_SetCachedMapDiskImage( NULL );
+		R_ReleaseCachedMapImage();
 	}
 	else
 	{
@@ -3305,7 +3304,7 @@ void RE_LoadWorldMap_Actual( const char *name, world_t &worldData, int index )
 //
 void RE_LoadWorldMap( const char *name )
 {
-	ri.CM_SetUsingCache( qtrue );
+	R_SetUsingCachedMap( qtrue );
 	RE_LoadWorldMap_Actual( name, s_worldData, 0 );
 
 #ifdef VK_CUBEMAP
@@ -3314,7 +3313,7 @@ void RE_LoadWorldMap( const char *name )
 		R_RenderAllCubemaps();
 #endif
 
-	ri.CM_SetUsingCache( qfalse );
+	R_SetUsingCachedMap( qfalse );
 
 	vk_set_clearcolor();
 }

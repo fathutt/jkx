@@ -1034,7 +1034,7 @@ Ghoul2 Insert Start
 Ghoul2 Insert End
 */
 	r_modelpoolmegs = ri.Cvar_Get("r_modelpoolmegs", "20", CVAR_ARCHIVE, "" );
-	if (ri.Sys_LowPhysicalMemory() )
+	if (R_LowPhysicalMemory() )
 		ri.Cvar_Set("r_modelpoolmegs", "0");
 
 	r_aviMotionJpegQuality				= ri.Cvar_Get( "r_aviMotionJpegQuality",			"100",						CVAR_ARCHIVE_ND, "" );
