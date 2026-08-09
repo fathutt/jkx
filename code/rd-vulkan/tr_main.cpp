@@ -1310,7 +1310,9 @@ void R_AddLitSurf( surfaceType_t *surface, int entityNum, shader_t *shader, int 
 
 	litsurf = &tr.refdef.litSurfs[tr.refdef.numLitSurfs++];
 
-	litsurf->sort = R_CreateSortKey( entityNum, shader->sortedIndex, 0 );
+	// Dlight surfaces are drawn in their own pass, so the post-render bit does
+	// not apply to them.
+	litsurf->sort = R_CreateSortKey( entityNum, shader->sortedIndex, 0, 0 );
 	litsurf->surface = surface;
 	litsurf->fogIndex = fogIndex;
 
@@ -1374,7 +1376,19 @@ void R_AddDrawSurf( surfaceType_t *surface, int entityNum, shader_t *shader,
 
 	// the sort data is packed into a single 32 bit value so it can be
 	// compared quickly during the qsorting process
-	surf->sort = R_CreateSortKey( entityNum, shader->sortedIndex, cubemap );
+	// RF_ALPHA_FADE fades a model out over the scene behind it, so its surfaces
+	// have to be drawn after that scene exists. Single-player sets the flag in
+	// eighteen places; a multiplayer renderer never looked at it, so those
+	// models faded against whatever happened to be drawn already.
+	int postRender = 0;
+#ifdef RF_ALPHA_FADE
+	if ( entityNum != REFENTITYNUM_WORLD && entityNum >= 0 && entityNum < tr.refdef.num_entities ) {
+		if ( tr.refdef.entities[entityNum].e.renderfx & RF_ALPHA_FADE )
+			postRender = 1;
+	}
+#endif
+
+	surf->sort = R_CreateSortKey( entityNum, shader->sortedIndex, cubemap, postRender );
 	surf->fogIndex = fogIndex;
 
 	tr.refdef.numDrawSurfs++;
@@ -1392,13 +1406,14 @@ void R_DecomposeSort( uint32_t sort, int *entityNum, shader_t **shader, int *cub
 	*cubemap = (sort >> QSORT_CUBEMAP_SHIFT ) & QSORT_CUBEMAP_MASK;
 }
 
-uint32_t R_CreateSortKey(int entityNum, int sortedShaderIndex, int cubemapIndex)
+uint32_t R_CreateSortKey(int entityNum, int sortedShaderIndex, int cubemapIndex, int postRender)
 {
 	uint32_t key = 0;
 
 	key |= (sortedShaderIndex & QSORT_SHADERNUM_MASK) << QSORT_SHADERNUM_SHIFT;
 	key |= (cubemapIndex & QSORT_CUBEMAP_MASK) << QSORT_CUBEMAP_SHIFT;
 	key |= (entityNum & QSORT_ENTITYNUM_MASK) << QSORT_ENTITYNUM_SHIFT;
+	key |= ((uint32_t)( postRender != 0 ) & QSORT_POSTRENDER_MASK) << QSORT_POSTRENDER_SHIFT;
 
 	return key;
 }

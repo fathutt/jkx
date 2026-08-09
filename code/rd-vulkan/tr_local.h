@@ -1517,12 +1517,21 @@ compared quickly during the qsorting process
 #define QSORT_SHADERNUM_BITS	SHADERNUM_BITS
 #define QSORT_SHADERNUM_MASK	((1 << QSORT_SHADERNUM_BITS) - 1)
 
-//#define QSORT_POSTRENDER_SHIFT	(QSORT_SHADERNUM_SHIFT + QSORT_SHADERNUM_BITS)
-//#define QSORT_POSTRENDER_BITS	1
-//#define QSORT_POSTRENDER_MASK	((1 << QSORT_POSTRENDER_BITS) - 1)
+// The top bit, and the last one available: 6 cubemap + 11 entity + 14 shader
+// fills bits 0 to 30 exactly. Set for surfaces that must be drawn after
+// everything else - today that is RF_ALPHA_FADE, whose whole point is to fade
+// over an already-drawn scene. Because it is the most significant bit of the
+// key, sorting by the key sorts those surfaces last for free.
+//
+// The single-player renderer does the same thing by ORing 0x80000000 into a
+// pre-shifted entity number. That does not transplant here: this renderer packs
+// the key differently and builds it in R_CreateSortKey, so the bit gets a
+// proper field instead of being smuggled in.
+#define QSORT_POSTRENDER_SHIFT	(QSORT_SHADERNUM_SHIFT + QSORT_SHADERNUM_BITS)
+#define QSORT_POSTRENDER_BITS	1
+#define QSORT_POSTRENDER_MASK	((1 << QSORT_POSTRENDER_BITS) - 1)
 
-//#if QSORT_POSTRENDER_SHIFT >= 32
-#if QSORT_SHADERNUM_SHIFT >= 32
+#if QSORT_POSTRENDER_SHIFT + QSORT_POSTRENDER_BITS > 32
 	#error "Sort field needs to be expanded"
 #endif
 
@@ -2122,7 +2131,7 @@ void		R_RenderView( const viewParms_t *parms );
 void		R_AddMD3Surfaces( trRefEntity_t *ent, int entityNum );
 void		R_AddPolygonSurfaces( const trRefdef_t *refdef );
 void		R_DecomposeSort( uint32_t sort, int *entityNum, shader_t **shader, int *cubemap );
-uint32_t	R_CreateSortKey(int entityNum, int sortedShaderIndex, int cubemapIndex);
+uint32_t	R_CreateSortKey(int entityNum, int sortedShaderIndex, int cubemapIndex, int postRender);
 
 void		R_AddDrawSurf( surfaceType_t *surface, int entityNum, shader_t *shader, int fogIndex, int cubemap );
 #ifdef USE_PMLIGHT

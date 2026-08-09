@@ -5075,7 +5075,11 @@ static void FixRenderCommandList( int newShader ) {
 					sortedIndex = (( drawSurf->sort >> QSORT_SHADERNUM_SHIFT ) & SHADERNUM_MASK);
 					if ( sortedIndex >= newShader ) {
 						sortedIndex = shader->sortedIndex;
-						drawSurf->sort = R_CreateSortKey( entityNum, sortedIndex, cubemap );
+						// Rebuilt from parts, so the post-render bit has to be
+						// carried over explicitly or a remapped shader would
+						// quietly lose its draw order.
+						drawSurf->sort = R_CreateSortKey( entityNum, sortedIndex, cubemap,
+							( drawSurf->sort >> QSORT_POSTRENDER_SHIFT ) & QSORT_POSTRENDER_MASK );
 					}
 				}
 				curCmd = (const void *)(ds_cmd + 1);

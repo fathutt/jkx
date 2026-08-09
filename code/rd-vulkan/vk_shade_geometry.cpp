@@ -915,6 +915,18 @@ void ComputeColors( const int b, color4ub_t *dest, const shaderStage_t *pStage, 
 	if (!tess.numVertexes)
 		return;
 
+#ifdef RF_ALPHA_FADE
+	// The other half of RF_ALPHA_FADE: the blend override in vk_tess_end is
+	// useless unless the alpha it blends with comes from the entity rather than
+	// from whatever the shader computes.
+	if ( backEnd.currentEntity != NULL &&
+		( backEnd.currentEntity->e.renderfx & RF_ALPHA_FADE ) &&
+		backEnd.currentEntity->e.shaderRGBA[3] < 255 )
+	{
+		forceAlphaGen = AGEN_ENTITY;
+	}
+#endif
+
 	if (tess.shader != tr.projectionShadowShader && tess.shader != tr.shadowShader &&
 		(backEnd.currentEntity->e.renderfx & (RF_DISINTEGRATE1 | RF_DISINTEGRATE2)))
 	{
@@ -2643,6 +2655,20 @@ void RB_StageIteratorGeneric( void )
 			// and by doing the depth-testing it avoids some kinds of artefacts, but will probably introduce others?
 			if ( backEnd.currentEntity->e.renderfx & RF_DISINTEGRATE1 )
 				def.state_bits = GLS_SRCBLEND_SRC_ALPHA | GLS_DSTBLEND_ONE_MINUS_SRC_ALPHA | GLS_DEPTHMASK_TRUE | GLS_ATEST_GE_C0;
+
+#ifdef RF_ALPHA_FADE
+			// Single-player: fade the model out using the entity alpha,
+			// whatever blend the shader asked for. Only while it is actually
+			// translucent - at full alpha the shader's own blend is correct and
+			// swapping it would cost a pipeline for nothing. The surfaces are
+			// already sorted last by the post-render bit in the sort key, which
+			// is what makes fading over the scene behind them work.
+			if ( ( backEnd.currentEntity->e.renderfx & RF_ALPHA_FADE ) &&
+				backEnd.currentEntity->e.shaderRGBA[3] < 255 )
+			{
+				def.state_bits = GLS_SRCBLEND_SRC_ALPHA | GLS_DSTBLEND_ONE_MINUS_SRC_ALPHA;
+			}
+#endif
 
 			// only force blend on the internal distortion shader
 			if ( tess.shader == tr.distortionShader )
