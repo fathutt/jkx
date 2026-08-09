@@ -549,12 +549,7 @@ void vk_release_model_vbo( void ) {
 
 IBO_t *R_CreateIBO( const char *name, const byte *vbo_data, int vbo_size )
 {
-	VkMemoryRequirements vb_mem_reqs;
-	VkMemoryAllocateInfo alloc_info;
 	VkBufferCreateInfo desc;
-	VkDeviceSize vertex_buffer_offset;
-	VkDeviceSize allocationSize;
-	uint32_t memory_type_bits;
 	VkBuffer staging_vertex_buffer;
 	VmaAllocation staging_allocation = VK_NULL_HANDLE;
 	VkCommandBuffer command_buffer;
@@ -587,40 +582,16 @@ IBO_t *R_CreateIBO( const char *name, const byte *vbo_data, int vbo_size )
 		return NULL;
 	}
 
-	// staging buffer
+	// staging buffer: transient, created here, filled, copied and released below
 	desc.size = vbo_size;
 	desc.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
-	// staging is transient: created, filled, copied and released below
-
-	// memory requirements
-	vkGetBufferMemoryRequirements( vk.device, tr.ibos[tr.numIBOs]->buffer, &vb_mem_reqs );
-	vertex_buffer_offset = 0;
-	allocationSize = vertex_buffer_offset + vb_mem_reqs.size;
-	memory_type_bits = vb_mem_reqs.memoryTypeBits;
-
-	alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	alloc_info.pNext = NULL;
-	alloc_info.allocationSize = allocationSize;
-	alloc_info.memoryTypeIndex = vk_find_memory_type(memory_type_bits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-	// staging buffers
-
-	// memory requirements
-	vkGetBufferMemoryRequirements(vk.device, staging_vertex_buffer, &vb_mem_reqs);
-	vertex_buffer_offset = 0;
-	allocationSize = vertex_buffer_offset + vb_mem_reqs.size;
-	memory_type_bits = vb_mem_reqs.memoryTypeBits;
-
-	alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	alloc_info.pNext = NULL;
-	alloc_info.allocationSize = allocationSize;
-	alloc_info.memoryTypeIndex = vk_find_memory_type(memory_type_bits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 	if ( !vk_create_buffer_memory( &desc, VK_BUFFER_MEMORY_HOST_WRITE, &staging_vertex_buffer,
 			&staging_allocation, &data, "ibo staging vertex" ) ) {
 		ri.Error( ERR_DROP, "Vulkan: could not allocate a staging buffer" );
 		return NULL;
 	}
 
-	memcpy((byte*)data + vertex_buffer_offset, vbo_data, vbo_size);
+	memcpy( data, vbo_data, vbo_size );
 
 	command_buffer = vk_begin_command_buffer();
 	copyRegion[0].srcOffset = 0;
@@ -629,7 +600,8 @@ IBO_t *R_CreateIBO( const char *name, const byte *vbo_data, int vbo_size )
 	vkCmdCopyBuffer( command_buffer, staging_vertex_buffer, tr.ibos[tr.numIBOs]->buffer, 1, &copyRegion[0] );
 	vk_end_command_buffer( command_buffer, __func__ );
 
-	VK_DESTROY_BUFFER(vk.device, staging_vertex_buffer);
+	// vk_destroy_buffer_memory destroys the buffer as well as freeing its
+	// allocation: VMA created them as a pair and owns both.
 	vk_destroy_buffer_memory( &staging_vertex_buffer, &staging_allocation );
 
 	VK_SET_OBJECT_NAME( tr.ibos[tr.numIBOs]->buffer, va( "static IBO[2] %s", name ), VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT );
@@ -642,12 +614,7 @@ IBO_t *R_CreateIBO( const char *name, const byte *vbo_data, int vbo_size )
 
 VBO_t *R_CreateVBO( const char *name, const byte *vbo_data, int vbo_size )
 {
-	VkMemoryRequirements vb_mem_reqs;
-	VkMemoryAllocateInfo alloc_info;
 	VkBufferCreateInfo desc;
-	VkDeviceSize vertex_buffer_offset;
-	VkDeviceSize allocationSize;
-	uint32_t memory_type_bits;
 	VkBuffer staging_vertex_buffer;
 	VmaAllocation staging_allocation = VK_NULL_HANDLE;
 	VkCommandBuffer command_buffer;
@@ -681,40 +648,16 @@ VBO_t *R_CreateVBO( const char *name, const byte *vbo_data, int vbo_size )
 		return NULL;
 	}
 
-	// staging buffer
+	// staging buffer: transient, created here, filled, copied and released below
 	desc.size = vbo_size;
 	desc.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-	// staging is transient: created, filled, copied and released below
-
-	// memory requirements
-	vkGetBufferMemoryRequirements( vk.device, tr.vbos[tr.numVBOs]->buffer, &vb_mem_reqs );
-	vertex_buffer_offset = 0;
-	allocationSize = vertex_buffer_offset + vb_mem_reqs.size;
-	memory_type_bits = vb_mem_reqs.memoryTypeBits;
-
-	alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	alloc_info.pNext = NULL;
-	alloc_info.allocationSize = allocationSize;
-	alloc_info.memoryTypeIndex = vk_find_memory_type(memory_type_bits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-	// staging buffers
-
-	// memory requirements
-	vkGetBufferMemoryRequirements(vk.device, staging_vertex_buffer, &vb_mem_reqs);
-	vertex_buffer_offset = 0;
-	allocationSize = vertex_buffer_offset + vb_mem_reqs.size;
-	memory_type_bits = vb_mem_reqs.memoryTypeBits;
-
-	alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	alloc_info.pNext = NULL;
-	alloc_info.allocationSize = allocationSize;
-	alloc_info.memoryTypeIndex = vk_find_memory_type(memory_type_bits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 	if ( !vk_create_buffer_memory( &desc, VK_BUFFER_MEMORY_HOST_WRITE, &staging_vertex_buffer,
 			&staging_allocation, &data, "vbo staging vertex" ) ) {
 		ri.Error( ERR_DROP, "Vulkan: could not allocate a staging buffer" );
 		return NULL;
 	}
 
-	memcpy((byte*)data + vertex_buffer_offset, vbo_data, vbo_size);
+	memcpy( data, vbo_data, vbo_size );
 
 	command_buffer = vk_begin_command_buffer();
 	copyRegion[0].srcOffset = 0;
@@ -723,7 +666,8 @@ VBO_t *R_CreateVBO( const char *name, const byte *vbo_data, int vbo_size )
 	vkCmdCopyBuffer( command_buffer, staging_vertex_buffer, tr.vbos[tr.numVBOs]->buffer, 1, &copyRegion[0] );
 	vk_end_command_buffer( command_buffer, __func__ );
 
-	VK_DESTROY_BUFFER(vk.device, staging_vertex_buffer);
+	// vk_destroy_buffer_memory destroys the buffer as well as freeing its
+	// allocation: VMA created them as a pair and owns both.
 	vk_destroy_buffer_memory( &staging_vertex_buffer, &staging_allocation );
 
 	VK_SET_OBJECT_NAME( tr.vbos[tr.numVBOs]->buffer, va( "static VBO[%d] %s", tr.numVBOs, name ), VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT );
@@ -761,16 +705,8 @@ VBO_t *R_CreateDynamicVBO( const char *name, int size )
 	desc.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 	desc.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-	VK_CREATE_BUFFER(vk.device, &desc, &vbo->buffer, "dynamic vbo buffer");
-
-	vkGetBufferMemoryRequirements( vk.device, vbo->buffer, &vb_mem_reqs );
-
-	Com_Memset( &alloc_info, 0, sizeof(alloc_info) );
-	alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	alloc_info.pNext = NULL;
-	alloc_info.allocationSize = vb_mem_reqs.size;
-	alloc_info.memoryTypeIndex = vk_find_memory_type( vb_mem_reqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT );
-
+	// vk_create_buffer_memory creates the buffer itself; anything created here
+	// first would be overwritten by it and leaked.
 	if ( !vk_create_buffer_memory( &desc, VK_BUFFER_MEMORY_DEVICE, &vbo->buffer,
 			&vbo->allocation, NULL, "dynamic VBO" ) ) {
 		ri.Error( ERR_DROP, "Vulkan: could not allocate a dynamic VBO" );
@@ -779,16 +715,6 @@ VBO_t *R_CreateDynamicVBO( const char *name, int size )
 
 	// Create host-visible staging buffer
 	desc.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-	VK_CREATE_BUFFER(vk.device, &desc, &vbo->staging.buffer, "dynamic vbo staging buffer");
-
-	vkGetBufferMemoryRequirements( vk.device, vbo->staging.buffer, &vb_mem_reqs );
-	alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	alloc_info.pNext = NULL;
-	alloc_info.allocationSize = vb_mem_reqs.size;
-	alloc_info.memoryTypeIndex = vk_find_memory_type(
-		vb_mem_reqs.memoryTypeBits,
-		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-
 	if ( !vk_create_buffer_memory( &desc, VK_BUFFER_MEMORY_HOST_WRITE, &vbo->staging.buffer,
 			&vbo->staging.allocation, &mapped, "dynamic VBO staging" ) ) {
 		ri.Error( ERR_DROP, "Vulkan: could not allocate dynamic VBO staging" );
@@ -836,15 +762,8 @@ IBO_t *R_CreateDynamicIBO( const char *name, int size )
 	desc.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 	desc.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-	VK_CREATE_BUFFER(vk.device, &desc, &ibo->buffer, "dynamic ibo buffer");
-	vkGetBufferMemoryRequirements( vk.device, ibo->buffer, &mem_reqs );
-
-	Com_Memset( &alloc_info, 0, sizeof(alloc_info) );
-	alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	alloc_info.pNext = NULL;
-	alloc_info.allocationSize = mem_reqs.size;
-	alloc_info.memoryTypeIndex = vk_find_memory_type( mem_reqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT );
-
+	// vk_create_buffer_memory creates the buffer itself; anything created here
+	// first would be overwritten by it and leaked.
 	if ( !vk_create_buffer_memory( &desc, VK_BUFFER_MEMORY_DEVICE, &ibo->buffer,
 			&ibo->allocation, NULL, "dynamic IBO" ) ) {
 		ri.Error( ERR_DROP, "Vulkan: could not allocate a dynamic IBO" );
@@ -853,16 +772,6 @@ IBO_t *R_CreateDynamicIBO( const char *name, int size )
 
 	// --- Staging buffer (host-visible, persistently mapped)
 	desc.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-	VK_CREATE_BUFFER(vk.device, &desc, &ibo->staging.buffer, "dynamic ibo staging buffer");
-
-	vkGetBufferMemoryRequirements( vk.device, ibo->staging.buffer, &mem_reqs );
-	alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	alloc_info.pNext = NULL;
-	alloc_info.allocationSize = mem_reqs.size;
-	alloc_info.memoryTypeIndex = vk_find_memory_type(
-		mem_reqs.memoryTypeBits,
-		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-
 	if ( !vk_create_buffer_memory( &desc, VK_BUFFER_MEMORY_HOST_WRITE, &ibo->staging.buffer,
 			&ibo->staging.allocation, &mapped, "dynamic IBO staging" ) ) {
 		ri.Error( ERR_DROP, "Vulkan: could not allocate dynamic IBO staging" );
@@ -1946,12 +1855,7 @@ void vk_release_vbo( void )
 
 qboolean vk_alloc_vbo( const char *name, const byte *vbo_data, int vbo_size )
 {
-	VkMemoryRequirements vb_mem_reqs;
-	VkMemoryAllocateInfo alloc_info;
 	VkBufferCreateInfo desc;
-	VkDeviceSize vertex_buffer_offset;
-	VkDeviceSize allocationSize;
-	uint32_t memory_type_bits;
 	VkCommandBuffer command_buffer;
 	VkBufferCopy copyRegion[1];
 	VkDeviceSize uploadDone;
@@ -1968,18 +1872,15 @@ qboolean vk_alloc_vbo( const char *name, const byte *vbo_data, int vbo_size )
 	// device-local buffer
 	desc.size = vbo_size;
 	desc.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
-	VK_CREATE_BUFFER(vk.device, &desc, &vk.vbo.vertex_buffer, va("vbo vertex buffer: %s", name) );
-
-	// memory requirements
-	vkGetBufferMemoryRequirements( vk.device, vk.vbo.vertex_buffer, &vb_mem_reqs );
-	vertex_buffer_offset = 0;
-	allocationSize = vertex_buffer_offset + vb_mem_reqs.size;
-	memory_type_bits = vb_mem_reqs.memoryTypeBits;
-
-	alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	alloc_info.pNext = NULL;
-	alloc_info.allocationSize = allocationSize;
-	alloc_info.memoryTypeIndex = vk_find_memory_type(memory_type_bits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+	// The migration replaced the create/allocate/bind trio with this one call
+	// everywhere else. Here the create was left standing and the allocate and
+	// bind were dropped, so the world VBO was a buffer with no memory behind it
+	// and the copy below wrote into nothing.
+	if ( !vk_create_buffer_memory( &desc, VK_BUFFER_MEMORY_DEVICE, &vk.vbo.vertex_buffer,
+			&vk.vbo.buffer_memory, NULL, va( "vbo vertex buffer: %s", name ) ) ) {
+		ri.Error( ERR_DROP, "Vulkan: could not allocate the world VBO" );
+		return qfalse;
+	}
 
 	// staging buffers
 
@@ -2002,7 +1903,9 @@ qboolean vk_alloc_vbo( const char *name, const byte *vbo_data, int vbo_size )
 	}
 
 	VK_SET_OBJECT_NAME( vk.vbo.vertex_buffer, va( "%s VBO buffer", name ), VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT );
-	VK_SET_OBJECT_NAME( vk.vbo.buffer_memory, va( "%s VBO memory", name ), VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_MEMORY_EXT );
+	// No name for the memory: buffer_memory is a VmaAllocation now, not a
+	// VkDeviceMemory, and naming it would hand the driver a handle from a
+	// different object table. VMA passes its own name through instead.
 
 	return qtrue;
 }

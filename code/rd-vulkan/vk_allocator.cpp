@@ -251,11 +251,19 @@ qboolean vk_create_buffer_memory(const VkBufferCreateInfo* desc, vk_buffer_memor
         // these call sites did by hand with a vkMapMemory that was never
         // unmapped. VMA also prefers BAR memory here when the device exposes it.
         alloc.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
+        // Required, not preferred. HOST_ACCESS_* only promises HOST_VISIBLE,
+        // and every call site converted to this helper previously asked for
+        // HOST_COHERENT by hand and writes through the mapped pointer without
+        // ever calling vmaFlushAllocation. On a device whose first host-visible
+        // type is non-coherent, dropping it would make those writes silently
+        // invisible to the GPU - corruption with no error anywhere.
+        alloc.requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
         break;
 
     case VK_BUFFER_MEMORY_HOST_READ:
         // Read back by the CPU: screenshots and AVI capture.
         alloc.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
+        alloc.requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
         break;
     }
 

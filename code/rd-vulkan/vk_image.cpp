@@ -1330,7 +1330,10 @@ void vk_create_image( image_t *image, int width, int height, int mip_levels ) {
 	VkImageViewType		view_type = (VkImageViewType)VK_IMAGE_VIEW_TYPE_2D;
 
 	if ( image->handle ) {
-		vkDestroyImage( vk.device, image->handle, NULL );
+		// Through VMA, not vkDestroyImage: the allocation is overwritten a few
+		// lines below, so destroying the image alone leaks its backing memory
+		// on every re-creation - scratch images, cinematics, vid_restart.
+		vk_destroy_image_memory( &image->handle, &image->allocation );
 		image->handle = VK_NULL_HANDLE;
 	}
 
