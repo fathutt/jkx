@@ -1364,7 +1364,9 @@ const void	*RB_SwapBuffers( const void *data ) {
 			}
 		}
 		if (backEnd.screenshotMask & SCREENSHOT_AVI) {
+#ifndef JKX_SP_FIELDS
 			RB_TakeVideoFrameCmd(&backEnd.vcmd);
+#endif
 		}
 
 		backEnd.screenshotJPG[0] = '\0';
@@ -1501,7 +1503,11 @@ void RB_ExecuteRenderCommands( const void *data ) {
 			data = RB_SwapBuffers( data );
 			break;
 		case RC_VIDEOFRAME:
+#ifndef JKX_SP_FIELDS
 			data = RB_TakeVideoFrameCmd( data );
+#else
+			data = (const void *)( (const videoFrameCommand_t *)data + 1 );
+#endif
 			break;
 		case RC_WORLD_EFFECTS:
 			data = RB_WorldEffects( data );

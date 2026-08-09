@@ -496,7 +496,7 @@ Skips until a matching close brace is found.
 Internal brace depths are properly skipped.
 =================
 */
-void SkipBracedSection ( const char **program) {
+qboolean SkipBracedSection ( const char **program) {
 	const char			*token;
 	int				depth=0;
 
@@ -516,6 +516,10 @@ void SkipBracedSection ( const char **program) {
 		}
 
 	} while (depth && *program);
+
+	// Whether the section was balanced. Single-player threw this away; the
+	// shader parser wants it, and every existing caller ignores it.
+	return (qboolean)( depth == 0 );
 }
 
 /*

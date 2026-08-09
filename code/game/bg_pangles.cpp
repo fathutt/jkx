@@ -100,7 +100,7 @@ void BG_IK_MoveLimb( CGhoul2Info_v &ghoul2, int boltIndex, char *animBone, char 
 		ikP.startFrame = anim->firstFrame + anim->numFrames;
 		ikP.endFrame = anim->firstFrame + anim->numFrames;
 
-		//ikP.forceAnimOnBone = qfalse; //let it use existing anim if it's the same as this one.
+		ikP.forceAnimOnBone = qfalse; //let it use existing anim if it's the same as this one.
 
 		//we want to call with a null bone name first. This will init all of the
 		//ik system stuff on the g2 instance, because we need ragdoll effectors

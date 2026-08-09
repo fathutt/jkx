@@ -179,12 +179,18 @@ list(APPEND SPRDVulkanLibraries ${JPEG_LIBRARIES} ${PNG_LIBRARIES}
 # Headers only. Every entry point is resolved through volk at runtime, so there
 # is nothing to link; a machine with the SDK has them, a CI runner does not, and
 # installing an SDK to obtain a directory of headers is not a trade worth making.
-find_package(Vulkan QUIET)
+#
+# The version is a floor, not a preference. The renderer names constants from
+# VK_EXT_present_mode_fifo_latest_ready, which arrived in header 1.3.297, and a
+# distribution that ships older headers - Ubuntu 24.04 ships 1.3.275 - would
+# otherwise satisfy find_package and then fail to compile. Asking for the floor
+# makes the fetch happen instead.
+find_package(Vulkan 1.3.297 QUIET)
 if(NOT TARGET Vulkan::Headers)
 	include(FetchContent)
 	FetchContent_Declare(VulkanHeaders
 		GIT_REPOSITORY https://github.com/KhronosGroup/Vulkan-Headers.git
-		GIT_TAG v1.3.290
+		GIT_TAG v1.4.309
 		GIT_SHALLOW TRUE)
 	FetchContent_MakeAvailable(VulkanHeaders)
 endif()

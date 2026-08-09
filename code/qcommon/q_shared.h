@@ -368,7 +368,7 @@ qboolean COM_ParseVec4( const char **buffer, vec4_t *c);
 
 void	COM_MatchToken( char**buf_p, char *match );
 
-void SkipBracedSection (const char **program);
+qboolean SkipBracedSection (const char **program);
 void SkipRestOfLine ( const char **data );
 
 void Parse1DMatrix (const char **buf_p, int x, float *m);
@@ -2655,6 +2655,7 @@ typedef struct
 	int pcjOverrides; //override ik bone flags
 	int startFrame; //base pose start
 	int endFrame; //base pose end
+	qboolean forceAnimOnBone; //if the bone already has these start/end frames it is normally left alone, so that IK can be entered smoothly on the current animation; this restarts it regardless
 } sharedSetBoneIKStateParams_t;
 
 enum sharedEIKMoveState

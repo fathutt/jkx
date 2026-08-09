@@ -1526,7 +1526,7 @@ static qboolean ParseStage(shaderStage_t *stage, const char **text)
 				vk_debug("WARNING: missing parameter for 'videoMap' keyword in shader '%s'\n", shader.name);
 				return qfalse;
 			}
-			handle = ri.CIN_PlayCinematic(token, 0, 0, 256, 256, (CIN_loop | CIN_silent | CIN_shader));
+			handle = R_PlayCinematic(token, 0, 0, 256, 256, (CIN_loop | CIN_silent | CIN_shader));
 			if (handle != -1) {
 				if (!tr.scratchImage[handle]) {
 					tr.scratchImage[handle] = R_CreateImage(va("*scratch%i", handle), NULL, 256, 256, 
@@ -2528,7 +2528,7 @@ static const char *FindShaderInShaderText( const char *shadername ) {
 		}
 		else {
 			// skip the definition
-			SkipBracedSection(&p, 0);
+			R_SkipBracedSection(&p, 0);
 		}
 	}
 	return NULL;
@@ -3281,7 +3281,7 @@ static void ScanAndLoadShaderFiles( void )
 				break;
 			}
 
-			if (!SkipBracedSection(&p, 1))
+			if (!R_SkipBracedSection(&p, 1))
 			{
 				vk_debug("WARNING: Ignoring shader file %s. Shader \"%s\" on line %d missing closing brace.\n",
 					filename, shaderName, shaderLine);
@@ -3338,7 +3338,7 @@ static void ScanAndLoadShaderFiles( void )
 		hash = generateHashValue(token, MAX_SHADERTEXT_HASH);
 		shaderTextHashTableSizes[hash]++;
 		size++;
-		SkipBracedSection(&p, 0);
+		R_SkipBracedSection(&p, 0);
 	}
 
 	size += MAX_SHADERTEXT_HASH;
@@ -3370,7 +3370,7 @@ static void ScanAndLoadShaderFiles( void )
 		hash = generateHashValue(token, MAX_SHADERTEXT_HASH);
 		shaderTextHashTable[hash][shaderTextHashTableSizes[hash]++] = oldp;
 
-		SkipBracedSection(&p, 0);
+		R_SkipBracedSection(&p, 0);
 	}
 
 	return;

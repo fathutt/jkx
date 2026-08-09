@@ -1696,7 +1696,7 @@ static void vk_create_post_process_pipeline( int program_index, uint32_t width, 
     VK_SET_OBJECT_NAME( *pipeline, pipeline_name, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT );
 }
 
-static void vk_create_blur_pipeline( char *name, int program_index, uint32_t index, uint32_t width, uint32_t height, qboolean horizontal_pass )
+static void vk_create_blur_pipeline( const char *name, int program_index, uint32_t index, uint32_t width, uint32_t height, qboolean horizontal_pass )
 {
     VkPipelineShaderStageCreateInfo shader_stages[2];
     VkPipelineVertexInputStateCreateInfo vertex_input_state;

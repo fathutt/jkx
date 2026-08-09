@@ -109,3 +109,27 @@ Foundation.
 #define TAG_GRIDMESH	TAG_TEMP_WORKSPACE
 #define TAG_TEMP_IMAGE	TAG_TEMP_WORKSPACE
 #endif
+
+// The transformed bone array. Single-player's mdxaBone_v is a vector of
+// matrices; multiplayer's is a vector of pair<int, matrix>, and nothing in this
+// renderer ever reads or writes the int. So the element is reached through this
+// instead of through .second, and single-player's simpler shape wins.
+#ifdef JKX_SP_FIELDS
+#define G2_BONE_MATRIX( bones, index )	( ( bones )[( index )] )
+#else
+#define G2_BONE_MATRIX( bones, index )	( ( bones )[( index )].second )
+#endif
+
+// Skipping a braced section. Multiplayer passes the starting depth; single-
+// player infers it from com_token, which is "{" exactly when the caller has
+// already eaten the opening brace - the same two cases the shader parser uses.
+#ifdef JKX_SP_FIELDS
+#define R_SkipBracedSection( program, depth )	SkipBracedSection( ( program ) )
+#else
+#define R_SkipBracedSection( program, depth )	SkipBracedSection( ( program ), ( depth ) )
+#endif
+
+// Cvar flag for "no flags". Single-player spells it as a plain zero.
+#ifndef CVAR_NONE
+#define CVAR_NONE	0
+#endif

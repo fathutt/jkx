@@ -489,11 +489,12 @@ long		FS_FOpenFileRead( const char *qpath, fileHandle_t *file, qboolean uniqueFI
 // file IO goes through FS_ReadFile, which Does The Right Thing already.
 
 // returns 1 if a file is in the PAK file, otherwise -1
-int	FS_FileIsInPAK(const char *filename );
-static inline int FS_FileIsInPAK( const char *filename, int *checksum )
-{
-	return FS_FileIsInPAK( filename );
-}
+// pChecksum, when not NULL, is filled with the checksum of the pak the file was
+// found in, and left alone otherwise. The renderer's model cache uses it to
+// notice that a pak changed under a cached file; the shim that used to stand
+// here took the argument and never wrote to it, which meant the cache compared
+// against whatever was on the stack.
+int	FS_FileIsInPAK(const char *filename, int *pChecksum = NULL );
 
 int	FS_Write( const void *buffer, int len, fileHandle_t f );
 

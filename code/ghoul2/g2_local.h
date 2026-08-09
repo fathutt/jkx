@@ -122,6 +122,8 @@ void G2_ConstructGhoulSkeleton( CGhoul2Info_v &ghoul2,const int frameNum,bool ch
 surfaceInfo_t * G2_FindOverrideSurface( int surfaceNum, surfaceInfo_v &surfaceList );
 void * G2_FindSurface( void *mod_t, int index, int lod );
 void G2_GenerateWorldMatrix( const vec3_t angles, const vec3_t origin );
+int G2_Find_Bone_In_List( boneInfo_v &blist, const int boneNum );
+int G2_Find_Bolt_Surface_Num( boltInfo_v &bltlist, const int surfaceNum, const int flags );
 qboolean G2_GetAnimFileName( const char *fileName, char **filename );
 int G2_GetParentSurface( CGhoul2Info *ghlInfo, const int index );
 int G2_GetSurfaceIndex( CGhoul2Info *ghlInfo, const char *surfaceName );

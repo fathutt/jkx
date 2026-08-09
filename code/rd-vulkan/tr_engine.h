@@ -63,7 +63,20 @@ Foundation.
 // the game console. Single-player has one console; sending both to it loses the
 // distinction and nothing else, and the renderer only uses OPrintf for the same
 // diagnostics it sends to Printf anyway.
-#define R_OPrintf						ri.Printf
+// Single-player's console print takes a level; multiplayer's OS-console print
+// does not. Everything the renderer sends here it also sends to Printf.
+#define R_OPrintf( ... )				ri.Printf( PRINT_ALL, __VA_ARGS__ )
+
+// Multiplayer carries a one-line description per console command. Unlike the
+// cvar descriptions, which were 136 real strings and worth taking into the
+// engine, every one of these is the empty string - so this drops it rather
+// than widening another interface to carry nothing.
+#define R_AddCommand( name, func, desc )	ri.Cmd_AddCommand( ( name ), ( func ) )
+
+// Single-player's cinematics can carry a separate audio file. The renderer
+// only ever plays shader videos, which have none.
+#define R_PlayCinematic( name, x, y, w, h, bits ) \
+	ri.CIN_PlayCinematic( ( name ), ( x ), ( y ), ( w ), ( h ), ( bits ), NULL )
 
 #else
 
@@ -76,5 +89,8 @@ Foundation.
 	do { R_Z_Free( ri.CM_GetCachedMapDiskImage() ); ri.CM_SetCachedMapDiskImage( NULL ); } while ( 0 )
 #define R_LowPhysicalMemory()			( ri.Sys_LowPhysicalMemory() )
 #define R_OPrintf						ri.OPrintf
+#define R_AddCommand( name, func, desc )	ri.Cmd_AddCommand( ( name ), ( func ), ( desc ) )
+#define R_PlayCinematic( name, x, y, w, h, bits ) \
+	ri.CIN_PlayCinematic( ( name ), ( x ), ( y ), ( w ), ( h ), ( bits ) )
 
 #endif // JKX_SP_FIELDS

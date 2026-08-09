@@ -371,6 +371,13 @@ struct boltInfo_t{
 	int			surfaceNumber;	// surface number bolt attaches to
 	int			surfaceType;	// if we attach to a surface, this tells us if it is an original surface or a generated one - doesn't go across the network
 	int			boltUsed;		// nor does this
+
+	// Cached bolt matrix, rebuilt every time the skeleton is. It is not sent
+	// anywhere and deliberately not in sg_export/sg_import below: a savegame
+	// that carried it would restore a matrix for a skeleton it no longer
+	// matches, and the first frame after the load overwrites it anyway.
+	mdxaBone_t	position;
+
 	boltInfo_t():
 	boneNumber(-1),
 	surfaceNumber(-1),

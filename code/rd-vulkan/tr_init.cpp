@@ -657,6 +657,11 @@ void R_ScreenShot_f ( void ) {
 RB_TakeVideoFrameCmd
 ==================
 */
+// Video capture. Multiplayer records the framebuffer to an AVI through
+// ri.CL_WriteAVIVideoFrame; single-player has no writer to hand it to and never
+// had the feature, so this is not adapted - it is left out until the engine
+// side exists. See docs/Backlog.md.
+#ifndef JKX_SP_FIELDS
 const void *RB_TakeVideoFrameCmd( const void *data )
 {
 	const videoFrameCommand_t *cmd;
@@ -727,6 +732,7 @@ const void *RB_TakeVideoFrameCmd( const void *data )
 
 	return (const void*)(cmd + 1);
 }
+#endif // !JKX_SP_FIELDS
 
 void R_RemapSkyShader_f ( void ) {
 	int num;
@@ -1044,7 +1050,7 @@ Ghoul2 Insert End
 	ri.Cvar_CheckRange( r_screenshotJpegQuality, 10, 100, qtrue );
 
 	for ( size_t i = 0; i < numCommands; i++ )
-		ri.Cmd_AddCommand( commands[i].cmd, commands[i].func, "" );
+		R_AddCommand( commands[i].cmd, commands[i].func, "" );
 }
 
 /*
