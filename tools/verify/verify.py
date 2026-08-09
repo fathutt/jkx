@@ -818,6 +818,13 @@ def run_scenario(binary: Path, game_dir: Path, cfg_dir: Path, home: Path, name: 
         shutil.copy2(log, home / f"jkx_{name}{tag}.log")
         log.unlink()
 
+    # A debug build of the renderer writes its own trace next to the executable.
+    # It is the only view inside a crash available from here, so keep it with
+    # the rest of the evidence rather than letting the next run overwrite it.
+    for trace in find_all([home, game_dir], "vk_log.log"):
+        shutil.copy2(trace, home / f"jkx_{name}{tag}_vk.log")
+        trace.unlink()
+
     return (time.perf_counter() - start, code)
 
 
@@ -1271,7 +1278,8 @@ def main(argv: list[str]) -> int:
 
     evidence = out.parent / "dumps"
     evidence.mkdir(exist_ok=True)
-    for path in evidence_files + sorted(home.glob("jkx_*_stdout.txt")):
+    for path in evidence_files + sorted(home.glob("jkx_*_stdout.txt")) \
+            + sorted(home.glob("jkx_*_vk.log")):
         if path and path.is_file():
             shutil.copy2(path, evidence / path.name)
 

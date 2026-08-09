@@ -74,10 +74,21 @@ jobs:
             # link the MSVC import libraries the fork bundles for Windows.
             configure_extra: -G "Visual Studio 17 2022" -A x64
             python: python
+            config: Release
+          # A debug build is the only way to see inside a crash from here: _DEBUG
+          # turns on the renderer's own vk_log.log trace and, where the Vulkan
+          # SDK's layers are installed, validation reporting. Slower and larger,
+          # and worth having ready before it is needed rather than after.
+          - name: windows-x86_64-debug
+            os: windows-2022
+            configure_extra: -G "Visual Studio 17 2022" -A x64
+            python: python
+            config: Debug
           - name: linux-x86_64
             os: ubuntu-24.04
             configure_extra: -G Ninja
             python: python3
+            config: Release
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -116,7 +127,7 @@ jobs:
         shell: bash
         run: >
           cmake -S eternaljk -B build ${{ matrix.configure_extra }}
-          -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_BUILD_TYPE=${{ matrix.config }}
           -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/package"
           -DBuildPortableVersion=OFF
           -DBuildMPEngine=ON
@@ -131,12 +142,12 @@ jobs:
 
       - name: Build
         shell: bash
-        run: cmake --build build --config Release --parallel
+        run: cmake --build build --config ${{ matrix.config }} --parallel
 
       - name: Install into a package tree
         shell: bash
         working-directory: build
-        run: cmake --install . --config Release
+        run: cmake --install . --config ${{ matrix.config }}
 
       - uses: actions/download-artifact@v4
         with:
