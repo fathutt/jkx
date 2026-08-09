@@ -312,7 +312,7 @@ static char *CommaParse( char **data_p ) {
 	}
 
 	if ( c == 0 ) {
-		return "";
+		return com_token;   // already empty; a literal is not char * under /Zc:strictStrings
 	}
 
 	// handle quoted strings

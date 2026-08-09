@@ -511,7 +511,7 @@ struct Muzzle
 #define SHIPSURF_BROKEN_E	(1<<4) //wing 3
 #define SHIPSURF_BROKEN_F	(1<<5) //wing 4
 
-typedef struct
+typedef struct vehWeaponStatus_s
 {
 	//linked firing mode
 	qboolean	linked;//weapon 1's muzzles are in linked firing mode
@@ -542,7 +542,7 @@ typedef struct
 	}
 } vehWeaponStatus_t;
 
-typedef struct
+typedef struct vehTurretStatus_s
 {
 	//current weapon ammo
 	int			ammo;

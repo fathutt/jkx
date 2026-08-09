@@ -150,12 +150,14 @@ int Cvar_VariableIntegerValue( const char *var_name ) {
 Cvar_VariableString
 ============
 */
+static char cvar_noValue[1] = "";
+
 char *Cvar_VariableString( const char *var_name ) {
 	cvar_t *var;
 
 	var = Cvar_FindVar (var_name);
 	if (!var)
-		return "";
+		return cvar_noValue;
 	return var->string;
 }
 

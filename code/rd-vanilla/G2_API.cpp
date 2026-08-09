@@ -1833,6 +1833,13 @@ void G2API_SetGhoul2ModelIndexes(CGhoul2Info_v &ghoul2, qhandle_t *modelList, qh
 }
 
 
+// The Ghoul2 API predates const-correctness: these accessors hand back char *
+// although every caller only reads. Returning a string literal from one is an
+// error under /permissive- (/Zc:strictStrings), and changing the signatures
+// would ripple through a renderer this project keeps only as a reference, so
+// the empty answer gets storage of its own instead.
+static char g2_noName[1] = "";
+
 char *G2API_GetAnimFileNameIndex(qhandle_t modelIndex)
 {
 	model_t		*mod_m = R_GetModelByHandle(modelIndex);
@@ -1841,7 +1848,7 @@ char *G2API_GetAnimFileNameIndex(qhandle_t modelIndex)
 	{
 		return mod_m->mdxm->animName;
 	}
-	return "";
+	return g2_noName;
 }
 
 // as above, but gets the internal embedded name, not the name of the disk file.
@@ -1855,7 +1862,7 @@ char *G2API_GetAnimFileInternalNameIndex(qhandle_t modelIndex)
 	{
 		return mod_a->mdxa->name;
 	}
-	return "";
+	return g2_noName;
 }
 
 /************************************************************************************************

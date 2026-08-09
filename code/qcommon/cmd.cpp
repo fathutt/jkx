@@ -384,9 +384,15 @@ int		Cmd_Argc( void ) {
 Cmd_Argv
 ============
 */
+// Both of these hand back char * to callers that only read, and both have to
+// answer "nothing" sometimes. A string literal is not a char * under
+// /permissive- (/Zc:strictStrings), and the signatures are load-bearing across
+// the engine and the gamecode, so the empty answer gets storage of its own.
+static char cmd_noArg[1] = "";
+
 char	*Cmd_Argv( int arg ) {
 	if ( (unsigned)arg >= (unsigned)cmd_argc )
-		return "";
+		return cmd_noArg;
 
 	return cmd_argv[arg];
 }
