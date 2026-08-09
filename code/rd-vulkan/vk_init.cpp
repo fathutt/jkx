@@ -673,7 +673,6 @@ void vk_shutdown( void )
 #endif
 
 	vk_destroy_pipeline_cache();
-	vk_destroy_allocator();
 
 	vkDestroyCommandPool(vk.device, vk.command_pool, NULL);
 
@@ -718,6 +717,13 @@ void vk_shutdown( void )
     vk_destroy_shader_modules();
 
 	R_DestroyImageScratch();
+
+	// Last, and it is the mirror of vk_create_allocator() being first. Every
+	// release above goes through VMA, so an allocator destroyed before them is
+	// an allocator they use after it is gone: the whole block of buffer
+	// releases ran against freed memory and the process died on exit with an
+	// access violation, after a clean run, with the log ending mid-shutdown.
+	vk_destroy_allocator();
 
 __cleanup:
 	if (vk.device != VK_NULL_HANDLE) {

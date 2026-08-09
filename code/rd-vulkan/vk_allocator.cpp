@@ -131,6 +131,13 @@ void vk_destroy_image_memory(VkImage* image, VmaAllocation* allocation)
     if (image == NULL || *image == VK_NULL_HANDLE) {
         return;
     }
+    // Releasing through a destroyed allocator is a use-after-free that the
+    // driver turns into an access violation with no message. Say so instead:
+    // the fix is always an ordering one, and it is cheap to point straight at.
+    if (vk.allocator == VK_NULL_HANDLE) {
+        ri.Printf(PRINT_WARNING, "Vulkan: %s called after vk_destroy_allocator()\n", __func__);
+        return;
+    }
     // Unlike the chunk allocator this actually returns the memory, so a texture
     // freed mid-level is reusable immediately instead of at the next map load.
     vmaDestroyImage(vk.allocator, *image, allocation != NULL ? *allocation : VK_NULL_HANDLE);
@@ -220,6 +227,13 @@ void vk_free_image_memory(VmaAllocation* allocation)
     if (allocation == NULL || *allocation == VK_NULL_HANDLE) {
         return;
     }
+    // Releasing through a destroyed allocator is a use-after-free that the
+    // driver turns into an access violation with no message. Say so instead:
+    // the fix is always an ordering one, and it is cheap to point straight at.
+    if (vk.allocator == VK_NULL_HANDLE) {
+        ri.Printf(PRINT_WARNING, "Vulkan: %s called after vk_destroy_allocator()\n", __func__);
+        return;
+    }
     vmaFreeMemory(vk.allocator, *allocation);
     *allocation = VK_NULL_HANDLE;
 }
@@ -292,6 +306,13 @@ qboolean vk_create_buffer_memory(const VkBufferCreateInfo* desc, vk_buffer_memor
 void vk_destroy_buffer_memory(VkBuffer* buffer, VmaAllocation* allocation)
 {
     if (buffer == NULL || *buffer == VK_NULL_HANDLE) {
+        return;
+    }
+    // Releasing through a destroyed allocator is a use-after-free that the
+    // driver turns into an access violation with no message. Say so instead:
+    // the fix is always an ordering one, and it is cheap to point straight at.
+    if (vk.allocator == VK_NULL_HANDLE) {
+        ri.Printf(PRINT_WARNING, "Vulkan: %s called after vk_destroy_allocator()\n", __func__);
         return;
     }
     vmaDestroyBuffer(vk.allocator, *buffer, allocation != NULL ? *allocation : VK_NULL_HANDLE);

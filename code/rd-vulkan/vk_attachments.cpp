@@ -601,7 +601,9 @@ void vk_destroy_attachments( void )
 
     if ( vk.cubeMap.depth_image ) {
         vkDestroyImage(vk.device, vk.cubeMap.depth_image, NULL);
-        vkDestroyImageView(vk.device, vk.depth_image_view, NULL);
+        // cubeMap's own view. This said vk.depth_image_view, which is destroyed
+        // at the top of this function, so the cubemap's view leaked every time.
+        vkDestroyImageView(vk.device, vk.cubeMap.depth_image_view, NULL);
         vk.cubeMap.depth_image = VK_NULL_HANDLE;
         vk.cubeMap.depth_image_view = VK_NULL_HANDLE;
     }

@@ -188,6 +188,14 @@ void vk_create_swapchain( VkPhysicalDevice physical_device, VkDevice device,
     desc.imageExtent = image_extent;
     desc.imageArrayLayers = 1;
     desc.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    // The splash screen and the final present both blit into the swapchain
+    // image, and a blit destination needs TRANSFER_DST. Without it validation
+    // rejects every one of those transitions - correctly; the driver happens to
+    // tolerate it here, which is exactly why it went unnoticed. Guarded because
+    // the flag is optional per surface, though no desktop driver omits it.
+    if ( surface_caps.supportedUsageFlags & VK_IMAGE_USAGE_TRANSFER_DST_BIT ) {
+        desc.imageUsage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    }
     desc.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
     desc.queueFamilyIndexCount = 0;
     desc.pQueueFamilyIndices = NULL;

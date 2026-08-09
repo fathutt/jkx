@@ -1349,10 +1349,15 @@ void vk_create_image( image_t *image, int width, int height, int mip_levels ) {
 
 	// create image
 	{
-		VkImageUsageFlags usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-		
+		// TRANSFER_SRC is not speculative: vk_render_splash blits the splash
+		// image into the swapchain, and that image is an ordinary image_t. The
+		// flag costs nothing on an optimally tiled image and it is what the
+		// transition to TRANSFER_SRC_OPTIMAL requires.
+		VkImageUsageFlags usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT
+			| VK_IMAGE_USAGE_SAMPLED_BIT;
+
 		if ( image->flags & IMGFLAG_STORAGE )
-			usage |= VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT ;
+			usage |= VK_IMAGE_USAGE_STORAGE_BIT;
 
 		VkImageCreateInfo desc;
 		desc.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
