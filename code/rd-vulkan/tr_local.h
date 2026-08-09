@@ -73,6 +73,9 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #include "qcommon/qfiles.h"
 #include "rd-common/tr_public.h"
 #include "rd-common/tr_common.h"
+// After tr_types.h has been pulled in, because every entry tests what that
+// header did or did not define. Temporary; see the file for its lifetime.
+#include "tr_sp_compat.h"
 #include "ghoul2/ghoul2_shared.h" //rwwRMG - added
 
 #include "tr_allocator.h"

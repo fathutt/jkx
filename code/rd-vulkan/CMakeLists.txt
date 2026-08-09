@@ -64,6 +64,7 @@ set(MPVulkanRendererFiles
 	"${MPDir}/rd-vulkan/tr_quicksprite.h"
 	"${MPDir}/rd-vulkan/tr_scene.cpp"
 	"${MPDir}/rd-vulkan/tr_shade.cpp"
+	"${MPDir}/rd-vulkan/tr_sp_compat.h"
 	"${MPDir}/rd-vulkan/tr_shader.cpp"
 	"${MPDir}/rd-vulkan/tr_shade_calc.cpp"
 	"${MPDir}/rd-vulkan/tr_shadows.cpp"
