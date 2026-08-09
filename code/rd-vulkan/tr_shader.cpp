@@ -519,7 +519,7 @@ static bool ParseSurfaceSprites( const char *_text, shaderStage_t *stage )
 
 	if (!stage->ss)
 	{
-		stage->ss = (surfaceSprite_t*)Hunk_Alloc(sizeof(surfaceSprite_t), h_low);
+		stage->ss = (surfaceSprite_t*)R_Hunk_Alloc(sizeof(surfaceSprite_t), h_low);
 	}
 
 	// These are all set by the command lines.
@@ -582,7 +582,7 @@ static bool ParseSurfaceSpritesOptional( const char *param, const char *_text, s
 
 	if (!stage->ss)
 	{
-		stage->ss = (surfaceSprite_t*)Hunk_Alloc(sizeof(surfaceSprite_t), h_low);
+		stage->ss = (surfaceSprite_t*)R_Hunk_Alloc(sizeof(surfaceSprite_t), h_low);
 	}
 	//
 	// fademax
@@ -1975,7 +1975,7 @@ static qboolean ParseStage(shaderStage_t *stage, const char **text)
 			}
 			else if (!Q_stricmp(token, "vector"))
 			{
-				stage->bundle[0].tcGenVectors = (vec3_t*)Hunk_Alloc(2 * sizeof(vec3_t), h_low);
+				stage->bundle[0].tcGenVectors = (vec3_t*)R_Hunk_Alloc(2 * sizeof(vec3_t), h_low);
 				ParseVector(text, 3, stage->bundle[0].tcGenVectors[0]);
 				ParseVector(text, 3, stage->bundle[0].tcGenVectors[1]);
 
@@ -2220,7 +2220,7 @@ static void ParseDeform( const char **text ) {
 		return;
 	}
 
-	shader.deforms[shader.numDeforms] = (deformStage_t*)Hunk_Alloc(sizeof(deformStage_t), h_low);
+	shader.deforms[shader.numDeforms] = (deformStage_t*)R_Hunk_Alloc(sizeof(deformStage_t), h_low);
 
 	ds = shader.deforms[shader.numDeforms];
 	shader.numDeforms++;
@@ -2365,7 +2365,7 @@ static void ParseSkyParms( const char **text ) {
 		imgFlags |= IMGFLAG_NO_COMPRESSION;
 	}
 
-	shader.sky = (skyParms_t*)Hunk_Alloc(sizeof(skyParms_t), h_low);
+	shader.sky = (skyParms_t*)R_Hunk_Alloc(sizeof(skyParms_t), h_low);
 
 	// outerbox
 	token = COM_ParseExt(text, qfalse);
@@ -2898,7 +2898,7 @@ static qboolean ParseShader( const char **text )
 		// fogParms
 		else if (!Q_stricmp(token, "fogParms"))
 		{
-			//shader.fogParms = (fogParms_t*)Hunk_Alloc(sizeof(fogParms_t), h_low);
+			//shader.fogParms = (fogParms_t*)R_Hunk_Alloc(sizeof(fogParms_t), h_low);
 			if (!ParseVector(text, 3, shader.fogParms.color)) {
 				return qfalse;
 			}
@@ -3297,7 +3297,7 @@ static void ScanAndLoadShaderFiles( void )
 	}
 
 	// build single large buffer
-	s_shaderText = (char*)ri.Hunk_Alloc(sum + numShaderFiles * 2, h_low);
+	s_shaderText = (char*)R_Hunk_Alloc(sum + numShaderFiles * 2, h_low);
 	s_shaderText[0] = '\0';
 	textEnd = s_shaderText;
 
@@ -3343,7 +3343,7 @@ static void ScanAndLoadShaderFiles( void )
 
 	size += MAX_SHADERTEXT_HASH;
 
-	hashMem = (char*)ri.Hunk_Alloc(size * sizeof(char*), h_low);
+	hashMem = (char*)R_Hunk_Alloc(size * sizeof(char*), h_low);
 
 	for (i = 0; i < MAX_SHADERTEXT_HASH; i++) {
 		shaderTextHashTable[i] = (const char**)hashMem;
@@ -5160,7 +5160,7 @@ shader_t *GeneratePermanentShader( void )
 		return tr.defaultShader;
 	}
 
-	newShader = (shader_t*)ri.Hunk_Alloc( sizeof(shader_t), h_low );
+	newShader = (shader_t*)R_Hunk_Alloc( sizeof(shader_t), h_low );
 
 	*newShader = shader;
 
@@ -5177,7 +5177,7 @@ shader_t *GeneratePermanentShader( void )
 		if ( !stages[i].active ) {
 			break;
 		}
-		newShader->stages[i] = (shaderStage_t*)ri.Hunk_Alloc( sizeof(stages[i]), h_low );
+		newShader->stages[i] = (shaderStage_t*)R_Hunk_Alloc( sizeof(stages[i]), h_low );
 		*newShader->stages[i] = stages[i];
 		for ( b = 0; b < NUM_TEXTURE_BUNDLES; b++ )
 		{
@@ -5185,7 +5185,7 @@ shader_t *GeneratePermanentShader( void )
 			{
 				size = newShader->stages[i]->bundle[b].numTexMods * sizeof( texModInfo_t );
 				if ( size ) {
-					newShader->stages[i]->bundle[b].texMods = (texModInfo_t*)ri.Hunk_Alloc( size, h_low );
+					newShader->stages[i]->bundle[b].texMods = (texModInfo_t*)R_Hunk_Alloc( size, h_low );
 					Com_Memcpy( newShader->stages[i]->bundle[b].texMods, stages[i].bundle[b].texMods, size );
 				}
 			} 

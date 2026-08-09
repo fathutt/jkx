@@ -378,9 +378,9 @@ qboolean G2_SetRootSurface(CGhoul2Info_v &ghoul2, const int modelIndex, const ch
 		// firstly, generate a list of active / on surfaces below the root point
 
 		// gimme some space to put this list into
-		activeSurfaces = (int *)Z_Malloc(mdxm->numSurfaces * 4, TAG_GHOUL2, qtrue);
+		activeSurfaces = (int *)R_Z_Malloc(mdxm->numSurfaces * 4, TAG_GHOUL2, qtrue);
 		memset(activeSurfaces, 0, (mdxm->numSurfaces * 4));
-		activeBones = (int *)Z_Malloc(mdxa->numBones * 4, TAG_GHOUL2, qtrue);
+		activeBones = (int *)R_Z_Malloc(mdxa->numBones * 4, TAG_GHOUL2, qtrue);
 		memset(activeBones, 0, (mdxa->numBones * 4));
 
 		G2_FindRecursiveSurface(mod_m, surf, ghoul2[modelIndex].mSlist, activeSurfaces);
@@ -424,8 +424,8 @@ qboolean G2_SetRootSurface(CGhoul2Info_v &ghoul2, const int modelIndex, const ch
 		//No support for this, for now.
 
 		// remember to free what we used
-		Z_Free(activeSurfaces);
-		Z_Free(activeBones);
+		R_Z_Free(activeSurfaces);
+		R_Z_Free(activeBones);
 
 		return (qtrue);
 	}
@@ -462,9 +462,9 @@ qboolean G2_SetRootSurface(CGhoul2Info_v &ghoul2, const int modelIndex, const ch
 			// firstly, generate a list of active / on surfaces below the root point
 
 			// gimme some space to put this list into
-			activeSurfaces = (int *)Z_Malloc(mod_m->mdxm->numSurfaces * 4, TAG_GHOUL2, qtrue);
+			activeSurfaces = (int *)R_Z_Malloc(mod_m->mdxm->numSurfaces * 4, TAG_GHOUL2, qtrue);
 			memset(activeSurfaces, 0, (mod_m->mdxm->numSurfaces * 4));
-			activeBones = (int *)Z_Malloc(mod_a->mdxa->numBones * 4, TAG_GHOUL2, qtrue);
+			activeBones = (int *)R_Z_Malloc(mod_a->mdxa->numBones * 4, TAG_GHOUL2, qtrue);
 			memset(activeBones, 0, (mod_a->mdxa->numBones * 4));
 
 			G2_FindRecursiveSurface(mod_m, surf, ghoul2[modelIndex].mSlist, activeSurfaces);
@@ -506,8 +506,8 @@ qboolean G2_SetRootSurface(CGhoul2Info_v &ghoul2, const int modelIndex, const ch
 			}
 
 			// remember to free what we used
-			Z_Free(activeSurfaces);
-			Z_Free(activeBones);
+			R_Z_Free(activeSurfaces);
+			R_Z_Free(activeBones);
 
 			return (qtrue);
 		}

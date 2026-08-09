@@ -171,7 +171,7 @@ void mikkt_bsp_face_SetTangent( const SMikkTSpaceContext *context, const float t
 
 void vk_mikkt_bsp_face_generate( srfSurfaceFace_t *cv )
 {
-	cv->qtangents = (float *)ri.Hunk_Alloc(cv->numPoints * sizeof(vec4_t), h_low);
+	cv->qtangents = (float *)R_Hunk_Alloc(cv->numPoints * sizeof(vec4_t), h_low);
 
 	SMikkTSpaceInterface info;
 	info.m_getNumFaces			= mikkt_bsp_face_GetNumFaces;

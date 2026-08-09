@@ -379,7 +379,7 @@ alignment of packAlign to ensure efficient copying.
 
 Stores the length of padding after a line of pixels to address padlen
 
-Return value must be freed with Hunk_FreeTempMemory()
+Return value must be freed with R_Hunk_FreeTempMemory()
 ==================
 */
 
@@ -394,8 +394,8 @@ byte *RB_ReadPixels( int x, int y, int width, int height, size_t *offset, int *p
 	bufAlign = MAX(packAlign, 16); // for SIMD
 
 	// Allocate a few more bytes so that we can choose an alignment we like
-	//buffer = ri.Hunk_AllocateTempMemory(padwidth * height + *offset + bufAlign - 1);
-	buffer = (byte*)Hunk_AllocateTempMemory(width * height * 4 + *offset + bufAlign - 1);
+	//buffer = R_Hunk_AllocateTempMemory(padwidth * height + *offset + bufAlign - 1);
+	buffer = (byte*)R_Hunk_AllocateTempMemory(width * height * 4 + *offset + bufAlign - 1);
 	bufstart = (byte*)PADP((intptr_t)buffer + *offset, bufAlign);
 
 	vk_read_pixels(bufstart, width, height);
@@ -463,7 +463,7 @@ void R_TakeScreenshot( int x, int y, int width, int height, char *fileName ) {
 
 	ri.FS_WriteFile(fileName, buffer, memcount + 18);
 
-	ri.Hunk_FreeTempMemory(allbuf);
+	R_Hunk_FreeTempMemory(allbuf);
 }
 
 /*
@@ -478,7 +478,7 @@ void R_TakeScreenshotPNG( int x, int y, int width, int height, char *fileName ) 
 
 	buffer = RB_ReadPixels( x, y, width, height, &offset, &padlen, 0);
 	RE_SavePNG( fileName, buffer, width, height, 3 );
-	ri.Hunk_FreeTempMemory( buffer );
+	R_Hunk_FreeTempMemory( buffer );
 }
 
 /*
@@ -499,7 +499,7 @@ void R_TakeScreenshotJPEG( int x, int y, int width, int height, char *fileName )
 		R_GammaCorrect(buffer + offset, memcount);
 
 	RE_SaveJPG(fileName, r_screenshotJpegQuality->integer, width, height, buffer + offset, padlen);
-	ri.Hunk_FreeTempMemory(buffer);
+	R_Hunk_FreeTempMemory(buffer);
 }
 
 /*
@@ -543,7 +543,7 @@ static void R_LevelShot( void ) {
 	allsource = RB_ReadPixels(0, 0, gls.captureWidth, gls.captureHeight, &offset, &padlen, 0);
 	source = allsource + offset;
 
-	buffer = (byte *)ri.Hunk_AllocateTempMemory(LEVELSHOTSIZE * LEVELSHOTSIZE*3 + 18);
+	buffer = (byte *)R_Hunk_AllocateTempMemory(LEVELSHOTSIZE * LEVELSHOTSIZE*3 + 18);
 	Com_Memset (buffer, 0, 18);
 	buffer[2] = 2;		// uncompressed type
 	buffer[12] = LEVELSHOTSIZE & 255;
@@ -580,8 +580,8 @@ static void R_LevelShot( void ) {
 
 	ri.FS_WriteFile( checkname, buffer, LEVELSHOTSIZE * LEVELSHOTSIZE*3 + 18 );
 
-	ri.Hunk_FreeTempMemory( buffer );
-	ri.Hunk_FreeTempMemory( allsource );
+	R_Hunk_FreeTempMemory( buffer );
+	R_Hunk_FreeTempMemory( allsource );
 
 	vk_debug("[skipnotify]Wrote %s\n", checkname );
 }
@@ -1121,7 +1121,7 @@ void R_Init( void ) {
 	max_polys = Q_min( r_maxpolys->integer, DEFAULT_MAX_POLYS );
 	max_polyverts = Q_min( r_maxpolyverts->integer, DEFAULT_MAX_POLYVERTS );
 
-	ptr = (byte *)Hunk_Alloc( 
+	ptr = (byte *)R_Hunk_Alloc( 
 		sizeof( *backEndData ) + 
 		sizeof(srfPoly_t) * max_polys + 
 		sizeof(polyVert_t) * max_polyverts +

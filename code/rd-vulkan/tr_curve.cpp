@@ -444,13 +444,13 @@ static srfGridMesh_t *R_CreateSurfaceGridMesh( int width, int height,
 	// copy the results out to a grid
 	size = (width * height - 1) * sizeof( srfVert_t ) + sizeof( *grid );
 
-	grid = (struct srfGridMesh_s *)/*Hunk_Alloc*/ Z_Malloc( size, TAG_GRIDMESH, qfalse );
+	grid = (struct srfGridMesh_s *)/*Hunk_Alloc*/ R_Z_Malloc( size, TAG_GRIDMESH, qfalse );
 	memset(grid, 0, size);
 
-	grid->widthLodError = (float *)/*Hunk_Alloc*/ Z_Malloc( width * 4, TAG_GRIDMESH, qfalse );
+	grid->widthLodError = (float *)/*Hunk_Alloc*/ R_Z_Malloc( width * 4, TAG_GRIDMESH, qfalse );
 	memcpy( grid->widthLodError, errorTable[0], width * 4 );
 
-	grid->heightLodError = (float *)/*Hunk_Alloc*/ Z_Malloc( height * 4, TAG_GRIDMESH, qfalse );
+	grid->heightLodError = (float *)/*Hunk_Alloc*/ R_Z_Malloc( height * 4, TAG_GRIDMESH, qfalse );
 	memcpy( grid->heightLodError, errorTable[1], height * 4 );
 
 	grid->width = width;
@@ -483,9 +483,9 @@ R_FreeSurfaceGridMesh
 =================
 */
 void R_FreeSurfaceGridMesh( srfGridMesh_t *grid ) {
-	Z_Free(grid->widthLodError);
-	Z_Free(grid->heightLodError);
-	Z_Free(grid);
+	R_Z_Free(grid->widthLodError);
+	R_Z_Free(grid->heightLodError);
+	R_Z_Free(grid);
 }
 
 /*

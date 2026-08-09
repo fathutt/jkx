@@ -81,7 +81,7 @@ qboolean CModelCacheManager::LoadFile( const char *pFileName, void **ppFileBuffe
 	if (!strcmp (sDEFAULT_GLA_NAME ".gla", path))
 	{
 		// return fake params as though it was found on disk...
-		void *pvFakeGLAFile = Z_Malloc(sizeof (FakeGLAFile), TAG_FILESYS, qfalse);
+		void *pvFakeGLAFile = R_Z_Malloc(sizeof (FakeGLAFile), TAG_FILESYS, qfalse);
 
 		memcpy(pvFakeGLAFile, &FakeGLAFile[0], sizeof (FakeGLAFile));
 		*ppFileBuffer = pvFakeGLAFile;
@@ -124,7 +124,7 @@ void* CModelCacheManager::Allocate( int iSize, void *pvDiskBuffer, const char *p
 		if( pvDiskBuffer )
 			Z_MorphMallocTag( pvDiskBuffer, eTag );
 		else
-			pvDiskBuffer = Z_Malloc(iSize, eTag, qfalse);
+			pvDiskBuffer = R_Z_Malloc(iSize, eTag, qfalse);
 
 		files.emplace_back();
 		pFile = &files.back();
@@ -159,7 +159,7 @@ void CModelCacheManager::DeleteAll( void )
 {
 	for ( auto& file : files )
 	{
-		Z_Free(file.pDiskImage);
+		R_Z_Free(file.pDiskImage);
 	}
 
 	FileCache().swap(files);
@@ -185,7 +185,7 @@ void CModelCacheManager::DumpNonPure( void )
 			ri.Printf( PRINT_DEVELOPER, "Dumping none pure model \"%s\"", it->path );
 
 			if( it->pDiskImage )
-				Z_Free( it->pDiskImage );
+				R_Z_Free( it->pDiskImage );
 
 			it = files.erase(it);
 		}
@@ -250,7 +250,7 @@ qboolean CModelCacheManager::LevelLoadEnd( qboolean deleteUnusedByLevel )
 			ri.Printf( PRINT_DEVELOPER, S_COLOR_GREEN "Dumping \"%s\"", it->path);
 			if( it->pDiskImage )
 			{
-				Z_Free( it->pDiskImage );
+				R_Z_Free( it->pDiskImage );
 				bAtLeastOneModelFreed = qtrue;	// FIXME: is this correct? shouldn't it be in the next lower scope?
 			}
 

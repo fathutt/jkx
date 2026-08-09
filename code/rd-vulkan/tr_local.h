@@ -81,6 +81,8 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 // After tr_types.h has been pulled in, because every entry tests what that
 // header did or did not define. Temporary; see the file for its lifetime.
 #include "tr_sp_compat.h"
+// After the shim, because it is guarded on what the shim decided.
+#include "tr_mem.h"
 // No ghoul2_shared.h include here. Multiplayer keeps it in codemp/ghoul2 and
 // includes it explicitly; single-player keeps it in code/game and q_shared.h
 // pulls it in itself, guarded by GHOUL2_SHARED_H_INC. Including it directly

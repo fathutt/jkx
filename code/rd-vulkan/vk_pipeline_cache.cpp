@@ -128,7 +128,7 @@ void vk_save_pipeline_cache(void)
         return;
     }
 
-    void* data = ri.Hunk_AllocateTempMemory(static_cast<int>(size));
+    void* data = R_Hunk_AllocateTempMemory(static_cast<int>(size));
     if (data == nullptr) {
         return;
     }
@@ -141,7 +141,7 @@ void vk_save_pipeline_cache(void)
         ri.Printf(PRINT_ALL, "Vulkan: saved pipeline cache (%u KiB)\n", static_cast<unsigned>(written / 1024));
     }
 
-    ri.Hunk_FreeTempMemory(data);
+    R_Hunk_FreeTempMemory(data);
 }
 
 void vk_destroy_pipeline_cache(void)

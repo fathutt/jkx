@@ -564,7 +564,7 @@ IBO_t *R_CreateIBO( const char *name, const byte *vbo_data, int vbo_size )
 	}
 	vk_release_model_ibo( tr.numIBOs );
 
-	ibo = tr.ibos[tr.numIBOs] = (IBO_t *)ri.Hunk_Alloc(sizeof(*ibo), h_low);
+	ibo = tr.ibos[tr.numIBOs] = (IBO_t *)R_Hunk_Alloc(sizeof(*ibo), h_low);
 
 	desc.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 	desc.pNext = NULL;
@@ -630,7 +630,7 @@ VBO_t *R_CreateVBO( const char *name, const byte *vbo_data, int vbo_size )
 
 	vk_release_model_vbo( tr.numVBOs );
 
-	vbo = tr.vbos[tr.numVBOs] = (VBO_t *)ri.Hunk_Alloc(sizeof(*vbo), h_low);
+	vbo = tr.vbos[tr.numVBOs] = (VBO_t *)R_Hunk_Alloc(sizeof(*vbo), h_low);
 
 	desc.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 	desc.pNext = NULL;
@@ -694,7 +694,7 @@ VBO_t *R_CreateDynamicVBO( const char *name, int size )
 	}
 
 	vk_release_model_vbo( tr.numVBOs );
-	vbo = tr.vbos[tr.numVBOs] = (VBO_t *)ri.Hunk_Alloc(sizeof(*vbo), h_low);
+	vbo = tr.vbos[tr.numVBOs] = (VBO_t *)R_Hunk_Alloc(sizeof(*vbo), h_low);
 
 	// Create device-local vertex buffer
 	Com_Memset(&desc, 0, sizeof(desc));
@@ -751,7 +751,7 @@ IBO_t *R_CreateDynamicIBO( const char *name, int size )
 
 	vk_release_model_ibo(tr.numIBOs);
 
-	ibo = tr.ibos[tr.numIBOs] = (IBO_t *)ri.Hunk_Alloc(sizeof(*ibo), h_low);
+	ibo = tr.ibos[tr.numIBOs] = (IBO_t *)R_Hunk_Alloc(sizeof(*ibo), h_low);
 
 	// --- Device-local buffer (for GPU use)
 	Com_Memset( &desc, 0, sizeof(desc) );
@@ -874,7 +874,7 @@ void R_BuildMDXM( model_t *mod, mdxmHeader_t *mdxm )
 	uint32_t			i, n, k, w;
 
 	lod = (mdxmLOD_t *)( (byte *)mdxm + mdxm->ofsLODs );
-	mod->data.glm->vboModels = (mdxmVBOModel_t *)ri.Hunk_Alloc( sizeof (mdxmVBOModel_t) * mdxm->numLODs, h_low );
+	mod->data.glm->vboModels = (mdxmVBOModel_t *)R_Hunk_Alloc( sizeof (mdxmVBOModel_t) * mdxm->numLODs, h_low );
 
 	for ( i = 0; i < mdxm->numLODs; i++ )
 	{
@@ -882,7 +882,7 @@ void R_BuildMDXM( model_t *mod, mdxmHeader_t *mdxm )
 		mdxmVBOMesh_t *vboMeshes;
 
 		vboModel->numVBOMeshes = mdxm->numSurfaces;
-		vboModel->vboMeshes = (mdxmVBOMesh_t *)ri.Hunk_Alloc( sizeof (mdxmVBOMesh_t) * (mdxm->numSurfaces ), h_low );
+		vboModel->vboMeshes = (mdxmVBOMesh_t *)R_Hunk_Alloc( sizeof (mdxmVBOMesh_t) * (mdxm->numSurfaces ), h_low );
 		vboMeshes = vboModel->vboMeshes;
 		
 		surf = (mdxmSurface_t *)( (byte *)lod + sizeof (mdxmLOD_t) + ( mdxm->numSurfaces * sizeof (mdxmLODSurfOffset_t) ) );		
@@ -897,8 +897,8 @@ void R_BuildMDXM( model_t *mod, mdxmHeader_t *mdxm )
 		int numTriangles = 0;
 
 		// +1 to add total vertex count
-		int *baseVertexes = (int *)ri.Hunk_AllocateTempMemory (sizeof (int) * (mdxm->numSurfaces + 1));
-		int *indexOffsets = (int *)ri.Hunk_AllocateTempMemory (sizeof (int) * mdxm->numSurfaces);
+		int *baseVertexes = (int *)R_Hunk_AllocateTempMemory(sizeof (int) * (mdxm->numSurfaces + 1));
+		int *indexOffsets = (int *)R_Hunk_AllocateTempMemory(sizeof (int) * mdxm->numSurfaces);
 
 
 		// Calculate the required size of the vertex buffer.
@@ -925,7 +925,7 @@ void R_BuildMDXM( model_t *mod, mdxmHeader_t *mdxm )
 		//dataSize = PAD(dataSize, 32);
 
 		// Allocate and write to memory
-		data = (byte *)ri.Hunk_AllocateTempMemory (dataSize);
+		data = (byte *)R_Hunk_AllocateTempMemory(dataSize);
 
 		ofsPosition = stride;
 		attr.verts = (vec4_t *)(data + ofsPosition);
@@ -952,16 +952,16 @@ void R_BuildMDXM( model_t *mod, mdxmHeader_t *mdxm )
 		stride += sizeof (*attr.tangents);
 
 		// Fill in the index buffer and compute tangents
-		uint32_t *indices = (uint32_t *)ri.Hunk_AllocateTempMemory(sizeof(uint32_t) * numTriangles * 3);
+		uint32_t *indices = (uint32_t *)R_Hunk_AllocateTempMemory(sizeof(uint32_t) * numTriangles * 3);
 		uint32_t *index = indices;
-		vec4_t *tangentsf = (vec4_t *)ri.Hunk_AllocateTempMemory(sizeof(vec4_t) * numVerts);
+		vec4_t *tangentsf = (vec4_t *)R_Hunk_AllocateTempMemory(sizeof(vec4_t) * numVerts);
 
 		surf = (mdxmSurface_t *)((byte *)lod + sizeof(mdxmLOD_t) + (mdxm->numSurfaces * sizeof(mdxmLODSurfOffset_t)));
 
 		for ( n = 0; n < mdxm->numSurfaces; n++ )
 		{
 			mdxmTriangle_t *t = (mdxmTriangle_t *)((byte *)surf + surf->ofsTriangles);
-			glIndex_t *surf_indices = (glIndex_t *)ri.Hunk_AllocateTempMemory(sizeof(glIndex_t) * surf->numTriangles * 3);
+			glIndex_t *surf_indices = (glIndex_t *)R_Hunk_AllocateTempMemory(sizeof(glIndex_t) * surf->numTriangles * 3);
 			glIndex_t *surf_index = surf_indices;
 
 			for ( k = 0; k < surf->numTriangles; k++, index += 3, surf_index += 3 )
@@ -991,7 +991,7 @@ void R_BuildMDXM( model_t *mod, mdxmHeader_t *mdxm )
 				surf_indices
 			);
 
-			ri.Hunk_FreeTempMemory( surf_indices );
+			R_Hunk_FreeTempMemory( surf_indices );
 
 			surf = (mdxmSurface_t *)((byte *)surf + surf->ofsEnd);
 		}
@@ -1078,9 +1078,9 @@ void R_BuildMDXM( model_t *mod, mdxmHeader_t *mdxm )
 		VBO_t *vbo = R_CreateVBO( modelName, data, dataSize );
 		IBO_t *ibo = R_CreateIBO( modelName, (byte *)indices, sizeof(uint32_t) * numTriangles * 3 );
 
-		ri.Hunk_FreeTempMemory ( data );
-		ri.Hunk_FreeTempMemory ( tangentsf );
-		ri.Hunk_FreeTempMemory ( indices );
+		R_Hunk_FreeTempMemory( data );
+		R_Hunk_FreeTempMemory( tangentsf );
+		R_Hunk_FreeTempMemory( indices );
 
 		vbo->offsets[0] = ofsPosition;
 		vbo->offsets[5] = ofsNormals;
@@ -1108,8 +1108,8 @@ void R_BuildMDXM( model_t *mod, mdxmHeader_t *mdxm )
 		vboModel->vbo = vbo;
 		vboModel->ibo = ibo;
 
-		ri.Hunk_FreeTempMemory ( indexOffsets );
-		ri.Hunk_FreeTempMemory ( baseVertexes );
+		R_Hunk_FreeTempMemory( indexOffsets );
+		R_Hunk_FreeTempMemory( baseVertexes );
 
 		// find the next LOD
 		lod = (mdxmLOD_t *)( (byte *)lod + lod->ofsEnd );
@@ -1132,7 +1132,7 @@ void R_BuildMD3( model_t *mod, mdvModel_t *mdvModel )
 	uint32_t		i, j, k;
 
 	mdvModel->numVBOSurfaces = mdvModel->numSurfaces;
-	mdvModel->vboSurfaces = (srfVBOMDVMesh_t *)ri.Hunk_Alloc(sizeof(*mdvModel->vboSurfaces) * mdvModel->numSurfaces, h_low);
+	mdvModel->vboSurfaces = (srfVBOMDVMesh_t *)R_Hunk_Alloc(sizeof(*mdvModel->vboSurfaces) * mdvModel->numSurfaces, h_low);
 
 	if ( !mdvModel->numSurfaces )
 		return;
@@ -1150,8 +1150,8 @@ void R_BuildMD3( model_t *mod, mdvModel_t *mdvModel )
 	int numIndexes = 0;
 
 	// +1 to add total vertex count
-	int *baseVertexes = (int *)ri.Hunk_AllocateTempMemory(sizeof(int) * (mdvModel->numSurfaces + 1));
-	int *indexOffsets = (int *)ri.Hunk_AllocateTempMemory(sizeof(int) * mdvModel->numSurfaces);
+	int *baseVertexes = (int *)R_Hunk_AllocateTempMemory(sizeof(int) * (mdvModel->numSurfaces + 1));
+	int *indexOffsets = (int *)R_Hunk_AllocateTempMemory(sizeof(int) * mdvModel->numSurfaces);
 
 	// Calculate the required size of the vertex buffer.
 	for (int n = 0; n < mdvModel->numSurfaces; n++, surf++)
@@ -1170,7 +1170,7 @@ void R_BuildMD3( model_t *mod, mdvModel_t *mdvModel )
 	dataSize += numVerts * sizeof(*attr.tangents);
 
 	// Allocate and write to memory
-	data = (byte *)ri.Hunk_AllocateTempMemory(dataSize);
+	data = (byte *)R_Hunk_AllocateTempMemory(dataSize);
 
 	ofsPosition = stride;
 	attr.verts = (vec4_t *)(data + ofsPosition);
@@ -1189,13 +1189,13 @@ void R_BuildMD3( model_t *mod, mdvModel_t *mdvModel )
 	stride += sizeof(*attr.tangents);
 
 	// Fill in the index buffer and compute tangents
-	glIndex_t *indices = (glIndex_t *)ri.Hunk_AllocateTempMemory(sizeof(glIndex_t) * numIndexes);
+	glIndex_t *indices = (glIndex_t *)R_Hunk_AllocateTempMemory(sizeof(glIndex_t) * numIndexes);
 	glIndex_t *index = indices;
 
 	surf = mdvModel->surfaces;
 	for (i = 0; i < mdvModel->numSurfaces; i++, surf++)
 	{
-		vec4_t *tangentsf = (vec4_t *)ri.Hunk_AllocateTempMemory(sizeof(vec4_t) * surf->numVerts);
+		vec4_t *tangentsf = (vec4_t *)R_Hunk_AllocateTempMemory(sizeof(vec4_t) * surf->numVerts);
 
 		vk_mikkt_mdv_generate(
 			surf->numIndexes / 3,
@@ -1226,7 +1226,7 @@ void R_BuildMD3( model_t *mod, mdvModel_t *mdvModel )
 			attr.normals = (vec4_t *)((byte *)attr.normals + stride);
 			attr.tangents = (vec4_t *)((byte *)attr.tangents + stride);
 		}
-		ri.Hunk_FreeTempMemory(tangentsf);
+		R_Hunk_FreeTempMemory(tangentsf);
 
 		st = surf->st;
 		for ( j = 0; j < surf->numVerts; j++, st++ ) 
@@ -1243,8 +1243,8 @@ void R_BuildMD3( model_t *mod, mdvModel_t *mdvModel )
 	VBO_t *vbo = R_CreateVBO( mod->name, data, dataSize );
 	IBO_t *ibo = R_CreateIBO( mod->name, (byte *)indices, sizeof(glIndex_t) * numIndexes );
 
-	ri.Hunk_FreeTempMemory(data);
-	ri.Hunk_FreeTempMemory(indices);
+	R_Hunk_FreeTempMemory(data);
+	R_Hunk_FreeTempMemory(indices);
 
 	vbo->offsets[0] = ofsPosition;
 	vbo->offsets[5] = ofsNormals;
@@ -1267,8 +1267,8 @@ void R_BuildMD3( model_t *mod, mdvModel_t *mdvModel )
 		vboSurf->numIndexes = surf->numIndexes;
 	}
 
-	ri.Hunk_FreeTempMemory(indexOffsets);
-	ri.Hunk_FreeTempMemory(baseVertexes);
+	R_Hunk_FreeTempMemory(indexOffsets);
+	R_Hunk_FreeTempMemory(baseVertexes);
 }
 
 #ifdef _G2_GORE
@@ -1298,7 +1298,7 @@ void R_CreateGoreVBO( void )
 	dataSize += sizeof (*attr.bonerefs) * 4;
 	dataSize += sizeof (*attr.tangents);
 
-	data = (byte *)ri.Hunk_AllocateTempMemory (dataSize);
+	data = (byte *)R_Hunk_AllocateTempMemory(dataSize);
 
 	ofsPosition = stride;
 	attr.verts = (vec4_t *)(data + ofsPosition);
@@ -1324,7 +1324,7 @@ void R_CreateGoreVBO( void )
 	attr.tangents = (vec4_t *)(data + ofsTangents);
 	stride += sizeof (*attr.tangents);
 
-	ri.Hunk_FreeTempMemory ( data );
+	R_Hunk_FreeTempMemory( data );
 
 	tr.goreVBO->offsets[0] = ofsPosition;
 	tr.goreVBO->offsets[5] = ofsNormals;
@@ -1485,11 +1485,11 @@ void R_BuildWorldVBO(msurface_t *surf, int surfCount)
 	ibo_size = PAD(ibo_size, 32);
 
 	// 0 item is unused
-	vbo->items = (vbo_item_t*)ri.Hunk_Alloc((numStaticSurfaces + 1) * sizeof(vbo_item_t), h_low);
+	vbo->items = (vbo_item_t*)R_Hunk_Alloc((numStaticSurfaces + 1) * sizeof(vbo_item_t), h_low);
 	vbo->items_count = numStaticSurfaces;
 
 	// last item will be used for run length termination
-	vbo->items_queue = (int*)ri.Hunk_Alloc((numStaticSurfaces + 1) * sizeof(int), h_low);
+	vbo->items_queue = (int*)R_Hunk_Alloc((numStaticSurfaces + 1) * sizeof(int), h_low);
 	vbo->items_queue_count = 0;
 
 	ri.Printf(PRINT_ALL, "...found %i VBO surfaces (%i vertexes, %i indexes)\n",
@@ -1500,20 +1500,20 @@ void R_BuildWorldVBO(msurface_t *surf, int surfCount)
 
 	// vertex buffer
 	vbo_size += ibo_size;
-	vbo->vbo_buffer = (byte*)ri.Hunk_AllocateTempMemory(vbo_size);
+	vbo->vbo_buffer = (byte*)R_Hunk_AllocateTempMemory(vbo_size);
 	vbo->vbo_offset = 0;
 	vbo->vbo_size = vbo_size;
 
 	// index buffer
-	vbo->ibo_buffer = (byte*)ri.Hunk_Alloc(ibo_size, h_low);
+	vbo->ibo_buffer = (byte*)R_Hunk_Alloc(ibo_size, h_low);
 	vbo->ibo_offset = 0;
 	vbo->ibo_size = ibo_size;
 
 	// ibo runs buffer
-	vbo->ibo_items = (ibo_item_t*)ri.Hunk_Alloc(((numStaticIndexes / MIN_IBO_RUN) + 1) * sizeof(ibo_item_t), h_low);
+	vbo->ibo_items = (ibo_item_t*)R_Hunk_Alloc(((numStaticIndexes / MIN_IBO_RUN) + 1) * sizeof(ibo_item_t), h_low);
 	vbo->ibo_items_count = 0;
 
-	surfList = (msurface_t**)ri.Hunk_AllocateTempMemory(numStaticSurfaces * sizeof(msurface_t*));
+	surfList = (msurface_t**)R_Hunk_AllocateTempMemory(numStaticSurfaces * sizeof(msurface_t*));
 
 	for (i = 0, n = 0, sf = surf; i < surfCount; i++, sf++) {
 		face = (srfSurfaceFace_t *)sf->data;
@@ -1594,7 +1594,7 @@ void R_BuildWorldVBO(msurface_t *surf, int surfCount)
 		tess.numVertexes = 0;
 	}
 
-	ri.Hunk_FreeTempMemory(surfList);
+	R_Hunk_FreeTempMemory(surfList);
 
 	//__fail:
 	vk_alloc_vbo( "world", vbo->vbo_buffer, vbo->vbo_size );
@@ -1625,7 +1625,7 @@ void R_BuildWorldVBO(msurface_t *surf, int surfCount)
 #endif
 
 	// release host memory
-	ri.Hunk_FreeTempMemory(vbo->vbo_buffer);
+	R_Hunk_FreeTempMemory(vbo->vbo_buffer);
 	vbo->vbo_buffer = NULL;
 
 	// release GPU resources
@@ -1775,7 +1775,7 @@ void VBO_GetDeviceBuffer( DrawItem& item )
 	uint32_t i;
 
 	item.draw.params.indexed.world.ibo_items_count = vbo->ibo_items_count;
-	item.draw.params.indexed.world.ibo_items =  (VkMultiDrawIndexedInfoEXT *)ri.Hunk_Alloc( vbo->ibo_items_count * sizeof(*item.draw.params.indexed.world.ibo_items), h_low );
+	item.draw.params.indexed.world.ibo_items =  (VkMultiDrawIndexedInfoEXT *)R_Hunk_Alloc( vbo->ibo_items_count * sizeof(*item.draw.params.indexed.world.ibo_items), h_low );
 
 	for ( i = 0; i < vbo->ibo_items_count; i++ ) 
 	{

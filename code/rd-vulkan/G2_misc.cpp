@@ -997,22 +997,22 @@ void G2_GorePolys( const mdxmSurface_t *surface, CTraceSurface &TS, const mdxmSu
 	R2GoreTextureCoordinates *gore=FindR2GoreRecord(newTag);
 	if (gore)
 	{
-		srfG2GoreSurface_t *goreSurface=(srfG2GoreSurface_t *)Z_Malloc ( sizeof(srfG2GoreSurface_t), TAG_GHOUL2_GORE, qtrue );
+		srfG2GoreSurface_t *goreSurface=(srfG2GoreSurface_t *)R_Z_Malloc( sizeof(srfG2GoreSurface_t), TAG_GHOUL2_GORE, qtrue );
 
 		if ( gore->tex[TS.lod] )
 		{
 			if ( gore->tex[TS.lod]->verts )
-				Z_Free( gore->tex[TS.lod]->verts );
+				R_Z_Free( gore->tex[TS.lod]->verts );
 
 			if ( gore->tex[TS.lod]->indexes )
-				Z_Free( gore->tex[TS.lod]->indexes );
+				R_Z_Free( gore->tex[TS.lod]->indexes );
 
-			Z_Free(gore->tex[TS.lod]);
+			R_Z_Free(gore->tex[TS.lod]);
 		}
 
 		gore->tex[TS.lod]=(srfG2GoreSurface_t *)goreSurface;
 		goreSurface->numVerts = newNumVerts;
-		goreSurface->verts = (g2GoreVert_t *)Z_Malloc(sizeof(g2GoreVert_t)*newNumVerts, TAG_GHOUL2_GORE, qtrue);
+		goreSurface->verts = (g2GoreVert_t *)R_Z_Malloc(sizeof(g2GoreVert_t)*newNumVerts, TAG_GHOUL2_GORE, qtrue);
 
 		for (j=0;j<newNumVerts;j++)
 		{
@@ -1039,7 +1039,7 @@ void G2_GorePolys( const mdxmSurface_t *surface, CTraceSurface &TS, const mdxmSu
 			}
 		}
 
-		goreSurface->indexes = (glIndex_t *)Z_Malloc(sizeof(glIndex_t)*newNumTris*3, TAG_GHOUL2_GORE, qtrue);
+		goreSurface->indexes = (glIndex_t *)R_Z_Malloc(sizeof(glIndex_t)*newNumTris*3, TAG_GHOUL2_GORE, qtrue);
 		for (j = 0; j < newNumTris * 3; j++)
 		{
 			goreSurface->indexes[j] = GoreIndecies[j] + tr.goreVBOCurrentIndex;
@@ -1705,7 +1705,7 @@ qboolean G2_SaveGhoul2Models(CGhoul2Info_v &ghoul2, char **buffer, int *size)
 	// is there anything to save?
 	if (!ghoul2.size())
 	{
-		*buffer = (char *)Z_Malloc(4, TAG_GHOUL2, qtrue);
+		*buffer = (char *)R_Z_Malloc(4, TAG_GHOUL2, qtrue);
 		int *tempBuffer = (int *)*buffer;
 		*tempBuffer = 0;
 		*size = 4;
@@ -1737,7 +1737,7 @@ qboolean G2_SaveGhoul2Models(CGhoul2Info_v &ghoul2, char **buffer, int *size)
 	}
 
 	// ok, we should know how much space we need now
-	*buffer = (char*)Z_Malloc(*size, TAG_GHOUL2, qtrue);
+	*buffer = (char*)R_Z_Malloc(*size, TAG_GHOUL2, qtrue);
 
 	// now lets start putting the data we care about into the buffer
 	char *tempBuffer = *buffer;
@@ -1793,7 +1793,7 @@ qboolean G2_SaveGhoul2Models(CGhoul2Info_v &ghoul2, char **buffer, int *size)
 // have to free space malloced in the save system here because the game DLL can't.
 void G2_FreeSaveBuffer(char *buffer)
 {
-	Z_Free(buffer);
+	R_Z_Free(buffer);
 }
 
 qboolean G2_SetupModelPointers(CGhoul2Info *ghlInfo);

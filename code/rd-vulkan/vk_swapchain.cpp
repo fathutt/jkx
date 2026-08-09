@@ -119,7 +119,7 @@ void vk_create_swapchain( VkPhysicalDevice physical_device, VkDevice device,
     VK_CHECK( vkGetPhysicalDeviceSurfacePresentModesKHR( physical_device, surface, &present_mode_count, NULL ) );
 
     present_modes = (VkPresentModeKHR*)malloc( present_mode_count * sizeof( VkPresentModeKHR ) );
-    //present_modes = (VkPresentModeKHR*)ri.Z_Malloc(present_mode_count * sizeof(VkPresentModeKHR));
+    //present_modes = (VkPresentModeKHR*)R_Z_Malloc(present_mode_count * sizeof(VkPresentModeKHR));
     VK_CHECK( vkGetPhysicalDeviceSurfacePresentModesKHR( physical_device, surface, &present_mode_count, present_modes ) );
 
     ri.Printf( PRINT_ALL, "----- Presentation modes -----\n" );

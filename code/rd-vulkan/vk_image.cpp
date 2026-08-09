@@ -25,23 +25,23 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 static void* R_LocalMalloc(size_t size)
 {
-	return ri.Hunk_AllocateTempMemory(size);
+	return R_Hunk_AllocateTempMemory(size);
 }
 
 static void* R_LocalReallocSized(void* ptr, size_t old_size, size_t new_size)
 {
-	void* mem = ri.Hunk_AllocateTempMemory(new_size);
+	void* mem = R_Hunk_AllocateTempMemory(new_size);
 	if (ptr)
 	{
 		memcpy(mem, ptr, old_size);
-		ri.Hunk_FreeTempMemory(ptr);
+		R_Hunk_FreeTempMemory(ptr);
 	}
 	return mem;
 }
 static void R_LocalFree(void* ptr)
 {
 	if (ptr)
-		ri.Hunk_FreeTempMemory(ptr);
+		R_Hunk_FreeTempMemory(ptr);
 }
 
 #define STBI_MALLOC R_LocalMalloc
@@ -125,9 +125,9 @@ static byte* R_ImageScratchAlloc( imageScratchBuffer_t *scratch, size_t size )
 		);
 
 		if ( scratch->buffer )
-			ri.Z_Free(scratch->buffer);
+			R_Z_Free(scratch->buffer);
 
-		scratch->buffer = (byte*)Z_Malloc( size, TAG_TEMP_IMAGE );
+		scratch->buffer = (byte*)R_Z_Malloc( size, TAG_TEMP_IMAGE );
 		scratch->size = size;
 	}
 
@@ -142,7 +142,7 @@ void R_InitImageScratch(void)
 static void R_FreeScratch( imageScratchBuffer_t* scratch )
 {
 	if ( scratch->buffer )
-		Z_Free(scratch->buffer);
+		R_Z_Free(scratch->buffer);
 
 	scratch->buffer = NULL;
 	scratch->size = 0;
@@ -164,7 +164,7 @@ void R_InitImagesPool( void )
     tr.images.capacity = IMAGE_POOL_INITIAL_CAPACITY;
     tr.images.count = 0;
 
-    tr.images.items = (image_t**)Z_Malloc( sizeof(image_t*) * tr.images.capacity, TAG_IMAGE_T);
+    tr.images.items = (image_t**)R_Z_Malloc( sizeof(image_t*) * tr.images.capacity, TAG_IMAGE_T);
 }
 
 static void R_DestroyImagesPool( void )
@@ -172,10 +172,10 @@ static void R_DestroyImagesPool( void )
 	uint32_t i;
 
 	for ( i = 0; i < tr.images.count; i++ ) {
-		ri.Z_Free( tr.images.items[i] );
+		R_Z_Free( tr.images.items[i] );
 	}
 
-	ri.Z_Free( tr.images.items );
+	R_Z_Free( tr.images.items );
 
 	tr.images.items = NULL;
 	tr.images.count = 0;
@@ -190,12 +190,12 @@ static void R_AddImageToPool(image_t *image)
 
 		ri.Printf( PRINT_ALL, S_COLOR_YELLOW "Resizing image pool from %u to %u entries\n", tr.images.capacity, new_capacity );
 
-        image_t **new_items = (image_t**)Z_Malloc(sizeof(image_t*) * new_capacity, TAG_IMAGE_T);
+        image_t **new_items = (image_t**)R_Z_Malloc(sizeof(image_t*) * new_capacity, TAG_IMAGE_T);
 		Com_Memset(new_items, 0, sizeof(*new_items) * new_capacity);
 
         Com_Memcpy( new_items, tr.images.items, sizeof(image_t*) * tr.images.count );
 
-        ri.Z_Free(tr.images.items);
+        R_Z_Free(tr.images.items);
 
         tr.images.items = new_items;
         tr.images.capacity = new_capacity;
@@ -700,7 +700,7 @@ void vk_upload_image( image_t *image, byte *pic ) {
 	vk_create_image( image, w, h, upload_data.mip_levels );
 	vk_upload_image_data( image, 0, 0, w, h, upload_data.mip_levels, upload_data.buffer, upload_data.buffer_size, qfalse );
 
-	//ri.Hunk_FreeTempMemory( upload_data.buffer );
+	//R_Hunk_FreeTempMemory( upload_data.buffer );
 	//upload_data.buffer = NULL;
 }
 
@@ -1281,7 +1281,7 @@ void vk_upload_image_data( image_t *image, int x, int y, int width,
 
 	// this is not ok?
 	if ( buf != pixels ) {
-		//ri.Hunk_FreeTempMemory( buf );
+		//R_Hunk_FreeTempMemory( buf );
 	}
 }
 
@@ -1498,9 +1498,9 @@ image_t *R_CreateImage( const char *name, byte *pic, int width, int height, imgF
 	}
 #endif
 
-    //image = (image_t*)Z_Malloc(sizeof(*image) + namelen + namelen2, TAG_IMAGE_T, qtrue);
-    //image = (image_t*)ri.Hunk_Alloc(sizeof(*image) + namelen, h_low);
-	image = (image_t*)Z_Malloc(sizeof(*image) + namelen, TAG_IMAGE_T);
+    //image = (image_t*)R_Z_Malloc(sizeof(*image) + namelen + namelen2, TAG_IMAGE_T, qtrue);
+    //image = (image_t*)R_Hunk_Alloc(sizeof(*image) + namelen, h_low);
+	image = (image_t*)R_Z_Malloc(sizeof(*image) + namelen, TAG_IMAGE_T);
 	Com_Memset(image, 0, sizeof(*image) + namelen);
 
     image->imgName = (char*)(image + 1);
@@ -1618,7 +1618,7 @@ image_t *R_FindImageFile( const char *name, imgFlags_t flags, uint32_t type ){
 		}
 
         image = R_CreateImage(name, pic, width, height, flags, 0, type);
-        ri.Z_Free(pic);
+        R_Z_Free(pic);
         return image;
 }
 
@@ -1646,7 +1646,7 @@ image_t *R_BuildSDRSpecGlossImage(shaderStage_t *stage, const char *specImageNam
 	if (specPic == NULL)
 		return NULL;
 
-	byte *sdrSpecPic = (byte *)ri.Hunk_AllocateTempMemory(sizeof(unsigned) * specWidth * specHeight);
+	byte *sdrSpecPic = (byte *)R_Hunk_AllocateTempMemory(sizeof(unsigned) * specWidth * specHeight);
 	vec3_t currentColor;
 	for ( int i = 0; i < specWidth * specHeight * 4; i += 4 )
 	{
@@ -1663,7 +1663,7 @@ image_t *R_BuildSDRSpecGlossImage(shaderStage_t *stage, const char *specImageNam
 		sdrSpecPic[i + 2] = FloatToByte(currentColor[2] * ratio);
 		sdrSpecPic[i + 3] = specPic[i + 3];
 	}
-	ri.Hunk_FreeTempMemory( specPic );
+	R_Hunk_FreeTempMemory( specPic );
 
 	return R_CreateImage( sdrName, sdrSpecPic, specWidth, specHeight, flags, 0, stage->physicalMapType );
 }
@@ -1752,7 +1752,7 @@ qboolean vk_create_phyisical_texture( shaderStage_t *stage, const char *name, im
 	else
 		stage->physicalMap = R_CreateImage( packedName, packedPic, packedWidth, packedHeight, flags, 0, stage->physicalMapType );
 
-	Z_Free( packedPic );
+	R_Z_Free( packedPic );
 
 	stage->vk_pbr_flags |= PBR_HAS_PHYSICALMAP;
 	return qtrue;
@@ -1924,7 +1924,7 @@ static void R_CreateDlightImage( void )
     if (pic)
     {
         tr.dlightImage = R_CreateImage("*dlight", pic, width, height, IMGFLAG_CLAMPTOEDGE, 0, 0);
-        Z_Free(pic);
+        R_Z_Free(pic);
     }
     else
     {	// if we dont get a successful load
@@ -1964,7 +1964,7 @@ static void R_CreateFogImage( void )
 
 	vk_debug("%s \n", __func__);
 
-    data = (unsigned char*)Hunk_AllocateTempMemory(FOG_S * FOG_T * 4);
+    data = (unsigned char*)R_Hunk_AllocateTempMemory(FOG_S * FOG_T * 4);
 
     // S is distance, T is depth
     for (x = 0; x < FOG_S; x++) {
@@ -1979,7 +1979,7 @@ static void R_CreateFogImage( void )
     }
 
     tr.fogImage = R_CreateImage("*fog", data, FOG_S, FOG_T, IMGFLAG_CLAMPTOEDGE, 0, 0);
-    ri.Hunk_FreeTempMemory(data);
+    R_Hunk_FreeTempMemory(data);
 }
 
 /*
