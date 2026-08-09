@@ -130,6 +130,15 @@ target_compile_definitions(${MPVulkanRenderer} PRIVATE VK_NO_PROTOTYPES)
 string(REPLACE "-std=c++11" "-std=c++20" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}" PARENT_SCOPE)
 target_compile_features(${MPVulkanRenderer} PRIVATE cxx_std_20)
+if(MSVC)
+    # /std:c++20 turns on /permissive- by default, and the fork's own qcommon
+    # sources are 2003-era C compiled as C++: string literals passed to char *
+    # parameters, returned from char * functions. Those files are not ours and
+    # will not exist here after phase 2, so the harness relaxes conformance
+    # rather than carrying a patch against the upstream we do not merge into.
+    # The single-player tree keeps /permissive- and has been made to satisfy it.
+    target_compile_options(${MPVulkanRenderer} PRIVATE /permissive /Zc:strictStrings-)
+endif()
 # ---------------------------------------------------------------------------
 EOF
     echo "patched harness CMakeLists"
