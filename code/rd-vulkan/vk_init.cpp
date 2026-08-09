@@ -393,6 +393,9 @@ void vk_initialize( void )
 	VkPhysicalDeviceProperties props;
 	uint32_t i;
 
+	// First, so a fault anywhere below is reported rather than guessed at.
+	vk_install_crash_handler();
+
 	vk_init_library();
 
 	vkGetDeviceQueue( vk.device, vk.queue_family_index, 0, &vk.queue );

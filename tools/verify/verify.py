@@ -166,6 +166,7 @@ PATTERNS = {
     "engine_build": re.compile(r"(\w+: [A-Z][a-z]{2}\s+\d{1,2} \d{4} \S+)"),
     "jkx_marker": re.compile(r"JKX: "),
     "trace_build": re.compile(r"JKX: trace build"),
+    "crash_handler": re.compile(r"JKX: crash reports go to"),
     # A portable build ignores fs_homepath entirely and writes next to itself,
     # so forcing a homepath does nothing and the run does touch the game folder.
     "portable": re.compile(r"fs_portable enabled"),
@@ -786,6 +787,11 @@ def run_scenario(binary: Path, game_dir: Path, cfg_dir: Path, home: Path, name: 
     for stale in find_all([home, game_dir], "qconsole.log"):
         stale.unlink()
 
+    # The crash file is opened in append mode by design, so a report from an
+    # earlier scenario would otherwise be read as belonging to this one.
+    for stale in find_all([home, game_dir], "jkx_crash.txt"):
+        stale.unlink()
+
     # fs_homepath is forced so the dumps, the pipeline cache and the configs this
     # run writes all land somewhere known and disposable. Without it the engine
     # picks a per-platform directory under a mod name that depends on the build,
@@ -825,6 +831,13 @@ def run_scenario(binary: Path, game_dir: Path, cfg_dir: Path, home: Path, name: 
     for trace in find_all([home, game_dir], "vk_log.log"):
         shutil.copy2(trace, home / f"jkx_{name}{tag}_vk.log")
         trace.unlink()
+
+    # The stack the renderer's fault handler wrote. This is the one artefact
+    # that answers "where" without another run, so it is kept unconditionally
+    # and quoted in the report rather than merely filed.
+    for report in find_all([home, game_dir], "jkx_crash.txt"):
+        shutil.copy2(report, home / f"jkx_{name}{tag}_crash.txt")
+        report.unlink()
 
     return (time.perf_counter() - start, code)
 
@@ -866,10 +879,40 @@ def fmt(seconds: float | None) -> str:
     return "-" if seconds is None else f"{seconds:.1f} s"
 
 
+def crash_section(crashes: list[Path]) -> list[str]:
+    """Quote the fault handler's stacks straight into the report.
+
+    A crash report that lives only in dumps/ gets read once someone thinks to
+    look; the whole point of this file is that the top frame is the answer, so
+    it belongs where the answer is expected.
+    """
+    if not crashes:
+        return []
+
+    lines = ["## Crash stack", ""]
+    for path in crashes:
+        text = path.read_text(encoding="utf-8", errors="replace").strip()
+        if not text:
+            continue
+        lines += [f"From `{path.name}`:", "", "```", text, "```", ""]
+
+    if len(lines) == 2:
+        return []
+
+    lines += [
+        "Frames are printed as address, module+offset, then symbol and source line",
+        "where the PDB shipped next to the binary resolves them. The first frame",
+        "below the handler is where the fault happened.",
+        "",
+    ]
+    return lines
+
+
 def write_report(path: Path, results: dict, info: dict, args, stages: dict | None = None,
-                 triage: list | None = None) -> None:
+                 triage: list | None = None, crashes: list[Path] | None = None) -> None:
     stages = stages or {}
     triage = triage or []
+    crashes = crashes or []
     startup = results.get("startup", {}).get("median")
     restart = results.get("vid_restart", {}).get("median")
     mapload = results.get("map", {}).get("median")
@@ -904,6 +947,11 @@ def write_report(path: Path, results: dict, info: dict, args, stages: dict | Non
             lines.append(f"- {label}: `{entry}`")
     if info.get("jkx_marker"):
         lines.append("- **this is a JKX build**: the renderer identified itself.")
+    if info.get("crash_handler"):
+        lines.append("- fault handler: installed. A crash writes a symbolised stack.")
+    elif info.get("jkx_marker"):
+        lines.append("- fault handler: absent. This package predates it, so a crash leaves")
+        lines.append("  nothing but an exit code.")
     if info.get("trace_build"):
         lines.append("- diagnostics: on. vk_log.log is in dumps/ next to this report.")
     elif info.get("jkx_marker"):
@@ -986,6 +1034,13 @@ def write_report(path: Path, results: dict, info: dict, args, stages: dict | Non
             lines.append("the operating system, with no error dialog and no crash log, because")
             lines.append("nothing in the engine gets to run after that.")
             lines.append("")
+            if not crashes:
+                lines.append("No jkx_crash.txt was written. Either this package predates the fault")
+                lines.append("handler, or the process died before the renderer installed it - that")
+                lines.append("is, before `----- R_Init -----` appears in the log.")
+                lines.append("")
+
+    lines += crash_section(crashes)
 
     if triage:
         lines += ["## Crash triage", "",
@@ -1280,19 +1335,23 @@ def main(argv: list[str]) -> int:
         print("device, lighting path and validation sections will be empty.")
     info = parse_console(console)
 
+    crashes = sorted(home.glob("jkx_*_crash.txt"))
+
     out = Path(args.out) if args.out else Path(__file__).resolve().parent / "verification-report.md"
-    write_report(out, results, info, args, stages, triage)
+    write_report(out, results, info, args, stages, triage, crashes)
 
     evidence = out.parent / "dumps"
     evidence.mkdir(exist_ok=True)
     for path in evidence_files + sorted(home.glob("jkx_*_stdout.txt")) \
-            + sorted(home.glob("jkx_*_vk.log")):
+            + sorted(home.glob("jkx_*_vk.log")) + crashes:
         if path and path.is_file():
             shutil.copy2(path, evidence / path.name)
 
     print()
     print(f"report: {out}")
     print(f"dumps : {evidence}")
+    if crashes:
+        print(f"NOTE: {len(crashes)} crash stack(s) captured; they are quoted in the report.")
     if console.strip() and not info.get("vendor"):
         print("NOTE: rd-vulkan did not run - the engine fell back to OpenGL. See the report.")
     elif info.get("vendor") and not info.get("jkx_marker"):

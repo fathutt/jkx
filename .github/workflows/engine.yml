@@ -189,8 +189,22 @@ jobs:
               mv "$lib" "$(echo "$lib" | sed 's/rd-vulkan_/rd-jkx_/')"
           done
 
+          # Symbols travel with the binary. The renderer installs a fault
+          # handler that walks the stack and resolves it through dbghelp, which
+          # finds a PDB by looking next to the module - so the PDB has to be
+          # renamed alongside the DLL. Without this a crash report is a column
+          # of addresses and someone has to symbolise them by hand.
+          if [ "${RUNNER_OS:-}" = "Windows" ]; then
+              while IFS= read -r pdb; do
+                  base=$(basename "$pdb")
+                  case "$base" in vc[0-9]*.pdb) continue ;; esac
+                  cp "$pdb" "$tree/$(echo "$base" | sed 's/^rd-vulkan_/rd-jkx_/')"
+              done < <(find build -name '*.pdb')
+          fi
+
           git -C jkx rev-parse HEAD > "$tree/jkx-build.txt"
           date -u +"%Y-%m-%dT%H:%M:%SZ" >> "$tree/jkx-build.txt"
+          echo "package: ${{ matrix.name }}" >> "$tree/jkx-build.txt"
 
           echo "packaged:"
           find "$tree" -maxdepth 2 -type f | sort

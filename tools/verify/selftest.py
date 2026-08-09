@@ -410,11 +410,81 @@ def test_crash_reporting() -> None:
     check("| OpenGL renderer | clean |" in text, "triage results are tabulated")
     check("**OpenGL renderer**" in text, "the variant that avoided the crash is highlighted")
 
+    check("No jkx_crash.txt was written" in text,
+          "a crash with no stack says why there is no stack")
+
     out = tmp / "clean.md"
     verify.write_report(out, {"map": {"samples": [8.0], "median": 8.0, "exit_codes": [0]}},
                         {}, Args(), {}, [])
     check("did not exit cleanly" not in out.read_text(encoding="utf-8"),
           "a clean run says nothing about crashes")
+
+
+def test_crash_stack() -> None:
+    """The fault handler's output has to reach the report, not just dumps/."""
+    tmp = Path(tempfile.mkdtemp())
+
+    class Args:
+        binary = "jkx_ja.x86_64.exe"
+        resolved_game = "/games/GameData"
+        map = "mp/ffa3"
+        runs = 1
+
+    stack = tmp / "jkx_map_crash.txt"
+    stack.write_text(
+        "\n=== JKX crash report (unhandled) ===\n"
+        "exception: 0xc0000005 ACCESS_VIOLATION\n"
+        "address:   0x00007ffb0000abcd\n"
+        "operation: read of 0x0000000000000000\n"
+        "stack:\n"
+        "   0  0x00007ffb0000abcd  rd-jkx_x86_64+0x1abcd  vk_create_image+0x4d"
+        "  (vk_image.cpp:812)\n"
+        "=== end of report ===\n", encoding="utf-8")
+
+    out = tmp / "stack.md"
+    verify.write_report(out, {"map": {"samples": [1.0], "median": 1.0,
+                                      "exit_codes": [3221225477]}},
+                        {}, Args(), {}, [], [stack])
+    text = out.read_text(encoding="utf-8")
+    check("## Crash stack" in text, "a captured stack gets its own section")
+    check("vk_create_image+0x4d" in text, "the symbolised frame is quoted verbatim")
+    check("jkx_map_crash.txt" in text, "the report names the file the stack came from")
+    check("No jkx_crash.txt was written" not in text,
+          "the missing-stack note is suppressed when a stack is present")
+
+    empty = tmp / "jkx_startup_crash.txt"
+    empty.write_text("   \n", encoding="utf-8")
+    out = tmp / "empty.md"
+    verify.write_report(out, {"map": {"samples": [1.0], "median": 1.0, "exit_codes": [0]}},
+                        {}, Args(), {}, [], [empty])
+    check("## Crash stack" not in out.read_text(encoding="utf-8"),
+          "an empty crash file does not produce an empty section")
+
+
+def test_fault_handler_reported() -> None:
+    """Whether the package can report a crash is part of build identity."""
+    tmp = Path(tempfile.mkdtemp())
+
+    class Args:
+        binary = "jkx_ja.x86_64.exe"
+        resolved_game = "/games/GameData"
+        map = "mp/ffa3"
+        runs = 1
+
+    with_handler = ("VK_VENDOR: NVIDIA\n"
+                    "JKX: lighting path = PBR (maxBoundDescriptorSets 32)\n"
+                    "JKX: crash reports go to D:\\Games\\GameData\\jkx_crash.txt\n")
+    out = tmp / "with.md"
+    verify.write_report(out, {}, verify.parse_console(with_handler), Args(), {})
+    check("fault handler: installed" in out.read_text(encoding="utf-8"),
+          "a package with the handler says so")
+
+    without = ("VK_VENDOR: NVIDIA\n"
+               "JKX: lighting path = PBR (maxBoundDescriptorSets 32)\n")
+    out = tmp / "without.md"
+    verify.write_report(out, {}, verify.parse_console(without), Args(), {})
+    check("fault handler: absent" in out.read_text(encoding="utf-8"),
+          "a package without the handler says so too")
 
 
 def test_build_identity() -> None:
@@ -654,6 +724,8 @@ def main() -> int:
     for test in (test_vdf, test_layout, test_detection, test_binary, test_renderer_present, test_gamecode,
                  test_merge_into, test_startup_cvars, test_map_detection,
                  test_crash_reporting,
+                 test_crash_stack,
+                 test_fault_handler_reported,
                  test_parsing, test_build_identity, test_report, test_missing, test_end_to_end):
         print(f"\n{test.__name__}")
         test()

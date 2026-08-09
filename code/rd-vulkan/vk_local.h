@@ -1003,6 +1003,10 @@ void		vk_set_clearcolor( void );
 void		vk_create_window( void );
 void		vk_initialize( void );
 void		vk_shutdown( void );
+// Installs a process-wide fault handler that writes a symbolised stack to
+// jkx_crash.txt next to the executable. Cheap, always on: the cost of not
+// having it is a round trip to the machine that crashed.
+void		vk_install_crash_handler( void );
 void		vk_init_library( void );
 void		vk_deinit_library( void );
 void		get_viewport( VkViewport *viewport, Vk_Depth_Range depth_range );
