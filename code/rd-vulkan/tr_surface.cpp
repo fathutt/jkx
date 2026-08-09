@@ -831,6 +831,7 @@ static void RB_SurfaceLine( void )
 	DoLine( start, end, right, e->radius);
 }
 
+#ifndef JKX_SP_TYPES
 static void RB_SurfaceOrientedLine( void )
 {
 	refEntity_t *e;
@@ -847,6 +848,7 @@ static void RB_SurfaceOrientedLine( void )
 	VectorCopy(e->axis[1], right);
 	DoLine_Oriented( start, end, right, e->data.line.width*0.5 );
 }
+#endif // !JKX_SP_TYPES
 
 /*
 ==============
@@ -2127,40 +2129,16 @@ void RB_SurfaceEntity( const surfaceType_t *surfType ) {
 	case RT_LINE:
 		RB_SurfaceLine();
 		break;
+#ifndef JKX_SP_TYPES
 	case RT_ORIENTEDLINE:
 		RB_SurfaceOrientedLine();
 		break;
+#endif
 	case RT_SABER_GLOW:
 		RB_SurfaceSaberGlow();
 		break;
 	case RT_CYLINDER:
 		RB_SurfaceCylinder();
-		break;
-	case RT_ENT_CHAIN:
-		{
-			static trRefEntity_t	tempEnt = *backEnd.currentEntity;
-			//rww - if not static then currentEntity is garbage because
-			//this is a local. This was not static in sof2.. but I guess
-			//they never check ce.renderfx so it didn't show up.
-
-			const int start = backEnd.currentEntity->e.uRefEnt.uMini.miniStart;
-			const int count = backEnd.currentEntity->e.uRefEnt.uMini.miniCount;
-			assert( count > 0 );
-			backEnd.currentEntity = &tempEnt;
-
-			assert( backEnd.currentEntity->e.renderfx >= 0 );
-
-			for (int i = 0, j = start; i < count; i++, j++)
-			{
-				backEnd.currentEntity->e = backEnd.refdef.entities[j].e;
-
-				assert(backEnd.currentEntity->e.renderfx >= 0);
-
-				RB_SurfaceEntity(surfType);
-			}
-
-			allow_merge = qfalse;
-		}
 		break;
 	default:
 		allow_merge = qfalse;

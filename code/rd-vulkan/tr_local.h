@@ -200,13 +200,6 @@ typedef struct dlight_s {
 } dlight_t;
 
 
-// a trMiniRefEntity_t has all the information passed in by
-// the client game, other info will come from it's parent main ref entity
-typedef struct
-{
-	miniRefEntity_t	e;
-} trMiniRefEntity_t;
-
 // a trRefEntity_t has all the information passed in by
 // the client game, as well as some locally derived info
 typedef struct trRefEntity_s {
@@ -2434,7 +2427,9 @@ void R_InitNextFrame( void );
 
 void RE_ClearScene( void );
 void RE_AddRefEntityToScene( const refEntity_t *ent );
+#ifndef JKX_SP_TYPES
 void RE_AddMiniRefEntityToScene( const miniRefEntity_t *ent );
+#endif
 void RE_AddPolyToScene( qhandle_t hShader , int numVerts, const polyVert_t *verts, int num );
 void RE_AddLightToScene( const vec3_t org, float intensity, float r, float g, float b );
 void RE_AddAdditiveLightToScene( const vec3_t org, float intensity, float r, float g, float b );

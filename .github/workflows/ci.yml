@@ -175,6 +175,13 @@ jobs:
       - name: Sync and build rd-vulkan
         run: JOBS=4 bash jkx/tools/devkit/renderer_build_harness.sh "$PWD/eternaljk"
 
+      # Everything the port has already moved to single-player types is dead
+      # code in the build above, and would compile for the first time at the end
+      # of phase 2 - all at once, months from now. This compiles it every push
+      # instead. It has already caught a misplaced #endif.
+      - name: Single-player shape compiles too
+        run: bash jkx/tools/devkit/check_sp_shape.sh eternaljk/build-harness
+
   # ---------------------------------------------------------------------------
   sanitizers:
     name: sanitizers (asan + ubsan)

@@ -1376,7 +1376,11 @@ Q_EXPORT refexport_t* QDECL GetRefAPI( int apiVersion, refimport_t *rimp ) {
 	re.ClearScene							= RE_ClearScene;
 	re.ClearDecals							= RE_ClearDecals;
 	re.AddRefEntityToScene					= RE_AddRefEntityToScene;
+#ifndef JKX_SP_TYPES
+	// Single-player has no such refexport entry; multiplayer's cgame calls it,
+	// so it stays wired until the harness is gone.
 	re.AddMiniRefEntityToScene				= RE_AddMiniRefEntityToScene;
+#endif
 	re.AddPolyToScene						= RE_AddPolyToScene;
 	re.AddDecalToScene						= RE_AddDecalToScene;
 	re.LightForPoint						= R_LightForPoint;

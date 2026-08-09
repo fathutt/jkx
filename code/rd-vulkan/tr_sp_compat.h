@@ -40,6 +40,19 @@ Foundation.
 
 #pragma once
 
+// Which tr_types.h are we compiled against?
+//
+// Needed because the multiplayer-only entity *types* are enumerators, not
+// macros, so unlike the flags they cannot be tested with #ifdef. RF_ALPHA_FADE
+// is a single-player-only #define and therefore a reliable stand-in for "the
+// surrounding types are the single-player ones".
+//
+// Prefer #ifdef on the specific flag wherever that works; reach for this only
+// when the thing being guarded is a type, a struct field or a refexport entry.
+#if defined( RF_ALPHA_FADE )
+	#define JKX_SP_TYPES 1
+#endif
+
 // RF_MORELIGHT (SP) and RF_MINLIGHT (MP) are the same flag: bit 0x00001, "always
 // have some light (viewmodel, some items)", identical comment in both headers.
 // Only the name was changed. Renaming is therefore safe in a way that almost

@@ -221,10 +221,14 @@ void RE_AddRefEntityToScene( const refEntity_t *ent ) {
 
 	assert(!ent || ent->renderfx >= 0);
 
+#ifndef JKX_SP_TYPES
+	// Upstream's own verdict, and the reason the backend cases for this type
+	// could simply be deleted: nothing that reaches the scene can carry it.
 	if (ent->reType == RT_ENT_CHAIN)
 	{ //minirefents must die.
 		return;
 	}
+#endif
 
 #ifdef _DEBUG
 	if (ent->reType == RT_MODEL)
@@ -269,6 +273,7 @@ void RE_AddRefEntityToScene( const refEntity_t *ent ) {
  *    none                                                                                      *
  *                                                                                              *
  ************************************************************************************************/
+#ifndef JKX_SP_TYPES
 void RE_AddMiniRefEntityToScene( const miniRefEntity_t *ent )
 {
 #if 0
@@ -290,6 +295,7 @@ void RE_AddMiniRefEntityToScene( const miniRefEntity_t *ent )
 	memset(((char *)&tempEnt)+sizeof(*ent), 0, sizeof(tempEnt) - sizeof(*ent));
 	RE_AddRefEntityToScene(&tempEnt);
 }
+#endif // !JKX_SP_TYPES
 
 /*
 =====================
