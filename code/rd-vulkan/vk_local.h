@@ -72,13 +72,18 @@ typedef enum {
 #endif
 
 
-#if defined (_DEBUG)
-#if defined (_WIN32)
+// JKX_VK_TRACE turns the renderer's own diagnostics on in a release build: the
+// vk_log.log operation trace and, where the layers are installed, validation
+// reporting. A debug build gives the same thing plus a debug CRT and different
+// struct layouts, which on this codebase means the engine and the gamecode
+// disagree about their interface and the process dies before it can log
+// anything at all - a diagnostic build that cannot be diagnosed. This one is a
+// release build in every other respect.
+#if defined (_DEBUG) || defined (JKX_VK_TRACE)
 #define USE_VK_VALIDATION
 //#define USE_VK_OBJECT_TRACKER
 #define USE_DEBUG_REPORT
 //#define USE_DEBUG_UTILS
-#endif
 #endif
 
 typedef float mat4_t[16];

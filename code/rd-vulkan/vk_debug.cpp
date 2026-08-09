@@ -47,7 +47,7 @@ Logs comments to specific vulkan log
 ================
 */
 void QDECL vk_debug( const char *msg, ... ) {
-#ifdef _DEBUG
+#if defined(_DEBUG) || defined(JKX_VK_TRACE)
 	FILE* fp;
 	va_list         argptr;
 	char            text[1024];

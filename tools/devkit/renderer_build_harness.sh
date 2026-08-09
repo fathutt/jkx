@@ -124,6 +124,11 @@ if(NOT TARGET Vulkan::Headers)
 endif()
 target_link_libraries(${MPVulkanRenderer} Vulkan::Headers)
 target_compile_definitions(${MPVulkanRenderer} PRIVATE VK_NO_PROTOTYPES)
+if(DEFINED ENV{JKX_VK_TRACE})
+    # Release build, renderer diagnostics on. See the comment on JKX_VK_TRACE in
+    # vk_local.h for why this is not simply a debug build.
+    target_compile_definitions(${MPVulkanRenderer} PRIVATE JKX_VK_TRACE)
+endif()
 # JKX is C++20; the fork still appends -std=c++11 to CMAKE_CXX_FLAGS, and a
 # target-level standard would lose to a flag that appears later on the command
 # line, so override the flag itself.

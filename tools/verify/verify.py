@@ -1090,8 +1090,9 @@ def write_report(path: Path, results: dict, info: dict, args, stages: dict | Non
         for h in hits[:20]:
             lines.append(f"- `{h}`")
     else:
-        lines.append("None seen. Note that validation layers are only active in a debug build,")
-        lines.append("so silence here is not proof of cleanliness.")
+        lines.append("None seen. The layers only run in a build with the renderer diagnostics")
+        lines.append("compiled in - the windows-x86_64-trace package - and only where the Vulkan")
+        lines.append("SDK is installed, so silence here is not proof of cleanliness.")
 
     lines += [
         "",
