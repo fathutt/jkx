@@ -420,6 +420,33 @@ def test_crash_reporting() -> None:
           "a clean run says nothing about crashes")
 
 
+def test_trace_timings_are_flagged() -> None:
+    """A diagnostics build's numbers must not read as a baseline."""
+    tmp = Path(tempfile.mkdtemp())
+
+    class Args:
+        binary = "jkx_ja.x86_64.exe"
+        resolved_game = "/games/GameData"
+        map = "mp/ffa3"
+        runs = 3
+
+    results = {"startup": {"samples": [2.8], "median": 2.8, "exit_codes": [0]}}
+    trace = ("VK_VENDOR: NVIDIA\nJKX: lighting path = PBR (maxBoundDescriptorSets 32)\n"
+             "JKX: trace build, writing vk_log.log next to the executable\n")
+
+    out = tmp / "trace.md"
+    verify.write_report(out, results, verify.parse_console(trace), Args(), {})
+    text = out.read_text(encoding="utf-8")
+    check("diagnostics build" in text, "trace timings carry a warning")
+    check("windows-x86_64-trace" in text, "the warning names the package to avoid")
+
+    out = tmp / "plain.md"
+    verify.write_report(out, results, verify.parse_console(
+        "VK_VENDOR: NVIDIA\nJKX: lighting path = PBR (maxBoundDescriptorSets 32)\n"), Args(), {})
+    check("diagnostics build" not in out.read_text(encoding="utf-8"),
+          "a plain build's timings carry no warning")
+
+
 def test_provenance() -> None:
     """A report has to say which tool wrote it and which package it measured."""
     stamp = {"commit": "861b650deadbeef", "built": "2026-08-09T11:00:00Z",
@@ -757,6 +784,7 @@ def main() -> int:
     for test in (test_vdf, test_layout, test_detection, test_binary, test_renderer_present, test_gamecode,
                  test_merge_into, test_startup_cvars, test_map_detection,
                  test_crash_reporting,
+                 test_trace_timings_are_flagged,
                  test_provenance,
                  test_crash_stack,
                  test_fault_handler_reported,

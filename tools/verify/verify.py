@@ -1088,6 +1088,20 @@ def write_report(path: Path, results: dict, info: dict, args, stages: dict | Non
         "",
     ]
 
+    # A trace package runs the validation layers and writes an operation log.
+    # Those numbers are still worth having - they are the same build across
+    # runs - but comparing them with a plain package is comparing two different
+    # programs, and a table does not say so on its own.
+    if info.get("trace_build"):
+        lines += [
+            "**These timings are from a diagnostics build.** Validation layers are loaded",
+            "and the renderer writes an operation log, both of which cost time that the",
+            "shipped build does not pay. Compare them with another diagnostics run, not",
+            "with the baseline: for that, run the `windows-x86_64` package instead of",
+            "`windows-x86_64-trace`.",
+            "",
+        ]
+
     for name, data in results.items():
         if data.get("samples"):
             spread = ", ".join(f"{s:.1f}" for s in data["samples"])

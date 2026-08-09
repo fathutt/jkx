@@ -331,6 +331,13 @@ void vk_destroy_shader_modules( void )
     vkDestroyShaderModule(vk.device, vk.shaders.prefilterenvmap_fs, NULL);
     vkDestroyShaderModule(vk.device, vk.shaders.irradiancecube_fs, NULL);
 
+#ifdef VK_COMPUTE_NORMALMAP
+    // Created next to the rest and forgotten here, so it outlived the device.
+    // Validation names it at vkDestroyDevice; nothing else ever would.
+    vkDestroyShaderModule(vk.device, vk.shaders.normalmap, NULL);
+    vk.shaders.normalmap = VK_NULL_HANDLE;
+#endif
+
 #ifdef USE_VBO_SS
     for ( i = 0; i < 2; i++ ) {
         vkDestroyShaderModule(vk.device, vk.shaders.surface_sprite_fs[i], NULL);

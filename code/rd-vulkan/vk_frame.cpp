@@ -927,6 +927,14 @@ void vk_destroy_framebuffers( void )
         }
     }
 
+    // Created in vk_create_framebuffers next to the others and destroyed
+    // nowhere, so it was still alive at vkDestroyDevice - and, because
+    // vid_restart recreates it, leaked once per restart rather than once.
+    if ( vk.framebuffers.refraction.extract != VK_NULL_HANDLE ) {
+        vkDestroyFramebuffer( vk.device, vk.framebuffers.refraction.extract, NULL );
+        vk.framebuffers.refraction.extract = VK_NULL_HANDLE;
+    }
+
     if ( vk.framebuffers.bloom.extract != VK_NULL_HANDLE ) {
         vkDestroyFramebuffer( vk.device, vk.framebuffers.bloom.extract, NULL );
         vk.framebuffers.bloom.extract = VK_NULL_HANDLE;
