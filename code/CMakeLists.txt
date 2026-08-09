@@ -110,6 +110,19 @@ if(BuildSPEngine OR BuildJK2SPEngine)
 			if (WIN32 AND TARGET SDL2::SDL2main)
 				set(SDL2_LIBRARIES SDL2::SDL2main ${SDL2_LIBRARIES})
 			endif()
+
+			# The Windows package needs SDL2.dll beside the executable. The
+			# bundled SDK used to be committed and installed with everything
+			# else; a packaged SDL2 is a DLL somewhere in the toolchain's
+			# prefix, and nothing copies it unless this does. Without it the
+			# package builds, uploads, and fails to start on the user's machine
+			# - the worst possible place to find out.
+			if (WIN32 AND NOT CMAKE_VERSION VERSION_LESS 3.21)
+				install(IMPORTED_RUNTIME_ARTIFACTS SDL2::SDL2
+					RUNTIME DESTINATION ${JKAInstallDir} COMPONENT ${JKASPClientComponent})
+				install(IMPORTED_RUNTIME_ARTIFACTS SDL2::SDL2
+					RUNTIME DESTINATION ${JK2InstallDir} COMPONENT ${JK2SPClientComponent})
+			endif()
 		else()
 			# Some SDL2Config.cmake versions hand back a path with whitespace
 			# around it. STRIP takes exactly one string, so it cannot run on the

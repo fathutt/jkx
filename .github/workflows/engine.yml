@@ -62,7 +62,7 @@ jobs:
             # Named, not inferred: the runners have MinGW on PATH and it picks
             # itself over MSVC, which is not what the rest of the toolchain
             # expects.
-            configure_extra: -G "Visual Studio 17 2022" -A x64
+            configure_extra: -G "Visual Studio 17 2022" -A x64 -DCMAKE_TOOLCHAIN_FILE=$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x64-windows
             python: python
             config: Release
           # Same release build with the renderer's own diagnostics compiled in:
@@ -72,7 +72,7 @@ jobs:
           # dies before it can write a single line.
           - name: windows-x86_64-trace
             os: windows-2022
-            configure_extra: -G "Visual Studio 17 2022" -A x64
+            configure_extra: -G "Visual Studio 17 2022" -A x64 -DCMAKE_TOOLCHAIN_FILE=$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x64-windows
             python: python
             config: Release
             trace: "1"
@@ -93,6 +93,15 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y ninja-build libsdl2-dev libjpeg-dev libpng-dev \
                                   zlib1g-dev libopenal-dev libgl1-mesa-dev libvulkan-dev
+
+      # Only SDL2: zlib, libpng and libjpeg are vendored in lib/ and build from
+      # source. lib/SDL2 was a checked-in Windows SDK and went out with the
+      # other committed binaries, so this is where SDL2 comes from now - the
+      # same place the ci workflow gets it.
+      - name: Install dependencies (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: vcpkg install sdl2:x64-windows
 
       # $GITHUB_WORKSPACE rather than the expression: on Windows the expression
       # expands to D:\a\jkx\jkx before bash sees it, and bash then eats the
