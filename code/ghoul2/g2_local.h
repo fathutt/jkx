@@ -58,3 +58,46 @@ void Create_Matrix( const float *angle, mdxaBone_t *matrix );
 
 extern mdxaBone_t worldMatrix;
 extern mdxaBone_t worldMatrixInv;
+
+// --- names single-player spells differently ---------------------------------
+
+// Multiplayer's collision record type is single-player's CCollisionRecord
+// class; the contents are the same, only the name travelled.
+typedef CCollisionRecord CollisionRecord_t;
+
+// Multiplayer puts this in its ghoul2/G2.h, single-player's copy does not have
+// it. Same bit, same meaning: the bone still needs its transform computed.
+#ifndef BONE_NEED_TRANSFORM
+	#define BONE_NEED_TRANSFORM 0x8000
+#endif
+
+// Multiplayer's ghoul2_shared.h; marks a Ghoul2 instance whose transform space
+// came from the zone rather than the mini heap.
+#ifndef GHOUL2_ZONETRANSALLOC
+	#define GHOUL2_ZONETRANSALLOC 0x2000
+#endif
+
+// Multiplayer has a tag of its own for gore surfaces; single-player's tag list
+// has one Ghoul2 tag and no gore, because it never built with gore enabled.
+// Same lifetime either way - freed with the rest of Ghoul2.
+#ifndef TAG_GHOUL2_GORE
+	#define TAG_GHOUL2_GORE TAG_GHOUL2
+#endif
+
+// The bottom of a standing player's bounding box, used by the ragdoll code to
+// find the floor. It lives in the gameplay headers on both sides, and the
+// renderer has no business including those, so it is spelled out here with the
+// value both trees agree on (code/game/bg_public.h).
+#ifndef DEFAULT_MINS_2
+	#define DEFAULT_MINS_2 -24
+#endif
+
+// --- our own functions, declared where the other files can see them ---------
+//
+// Signatures copied from the definitions in code/rd-vulkan, not from the
+// multiplayer header, and checked by compiling.
+
+int			G2_IsSurfaceOff( CGhoul2Info *ghlInfo, surfaceInfo_v &slist, const char *surfaceName );
+void		G2_RemoveRedundantBolts( boltInfo_v &bltlist, surfaceInfo_v &slist, int *activeSurfaces, int *activeBones );
+void		G2_RemoveRedundantBoneOverrides( boneInfo_v &blist, int *activeBones );
+void		RemoveBoneCache( CBoneCache *boneCache );

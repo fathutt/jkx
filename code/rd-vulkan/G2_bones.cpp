@@ -2698,6 +2698,12 @@ void Rag_Trace( trace_t *results, const vec3_t start, const vec3_t mins, const v
 #ifdef _DEBUG
 	int ragPreTrace = ri.Milliseconds();
 #endif
+	// Multiplayer runs the ragdoll trace through the client game VM, using a
+	// shared-memory block to pass the arguments across. Single-player has no VM
+	// - cgame is compiled into the engine - so none of that machinery exists,
+	// and the else branch below, which traces directly, is the only path. That
+	// branch is not a fallback here; it is what single-player has always done.
+#ifndef JKX_SP_FIELDS
 	if ( ri.CGVMLoaded() )
 	{
 		ragCallbackTraceLine_t *callData = (ragCallbackTraceLine_t *)ri.GetSharedMemory();
@@ -2714,6 +2720,7 @@ void Rag_Trace( trace_t *results, const vec3_t start, const vec3_t mins, const v
 		*results = callData->tr;
 	}
 	else
+#endif // !JKX_SP_FIELDS
 	{
 		results->entityNum = ENTITYNUM_NONE;
 		//SV_Trace(results, start, mins, maxs, end, passEntityNum, contentmask, eG2TraceType, useLod);
@@ -3943,12 +3950,19 @@ static inline void G2_BoneSnap(CGhoul2Info_v &ghoul2V, boneInfo_t &bone, CRagDol
 		return;
 	}
 
+	// Same VM machinery as the trace above. The bone-snap notification is
+	// advisory - it tells the client game a bone hit its limit so it can play a
+	// sound - so single-player simply does not send it until there is somewhere
+	// to send it to. Restoring it is a direct call, not a callback, and belongs
+	// with the rest of the Ghoul2 move.
+#ifndef JKX_SP_FIELDS
 	ragCallbackBoneSnap_t *callData = (ragCallbackBoneSnap_t *)ri.GetSharedMemory();
 
 	callData->entNum = params->me;
 	strcpy(callData->boneName, G2_Get_Bone_Name(&ghoul2V[0], ghoul2V[0].mBlist, bone.boneNumber));
 
 	ri.CGVM_RagCallback( RAG_CALLBACK_BONESNAP );
+#endif
 }
 
 static void G2_RagDollSolve(CGhoul2Info_v &ghoul2V,int g2Index,float decay,int frameNum,const vec3_t currentOrg,bool limitAngles,CRagDollUpdateParams *params)
