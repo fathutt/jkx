@@ -293,6 +293,20 @@ void R_AddMD3Surfaces( trRefEntity_t *ent, int entityNum ) {
 	// don't add third_person objects if not in a portal
 	personalModel = (qboolean)((ent->e.renderfx & RF_THIRD_PERSON) && (tr.viewParms.portalView == PV_NONE));
 
+#ifdef RF_CAP_FRAMES
+	// Single-player only, and the counterpart of RF_WRAP_FRAMES below: a
+	// one-shot animation holds on its last frame instead of looping back to the
+	// start. The gamecode sets it in four places and the Vulkan renderer, being
+	// a multiplayer one, ignored it - so those animations looped.
+	if ( ent->e.renderfx & RF_CAP_FRAMES ) {
+		const int lastFrame = tr.currentModel->data.mdv[0]->numFrames - 1;
+		if ( ent->e.frame > lastFrame )
+			ent->e.frame = lastFrame;
+		if ( ent->e.oldframe > lastFrame )
+			ent->e.oldframe = lastFrame;
+	}
+	else
+#endif
 	if ( ent->e.renderfx & RF_WRAP_FRAMES ) {
 		ent->e.frame %= tr.currentModel->data.mdv[0]->numFrames;
 		ent->e.oldframe %= tr.currentModel->data.mdv[0]->numFrames;

@@ -3414,6 +3414,15 @@ void R_AddGhoulSurfaces( trRefEntity_t *ent, int entityNum ) {
 			{
 				G2_TransformGhoulBones(ghoul2[i].mBlist, rootMatrix, ghoul2[i],currentTime);
 			}
+#ifdef RF_G2MINLOD
+			// Single-player only: force the cheapest level of detail regardless
+			// of distance. A bias of 10 is far past any model's LOD count, so
+			// G2_ComputeLOD clamps to the last one. Same constant as the
+			// single-player renderer uses.
+			if ( ent->e.renderfx & RF_G2MINLOD )
+				whichLod = G2_ComputeLOD( ent, ghoul2[i].currentModel, 10 );
+			else
+#endif
 			whichLod = G2_ComputeLOD( ent, ghoul2[i].currentModel, ghoul2[i].mLodBias );
 			G2_FindOverrideSurface(-1,ghoul2[i].mSlist); //reset the quick surface override lookup;
 

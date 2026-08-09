@@ -47,3 +47,14 @@ Foundation.
 #if !defined( RF_MORELIGHT ) && defined( RF_MINLIGHT )
 	#define RF_MORELIGHT RF_MINLIGHT
 #endif
+
+// Flags with NO counterpart on the other side get no entry here.
+//
+// RF_CAP_FRAMES (SP 0x00400) and RF_G2MINLOD (SP 0x100000) do not exist in
+// multiplayer at all, and those bits are taken there by other flags -
+// RF_FORCE_ENT_ALPHA and RF_ALPHA_DEPTH. Defining them to anything would be
+// inventing behaviour, which is what this header is forbidden to do. Code that
+// implements such a flag is wrapped in #ifdef instead, so it compiles away
+// under multiplayer headers and appears the moment the types become ours.
+// That is the same convention upstream already uses for its own multiplayer-
+// only flags (RF_NOLOD, RDF_AUTOMAP and the rest).
