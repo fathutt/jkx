@@ -417,6 +417,40 @@ def test_crash_reporting() -> None:
           "a clean run says nothing about crashes")
 
 
+def test_build_identity() -> None:
+    # The artifact and the build it replaces have identical file names, so an
+    # unpack that skips existing files leaves the old engine in place and the
+    # run measures the baseline a second time. It happened on the first real
+    # artifact, and nothing in the report said so.
+    upstream = "EternalJK: Aug  6 2026 win_msvc-x86_64\nVK_VENDOR: NVIDIA\n"
+    info = verify.parse_console(upstream)
+    check(info.get("engine_build") == "EternalJK: Aug  6 2026 win_msvc-x86_64",
+          "the engine name and build date are read back")
+    check(info.get("jkx_marker") is None, "an upstream build carries no JKX marker")
+
+    ours = upstream + "JKX: lighting path = PBR (maxBoundDescriptorSets 32)\n"
+    check(verify.parse_console(ours).get("jkx_marker") is True, "our renderer identifies itself")
+
+    tmp = Path(tempfile.mkdtemp())
+
+    class Args:
+        binary = "eternaljk.x86_64.exe"
+        resolved_game = "/games/GameData"
+        map = "mp/ffa3"
+        runs = 3
+
+    out = tmp / "upstream.md"
+    verify.write_report(out, {}, info, Args(), {})
+    text = out.read_text(encoding="utf-8")
+    check("NOT a JKX build" in text, "an upstream build is called out as one")
+    check("skips existing files" in text or "leaves the old build" in text,
+          "the report says what to check")
+
+    out = tmp / "ours.md"
+    verify.write_report(out, {}, verify.parse_console(ours), Args(), {})
+    check("is a JKX build" in out.read_text(encoding="utf-8"), "our build is recognised")
+
+
 def test_report() -> None:
     tmp = Path(tempfile.mkdtemp())
 
@@ -620,7 +654,7 @@ def main() -> int:
     for test in (test_vdf, test_layout, test_detection, test_binary, test_renderer_present, test_gamecode,
                  test_merge_into, test_startup_cvars, test_map_detection,
                  test_crash_reporting,
-                 test_parsing, test_report, test_missing, test_end_to_end):
+                 test_parsing, test_build_identity, test_report, test_missing, test_end_to_end):
         print(f"\n{test.__name__}")
         test()
     print()

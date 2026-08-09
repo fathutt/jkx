@@ -158,6 +158,13 @@ PATTERNS = {
     "map_name": re.compile(r"Server:\s*(\S+)"),
     "map_failed": re.compile(r"Couldn't load (\S+)"),
     "ibl": re.compile(r"Loaded Enviroment JSON: (\S+)"),
+    # Which build is this? The engine prints its name and compile date on the
+    # first line of every log, and our renderer announces itself once it is up.
+    # Without both, a run can silently measure the build it was supposed to be
+    # compared against - which is exactly what happened the first time an
+    # artifact was unpacked over an install that already had one.
+    "engine_build": re.compile(r"(\w+: [A-Z][a-z]{2}\s+\d{1,2} \d{4} \S+)"),
+    "jkx_marker": re.compile(r"JKX: "),
     # A portable build ignores fs_homepath entirely and writes next to itself,
     # so forcing a homepath does nothing and the run does touch the game folder.
     "portable": re.compile(r"fs_portable enabled"),
@@ -834,6 +841,19 @@ def write_report(path: Path, results: dict, info: dict, args, stages: dict | Non
     for key, label in (("vendor", "vendor"), ("renderer", "renderer"), ("version", "Vulkan")):
         lines.append(f"- {label}: {info.get(key, '?')}")
 
+    lines += ["", "## Build", ""]
+    if info.get("engine_build"):
+        lines.append(f"- engine: {info['engine_build']}")
+    if info.get("jkx_marker"):
+        lines.append("- **this is a JKX build**: the renderer identified itself.")
+    elif info.get("vendor"):
+        lines.append("- **this is NOT a JKX build.** rd-vulkan ran, but it never printed a")
+        lines.append("  JKX line, so it is the upstream renderer. Everything below measures the")
+        lines.append("  baseline again, not any change from this tree. Check that the artifact's")
+        lines.append("  executable and rd-vulkan_x86_64.dll really replaced the ones already in")
+        lines.append("  the game directory - they have the same names, and an unpack that skips")
+        lines.append("  existing files leaves the old build in place.")
+
     if not info.get("vendor"):
         lines += [
             "",
@@ -1188,6 +1208,8 @@ def main(argv: list[str]) -> int:
     print(f"dumps : {evidence}")
     if console.strip() and not info.get("vendor"):
         print("NOTE: rd-vulkan did not run - the engine fell back to OpenGL. See the report.")
+    elif info.get("vendor") and not info.get("jkx_marker"):
+        print("NOTE: this is the upstream renderer, not a JKX build. See the report.")
     if info.get("lighting_path") == "fastlight":
         print("NOTE: PBR was OFF for this run; see the report.")
     if info.get("validation_hits"):
