@@ -37,6 +37,11 @@ env:
   # sccache stores its objects in the Actions cache rather than on the runner,
   # which is what makes it survive from one run to the next.
   SCCACHE_GHA_ENABLED: "true"
+  # Without this the version header falls back to __DATE__, and a compiler cache
+  # refuses to store any translation unit that reads it - correctly, since the
+  # answer changes at midnight. A fixed date makes those files cacheable and the
+  # build reproducible; it is only the string the console prints.
+  SOURCE_DATE_EPOCH: "1767225600"
 
 jobs:
   # The shader pak is platform independent - SPIR-V, compiled by glslc - so it
@@ -118,6 +123,15 @@ jobs:
       # source. lib/SDL2 was a checked-in Windows SDK and went out with the
       # other committed binaries, so this is where SDL2 comes from now - the
       # same place the ci workflow gets it.
+      # Building SDL2 from source on every run is minutes that buy nothing: the
+      # package list has one entry in it and does not change.
+      - name: Cache vcpkg
+        if: runner.os == 'Windows'
+        uses: actions/cache@v4
+        with:
+          path: C:\vcpkg\installed
+          key: vcpkg-x64-windows-sdl2
+
       - name: Install dependencies (Windows)
         if: runner.os == 'Windows'
         shell: bash
@@ -151,6 +165,8 @@ jobs:
           -DJKX_VK_TRACE=${{ matrix.when == 'trace' && 'ON' || 'OFF' }}
           -DCMAKE_C_COMPILER_LAUNCHER=sccache
           -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
+          -DCMAKE_POLICY_DEFAULT_CMP0141=NEW
+          -DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT=Embedded
           ${{ runner.os == 'Linux' && '-DUseInternalSDL2=OFF -DUseInternalZlib=OFF -DUseInternalPNG=OFF -DUseInternalJPEG=OFF' || '' }}
 
       # The interesting line of a failed MSBuild run is somewhere in three
@@ -166,6 +182,15 @@ jobs:
             echo "::endgroup::"
             exit 1
           }
+
+
+      # Whether the cache is doing anything is not a thing to assume. One line
+      # of hits/misses after each build, and "non-cacheable" with a reason when
+      # it declined - that is how a cache that quietly does nothing gets found.
+      - name: Cache statistics
+        if: always()
+        run: sccache --show-stats
+        shell: bash
 
       - name: Install into a package tree
         shell: bash

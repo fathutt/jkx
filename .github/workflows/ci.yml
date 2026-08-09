@@ -13,6 +13,11 @@ env:
   # sccache stores its objects in the Actions cache rather than on the runner,
   # which is what makes it survive from one run to the next.
   SCCACHE_GHA_ENABLED: "true"
+  # Without this the version header falls back to __DATE__, and a compiler cache
+  # refuses to store any translation unit that reads it - correctly, since the
+  # answer changes at midnight. A fixed date makes those files cacheable and the
+  # build reproducible; it is only the string the console prints.
+  SOURCE_DATE_EPOCH: "1767225600"
 
 jobs:
   # ---------------------------------------------------------------------------
@@ -57,9 +62,18 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
+      # Not the full cross product. Debug and Release select different code, and
+      # Windows and Linux select different code, but Windows Debug selects
+      # nothing that Linux Debug and Windows Release do not - it was the
+      # slowest job in the matrix and the only one that has never failed alone.
       matrix:
-        os: [ubuntu-24.04, windows-2022]
-        config: [Release, Debug]
+        include:
+          - os: ubuntu-24.04
+            config: Release
+          - os: ubuntu-24.04
+            config: Debug
+          - os: windows-2022
+            config: Release
     steps:
       - uses: actions/checkout@v4
 
@@ -74,6 +88,13 @@ jobs:
       # Only SDL2: zlib, libpng and libjpeg are still vendored in lib/ and build
       # from source. lib/SDL2 was a checked-in Windows SDK and went out with the
       # other committed binaries, so this is where SDL2 comes from now.
+      - name: Cache vcpkg
+        if: runner.os == 'Windows'
+        uses: actions/cache@v4
+        with:
+          path: C:\vcpkg\installed
+          key: vcpkg-x64-windows-sdl2
+
       - name: Install dependencies (Windows)
         if: runner.os == 'Windows'
         run: vcpkg install sdl2:x64-windows
@@ -92,6 +113,8 @@ jobs:
           cmake -B build
           -DCMAKE_C_COMPILER_LAUNCHER=sccache
           -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
+          -DCMAKE_POLICY_DEFAULT_CMP0141=NEW
+          -DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT=Embedded
           ${{ runner.os == 'Windows' && '-G "Visual Studio 17 2022" -A x64
           -DCMAKE_TOOLCHAIN_FILE=$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake
           -DVCPKG_TARGET_TRIPLET=x64-windows' || '-G Ninja' }}
@@ -111,6 +134,15 @@ jobs:
             echo "::endgroup::"
             exit 1
           }
+
+
+      # Whether the cache is doing anything is not a thing to assume. One line
+      # of hits/misses after each build, and "non-cacheable" with a reason when
+      # it declined - that is how a cache that quietly does nothing gets found.
+      - name: Cache statistics
+        if: always()
+        run: sccache --show-stats
+        shell: bash
 
       - uses: actions/upload-artifact@v4
         if: matrix.config == 'Release'
