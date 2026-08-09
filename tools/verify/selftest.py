@@ -354,6 +354,35 @@ def test_startup_cvars() -> None:
     check("map t1_sour" in cfg, "the map name is substituted")
 
 
+MAP_DUMP = """
+------ Server Initialization ------
+Server: mp/ffa3
+pipeline handles: 604
+pipeline descriptors: 1211, base: 12
+"""
+
+MAP_FAILED_DUMP = """
+Couldn't load maps/mp/nosuchmap.bsp
+"""
+
+
+def test_map_detection() -> None:
+    # A map that fails to load costs almost nothing, so the "map load" timing is
+    # a failure wearing the costume of a result. The first real run measured
+    # 0.4 s for a map load, which is not a fast load, it is no load.
+    loaded = verify.parse_console(MAP_DUMP)
+    check(loaded.get("server_init") is True, "a started server is recognised")
+    check(loaded.get("map_name") == "mp/ffa3", "the map name is read back")
+    check(loaded.get("ibl") is None, "no IBL bake is reported when there is no env.json")
+
+    failed = verify.parse_console(MAP_FAILED_DUMP)
+    check(failed.get("map_failed") == "maps/mp/nosuchmap.bsp", "a failed load is recognised")
+    check(failed.get("server_init") is None, "a failed load did not start a server")
+
+    ibl = verify.parse_console("Loaded Enviroment JSON: cubemaps/mp/ffa3/env.json\n")
+    check(ibl.get("ibl") == "cubemaps/mp/ffa3/env.json", "an actual bake is recognised")
+
+
 def test_report() -> None:
     tmp = Path(tempfile.mkdtemp())
 
@@ -381,6 +410,26 @@ def test_report() -> None:
     text = out.read_text(encoding="utf-8")
     check("**PBR is OFF" in text, "report is loud when PBR was off")
     check("VUID-VkImageMemoryBarrier2-oldLayout-01197" in text, "validation messages reach the report")
+
+    # Per-stage pipeline counts, and the map verdict.
+    out = tmp / "stages.md"
+    stages = {
+        "startup": verify.parse_console(PBR_DUMP),
+        "vid_restart": {},
+        "map": verify.parse_console(MAP_DUMP),
+    }
+    verify.write_report(out, results, verify.parse_console(PBR_DUMP), Args(), stages)
+    text = out.read_text(encoding="utf-8")
+    check("| startup to main menu | 2304 | 1712 |" in text, "menu pipeline counts are attributed")
+    check("| startup + map load | 1211 | 604 |" in text, "map pipeline counts are attributed")
+    check("`mp/ffa3` loaded." in text, "the report confirms the map came up")
+    check("no IBL bake happened" in text, "the report says when there was no bake to measure")
+
+    out = tmp / "nomap.md"
+    verify.write_report(out, results, verify.parse_console(PBR_DUMP), Args(),
+                        {"map": verify.parse_console(MAP_FAILED_DUMP)})
+    check("failed to load" in out.read_text(encoding="utf-8"),
+          "a map that never loaded is called out, not reported as a fast load")
 
     # The failure the retail executable produces, and the one an install without
     # rd-vulkan next to the engine produces: OpenGL ran instead.
@@ -511,7 +560,7 @@ def test_end_to_end() -> None:
 
 def main() -> int:
     for test in (test_vdf, test_layout, test_detection, test_binary, test_renderer_present, test_gamecode,
-                 test_merge_into, test_startup_cvars,
+                 test_merge_into, test_startup_cvars, test_map_detection,
                  test_parsing, test_report, test_missing, test_end_to_end):
         print(f"\n{test.__name__}")
         test()

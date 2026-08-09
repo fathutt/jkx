@@ -75,7 +75,9 @@ SCENARIOS = {
         "label": "startup + map load",
         "cfg": [
             "map {map}",
-            "wait 40",
+            # Frames only tick once the map is up, so this is a few seconds of
+            # rendering after the load, not a timeout on the load itself.
+            "wait 250",
             "condump jkx_map.txt",
             "quit",
         ],
@@ -125,6 +127,12 @@ PATTERNS = {
     "cache_saved": re.compile(r"saved pipeline cache \((\d+) KiB\)"),
     "cache_rebuild": re.compile(r"pipeline cache is for a different device"),
     "cubemaps": re.compile(r"(\d+) cubemaps"),
+    # Did the map actually come up? A map that fails to load costs almost
+    # nothing, and 0.4 s of "map load" is a failure that looks like a result.
+    "server_init": re.compile(r"-+ Server Initialization -+"),
+    "map_name": re.compile(r"Server:\s*(\S+)"),
+    "map_failed": re.compile(r"Couldn't load (\S+)"),
+    "ibl": re.compile(r"Loaded Enviroment JSON: (\S+)"),
 }
 
 VALIDATION = re.compile(r"(VUID-[A-Za-z0-9_\-]+|validation layer|Validation Error)")
@@ -719,7 +727,8 @@ def fmt(seconds: float | None) -> str:
     return "-" if seconds is None else f"{seconds:.1f} s"
 
 
-def write_report(path: Path, results: dict, info: dict, args) -> None:
+def write_report(path: Path, results: dict, info: dict, args, stages: dict | None = None) -> None:
+    stages = stages or {}
     startup = results.get("startup", {}).get("median")
     restart = results.get("vid_restart", {}).get("median")
     mapload = results.get("map", {}).get("median")
@@ -798,12 +807,45 @@ def write_report(path: Path, results: dict, info: dict, args) -> None:
         lines.append("No cache messages. Either this build predates the persistent cache, or the")
         lines.append("homepath is not writable. The startup number above is then the uncached cost.")
 
+    # Did the map come up at all? A map that failed to load costs almost
+    # nothing, so the "map load" row above would be a failure wearing the
+    # costume of a result.
+    map_stage = stages.get("map", {})
+    if results.get("map"):
+        lines += ["", "## Map", ""]
+        if map_stage.get("map_failed"):
+            lines.append(f"**{map_stage['map_failed']} failed to load.** The map row above measures")
+            lines.append("the failure, not a load. Pass --map with a map this install has.")
+        elif map_stage.get("server_init"):
+            loaded = map_stage.get("map_name", args.map)
+            lines.append(f"`{loaded}` loaded.")
+            if map_stage.get("ibl"):
+                lines.append(f"IBL probes were baked from `{map_stage['ibl']}`, so the load cost")
+                lines.append("includes the bake.")
+            else:
+                lines.append("No cubemap definition was found for it, so **no IBL bake happened**:")
+                lines.append("the load cost above is geometry and textures only. The bake only")
+                lines.append("applies to maps shipping cubemaps/<map>/env.json, which retail maps")
+                lines.append("do not - that is worth knowing before optimising it.")
+        else:
+            lines.append("**The map never started.** No server initialisation appeared in the dump,")
+            lines.append("so the row above is startup plus nothing. Check the map name.")
+
     lines += ["", "## Pipelines", ""]
-    lines.append(f"- definitions: {info.get('pipeline_defs', '?')}")
-    lines.append(f"- created objects: {info.get('pipeline_handles', '?')}")
+    lines.append("| stage | definitions | created objects |")
+    lines.append("|---|---|---|")
+    for name in SCENARIOS:
+        stage = stages.get(name) or {}
+        if stage.get("pipeline_defs") or stage.get("pipeline_handles"):
+            lines.append(f"| {SCENARIOS[name]['label']} | {stage.get('pipeline_defs', '?')} "
+                         f"| {stage.get('pipeline_handles', '?')} |")
+    if not any((stages.get(n) or {}).get("pipeline_defs") for n in SCENARIOS):
+        lines.append(f"| overall | {info.get('pipeline_defs', '?')} "
+                     f"| {info.get('pipeline_handles', '?')} |")
     lines.append("")
-    lines.append("Dynamic rendering plus extended dynamic state should cut the object count by")
-    lines.append("roughly an order of magnitude; this is the before number.")
+    lines.append("Pipelines are created on demand, so the menu number is a fraction of what a")
+    lines.append("loaded map needs. Dynamic rendering plus extended dynamic state should cut the")
+    lines.append("object count by roughly an order of magnitude; this is the before number.")
 
     hits = info.get("validation_hits") or []
     lines += ["", "## Validation", ""]
@@ -918,6 +960,11 @@ def main(argv: list[str]) -> int:
         if samples:
             results[name] = {"samples": samples, "median": statistics.median(samples)}
 
+    # Parsed per scenario as well as together: "how many pipelines exist" means
+    # something different at the main menu and in a loaded map, and merging the
+    # dumps first would have silently reported the menu number for both.
+    stages = {scenario: parse_console(read_dump(dump_roots, name))
+              for scenario, name in zip(SCENARIOS, DUMPS)}
     console = "\n".join(read_dump(dump_roots, name) for name in DUMPS)
     if not console.strip():
         print("\nWarning: no console dumps were written. Timings are still valid, but the")
@@ -925,7 +972,7 @@ def main(argv: list[str]) -> int:
     info = parse_console(console)
 
     out = Path(args.out) if args.out else Path(__file__).resolve().parent / "verification-report.md"
-    write_report(out, results, info, args)
+    write_report(out, results, info, args, stages)
 
     print()
     print(f"report: {out}")
@@ -937,7 +984,8 @@ def main(argv: list[str]) -> int:
         print(f"NOTE: {len(info['validation_hits'])} validation message(s); see the report.")
 
     (out.with_suffix(".json")).write_text(
-        json.dumps({"results": results, "info": info}, indent=2, default=str), encoding="utf-8")
+        json.dumps({"results": results, "info": info, "stages": stages}, indent=2, default=str),
+        encoding="utf-8")
     return 0
 
 
