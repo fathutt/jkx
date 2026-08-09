@@ -17,7 +17,9 @@
 #
 # This is not a substitute for building against the real single-player headers.
 # It cannot see anything about struct layout, only about the shape of the code
-# the preprocessor selects. That is still most of what goes wrong.
+# the preprocessor selects. That is still most of what goes wrong - and the
+# part it cannot reach is fenced off behind JKX_SP_FIELDS rather than left to
+# fail here confusingly.
 #
 # Usage:
 #   tools/devkit/check_sp_shape.sh <path-to-harness-build-dir>
@@ -37,6 +39,12 @@ SP_DEFINES=(
     -DRF_ALPHA_FADE=0x00800
     -DRF_CAP_FRAMES=0x00400
     -DRF_G2MINLOD=0x100000
+    # Tells tr_sp_compat.h that this is the shape check and not the real thing,
+    # which switches off JKX_SP_FIELDS. Anything behind that macro touches a
+    # single-player-only struct field and therefore cannot compile while the
+    # headers around it are still the multiplayer ones. `grep -rn JKX_SP_FIELDS
+    # code/rd-vulkan` lists precisely what this check does not cover.
+    -DJKX_SP_SHAPE_CHECK=1
 )
 
 TMP="$(mktemp -d)"

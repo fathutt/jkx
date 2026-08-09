@@ -53,6 +53,23 @@ Foundation.
 	#define JKX_SP_TYPES 1
 #endif
 
+// ...and are we really compiled against them, or only pretending?
+//
+// tools/devkit/check_sp_shape.sh compiles the renderer a second time with the
+// single-player-only macros forced on, so that guarded code is not dead in
+// every build. It can only force macros, though - the headers around it are
+// still the multiplayer ones. Code that merely *reads a flag* survives that
+// perfectly; code that touches a single-player-only *struct field* cannot,
+// because the field genuinely is not there.
+//
+// So JKX_SP_FIELDS is the narrower gate for exactly that case. What it guards
+// is, by construction, the part of the port no check covers until the headers
+// become ours - and naming it means the uncovered set is one grep away instead
+// of being a thing someone has to remember.
+#if defined( JKX_SP_TYPES ) && !defined( JKX_SP_SHAPE_CHECK )
+	#define JKX_SP_FIELDS 1
+#endif
+
 // RF_MORELIGHT (SP) and RF_MINLIGHT (MP) are the same flag: bit 0x00001, "always
 // have some light (viewmodel, some items)", identical comment in both headers.
 // Only the name was changed. Renaming is therefore safe in a way that almost

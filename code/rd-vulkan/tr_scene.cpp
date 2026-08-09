@@ -414,7 +414,14 @@ void RE_AddAdditiveLightToScene( const vec3_t org, float intensity, float r, flo
 void RE_BeginScene( const refdef_t *fd ) {
 	static	int		lastTime = 0;
 
+#ifndef JKX_SP_TYPES
+	// Single-player has no refdef_t::text: the field is commented out of the
+	// struct and the reference renderer's DeformText call is commented out with
+	// it, so "deformVertexes text" parses and draws nothing there. Matching
+	// that, rather than adding a field the single-player client never fills.
+	// Noted in docs/Backlog.md as something that could be brought back.
 	memcpy(tr.refdef.text, fd->text, sizeof(tr.refdef.text));
+#endif
 
 	tr.refdef.x = fd->x;
 	tr.refdef.y = fd->y;

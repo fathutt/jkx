@@ -489,6 +489,18 @@ void vk_initialize( void )
 	vk.maxAnisotropy = props.limits.maxSamplerAnisotropy;
 	vk.maxLod = 1 + Q_log2( glConfig.maxTextureSize );
 
+#ifdef JKX_SP_FIELDS
+	// Two fields single-player's glconfig_t has and multiplayer's does not.
+	// Nothing outside the renderer reads either one today, but glconfig is a
+	// struct the engine and the gamecode share: leaving fields uninitialised in
+	// it is how a value that is never wrong becomes a value that is wrong once.
+	glConfig.textureFilterAnisotropicAvailable = vk.samplerAnisotropy;
+	// Vulkan has separate front and back stencil state in core, so the
+	// two-sided path the single-player renderer probes for glStencilOpSeparate
+	// to enable is simply always available here.
+	glConfig.doStencilShadowsInOneDrawcall = qtrue;
+#endif
+
 	ri.Printf( PRINT_ALL, "\nVK_MAX_TEXTURE_SIZE: %d\n", glConfig.maxTextureSize );
 	ri.Printf( PRINT_ALL, "VK_MAX_TEXTURE_UNITS: %d\n", glConfig.maxActiveTextures );
 
