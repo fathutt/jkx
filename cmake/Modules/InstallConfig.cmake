@@ -76,27 +76,8 @@ if(WIN32)
 	set(CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS_SKIP TRUE)
 	include(InstallRequiredSystemLibraries)
 
-	if(BuildMPEngine)
-		string(REPLACE "/" "\\\\" ICON "${MPDir}/win32/icon.ico")
-		set(CPACK_NSIS_CREATE_ICONS_EXTRA
-			"${CPACK_NSIS_CREATE_ICONS_EXTRA}
-			CreateShortCut '$SMPROGRAMS\\\\$STARTMENU_FOLDER\\\\Jedi Academy MP.lnk' \\\\
-				'$INSTDIR\\\\${MPEngine}.exe' \\\\
-				'' \\\\
-				'${ICON}'")
-
-		set(CPACK_NSIS_DELETE_ICONS_EXTRA
-			"${CPACK_NSIS_DELETE_ICONS_EXTRA}
-			Delete '$SMPROGRAMS\\\\$MUI_TEMP\\\\Jedi Academy MP.lnk'")
-
-		install(FILES ${MPDir}/OpenAL32.dll ${MPDir}/EaxMan.dll
-				DESTINATION ${JKAInstallDir}
-				COMPONENT ${JKAMPClientComponent})
-
-		install(PROGRAMS ${CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS}
-				DESTINATION ${JKAInstallDir}
-				COMPONENT ${JKAMPClientComponent})
-	endif()
+	# The multiplayer tree is not built here and BuildMPEngine does not exist,
+	# so its block went with it.
 
 	if(BuildSPEngine)
 		string(REPLACE "/" "\\\\" ICON "${SPDir}/win32/starwars.ico")
@@ -111,9 +92,11 @@ if(WIN32)
 			"${CPACK_NSIS_DELETE_ICONS_EXTRA}
 			Delete '$SMPROGRAMS\\\\$MUI_TEMP\\\\Jedi Academy SP.lnk'")
 
-		install(FILES ${MPDir}/OpenAL32.dll ${MPDir}/EaxMan.dll
-			DESTINATION ${JKAInstallDir}
-			COMPONENT ${JKASPClientComponent})
+		# OpenAL32.dll and EaxMan.dll used to be installed from the multiplayer
+		# directory, where they were committed binaries. They went out with the
+		# rest of the committed binaries, and MPDir went out with multiplayer -
+		# so this was installing "//OpenAL32.dll" and failing the package. It is
+		# no loss: the package unpacks over a retail install, which ships both.
 
 		install(PROGRAMS ${CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS}
 				DESTINATION ${JKAInstallDir}
@@ -134,9 +117,7 @@ if(WIN32)
 			"${CPACK_NSIS_DELETE_ICONS_EXTRA}
 			Delete '$SMPROGRAMS\\\\$MUI_TEMP\\\\Jedi Outcast SP.lnk'")
 
-		install(FILES ${MPDir}/OpenAL32.dll ${MPDir}/EaxMan.dll
-			DESTINATION ${JK2InstallDir}
-			COMPONENT ${JK2SPClientComponent})
+		# See the note in the Jedi Academy block above.
 
 		install(PROGRAMS ${CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS}
 				DESTINATION ${JK2InstallDir}
