@@ -78,13 +78,18 @@ SCENARIOS = {
         "label": "startup + map load",
         "cfg": [
             "map {map}",
-            # Frames only tick once the map is up, so this is a few seconds of
-            # rendering after the load, not a timeout on the load itself.
-            "wait 250",
+            # Dumped twice, to different files. The first dump happens as soon
+            # as the map is up, so the load output survives whatever happens
+            # next; the previous run produced no dump at all and left nothing
+            # to diagnose. Frames only tick once the map is up, so these waits
+            # are rendering time, not a timeout on the load.
+            "wait 60",
+            "condump jkx_map.txt",
+            "wait 200",
             # In a loaded map this is the number that matters: pipelines are
             # created on demand, so the menu count says almost nothing.
             "vkinfo",
-            "condump jkx_map.txt",
+            "condump jkx_mapinfo.txt",
             "quit",
         ],
         "note": "subtract startup to get the load cost alone",
@@ -96,6 +101,10 @@ SCENARIOS = {
 # before parsing.
 DUMPS = ("jkx_startup.txt", "jkx_vidrestart.txt", "jkx_map.txt")
 
+# The map scenario writes a second, later dump. It is read when present and
+# ignored when the run died before producing it.
+EXTRA_DUMPS = ("jkx_mapinfo.txt",)
+
 
 # Set on the command line rather than in the config, because +set is applied
 # before subsystems start. cl_renderer in particular is CVAR_LATCH: written from
@@ -103,6 +112,11 @@ DUMPS = ("jkx_startup.txt", "jkx_vidrestart.txt", "jkx_map.txt")
 # so two of the three scenarios would quietly measure the OpenGL renderer.
 STARTUP_CVARS = [
     ("cl_renderer", "rd-vulkan"),
+    # Written continuously and flushed per line, so it survives an error or a
+    # crash. condump only writes what is still in the console ring buffer, and
+    # only if the command after it ever runs - which is how a map scenario that
+    # took six seconds of real work managed to leave no evidence at all.
+    ("logfile", "2"),
     ("com_maxfps", "250"),
     ("r_fullscreen", "0"),
     ("r_mode", "4"),
@@ -139,6 +153,9 @@ PATTERNS = {
     "map_name": re.compile(r"Server:\s*(\S+)"),
     "map_failed": re.compile(r"Couldn't load (\S+)"),
     "ibl": re.compile(r"Loaded Enviroment JSON: (\S+)"),
+    # A portable build ignores fs_homepath entirely and writes next to itself,
+    # so forcing a homepath does nothing and the run does touch the game folder.
+    "portable": re.compile(r"fs_portable enabled"),
 }
 
 VALIDATION = re.compile(r"(VUID-[A-Za-z0-9_\-]+|validation layer|Validation Error)")
@@ -668,11 +685,29 @@ def merge_into(source: Path, destination: Path) -> None:
         shutil.move(str(item), str(target))
 
 
+def find_all(roots: list[Path], name: str) -> list[Path]:
+    """Every copy of a file the engine may have written, at either depth."""
+    hits: list[Path] = []
+    for root in roots:
+        if not root.is_dir():
+            continue
+        direct = root / name
+        if direct.is_file():
+            hits.append(direct)
+        hits += [p for p in root.glob(f"*/{name}") if p.is_file()]
+    return hits
+
+
 def run_scenario(binary: Path, game_dir: Path, cfg_dir: Path, home: Path, name: str,
                  mapname: str, timeout: int) -> tuple[float, int]:
     scenario = SCENARIOS[name]
     cfg_name = f"jkx_verify_{name}.cfg"
     (cfg_dir / cfg_name).write_text(build_cfg(scenario["cfg"], mapname), encoding="ascii")
+
+    # One log per scenario: the engine always writes the same name, so the
+    # previous run's copy has to be out of the way before this one starts.
+    for stale in find_all([home, game_dir], "qconsole.log"):
+        stale.unlink()
 
     # fs_homepath is forced so the dumps, the pipeline cache and the configs this
     # run writes all land somewhere known and disposable. Without it the engine
@@ -699,6 +734,10 @@ def run_scenario(binary: Path, game_dir: Path, cfg_dir: Path, home: Path, name: 
     stream = (proc.stdout or b"") + (proc.stderr or b"")
     if stream.strip():
         (home / f"jkx_{name}_stdout.txt").write_bytes(stream)
+
+    for log in find_all([home, game_dir], "qconsole.log"):
+        shutil.copy2(log, home / f"jkx_{name}.log")
+        log.unlink()
 
     return (time.perf_counter() - start, code)
 
@@ -809,6 +848,25 @@ def write_report(path: Path, results: dict, info: dict, args, stages: dict | Non
             lines.append(f"- {SCENARIOS[name]['label']}: {spread} s")
     lines.append("")
 
+    # A non-zero exit is a crash, and a crashed run is not a measurement.
+    crashed = {name: data["exit_codes"] for name, data in results.items()
+               if any(code != 0 for code in data.get("exit_codes", []))}
+    if crashed:
+        lines.append("**Some runs did not exit cleanly:**")
+        lines.append("")
+        for name, codes in crashed.items():
+            lines.append(f"- {SCENARIOS[name]['label']}: exit codes {codes}")
+        lines.append("")
+        lines.append("The engine is asked to quit at the end of every scenario, so anything other")
+        lines.append("than zero means it died instead. Those timings measure a crash.")
+        lines.append("")
+
+    if info.get("portable"):
+        lines.append("This is a portable build: it ignores fs_homepath and writes next to itself,")
+        lines.append("so the run wrote its configs and logs into the game folder rather than into")
+        lines.append("the disposable one this tool passes.")
+        lines.append("")
+
     lines += ["## Pipeline cache", ""]
     if info.get("cache_reused"):
         lines.append(f"Reused a cache of {info['cache_reused']} KiB, so this build has the persistent cache.")
@@ -840,16 +898,18 @@ def write_report(path: Path, results: dict, info: dict, args, stages: dict | Non
                 lines.append("the load cost above is geometry and textures only. The bake only")
                 lines.append("applies to maps shipping cubemaps/<map>/env.json, which retail maps")
                 lines.append("do not - that is worth knowing before optimising it.")
+        elif map_stage.get("log"):
+            lines.append("**The map did not start.** The console log is written as it happens and")
+            lines.append("survives errors, and it contains no server initialisation, so this is not")
+            lines.append("a gap in the evidence. Whatever the seconds above were spent on, it was")
+            lines.append("not a loaded map. The log is in dumps/ next to this report.")
         elif map_stage.get("dump") is None:
-            lines.append("**No console dump was written for this scenario**, so there is nothing")
-            lines.append("to say about what happened. The timing above is still wall clock, and if")
-            lines.append("it is well above the startup row then the map very likely did load and")
-            lines.append("only the dump is missing. Look in dumps/ next to this report.")
+            lines.append("**Nothing was written for this scenario** - no log, no dump. The timing")
+            lines.append("above is still wall clock. Look in dumps/ next to this report.")
         else:
-            lines.append("**No server initialisation appeared in the dump.** Either the map never")
-            lines.append("started, or the console buffer no longer held the line by the time it was")
-            lines.append("dumped. Compare the timing above with the startup row: a load that took")
-            lines.append("seconds happened, whatever the dump says.")
+            lines.append("**No server initialisation appeared in the dump.** The dump only holds")
+            lines.append("what was still in the console buffer, so this is weaker evidence than the")
+            lines.append("timing: a load that took seconds happened, whatever the dump says.")
 
     lines += ["", "## Pipelines", ""]
     lines.append("| stage | definitions | created objects |")
@@ -966,6 +1026,7 @@ def main(argv: list[str]) -> int:
     results: dict = {}
     for name, scenario in SCENARIOS.items():
         samples = []
+        codes = []
         print(f"{scenario['label']}: ", end="", flush=True)
         for run in range(args.runs):
             elapsed, code = run_scenario(binary, game_dir, cfg_dir, home, name, args.map,
@@ -975,23 +1036,42 @@ def main(argv: list[str]) -> int:
                 samples = []
                 break
             samples.append(elapsed)
-            print(f"{elapsed:.1f}s ", end="", flush=True)
+            codes.append(code)
+            print(f"{elapsed:.1f}s{'' if code == 0 else f' (exit {code})'} ", end="", flush=True)
         print()
         if samples:
-            results[name] = {"samples": samples, "median": statistics.median(samples)}
+            results[name] = {"samples": samples, "median": statistics.median(samples),
+                             "exit_codes": codes}
 
     # Parsed per scenario as well as together: "how many pipelines exist" means
     # something different at the main menu and in a loaded map, and merging the
     # dumps first would have silently reported the menu number for both.
-    dump_paths = {scenario: find_dump(dump_roots, name)
-                  for scenario, name in zip(SCENARIOS, DUMPS)}
+    def read(path: Path | None) -> str:
+        return path.read_text(encoding="utf-8", errors="replace") if path and path.is_file() else ""
+
     stages = {}
-    for scenario, path in dump_paths.items():
-        stages[scenario] = parse_console(path.read_text(encoding="utf-8", errors="replace")) \
-            if path else {}
-        stages[scenario]["dump"] = str(path) if path else None
-    console = "\n".join(
-        path.read_text(encoding="utf-8", errors="replace") for path in dump_paths.values() if path)
+    texts = []
+    evidence_files: list[Path] = []
+    for scenario, dump_name in zip(SCENARIOS, DUMPS):
+        # The per-scenario log is the whole console, written as it happened; the
+        # condumps are a subset and may be missing entirely. Read everything and
+        # let the log dominate.
+        log = home / f"jkx_{scenario}.log"
+        dumps = [find_dump(dump_roots, dump_name)]
+        if scenario == "map":
+            dumps += [find_dump(dump_roots, extra) for extra in EXTRA_DUMPS]
+
+        text = "\n".join([read(log)] + [read(d) for d in dumps])
+        stages[scenario] = parse_console(text)
+        stages[scenario]["log"] = str(log) if log.is_file() else None
+        stages[scenario]["dump"] = next((str(d) for d in dumps if d), None)
+        texts.append(text)
+
+        evidence_files += [d for d in dumps if d]
+        if log.is_file():
+            evidence_files.append(log)
+
+    console = "\n".join(texts)
     if not console.strip():
         print("\nWarning: no console dumps were written. Timings are still valid, but the")
         print("device, lighting path and validation sections will be empty.")
@@ -1002,7 +1082,7 @@ def main(argv: list[str]) -> int:
 
     evidence = out.parent / "dumps"
     evidence.mkdir(exist_ok=True)
-    for path in list(dump_paths.values()) + sorted(home.glob("jkx_*_stdout.txt")):
+    for path in evidence_files + sorted(home.glob("jkx_*_stdout.txt")):
         if path and path.is_file():
             shutil.copy2(path, evidence / path.name)
 

@@ -437,8 +437,16 @@ def test_report() -> None:
     out = tmp / "nodump.md"
     verify.write_report(out, results, verify.parse_console(PBR_DUMP), Args(),
                         {"map": {"dump": None}})
-    check("No console dump was written" in out.read_text(encoding="utf-8"),
-          "a missing dump is reported as a missing dump")
+    check("Nothing was written for this scenario" in out.read_text(encoding="utf-8"),
+          "no evidence at all is reported as that")
+
+    # The log is written as it happens and survives an error, so its silence is
+    # decisive where a condump's is not.
+    out = tmp / "nolog.md"
+    verify.write_report(out, results, verify.parse_console(PBR_DUMP), Args(),
+                        {"map": {"dump": None, "log": "/somewhere/jkx_map.log"}})
+    check("The map did not start" in out.read_text(encoding="utf-8"),
+          "a log without server init is treated as decisive")
 
     out = tmp / "quiet.md"
     verify.write_report(out, results, verify.parse_console(PBR_DUMP), Args(),
