@@ -143,6 +143,10 @@ option(BuildPortableVersion "Build portable version (does not read or write file
 option(BuildSPEngine "Whether to create projects for the SP engine (openjk_sp.exe)" ON)
 option(BuildSPGame "Whether to create projects for the SP gamecode (jagamex86.dll)" ON)
 option(BuildSPRdVanilla "Whether to create projects for the SP default renderer (rdsp-vanilla_x86.dll)" ON)
+# OFF on purpose: this target is phase 2's finish line and does not compile yet.
+# See code/rd-vulkan/CMakeLists.txt - its whole job is to turn "what is left to
+# port" from an estimate into a list the compiler prints.
+option(BuildSPRdVulkan "Whether to create the SP Vulkan renderer project (does not build yet - phase 2)" OFF)
 
 option(BuildJK2SPEngine "Build the JK2 SP engine" ON)
 option(BuildJK2SPGame "Build the JK2 SP gamecode" ON)
@@ -273,6 +277,7 @@ endif()
 set(SPEngine "jkx_ja.${Architecture}")
 set(SPGame "jagame${Architecture}")
 set(SPRDVanillaRenderer "rdsp-vanilla_${Architecture}")
+set(SPRDVulkanRenderer "rdsp-vulkan_${Architecture}")
 set(MPEngine "openjk.${Architecture}")
 set(MPVanillaRenderer "rd-vanilla_${Architecture}")
 set(MPDed "openjkded.${Architecture}")

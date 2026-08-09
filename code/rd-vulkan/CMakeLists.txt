@@ -1,5 +1,6 @@
 #============================================================================
 # Copyright (C) 2013 - 2018, OpenJK contributors
+# Copyright (C) 2026 JKX contributors
 #
 # This file is part of the OpenJK source code.
 #
@@ -16,204 +17,217 @@
 # along with this program; if not, see <http://www.gnu.org/licenses/>.
 #============================================================================
 
-# Make sure the user is not executing this script directly
+# The Vulkan renderer, built in this tree against the single-player headers.
+#
+# This is phase 2's finish line and it does not compile yet - that is the point
+# of it existing. The renderer arrived from a multiplayer fork and until now the
+# only way to build it was inside a checkout of that fork
+# (tools/devkit/renderer_build_harness.sh), which meant the remaining work was
+# an estimate rather than a list. With this target the compiler produces the
+# list, and it shrinks with every commit.
+#
+# BuildSPRdVulkan is OFF by default for exactly that reason: turning it on makes
+# the build fail, on purpose. CI stays green; anyone working on the port runs
+#
+#     cmake -B build -DBuildSPRdVulkan=ON && cmake --build build --target rdsp-vulkan_x86_64 2>&1 | tail
+#
+# and reads what is left. Delete this comment when the target builds.
+
 if(NOT InOpenJK)
 	message(FATAL_ERROR "Use the top-level cmake script!")
 endif(NOT InOpenJK)
 
-# Check for dependencies first
+if(NOT BuildSPRdVulkan)
+	return()
+endif()
 
-set(MPVulkanRendererIncludeDirectories ${MPDir})
-set(MPVulkanRendererIncludeDirectories
-	${MPVulkanRendererIncludeDirectories}
+set(SPRDVulkanIncludeDirectories
+	${SPDir}
 	${SharedDir}
-	${MPDir}
-	"${MPDir}/rd-vulkan"
+	"${SPDir}/rd-vulkan"
 	"${GSLIncludeDirectory}"
+	"${CMAKE_SOURCE_DIR}/third_party/volk"
+	"${CMAKE_SOURCE_DIR}/third_party/vma"
+	${OpenJKLibDir}
 	)
 
-set(MPVulkanRendererFiles
-	"${MPDir}/rd-vulkan/G2_API.cpp"
-	"${MPDir}/rd-vulkan/G2_bolts.cpp"
-	"${MPDir}/rd-vulkan/G2_bones.cpp"
-	"${MPDir}/rd-vulkan/G2_gore_r2.cpp"
-	"${MPDir}/rd-vulkan/G2_gore_r2.h"
-	"${MPDir}/rd-vulkan/G2_misc.cpp"
-	"${MPDir}/rd-vulkan/G2_surfaces.cpp"
-	"${MPDir}/rd-vulkan/rg_graph.cpp"
-	"${MPDir}/rd-vulkan/rg_graph.h"
-	"${MPDir}/rd-vulkan/tr_allocator.h"
-	"${MPDir}/rd-vulkan/tr_allocator.cpp"
-	"${MPDir}/rd-vulkan/tr_backend.cpp"
-	"${MPDir}/rd-vulkan/tr_bsp.cpp"
-	"${MPDir}/rd-vulkan/tr_cache.h"
-	"${MPDir}/rd-vulkan/tr_cache.cpp"
-	"${MPDir}/rd-vulkan/tr_cmds.cpp"
-	"${MPDir}/rd-vulkan/tr_curve.cpp"
-	"${MPDir}/rd-vulkan/tr_decals.cpp"
-	"${MPDir}/rd-vulkan/tr_ghoul2.cpp"
-	"${MPDir}/rd-vulkan/tr_image.cpp"
-	"${MPDir}/rd-vulkan/tr_init.cpp"
-	"${MPDir}/rd-vulkan/tr_light.cpp"
-	"${MPDir}/rd-vulkan/tr_local.h"
-	"${MPDir}/rd-vulkan/tr_main.cpp"
-	"${MPDir}/rd-vulkan/tr_marks.cpp"
-	"${MPDir}/rd-vulkan/tr_mesh.cpp"
-	"${MPDir}/rd-vulkan/tr_model.cpp"
-	"${MPDir}/rd-vulkan/tr_quicksprite.cpp"
-	"${MPDir}/rd-vulkan/tr_quicksprite.h"
-	"${MPDir}/rd-vulkan/tr_scene.cpp"
-	"${MPDir}/rd-vulkan/tr_shade.cpp"
-	"${MPDir}/rd-vulkan/tr_sp_compat.h"
-	"${MPDir}/rd-vulkan/tr_shader.cpp"
-	"${MPDir}/rd-vulkan/tr_shade_calc.cpp"
-	"${MPDir}/rd-vulkan/tr_shadows.cpp"
-	"${MPDir}/rd-vulkan/tr_skin.cpp"
-	"${MPDir}/rd-vulkan/tr_sky.cpp"
-	"${MPDir}/rd-vulkan/tr_subs.cpp"
-	"${MPDir}/rd-vulkan/tr_surface.cpp"
-	"${MPDir}/rd-vulkan/tr_surfacesprites.cpp"
-	"${MPDir}/rd-vulkan/tr_terrain.cpp"
-	"${MPDir}/rd-vulkan/tr_world.cpp"
-	"${MPDir}/rd-vulkan/tr_WorldEffects.cpp"
-	"${MPDir}/rd-vulkan/tr_WorldEffects.h"
-	"${MPDir}/rd-vulkan/vk_attachments.cpp"
-	"${MPDir}/rd-vulkan/vk_bloom.cpp"
-	"${MPDir}/rd-vulkan/vk_allocator.cpp"
-	"${MPDir}/rd-vulkan/vk_cmd.cpp"
-	"${MPDir}/rd-vulkan/vk_crash.cpp"
-	"${MPDir}/rd-vulkan/vk_cubemap.cpp"
-	"${MPDir}/rd-vulkan/vk_debug.cpp"
-	"${MPDir}/rd-vulkan/vk_dynamic_glow.cpp"
-	"${MPDir}/rd-vulkan/vk_flares.cpp"
-	"${MPDir}/rd-vulkan/vk_frame.cpp"
-	"${MPDir}/rd-vulkan/vk_image.cpp"
-	"${MPDir}/rd-vulkan/vk_image_process.cpp"
-	"${MPDir}/rd-vulkan/vk_info.cpp"
-	"${MPDir}/rd-vulkan/vk_init.cpp"
-	"${MPDir}/rd-vulkan/vk_instance.cpp"
-	"${MPDir}/rd-vulkan/vk_local.h"
-	"${MPDir}/rd-vulkan/vk_pipeline_cache.cpp"
-	"${MPDir}/rd-vulkan/vk_pipelines.cpp"
-	"${MPDir}/rd-vulkan/vk_mikktspace.cpp"
-	"${MPDir}/rd-vulkan/vk_normalmap.cpp"
-	"${MPDir}/rd-vulkan/vk_shaders.cpp"
-	"${MPDir}/rd-vulkan/vk_shade_geometry.cpp"
-	"${MPDir}/rd-vulkan/vk_shader_pak.cpp"
-	"${MPDir}/rd-vulkan/vk_shader_pak.h"
-	"${MPDir}/rd-vulkan/vk_swapchain.cpp"
-	"${MPDir}/rd-vulkan/vk_vbo.cpp"
-	"${MPDir}/rd-vulkan/vk_vbo_surfacesprites.cpp"
+set(SPRDVulkanDefines ${SharedDefines} "RENDERER" "_JK2EXE" "VK_NO_PROTOTYPES")
+
+set(SPRDVulkanFiles
+	"${SPDir}/rd-vulkan/G2_API.cpp"
+	"${SPDir}/rd-vulkan/G2_bolts.cpp"
+	"${SPDir}/rd-vulkan/G2_bones.cpp"
+	"${SPDir}/rd-vulkan/G2_gore_r2.cpp"
+	"${SPDir}/rd-vulkan/G2_gore_r2.h"
+	"${SPDir}/rd-vulkan/G2_misc.cpp"
+	"${SPDir}/rd-vulkan/G2_surfaces.cpp"
+	"${SPDir}/rd-vulkan/rg_graph.cpp"
+	"${SPDir}/rd-vulkan/rg_graph.h"
+	"${SPDir}/rd-vulkan/tr_allocator.h"
+	"${SPDir}/rd-vulkan/tr_allocator.cpp"
+	"${SPDir}/rd-vulkan/tr_backend.cpp"
+	"${SPDir}/rd-vulkan/tr_bsp.cpp"
+	"${SPDir}/rd-vulkan/tr_cache.h"
+	"${SPDir}/rd-vulkan/tr_cache.cpp"
+	"${SPDir}/rd-vulkan/tr_cmds.cpp"
+	"${SPDir}/rd-vulkan/tr_curve.cpp"
+	"${SPDir}/rd-vulkan/tr_decals.cpp"
+	"${SPDir}/rd-vulkan/tr_ghoul2.cpp"
+	"${SPDir}/rd-vulkan/tr_image.cpp"
+	"${SPDir}/rd-vulkan/tr_init.cpp"
+	"${SPDir}/rd-vulkan/tr_light.cpp"
+	"${SPDir}/rd-vulkan/tr_local.h"
+	"${SPDir}/rd-vulkan/tr_main.cpp"
+	"${SPDir}/rd-vulkan/tr_marks.cpp"
+	"${SPDir}/rd-vulkan/tr_mesh.cpp"
+	"${SPDir}/rd-vulkan/tr_model.cpp"
+	"${SPDir}/rd-vulkan/tr_quicksprite.cpp"
+	"${SPDir}/rd-vulkan/tr_quicksprite.h"
+	"${SPDir}/rd-vulkan/tr_scene.cpp"
+	"${SPDir}/rd-vulkan/tr_shade.cpp"
+	"${SPDir}/rd-vulkan/tr_shader.cpp"
+	"${SPDir}/rd-vulkan/tr_shade_calc.cpp"
+	"${SPDir}/rd-vulkan/tr_shadows.cpp"
+	"${SPDir}/rd-vulkan/tr_skin.cpp"
+	"${SPDir}/rd-vulkan/tr_sky.cpp"
+	"${SPDir}/rd-vulkan/tr_sp_compat.h"
+	"${SPDir}/rd-vulkan/tr_subs.cpp"
+	"${SPDir}/rd-vulkan/tr_surface.cpp"
+	"${SPDir}/rd-vulkan/tr_surfacesprites.cpp"
+	"${SPDir}/rd-vulkan/tr_terrain.cpp"
+	"${SPDir}/rd-vulkan/tr_world.cpp"
+	"${SPDir}/rd-vulkan/tr_WorldEffects.cpp"
+	"${SPDir}/rd-vulkan/tr_WorldEffects.h"
+	"${SPDir}/rd-vulkan/vk_allocator.cpp"
+	"${SPDir}/rd-vulkan/vk_attachments.cpp"
+	"${SPDir}/rd-vulkan/vk_bloom.cpp"
+	"${SPDir}/rd-vulkan/vk_cmd.cpp"
+	"${SPDir}/rd-vulkan/vk_crash.cpp"
+	"${SPDir}/rd-vulkan/vk_cubemap.cpp"
+	"${SPDir}/rd-vulkan/vk_debug.cpp"
+	"${SPDir}/rd-vulkan/vk_dynamic_glow.cpp"
+	"${SPDir}/rd-vulkan/vk_flares.cpp"
+	"${SPDir}/rd-vulkan/vk_frame.cpp"
+	"${SPDir}/rd-vulkan/vk_image.cpp"
+	"${SPDir}/rd-vulkan/vk_image_process.cpp"
+	"${SPDir}/rd-vulkan/vk_info.cpp"
+	"${SPDir}/rd-vulkan/vk_init.cpp"
+	"${SPDir}/rd-vulkan/vk_instance.cpp"
+	"${SPDir}/rd-vulkan/vk_local.h"
+	"${SPDir}/rd-vulkan/vk_mikktspace.cpp"
+	"${SPDir}/rd-vulkan/vk_normalmap.cpp"
+	"${SPDir}/rd-vulkan/vk_pipeline_cache.cpp"
+	"${SPDir}/rd-vulkan/vk_pipelines.cpp"
+	"${SPDir}/rd-vulkan/vk_shaders.cpp"
+	"${SPDir}/rd-vulkan/vk_shade_geometry.cpp"
+	"${SPDir}/rd-vulkan/vk_shader_pak.cpp"
+	"${SPDir}/rd-vulkan/vk_shader_pak.h"
+	"${SPDir}/rd-vulkan/vk_swapchain.cpp"
+	"${SPDir}/rd-vulkan/vk_vbo.cpp"
+	"${SPDir}/rd-vulkan/vk_vbo_surfacesprites.cpp"
 	)
-source_group("renderer" FILES ${MPVulkanRendererFiles})
+source_group("renderer" FILES ${SPRDVulkanFiles})
 
-set(MPVulkanRendererGhoul2Files
-	"${MPDir}/ghoul2/g2_local.h"
-	"${MPDir}/ghoul2/ghoul2_shared.h"
-	"${MPDir}/ghoul2/G2_gore.cpp"
-	"${MPDir}/ghoul2/G2_gore.h")
-source_group("ghoul2" FILES ${MPVulkanRendererGhoul2Files})
-set(MPVulkanRendererFiles ${MPVulkanRendererFiles} ${MPVulkanRendererGhoul2Files})
+set(SPRDVulkanUtils
+	"${SPDir}/rd-vulkan/utils/stb_dxt.h"
+	"${SPDir}/rd-vulkan/utils/stb_image.h"
+	"${SPDir}/rd-vulkan/utils/mikktspace/mikktspace.h"
+	"${SPDir}/rd-vulkan/utils/mikktspace/mikktspace.c")
+source_group("renderer\\utils" FILES ${SPRDVulkanUtils})
+list(APPEND SPRDVulkanFiles ${SPRDVulkanUtils})
 
-set(MPVulkanRendererRdCommonFiles
-	"${MPDir}/rd-common/mdx_format.h"
-	"${MPDir}/rd-common/tr_common.h"
-	"${MPDir}/rd-common/tr_font.cpp"
-	"${MPDir}/rd-common/tr_font.h"
-	"${MPDir}/rd-common/tr_image_load.cpp"
-	"${MPDir}/rd-common/tr_image_jpg.cpp"
-	"${MPDir}/rd-common/tr_image_tga.cpp"
-	"${MPDir}/rd-common/tr_image_png.cpp"
-	"${MPDir}/rd-common/tr_noise.cpp"
-	"${MPDir}/rd-common/tr_public.h"
-	"${MPDir}/rd-common/tr_types.h")
-source_group("rd-common" FILES ${MPVulkanRendererRdCommonFiles})
-set(MPVulkanRendererFiles ${MPVulkanRendererFiles} ${MPVulkanRendererRdCommonFiles})
+# volk owns every entry point, so it is compiled in rather than linked against.
+list(APPEND SPRDVulkanFiles "${CMAKE_SOURCE_DIR}/third_party/volk/volk.c")
 
-# The vendored Vulkan headers this used to list are gone: the renderer resolves
-# every entry point through volk, and the headers come from the SDK or, on a
-# machine without one, from FetchContent. Nothing to list here any more.
+set(SPRDVulkanGhoul2Files
+	"${SPDir}/ghoul2/G2.h"
+	"${SPDir}/ghoul2/ghoul2_gore.h")
+source_group("ghoul2" FILES ${SPRDVulkanGhoul2Files})
+list(APPEND SPRDVulkanFiles ${SPRDVulkanGhoul2Files})
 
-set(MPVulkanRendererUtils
-	"${MPDir}/rd-vulkan/utils/stb_dxt.h"
-	"${MPDir}/rd-vulkan/utils/stb_image.h"
-)
-source_group("renderer\\utils" FILES ${MPVulkanRendererUtils})
-set(MPVulkanRendererFiles ${MPVulkanRendererFiles} ${MPVulkanRendererUtils})
+set(SPRDVulkanRdCommonFiles
+	"${SPDir}/rd-common/mdx_format.h"
+	"${SPDir}/rd-common/tr_common.h"
+	"${SPDir}/rd-common/tr_font.cpp"
+	"${SPDir}/rd-common/tr_font.h"
+	"${SPDir}/rd-common/tr_image_load.cpp"
+	"${SPDir}/rd-common/tr_image_jpg.cpp"
+	"${SPDir}/rd-common/tr_image_tga.cpp"
+	"${SPDir}/rd-common/tr_image_png.cpp"
+	"${SPDir}/rd-common/tr_noise.cpp"
+	"${SPDir}/rd-common/tr_public.h"
+	"${SPDir}/rd-common/tr_types.h")
+source_group("rd-common" FILES ${SPRDVulkanRdCommonFiles})
+list(APPEND SPRDVulkanFiles ${SPRDVulkanRdCommonFiles})
 
-set(MPVulkanRendererUtilsMikktFiles
-	"${MPDir}/rd-vulkan/utils/mikktspace/mikktspace.h"
-	"${MPDir}/rd-vulkan/utils/mikktspace/mikktspace.c")
-source_group("renderer\\utils\\mikktspace" FILES ${MPVulkanRendererUtilsMikktFiles})
-set(MPVulkanRendererFiles ${MPVulkanRendererFiles} ${MPVulkanRendererUtilsMikktFiles})
-
-set(MPVulkanRendererCommonFiles
-	"${MPDir}/qcommon/matcomp.cpp"
-	"${MPDir}/qcommon/q_shared.cpp"
-	
+set(SPRDVulkanCommonFiles
+	"${SPDir}/qcommon/matcomp.cpp"
+	"${SPDir}/qcommon/q_shared.cpp"
 	${SharedCommonFiles})
-source_group("common" FILES ${MPVulkanRendererCommonFiles})
-set(MPVulkanRendererFiles ${MPVulkanRendererFiles} ${MPVulkanRendererCommonFiles})
+source_group("common" FILES ${SPRDVulkanCommonFiles})
+list(APPEND SPRDVulkanFiles ${SPRDVulkanCommonFiles})
 
-set(MPVulkanRendererCommonSafeFiles
-	${SharedCommonSafeFiles}
-	)
-source_group("common/safe" FILES ${MPVulkanRendererCommonSafeFiles})
-set(MPVulkanRendererFiles ${MPVulkanRendererFiles} ${MPVulkanRendererCommonSafeFiles})
+# Image libraries, same transparent bundled-or-system treatment the other
+# renderer gets. png before zlib: it uses it.
+list(APPEND SPRDVulkanIncludeDirectories ${JPEG_INCLUDE_DIR} ${PNG_INCLUDE_DIRS}
+	${ZLIB_INCLUDE_DIR} ${MINIZIP_INCLUDE_DIRS})
+list(APPEND SPRDVulkanLibraries ${JPEG_LIBRARIES} ${PNG_LIBRARIES}
+	${ZLIB_LIBRARIES} ${MINIZIP_LIBRARIES})
 
-# Transparently use either bundled or system libjpeg.
-list(APPEND MPVulkanRendererIncludeDirectories ${JPEG_INCLUDE_DIR})
-list(APPEND MPVulkanRendererLibraries          ${JPEG_LIBRARIES})
+# Headers only. Every entry point is resolved through volk at runtime, so there
+# is nothing to link; a machine with the SDK has them, a CI runner does not, and
+# installing an SDK to obtain a directory of headers is not a trade worth making.
+find_package(Vulkan QUIET)
+if(NOT TARGET Vulkan::Headers)
+	include(FetchContent)
+	FetchContent_Declare(VulkanHeaders
+		GIT_REPOSITORY https://github.com/KhronosGroup/Vulkan-Headers.git
+		GIT_TAG v1.3.290
+		GIT_SHALLOW TRUE)
+	FetchContent_MakeAvailable(VulkanHeaders)
+endif()
 
-# Transparently use either bundled or system libpng.  Order is important --
-# libpng used zlib, so it must come before it on the linker command line.
-list(APPEND MPVulkanRendererIncludeDirectories ${PNG_INCLUDE_DIRS})
-list(APPEND MPVulkanRendererLibraries          ${PNG_LIBRARIES})
+# vk_shaders.cpp includes a generated slot table. The top-level script produces
+# it as part of jkx_add_shaders, but that is gated on glslc being present and
+# binding does not need glslc - only the manifest - so generate it here when it
+# is missing rather than making this target depend on a shader compiler.
+if(NOT JKX_SHADER_GENERATED_DIR)
+	set(JKX_SHADER_GENERATED_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
+	find_package(Python3 COMPONENTS Interpreter REQUIRED)
+	execute_process(
+		COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/shadergen/shadergen.py"
+			--manifest "${SPDir}/rd-vulkan/shaders/shaders.json"
+			bind --out "${JKX_SHADER_GENERATED_DIR}/shader_slots.inl"
+		RESULT_VARIABLE bind_result
+		OUTPUT_VARIABLE bind_output
+		ERROR_VARIABLE  bind_output)
+	if(NOT bind_result EQUAL 0)
+		message(FATAL_ERROR "shadergen bind failed:\n${bind_output}")
+	endif()
+endif()
+list(APPEND SPRDVulkanIncludeDirectories "${JKX_SHADER_GENERATED_DIR}")
 
-# Transparently use either bundled or system zlib.
-list(APPEND MPVulkanRendererIncludeDirectories ${ZLIB_INCLUDE_DIR})
-list(APPEND MPVulkanRendererLibraries          ${ZLIB_LIBRARIES})
-
-# Transparently use our bundled minizip.
-list(APPEND MPVulkanRendererIncludeDirectories ${MINIZIP_INCLUDE_DIRS})
-list(APPEND MPVulkanRendererLibraries          ${MINIZIP_LIBRARIES})
-
-#find_package(OpenGL REQUIRED)
-#set(MPVulkanRendererIncludeDirectories ${MPVulkanRendererIncludeDirectories} ${OPENGL_INCLUDE_DIR})
-#set(MPVulkanRendererLibraries ${MPVulkanRendererLibraries} ${OPENGL_LIBRARIES})
-
-set(MPVulkanRendererIncludeDirectories ${MPVulkanRendererIncludeDirectories} ${OpenJKLibDir})
-add_library(${MPVulkanRenderer} SHARED ${MPVulkanRendererFiles})
+add_library(${SPRDVulkanRenderer} SHARED ${SPRDVulkanFiles})
 
 if(NOT MSVC)
 	# remove "lib" prefix for .so/.dylib files
-	set_target_properties(${MPVulkanRenderer} PROPERTIES PREFIX "")
+	set_target_properties(${SPRDVulkanRenderer} PROPERTIES PREFIX "")
 endif()
+
+set_target_properties(${SPRDVulkanRenderer} PROPERTIES
+	COMPILE_DEFINITIONS "${SPRDVulkanDefines}"
+	INCLUDE_DIRECTORIES "${SPRDVulkanIncludeDirectories}"
+	PROJECT_LABEL "SP Vulkan Renderer")
+set_property(TARGET ${SPRDVulkanRenderer} APPEND PROPERTY
+	COMPILE_OPTIONS ${OPENJK_VISIBILITY_FLAGS})
+target_compile_features(${SPRDVulkanRenderer} PRIVATE cxx_std_20)
+target_link_libraries(${SPRDVulkanRenderer} ${SPRDVulkanLibraries} Vulkan::Headers)
+jkx_no_undefined_symbols(${SPRDVulkanRenderer})
 
 if(WIN32)
-	install(TARGETS ${MPVulkanRenderer}
-		RUNTIME
-		DESTINATION ${JKAInstallDir}
-		COMPONENT ${JKAMPClientComponent})
-else(WIN32)
-	if(MakeApplicationBundles AND BuildMPEngine)
-		install(TARGETS ${MPVulkanRenderer}
-			LIBRARY
-			DESTINATION "${JKAInstallDir}/${MPEngine}.app/Contents/MacOS/"
-			COMPONENT ${JKAMPClientComponent})
-	else()
-		install(TARGETS ${MPVulkanRenderer}
-			LIBRARY
-			DESTINATION ${JKAInstallDir}
-			COMPONENT ${JKAMPClientComponent})
-	endif()
+	install(TARGETS ${SPRDVulkanRenderer}
+		RUNTIME DESTINATION ${JKAInstallDir} COMPONENT ${JKASPClientComponent})
+else()
+	install(TARGETS ${SPRDVulkanRenderer}
+		LIBRARY DESTINATION ${JKAInstallDir} COMPONENT ${JKASPClientComponent})
 endif()
-
-set_target_properties(${MPVulkanRenderer} PROPERTIES COMPILE_DEFINITIONS "${SharedDefines}")
-
-# Hide symbols not explicitly marked public.
-set_property(TARGET ${MPVulkanRenderer} APPEND PROPERTY COMPILE_OPTIONS ${OPENJK_VISIBILITY_FLAGS})
-
-set_target_properties(${MPVulkanRenderer} PROPERTIES INCLUDE_DIRECTORIES "${MPVulkanRendererIncludeDirectories}")
-set_target_properties(${MPVulkanRenderer} PROPERTIES PROJECT_LABEL "MP Vulkan Renderer")
-target_link_libraries(${MPVulkanRenderer} ${MPVulkanRendererLibraries})

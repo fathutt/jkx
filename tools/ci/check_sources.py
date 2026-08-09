@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Keep code/rd-vulkan/CMakeLists.txt honest about what is on disk.
 
-That CMakeLists is not built by anything yet: the renderer still expects the
-multiplayer headers it was written against, so until phase 2 it compiles inside
-a checkout of the fork it came from, whose CMakeLists lists sources by hand.
-Ours is therefore documentation - and undetected documentation drifts. By the
+That CMakeLists now has a real target behind it (BuildSPRdVulkan), but the
+target is off by default because it does not compile yet, so an ordinary build
+still never reads the list. It remains documentation for now - and undetected
+documentation drifts. By the
 time this check was written it had: five source files on disk that it never
 mentioned, including three added by this project, and nineteen vendored Vulkan
 headers that were deleted when the renderer moved to volk.
@@ -34,8 +34,13 @@ SOURCE_SUFFIXES = {".cpp", ".c"}
 
 
 def listed_paths(text: str) -> set[str]:
-    """Every "${MPDir}/rd-vulkan/<path>" the file mentions."""
-    return set(re.findall(r'\$\{MPDir\}/rd-vulkan/([^"]+)"', text))
+    """Every "${SPDir}/rd-vulkan/<path>" the file mentions.
+
+    MPDir was the prefix while the list was still the multiplayer fork's,
+    copied verbatim and built by nothing here. It is SPDir now that the target
+    exists in this tree.
+    """
+    return set(re.findall(r'\$\{SPDir\}/rd-vulkan/([^"]+)"', text))
 
 
 def disk_sources() -> set[str]:
@@ -71,7 +76,7 @@ def main() -> int:
     if missing or stale:
         print()
         print("The renderer's CMakeLists is not compiled yet, so nothing else would")
-        print("have told you. Add the new sources to MPVulkanRendererFiles, and drop")
+        print("have told you. Add the new sources to SPRDVulkanFiles, and drop")
         print("the entries for files that are gone.")
         return 1
 

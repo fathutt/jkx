@@ -70,13 +70,22 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 #define USE_BUFFER_CLEAR		/* clear attachments on render pass begin */
 
+// q_shared.h first, and explicitly. Multiplayer's qfiles.h includes it itself;
+// single-player's includes nothing and expects to be second, so this exact
+// ordering is what rd-vanilla/tr_local.h does. Getting it wrong is worth
+// eleven thousand errors, all of them "vec3_t does not name a type".
+#include "qcommon/q_shared.h"
 #include "qcommon/qfiles.h"
 #include "rd-common/tr_public.h"
 #include "rd-common/tr_common.h"
 // After tr_types.h has been pulled in, because every entry tests what that
 // header did or did not define. Temporary; see the file for its lifetime.
 #include "tr_sp_compat.h"
-#include "ghoul2/ghoul2_shared.h" //rwwRMG - added
+// No ghoul2_shared.h include here. Multiplayer keeps it in codemp/ghoul2 and
+// includes it explicitly; single-player keeps it in code/game and q_shared.h
+// pulls it in itself, guarded by GHOUL2_SHARED_H_INC. Including it directly
+// ahead of that context is worth 11000 errors, because the file is not
+// self-contained: it names types q_shared.h has not defined yet.
 
 #include "tr_allocator.h"
 
