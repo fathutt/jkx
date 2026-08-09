@@ -115,12 +115,25 @@ jobs:
         uses: actions/cache@v4
         with:
           path: C:\vcpkg\installed
-          key: vcpkg-x64-windows-sdl2
+          key: vcpkg-x64-windows-sdl2-vulkan
 
+      # SDL is what creates the window, and a build of it without Vulkan support
+      # cannot create a Vulkan one - the renderer then fails at
+      # SDL_Vulkan_LoadLibrary on the user's machine with a message about the
+      # video driver, which is a long way from here. vcpkg's sdl2 does not build
+      # it unless asked. Asked, and then verified, because the difference is
+      # invisible until someone runs the game.
       - name: Install dependencies (Windows)
         if: runner.os == 'Windows'
         shell: bash
-        run: vcpkg install sdl2:x64-windows
+        run: |
+          vcpkg install 'sdl2[core,vulkan]:x64-windows'
+          config="$VCPKG_INSTALLATION_ROOT/installed/x64-windows/include/SDL2/SDL_config.h"
+          if ! grep -q "define SDL_VIDEO_VULKAN 1" "$config"; then
+              echo "SDL2 was built without Vulkan support - the renderer cannot create a window"
+              grep -i vulkan "$config" || true
+              exit 1
+          fi
 
       # Most of a rebuild is the same objects again. sccache keys on the
       # preprocessed source and the flags, so a push that changes one file
