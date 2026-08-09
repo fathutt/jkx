@@ -148,8 +148,8 @@ void G2_DEBUG_RemovePtrFromTracker(CGhoul2Info_v *g2)
 }
 #endif
 
-qboolean G2_SetupModelPointers(CGhoul2Info *ghlInfo);
-qboolean G2_SetupModelPointers(CGhoul2Info_v &ghoul2);
+bool G2_SetupModelPointers(CGhoul2Info *ghlInfo);
+bool G2_SetupModelPointers(CGhoul2Info_v &ghoul2);
 qboolean G2_TestModelPointers(CGhoul2Info *ghlInfo);
 
 //rww - RAGDOLL_BEGIN
@@ -1204,7 +1204,7 @@ qboolean G2API_SetBoneAnimIndex(CGhoul2Info *ghlInfo, const int index, const int
 	//rww - RAGDOLL_BEGIN
 	if (ghlInfo)
 	{
-		res = G2_SetupModelPointers(ghlInfo);
+		res = G2_SetupModelPointers(ghlInfo) ? qtrue : qfalse;
 		setPtrs = qtrue;
 
 		if (res)
@@ -1252,7 +1252,7 @@ qboolean G2API_SetBoneAnimIndex(CGhoul2Info *ghlInfo, const int index, const int
 	}
 	if (!setPtrs)
 	{
-		res = G2_SetupModelPointers(ghlInfo);
+		res = G2_SetupModelPointers(ghlInfo) ? qtrue : qfalse;
 	}
 
 	if (res)
@@ -1312,7 +1312,7 @@ qboolean G2API_SetBoneAnim(CGhoul2Info_v &ghoul2, const int modelIndex, const ch
 		//rww - RAGDOLL_BEGIN
 		if (ghlInfo)
 		{
-			res = G2_SetupModelPointers(ghlInfo);
+			res = G2_SetupModelPointers(ghlInfo) ? qtrue : qfalse;
 			setPtrs = qtrue;
 
 			if (res)
@@ -1327,7 +1327,7 @@ qboolean G2API_SetBoneAnim(CGhoul2Info_v &ghoul2, const int modelIndex, const ch
 
 		if (!setPtrs)
 		{
-			res = G2_SetupModelPointers(ghlInfo);
+			res = G2_SetupModelPointers(ghlInfo) ? qtrue : qfalse;
 		}
 
 		if (res)
@@ -1474,7 +1474,7 @@ qboolean G2API_SetBoneAnglesIndex(CGhoul2Info *ghlInfo, const int index, const v
 	//rww - RAGDOLL_BEGIN
 	if (ghlInfo)
 	{
-		res = G2_SetupModelPointers(ghlInfo);
+		res = G2_SetupModelPointers(ghlInfo) ? qtrue : qfalse;
 		setPtrs = qtrue;
 
 		if (res)
@@ -1489,7 +1489,7 @@ qboolean G2API_SetBoneAnglesIndex(CGhoul2Info *ghlInfo, const int index, const v
 
 	if (!setPtrs)
 	{
-		res = G2_SetupModelPointers(ghlInfo);
+		res = G2_SetupModelPointers(ghlInfo) ? qtrue : qfalse;
 	}
 
 	if (res)
@@ -1514,7 +1514,7 @@ qboolean G2API_SetBoneAngles(CGhoul2Info_v &ghoul2, const int modelIndex, const 
 		//rww - RAGDOLL_BEGIN
 		if (ghlInfo)
 		{
-			res = G2_SetupModelPointers(ghlInfo);
+			res = G2_SetupModelPointers(ghlInfo) ? qtrue : qfalse;
 			setPtrs = qtrue;
 
 			if (res)
@@ -1529,7 +1529,7 @@ qboolean G2API_SetBoneAngles(CGhoul2Info_v &ghoul2, const int modelIndex, const 
 
 		if (!setPtrs)
 		{
-			res = G2_SetupModelPointers(ghoul2);
+			res = G2_SetupModelPointers(ghoul2) ? qtrue : qfalse;
 		}
 
 		if (res)
@@ -2887,7 +2887,7 @@ extern timing_c G2PerformanceTimer_G2_SetupModelPointers;
 extern int G2Time_G2_SetupModelPointers;
 #endif
 
-qboolean G2_SetupModelPointers(CGhoul2Info *ghlInfo) // returns true if the model is properly set up
+bool G2_SetupModelPointers(CGhoul2Info *ghlInfo) // returns true if the model is properly set up
 {
 #ifdef G2_PERFORMANCE_ANALYSIS
 	G2PerformanceTimer_G2_SetupModelPointers.Start();
@@ -2987,13 +2987,13 @@ qboolean G2_SetupModelPointers(CGhoul2Info *ghlInfo) // returns true if the mode
 	return (qboolean)ghlInfo->mValid;
 }
 
-qboolean G2_SetupModelPointers(CGhoul2Info_v &ghoul2) // returns true if any model is properly set up
+bool G2_SetupModelPointers(CGhoul2Info_v &ghoul2) // returns true if any model is properly set up
 {
 	bool ret=false;
 	int i;
 	for (i=0; i<ghoul2.size(); i++)
 	{
-		qboolean r = G2_SetupModelPointers(&ghoul2[i]);
+		qboolean r = G2_SetupModelPointers(&ghoul2[i]) ? qtrue : qfalse;
 		ret=ret||r;
 	}
 	return (qboolean)ret;

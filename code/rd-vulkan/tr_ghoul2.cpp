@@ -129,8 +129,8 @@ void ResetGhoul2RenderableSurfaceHeap( void ) {
 
 bool HackadelicOnClient=false; // means this is a render traversal
 
-qboolean G2_SetupModelPointers(CGhoul2Info *ghlInfo);
-qboolean G2_SetupModelPointers(CGhoul2Info_v &ghoul2);
+bool G2_SetupModelPointers(CGhoul2Info *ghlInfo);
+bool G2_SetupModelPointers(CGhoul2Info_v &ghoul2);
 
 extern cvar_t	*r_Ghoul2AnimSmooth;
 extern cvar_t	*r_Ghoul2UnSqashAfterSmooth;
