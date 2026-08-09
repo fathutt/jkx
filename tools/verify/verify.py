@@ -460,6 +460,16 @@ ENGINE_DOWNLOAD = {
 }
 
 
+def describe_file(path: Path) -> str:
+    """Path, size and timestamp - enough to tell two builds of the same name apart."""
+    try:
+        st = path.stat()
+    except OSError:
+        return str(path)
+    stamp = time.strftime("%Y-%m-%d %H:%M", time.localtime(st.st_mtime))
+    return f"{path}  ({st.st_size // 1024} KiB, {stamp})"
+
+
 def renderer_libraries(game_dir: Path, binary: Path) -> list[Path]:
     """Every rd-vulkan the engine could load, anywhere it looks for one."""
     found: list[Path] = []
@@ -844,6 +854,12 @@ def write_report(path: Path, results: dict, info: dict, args, stages: dict | Non
     lines += ["", "## Build", ""]
     if info.get("engine_build"):
         lines.append(f"- engine: {info['engine_build']}")
+    # The files as they were on disk. Names collide between builds, so the size
+    # and timestamp are the only things that say which one actually ran.
+    for label in ("binary", "renderer"):
+        entry = getattr(args, f"resolved_{label}", None)
+        if entry:
+            lines.append(f"- {label}: `{entry}`")
     if info.get("jkx_marker"):
         lines.append("- **this is a JKX build**: the renderer identified itself.")
     elif info.get("vendor"):
@@ -1093,11 +1109,15 @@ def main(argv: list[str]) -> int:
         return doctor(game_dir, args)
 
     binary = find_binary(game_dir, args.binary)
+    args.resolved_binary = describe_file(binary)
 
     # Fail here rather than after nine launches: without the renderer the engine
     # runs on OpenGL and every number below would be of the wrong thing.
     if not renderer_libraries(game_dir, binary):
         raise SystemExit(missing_renderer_message(game_dir, binary))
+
+    libs = renderer_libraries(game_dir, binary)
+    args.resolved_renderer = describe_file(libs[0]) if libs else None
 
     gamecode = find_gamecode(game_dir, binary)
     if any(where is None for where in gamecode.values()):
