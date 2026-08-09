@@ -325,7 +325,7 @@ If the variable already exists, the value will not be set unless CVAR_ROM
 The flags will be or'ed in if the variable exists.
 ============
 */
-cvar_t *Cvar_Get( const char *var_name, const char *var_value, int flags ) {
+cvar_t *Cvar_Get( const char *var_name, const char *var_value, int flags, const char *var_desc ) {
 	cvar_t	*var;
 	long	hash;
 	int		index;
@@ -396,6 +396,13 @@ cvar_t *Cvar_Get( const char *var_name, const char *var_value, int flags ) {
 
 		var->flags |= flags;
 
+		// A cvar is often created before the code that documents it runs -
+		// autoexec sets it, then the subsystem registers it. So the first
+		// description offered wins rather than the first registration.
+		if ( var_desc && !var->description ) {
+			var->description = CopyString( var_desc );
+		}
+
 		// only allow one non-empty reset string without a warning
 		if ( !var->resetString[0] ) {
 			// we don't have a reset string yet
@@ -448,6 +455,7 @@ cvar_t *Cvar_Get( const char *var_name, const char *var_value, int flags ) {
 
 	var->name = CopyString (var_name);
 	var->string = CopyString (var_value);
+	var->description = var_desc ? CopyString( var_desc ) : NULL;
 	var->modified = qtrue;
 	var->modificationCount = 1;
 	var->value = atof (var->string);

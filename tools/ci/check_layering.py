@@ -77,6 +77,18 @@ def resolve(include: str, source: Path, root: Path) -> Path | None:
     return None
 
 
+def violation_key(entry: str) -> tuple[str, str]:
+    """A violation is a file and an include, not a position in a file.
+
+    Entries are formatted "path:line: src -> dst  (#include "x")". Keying on
+    the whole string would make every edit above an inherited violation look
+    like a new one.
+    """
+    path = entry.split(":", 1)[0]
+    include = entry.split("#include", 1)[1].strip() if "#include" in entry else entry
+    return (path, include)
+
+
 def main(argv: list[str]) -> int:
     args = [a for a in argv[1:] if not a.startswith("--")]
     root = Path(args[0] if args else ".").resolve()
@@ -122,6 +134,13 @@ def main(argv: list[str]) -> int:
 
     current = set(violations)
 
+    # Identity is the file and what it includes - never the line number. Adding
+    # a field to a struct in q_shared.h shifted three inherited violations six
+    # lines down and the ratchet reported them as new, which is a gate crying
+    # wolf at the exact moment someone is least able to tell. The line is still
+    # printed, because it is useful; it just does not decide whether two entries
+    # are the same violation.
+
     if "--write-baseline" in argv:
         BASELINE_FILE.write_text(
             "# Inherited layer violations. This file may shrink, never grow.\n"
@@ -139,8 +158,11 @@ def main(argv: list[str]) -> int:
             if line.strip() and not line.startswith("#")
         }
 
-    added = sorted(current - baseline)
-    fixed = sorted(baseline - current)
+    current_by_key = {violation_key(v): v for v in current}
+    baseline_keys = {violation_key(v) for v in baseline}
+
+    added = sorted(current_by_key[k] for k in current_by_key.keys() - baseline_keys)
+    fixed = sorted(v for v in baseline if violation_key(v) not in current_by_key)
 
     if fixed:
         print(f"\ngood: {len(fixed)} baseline violation(s) no longer present.")

@@ -878,6 +878,10 @@ static bool SV_WE_SetTempGlobalFogColor( vec3_t color )
 	return re.SetTempGlobalFogColor( color );
 }
 
+static cvar_t *SV_CvarGetForGame( const char *var_name, const char *value, int flags ) {
+	return Cvar_Get( var_name, value, flags );
+}
+
 /*
 ===============
 SV_InitGameProgs
@@ -927,7 +931,13 @@ void SV_InitGameProgs (void) {
 
 	import.GetServerinfo = SV_GetServerinfo;
 
-	import.cvar = Cvar_Get;
+	// Through a shim, not directly: Cvar_Get gained an optional description
+	// parameter, which changes its type, and the gamecode's import table asks
+	// for the three-parameter shape. The gamecode has no use for descriptions -
+	// they exist so a settings screen can be generated from the renderer's
+	// cvars - so it keeps the narrower signature rather than being dragged
+	// through a change it does not benefit from.
+	import.cvar = SV_CvarGetForGame;
 	import.cvar_set = Cvar_Set;
 	import.Cvar_VariableIntegerValue = Cvar_VariableIntegerValue;
 	import.Cvar_VariableStringBuffer = Cvar_VariableStringBuffer;

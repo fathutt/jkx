@@ -463,6 +463,11 @@ default values.
 typedef struct cvar_s {
 	char		*name;
 	char		*string;
+	// What this cvar is for, in one line. Optional and NULL for most of the
+	// engine's own cvars; the Vulkan renderer documents all 178 of its own this
+	// way, and a settings screen generated from cvars needs somewhere to read
+	// that from. See docs/Backlog.md.
+	char		*description;
 	char		*resetString;		// cvar_restart will reset to this value
 	char		*latchedString;		// for CVAR_LATCH vars
 	int			flags;
