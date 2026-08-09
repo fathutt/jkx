@@ -184,7 +184,10 @@ if [ ! -f "$BUILD/CMakeCache.txt" ]; then
     # job a week later. The renderer is self-contained - it reaches the engine
     # through the refimport struct, not through the dynamic linker - so there is
     # nothing legitimate for this to break.
+    # compile_commands.json is what check_sp_shape.sh re-runs, so it is part of
+    # the harness output and not a convenience.
     cmake -S "$HARNESS" -B "$BUILD" -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
         -DCMAKE_SHARED_LINKER_FLAGS="-Wl,--no-undefined" \
         -DBuildMPRdVulkan=ON -DBuildMPRdVanilla=OFF -DBuildMPDed=OFF \
         -DBuildMPEngine=OFF -DBuildMPGame=OFF -DBuildMPCGame=OFF -DBuildMPUI=OFF \

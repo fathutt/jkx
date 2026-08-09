@@ -27,8 +27,9 @@
 set -euo pipefail
 
 BUILD="${1:-}"
-if [ -z "$BUILD" ] || [ ! -f "$BUILD/build.ninja" ]; then
-    echo "usage: $0 <harness build dir> (a configured Ninja build)" >&2
+if [ -z "$BUILD" ] || [ ! -f "$BUILD/compile_commands.json" ]; then
+    echo "usage: $0 <harness build dir> (configured, with compile_commands.json)" >&2
+    echo "run tools/devkit/renderer_build_harness.sh first" >&2
     exit 2
 fi
 
@@ -74,7 +75,18 @@ while IFS= read -r cmd; do
         failed=$((failed + 1))
     fi
     checked=$((checked + 1))
-done < <(ninja -C "$BUILD" -t commands rd-vulkan_x86_64)
+done < <(python3 - "$BUILD/compile_commands.json" <<'PY'
+# compile_commands.json rather than `ninja -t commands`: the harness does not
+# pick the generator, so this has to work whatever CMake chose. It asked for
+# ninja once and silently did nothing for a month on a Makefiles build.
+import json, shlex, sys
+
+with open(sys.argv[1]) as f:
+    for entry in json.load(f):
+        cmd = entry.get("command") or " ".join(map(shlex.quote, entry["arguments"]))
+        print("cd %s && %s" % (shlex.quote(entry["directory"]), cmd))
+PY
+)
 
 if [ "$checked" -eq 0 ]; then
     echo "no renderer compile commands found in $BUILD" >&2
