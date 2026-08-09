@@ -128,6 +128,21 @@ void G2API_GiveMeVectorFromMatrix( mdxaBone_t *boltMatrix, Eorientations flags, 
 // Same again: single-player's public declaration takes a reference, this
 // renderer defines and calls the pointer form, and they are overloads.
 qboolean G2API_RemoveGhoul2Model( CGhoul2Info_v **ghlRemove, const int modelIndex );
+
+// The multiplayer-shaped entry points, kept beside the single-player ones they
+// now forward to. Overloads, not replacements: the renderer is still built
+// inside the multiplayer harness, whose export table wants these shapes. They
+// go away with the harness.
+int			G2API_AddBolt( CGhoul2Info_v &ghoul2, const int modelIndex, const char *boneName );
+char *		G2API_GetGLAName( CGhoul2Info_v &ghoul2, int modelIndex );
+int			G2API_GetSurfaceRenderStatus( CGhoul2Info_v &ghoul2, int modelIndex, const char *surfaceName );
+qboolean	G2API_RemoveBone( CGhoul2Info_v &ghoul2, int modelIndex, const char *boneName );
+qboolean	G2API_SetSkin( CGhoul2Info_v &ghoul2, int modelIndex, qhandle_t customSkin, qhandle_t renderSkin );
+int			G2API_GetBoneIndex( CGhoul2Info *ghlInfo, const char *boneName );
+qboolean	G2API_SetSurfaceOnOff( CGhoul2Info_v &ghoul2, const char *surfaceName, const int flags );
+qboolean	G2API_SetNewOrigin( CGhoul2Info_v &ghoul2, const int boltIndex );
+char *		G2API_GetSurfaceName( CGhoul2Info_v &ghoul2, int modelIndex, int surfNumber );
+qboolean	G2API_SaveGhoul2Models( CGhoul2Info_v &ghoul2, char **buffer, int *size );
 void G2_ConstructGhoulSkeleton( CGhoul2Info_v &ghoul2,const int frameNum,bool checkForNewOrigin,const vec3_t scale );
 surfaceInfo_t * G2_FindOverrideSurface( int surfaceNum, surfaceInfo_v &surfaceList );
 void * G2_FindSurface( void *mod_t, int index, int lod );
@@ -140,7 +155,7 @@ int G2_GetSurfaceIndex( CGhoul2Info *ghlInfo, const char *surfaceName );
 qboolean G2_Get_Bone_Anim( CGhoul2Info *ghlInfo, boneInfo_v &blist, const char *boneName, const int currentTime, float *currentFrame, int *startFrame, int *endFrame, int *flags, float *retAnimSpeed, qhandle_t *modelList, int modelIndex );
 qboolean G2_Get_Bone_Anim_Index( boneInfo_v &blist, const int index, const int currentTime, float *currentFrame, int *startFrame, int *endFrame, int *flags, float *retAnimSpeed, qhandle_t *modelList, int numFrames );
 qboolean G2_Get_Bone_Anim_Range( CGhoul2Info *ghlInfo, boneInfo_v &blist, const char *boneName, int *startFrame, int *endFrame );
-int G2_Get_Bone_Index( CGhoul2Info *ghoul2, const char *boneName );
+int G2_Get_Bone_Index( CGhoul2Info *ghoul2, const char *boneName, qboolean bAddIfNotFound );
 void G2_Init_Bolt_List( boltInfo_v &bltlist );
 void G2_Init_Bone_List( boneInfo_v &blist, int numBones );
 qboolean G2_IsPaused( const char *fileName, boneInfo_v &blist, const char *boneName );

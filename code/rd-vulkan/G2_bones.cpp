@@ -4903,10 +4903,18 @@ void G2_RemoveRedundantBoneOverrides(boneInfo_v &blist, int *activeBones)
 	}
 }
 
-int	G2_Get_Bone_Index(CGhoul2Info *ghoul2, const char *boneName)
+// bAddIfNotFound is single-player's: it adds the bone to the list rather than
+// reporting that it is missing. Multiplayer's callers only ever look up, so
+// this parameter was not there; the behaviour is rd-vanilla's.
+int	G2_Get_Bone_Index(CGhoul2Info *ghoul2, const char *boneName, qboolean bAddIfNotFound)
 {
   	model_t		*mod_m = R_GetModelByHandle(RE_RegisterModel(ghoul2->mFileName));
 	model_t		*mod_a = R_GetModelByHandle(mod_m->data.glm->header->animIndex);
+
+	if (bAddIfNotFound)
+	{
+		return (G2_Add_Bone(mod_a, ghoul2->mBlist, boneName));
+	}
 
 	return (G2_Find_Bone(mod_a, ghoul2->mBlist, boneName));
 }
