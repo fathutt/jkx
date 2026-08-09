@@ -770,8 +770,18 @@ void G2API_CleanGhoul2Models(CGhoul2Info_v **ghoul2Ptr)
 	}
 }
 
+// Whether this call is coming from the server side rather than the client.
+//
+// Multiplayer runs one renderer module for both, tells them apart by asking
+// which virtual machine is executing, and skips loading server assets once the
+// client has started loading its own. Single-player has no virtual machine and
+// no server renderer: the renderer only ever runs for the client, so the answer
+// is always no and there is nothing to adapt.
 qboolean G2_ShouldRegisterServer(void)
 {
+#ifdef JKX_SP_FIELDS
+	return qfalse;
+#else
 	vm_t *currentVM = ri.GetCurrentVM();
 
 	if ( currentVM && currentVM->slot == VM_GAME )
@@ -785,6 +795,7 @@ qboolean G2_ShouldRegisterServer(void)
 		return qtrue;
 	}
 	return qfalse;
+#endif
 }
 
 qhandle_t G2API_PrecacheGhoul2Model( const char *fileName )
@@ -2270,7 +2281,7 @@ void G2API_CollisionDetectCache(CollisionRecord_t *collRecMap, CGhoul2Info_v &gh
 					//if we have a pointer, but not a ghoul2_zonetransalloc flag, then that means
 					//it is a miniheap pointer. Just stomp over it.
 					int iSize = g2.currentModel->data.glm->header->numSurfaces * 4;
-					g2.mTransformedVertsArray = (size_t *)R_Z_Malloc(iSize, TAG_GHOUL2, qtrue);
+					g2.mTransformedVertsArray = (g2Vert_t *)R_Z_Malloc(iSize, TAG_GHOUL2, qtrue);
 				}
 
 				g2.mFlags |= GHOUL2_ZONETRANSALLOC;
@@ -2443,7 +2454,7 @@ void G2API_GiveMeVectorFromMatrix(mdxaBone_t *boltMatrix, Eorientations flags, v
 }
 
 
-int G2API_CopyGhoul2Instance(CGhoul2Info_v &g2From, CGhoul2Info_v &g2To, int modelIndex)
+G2_COPY_RESULT G2API_CopyGhoul2Instance(CGhoul2Info_v &g2From, CGhoul2Info_v &g2To, int modelIndex)
 {
 	assert(modelIndex==-1); // copy individual bolted parts is not used in jk2 and I didn't want to deal with it
 							// if ya want it, we will add it back correctly
@@ -2483,7 +2494,7 @@ int G2API_CopyGhoul2Instance(CGhoul2Info_v &g2From, CGhoul2Info_v &g2To, int mod
 		//G2ANIM(ghoul2To,"G2API_CopyGhoul2Instance (dest)");
 	}
 
-	return -1;
+	G2_COPY_RETURN;
 }
 
 void G2API_CopySpecificG2Model(CGhoul2Info_v &ghoul2From, int modelFrom, CGhoul2Info_v &ghoul2To, int modelTo)

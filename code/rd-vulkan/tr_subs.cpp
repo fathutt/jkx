@@ -155,3 +155,22 @@ int R_Z_MemSize( memtag_t eTag ) {
 void Z_MorphMallocTag( void *pvBuffer, memtag_t eDesiredTag ) {
 	ri.Z_MorphMallocTag( pvBuffer, eDesiredTag );
 }
+
+#ifdef JKX_SP_FIELDS
+
+// rd-common allocates through these. rd-vanilla defines them the same way; the
+// multiplayer build gets them from its own rd-common instead.
+void *R_Malloc( int iSize, memtag_t eTag, qboolean bZeroit ) {
+	return ri.Malloc( iSize, eTag, bZeroit, 4 );
+}
+
+void R_Free( void *ptr ) {
+	ri.Z_Free( ptr );
+}
+
+// The font loader reads this to decide whether to touch every glyph while
+// building a script. The engine owns the cvar; the renderer module needs its
+// own definition to link, exactly as rd-vanilla has one.
+cvar_t	*com_buildScript;
+
+#endif // JKX_SP_FIELDS

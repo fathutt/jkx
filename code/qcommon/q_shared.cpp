@@ -157,7 +157,10 @@ void COM_EndParseSession( void )
 #endif
 }
 
-int COM_GetCurrentParseLine( int index )
+// The parameter was never used and never matched the declaration in q_shared.h,
+// which spells this ( void ). Nothing in the tree called it, so the mismatch
+// only surfaced when the renderer did.
+int COM_GetCurrentParseLine( void )
 {
 	if(parseDataCount < 0)
 		Com_Error(ERR_FATAL, "COM_GetCurrentParseLine: parseDataCount < 0 (be sure to call COM_BeginParseSession!)");

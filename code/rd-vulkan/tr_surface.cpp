@@ -751,6 +751,11 @@ static void DoLine2( const vec3_t start, const vec3_t end, const vec3_t up, floa
 	tess.indexes[tess.numIndexes++] = vbase + 3;
 }
 
+// Only the oriented-line surface uses this, and that entity type is multiplayer
+// only - it is the one that reads refEntity_t::data, a union single-player does
+// not have. Guarded with its caller rather than adapted: there is no
+// single-player caller to adapt for.
+#ifndef JKX_SP_TYPES
 static void DoLine_Oriented( const vec3_t start, const vec3_t end, const vec3_t up, float spanWidth )
 {
 	float		spanWidth2;
@@ -810,6 +815,8 @@ static void DoLine_Oriented( const vec3_t start, const vec3_t end, const vec3_t 
 //-----------------
 // RB_SurfaceLine
 //-----------------
+#endif // !JKX_SP_TYPES
+
 static void RB_SurfaceLine( void )
 {
 	refEntity_t *e;
@@ -830,6 +837,7 @@ static void RB_SurfaceLine( void )
 
 	DoLine( start, end, right, e->radius);
 }
+
 
 #ifndef JKX_SP_TYPES
 static void RB_SurfaceOrientedLine( void )

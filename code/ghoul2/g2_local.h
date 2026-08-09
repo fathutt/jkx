@@ -118,6 +118,16 @@ int G2_AddSurface( CGhoul2Info *ghoul2, int surfaceNumber, int polyNumber, float
 int G2_Add_Bolt( CGhoul2Info *ghlInfo, boltInfo_v &bltlist, surfaceInfo_v &slist, const char *boneName );
 int G2_Add_Bolt_Surf_Num( CGhoul2Info *ghlInfo, boltInfo_v &bltlist, surfaceInfo_v &slist, const int surfNum );
 void G2_Animate_Bone_List( CGhoul2Info_v &ghoul2, const int currentTime, const int index );
+void G2_Animate_Bone_List( CGhoul2Info_v &ghoul2, const int currentTime, const int index, CRagDollUpdateParams *params );
+
+// Single-player's ghoul2/G2.h declares this taking references; this renderer
+// defines the pointer form multiplayer uses, and the two are overloads. The
+// export table gets the reference one through tr_sp_exports.cpp.
+void G2API_GiveMeVectorFromMatrix( mdxaBone_t *boltMatrix, Eorientations flags, vec3_t vec );
+
+// Same again: single-player's public declaration takes a reference, this
+// renderer defines and calls the pointer form, and they are overloads.
+qboolean G2API_RemoveGhoul2Model( CGhoul2Info_v **ghlRemove, const int modelIndex );
 void G2_ConstructGhoulSkeleton( CGhoul2Info_v &ghoul2,const int frameNum,bool checkForNewOrigin,const vec3_t scale );
 surfaceInfo_t * G2_FindOverrideSurface( int surfaceNum, surfaceInfo_v &surfaceList );
 void * G2_FindSurface( void *mod_t, int index, int lod );

@@ -1388,18 +1388,23 @@ R_inPVS
 =================
 */
 qboolean R_inPVS( const vec3_t p1, const vec3_t p2, byte *mask ) {
-	int		leafnum;
-	int		cluster;
+	const mnode_t	*leaf;
 
-	leafnum = ri.CM_PointLeafnum (p1);
-	cluster = ri.CM_LeafCluster (leafnum);
+	// The leaf lookup used to go out to the clipmap, through two refimport
+	// entries single-player does not have. It does not need to: the renderer
+	// has the same BSP loaded and rd-vanilla answers this from its own tree.
+	// Two fewer engine calls, and the same answer.
+	//
+	// mask is ignored, as it was before - the caller's snapshot mask is not the
+	// right one for this question, which is what the comment that used to sit
+	// here said before overwriting it.
+	(void)mask;
 
-	//agh, the damn snapshot mask doesn't work for this
-	mask = (byte *) ri.CM_ClusterPVS (cluster);
+	leaf = R_PointInLeaf( p1 );
+	mask = ri.CM_ClusterPVS( leaf->cluster );
 
-	leafnum = ri.CM_PointLeafnum (p2);
-	cluster = ri.CM_LeafCluster (leafnum);
-	if ( mask && (!(mask[cluster>>3] & (1<<(cluster&7)) ) ) )
+	leaf = R_PointInLeaf( p2 );
+	if ( mask && !( mask[leaf->cluster >> 3] & ( 1 << ( leaf->cluster & 7 ) ) ) )
 		return qfalse;
 
 	return qtrue;

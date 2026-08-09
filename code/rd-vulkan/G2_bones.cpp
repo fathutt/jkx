@@ -3944,10 +3944,17 @@ static float AngleNormZero(float theta)
 
 static inline void G2_BoneSnap(CGhoul2Info_v &ghoul2V, boneInfo_t &bone, CRagDollUpdateParams *params)
 {
-	if ( !ri.CGVMLoaded() || !params )
+	if ( !params )
 	{
 		return;
 	}
+
+#ifndef JKX_SP_FIELDS
+	if ( !ri.CGVMLoaded() )
+	{
+		return;
+	}
+#endif
 
 	// Same VM machinery as the trace above. The bone-snap notification is
 	// advisory - it tells the client game a bone hit its limit so it can play a

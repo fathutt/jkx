@@ -133,3 +133,24 @@ Foundation.
 #ifndef CVAR_NONE
 #define CVAR_NONE	0
 #endif
+
+// The transformed vertex array Ghoul2 hands to the mini heap. Single-player
+// types the pointer as intptr_t and multiplayer as size_t - same width, and
+// nothing does arithmetic on the values that would notice the sign.
+#ifdef JKX_SP_FIELDS
+typedef intptr_t	g2Vert_t;
+#else
+typedef size_t		g2Vert_t;
+#endif
+
+// Copying a Ghoul2 instance. Multiplayer returns an int that its own body only
+// ever sets to -1 and no caller reads; single-player declares it void. The
+// return type cannot be overloaded, so it is selected here and the one return
+// statement is guarded with it.
+#ifdef JKX_SP_FIELDS
+#define G2_COPY_RESULT		void
+#define G2_COPY_RETURN		return
+#else
+#define G2_COPY_RESULT		int
+#define G2_COPY_RETURN		return -1
+#endif
