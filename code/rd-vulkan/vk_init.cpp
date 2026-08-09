@@ -726,6 +726,10 @@ void vk_shutdown( void )
 	vk_destroy_allocator();
 
 __cleanup:
+	// Before the engine unloads this module, which it does on every
+	// vid_restart and not only at exit.
+	vk_remove_crash_handler();
+
 	if (vk.device != VK_NULL_HANDLE) {
 #ifdef USE_VK_OBJECT_TRACKER
 		vk_dump_tracked_objects();

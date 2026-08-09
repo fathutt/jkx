@@ -1006,7 +1006,12 @@ void		vk_shutdown( void );
 // Installs a process-wide fault handler that writes a symbolised stack to
 // jkx_crash.txt next to the executable. Cheap, always on: the cost of not
 // having it is a round trip to the machine that crashed.
+//
+// Must be paired. The engine unloads this module on every vid_restart, and a
+// handler the operating system still points at, in freed memory, turns the next
+// exception of any kind into an access violation.
 void		vk_install_crash_handler( void );
+void		vk_remove_crash_handler( void );
 void		vk_init_library( void );
 void		vk_deinit_library( void );
 void		get_viewport( VkViewport *viewport, Vk_Depth_Range depth_range );

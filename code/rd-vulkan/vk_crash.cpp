@@ -41,6 +41,15 @@ static LONG  jkx_crash_busy = 0;
 static char  jkx_crash_path[MAX_PATH];
 static bool  jkx_crash_symbols = false;
 
+// Both of these have to be given back before this module can be unloaded. The
+// engine unloads the renderer on every vid_restart (CL_ShutdownRef unloads
+// unconditionally, restarting or not), and a handler the operating system still
+// holds a pointer to, in memory that has been freed, is a jump into nothing on
+// the next exception of any kind - including the benign first-chance ones
+// Windows raises routinely. That is a crash introduced by the crash reporter.
+static PVOID jkx_crash_vectored_handle = NULL;
+static LPTOP_LEVEL_EXCEPTION_FILTER jkx_crash_previous_filter = NULL;
+
 static const char *jkx_exception_name( DWORD code )
 {
 	switch ( code ) {
@@ -197,6 +206,11 @@ static LONG CALLBACK jkx_crash_vectored( EXCEPTION_POINTERS *ep )
 static LONG WINAPI jkx_crash_unhandled( EXCEPTION_POINTERS *ep )
 {
 	jkx_crash_handle( ep, "unhandled" );
+
+	// Whatever was there before this module loaded still gets its turn.
+	if ( jkx_crash_previous_filter != NULL ) {
+		return jkx_crash_previous_filter( ep );
+	}
 	return EXCEPTION_CONTINUE_SEARCH;
 }
 
@@ -204,8 +218,8 @@ void vk_install_crash_handler( void )
 {
 	char *slash;
 
-	if ( jkx_crash_path[0] != '\0' ) {
-		return; // vid_restart comes back through here
+	if ( jkx_crash_vectored_handle != NULL ) {
+		return; // already installed in this load of the module
 	}
 
 	// Next to the executable rather than in the write directory: the run may
@@ -226,11 +240,40 @@ void vk_install_crash_handler( void )
 	// Last in the vectored chain, so a handler that legitimately deals with the
 	// exception gets it first; plus the unhandled filter, because a vectored
 	// handler can be unregistered by anything else in the process.
-	AddVectoredExceptionHandler( 0, jkx_crash_vectored );
-	SetUnhandledExceptionFilter( jkx_crash_unhandled );
+	jkx_crash_vectored_handle = AddVectoredExceptionHandler( 0, jkx_crash_vectored );
+	jkx_crash_previous_filter = SetUnhandledExceptionFilter( jkx_crash_unhandled );
 
 	ri.Printf( PRINT_ALL, "JKX: crash reports go to %s%s\n", jkx_crash_path,
 		jkx_crash_symbols ? "" : " (no symbols, addresses only)" );
+}
+
+void vk_remove_crash_handler( void )
+{
+	if ( jkx_crash_vectored_handle != NULL ) {
+		RemoveVectoredExceptionHandler( jkx_crash_vectored_handle );
+		jkx_crash_vectored_handle = NULL;
+	}
+
+	// Put back what we replaced - unless somebody installed a filter after we
+	// did, in which case theirs is the one that belongs there and we have just
+	// removed it by accident.
+	{
+		LPTOP_LEVEL_EXCEPTION_FILTER current =
+			SetUnhandledExceptionFilter( jkx_crash_previous_filter );
+		if ( current != jkx_crash_unhandled ) {
+			SetUnhandledExceptionFilter( current );
+		}
+	}
+	jkx_crash_previous_filter = NULL;
+
+	if ( jkx_crash_symbols ) {
+		SymCleanup( GetCurrentProcess() );
+		jkx_crash_symbols = false;
+	}
+
+	// The next load of this module installs again, and appends to the same
+	// file, so a report from before a vid_restart is not lost.
+	jkx_crash_path[0] = '\0';
 }
 
 #else // _WIN32
@@ -238,6 +281,10 @@ void vk_install_crash_handler( void )
 // Linux gets a core file and a debugger, which is strictly better than anything
 // this would produce.
 void vk_install_crash_handler( void )
+{
+}
+
+void vk_remove_crash_handler( void )
 {
 }
 

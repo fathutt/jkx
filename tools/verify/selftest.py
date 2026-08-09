@@ -420,6 +420,43 @@ def test_crash_reporting() -> None:
           "a clean run says nothing about crashes")
 
 
+def test_intermittent_crash_triage() -> None:
+    """Four clean variants after a flaky crash must not read as four answers."""
+    tmp = Path(tempfile.mkdtemp())
+
+    class Args:
+        binary = "jkx_ja.x86_64.exe"
+        resolved_game = "/games/GameData"
+        map = "mp/ffa3"
+        runs = 3
+
+    variants = [{"variant": "sound enabled", "exit": 0, "seconds": 4.0},
+                {"variant": "OpenGL renderer", "exit": 0, "seconds": 4.0},
+                {"variant": "a different map", "exit": 0, "seconds": 4.0}]
+
+    # Crashed once out of three: every variant survives its single run.
+    flaky = {"vid_restart": {"samples": [4.4, 1.9, 4.3], "median": 4.3,
+                             "exit_codes": [0, 3221225477, 0]}}
+    out = tmp / "flaky.md"
+    verify.write_report(out, flaky, {}, Args(), {}, variants)
+    text = out.read_text(encoding="utf-8")
+    check("crash is intermittent" in text, "an intermittent crash is called intermittent")
+    check("avoids the crash" not in text,
+          "no variant is credited with fixing a crash it never faced")
+    check("jkx_<scenario>_run<n>.log" in text,
+          "the report points at the preserved log of the run that died")
+
+    # Crashed every time: the variants mean what they say.
+    always = {"map": {"samples": [8.0, 8.0, 8.0], "median": 8.0,
+                      "exit_codes": [3221225477] * 3}}
+    out = tmp / "always.md"
+    verify.write_report(out, always, {}, Args(), {}, variants)
+    text = out.read_text(encoding="utf-8")
+    check("avoids the crash" in text, "a reliable crash still gets a verdict")
+    check("crash is intermittent" not in text,
+          "a reliable crash is not called intermittent")
+
+
 def test_trace_timings_are_flagged() -> None:
     """A diagnostics build's numbers must not read as a baseline."""
     tmp = Path(tempfile.mkdtemp())
@@ -784,6 +821,7 @@ def main() -> int:
     for test in (test_vdf, test_layout, test_detection, test_binary, test_renderer_present, test_gamecode,
                  test_merge_into, test_startup_cvars, test_map_detection,
                  test_crash_reporting,
+                 test_intermittent_crash_triage,
                  test_trace_timings_are_flagged,
                  test_provenance,
                  test_crash_stack,

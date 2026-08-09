@@ -777,7 +777,7 @@ def renderer_cvar(libs: list[Path]) -> str:
 def run_scenario(binary: Path, game_dir: Path, cfg_dir: Path, home: Path, name: str,
                  mapname: str, timeout: int,
                  overrides: list[tuple[str, str]] | None = None,
-                 tag: str = "") -> tuple[float, int]:
+                 tag: str = "", run: int = 0) -> tuple[float, int]:
     scenario = SCENARIOS[name]
     cfg_name = f"jkx_verify_{name}.cfg"
     (cfg_dir / cfg_name).write_text(build_cfg(scenario["cfg"], mapname), encoding="ascii")
@@ -838,6 +838,16 @@ def run_scenario(binary: Path, game_dir: Path, cfg_dir: Path, home: Path, name: 
     for report in find_all([home, game_dir], "jkx_crash.txt"):
         shutil.copy2(report, home / f"jkx_{name}{tag}_crash.txt")
         report.unlink()
+
+    # A scenario is run several times and every run writes the same file names,
+    # so run 2 crashing and run 3 succeeding leaves nothing behind but an exit
+    # code - which is exactly what happened the first time an intermittent
+    # crash appeared. Keep the failing run's evidence under a name of its own.
+    if code != 0 and not tag:
+        for suffix in (".log", "_crash.txt", "_stdout.txt", "_vk.log"):
+            source = home / f"jkx_{name}{suffix}"
+            if source.is_file():
+                shutil.copy2(source, home / f"jkx_{name}_run{run + 1}{suffix}")
 
     return (time.perf_counter() - start, code)
 
@@ -1142,7 +1152,19 @@ def write_report(path: Path, results: dict, info: dict, args, stages: dict | Non
             lines.append(f"| {entry['variant']} | {verdict} |")
         clean = [e["variant"] for e in triage if e["exit"] == 0]
         lines.append("")
-        if clean:
+        # Triage changes one variable and re-runs once. That only means anything
+        # if the crash was reliable: an intermittent one produces a clean row for
+        # every variant and an invitation to blame whichever is listed first.
+        intermittent = any(0 in data.get("exit_codes", []) and
+                           any(c != 0 for c in data.get("exit_codes", []))
+                           for data in results.values())
+        if intermittent:
+            lines.append("**The crash is intermittent** - the same scenario also exited cleanly")
+            lines.append("on other runs - so this table says almost nothing. Each variant ran")
+            lines.append("once; a variant that survived one run has not been cleared. Look at")
+            lines.append("the preserved log of the run that actually died, kept in dumps/ as")
+            lines.append("`jkx_<scenario>_run<n>.log`, rather than at the rows above.")
+        elif clean:
             lines.append("Changing " + ", ".join(f"**{c}**" for c in clean) + " avoids the crash,")
             lines.append("which is where to start looking.")
         else:
@@ -1363,7 +1385,7 @@ def main(argv: list[str]) -> int:
         print(f"{scenario['label']}: ", end="", flush=True)
         for run in range(args.runs):
             elapsed, code = run_scenario(binary, game_dir, cfg_dir, home, name, args.map,
-                                         args.timeout)
+                                         args.timeout, run=run)
             if code == -1:
                 print(f"\n  run {run + 1} timed out after {args.timeout}s; skipping this scenario")
                 samples = []
@@ -1434,7 +1456,8 @@ def main(argv: list[str]) -> int:
     evidence = out.parent / "dumps"
     evidence.mkdir(exist_ok=True)
     for path in evidence_files + sorted(home.glob("jkx_*_stdout.txt")) \
-            + sorted(home.glob("jkx_*_vk.log")) + crashes:
+            + sorted(home.glob("jkx_*_vk.log")) + crashes \
+            + sorted(home.glob("jkx_*_run[0-9].log")):
         if path and path.is_file():
             shutil.copy2(path, evidence / path.name)
 
