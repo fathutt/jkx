@@ -21,6 +21,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 #include <SDL.h>
 #include <SDL_syswm.h>
+#include <SDL_vulkan.h>
 #include "qcommon/qcommon.h"
 #include "rd-common/tr_types.h"
 #include "sys/sys_local.h"
@@ -140,6 +141,12 @@ Minimize the game so that user is back at the desktop
 void GLimp_Minimize(void)
 {
 	SDL_MinimizeWindow( screen );
+
+	// Set it here rather than waiting for the window event. Under Vulkan the
+	// renderer asks whether the window is minimized before it acquires a
+	// swapchain image, and asking one frame too early means acquiring against
+	// a zero extent.
+	Cvar_SetValue( "com_minimized", 1 );
 }
 
 void WIN_Present( window_t *window )
@@ -327,9 +334,11 @@ static rserr_t GLimp_SetMode(glconfig_t *glConfig, const windowDesc_t *windowDes
 	int display = 0;
 	int x = SDL_WINDOWPOS_UNDEFINED, y = SDL_WINDOWPOS_UNDEFINED;
 
-	if ( windowDesc->api == GRAPHICS_API_OPENGL )
+	switch ( windowDesc->api )
 	{
-		flags |= SDL_WINDOW_OPENGL;
+		case GRAPHICS_API_OPENGL:	flags |= SDL_WINDOW_OPENGL;	break;
+		case GRAPHICS_API_VULKAN:	flags |= SDL_WINDOW_VULKAN;	break;
+		default:												break;
 	}
 
 	Com_Printf( "Initializing display\n");
@@ -632,25 +641,34 @@ static rserr_t GLimp_SetMode(glconfig_t *glConfig, const windowDesc_t *windowDes
 	}
 	else
 	{
-		// Just create a regular window
+		// Just create a regular window. Vulkan comes through here: there is no
+		// context to negotiate and no format to fall back on, so the loop above
+		// has nothing to do - the swapchain format is chosen by the renderer
+		// against what the surface reports, not by the window.
 		if( ( screen = SDL_CreateWindow( windowTitle, x, y,
 				glConfig->vidWidth, glConfig->vidHeight, flags ) ) == NULL )
 		{
-			Com_DPrintf( "SDL_CreateWindow failed: %s\n", SDL_GetError( ) );
+			Com_Printf( "SDL_CreateWindow failed: %s\n", SDL_GetError( ) );
+			SDL_FreeSurface( icon );
+			return RSERR_INVALID_MODE;
 		}
-		else
-		{
+
 #ifndef MACOS_X
-			SDL_SetWindowIcon( screen, icon );
+		SDL_SetWindowIcon( screen, icon );
 #endif
-			if( fullscreen )
+		if( fullscreen )
+		{
+			if( SDL_SetWindowDisplayMode( screen, NULL ) < 0 )
 			{
-				if( SDL_SetWindowDisplayMode( screen, NULL ) < 0 )
-				{
-					Com_DPrintf( "SDL_SetWindowDisplayMode failed: %s\n", SDL_GetError( ) );
-				}
+				Com_DPrintf( "SDL_SetWindowDisplayMode failed: %s\n", SDL_GetError( ) );
 			}
 		}
+
+		// Nothing negotiated these, but glConfig is what the rest of the engine
+		// reads, so it gets what was asked for rather than zeroes.
+		glConfig->colorBits = colorBits;
+		glConfig->depthBits = depthBits;
+		glConfig->stencilBits = stencilBits;
 	}
 
 	SDL_FreeSurface( icon );
@@ -897,4 +915,82 @@ void *WIN_GL_GetProcAddress( const char *proc )
 qboolean WIN_GL_ExtensionSupported( const char *extension )
 {
 	return SDL_GL_ExtensionSupported( extension ) == SDL_TRUE ? qtrue : qfalse;
+}
+
+/*
+===============
+WIN_VK_IsMinimized
+
+A minimized window has an extent of zero, and a swapchain cannot be created for
+one. com_minimized is maintained by the event loop, but the flags are the truth,
+so a set com_minimized is confirmed against them - the event that clears it can
+arrive a frame late, and a frame of not presenting is a frame of not presenting.
+===============
+*/
+qboolean WIN_VK_IsMinimized( void )
+{
+	if ( com_minimized->integer )
+	{
+		Uint32 flags = screen ? SDL_GetWindowFlags( screen ) : 0;
+
+		if ( ( flags & SDL_WINDOW_MINIMIZED ) || ( flags & SDL_WINDOW_HIDDEN ) )
+			return qtrue;
+
+		Cvar_SetValue( "com_minimized", 0 );
+	}
+
+	return qfalse;
+}
+
+/*
+===============
+WIN_VK_GetInstanceProcAddress
+
+The loader comes from SDL rather than from a linked libvulkan, so this is the
+single entry point the renderer bootstraps volk from.
+===============
+*/
+void *WIN_VK_GetInstanceProcAddress( void )
+{
+	int code = SDL_Vulkan_LoadLibrary( NULL );
+
+	if ( code )
+	{
+		Com_Printf( S_COLOR_RED "SDL_Vulkan_LoadLibrary failed (%d): %s\n", code, SDL_GetError() );
+		return NULL;
+	}
+
+	return (void *)SDL_Vulkan_GetVkGetInstanceProcAddr();
+}
+
+qboolean WIN_VK_CreateSurface( VkInstance instance, VkSurfaceKHR *surface )
+{
+	if ( !SDL_Vulkan_CreateSurface( screen, instance, surface ) )
+	{
+		Com_Printf( S_COLOR_RED "SDL_Vulkan_CreateSurface failed: %s\n", SDL_GetError() );
+		// Not VK_NULL_HANDLE: this file does not have the Vulkan headers, and a
+		// zero of the handle's own type is the same value either way it is
+		// spelled - pointer on 64-bit targets, integer on the rest.
+		*surface = (VkSurfaceKHR)0;
+		return qfalse;
+	}
+
+	return qtrue;
+}
+
+/*
+===============
+WIN_VK_DestroyWindow
+
+The Vulkan renderer never calls WIN_Shutdown, so this is where the window goes
+away. It is only reached with the surface and the instance already destroyed -
+the renderer tears those down first - which is what makes unloading the loader
+here safe.
+===============
+*/
+void WIN_VK_DestroyWindow( void )
+{
+	WIN_Shutdown();
+
+	SDL_Vulkan_UnloadLibrary();
 }

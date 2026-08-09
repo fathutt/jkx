@@ -788,11 +788,7 @@ __initStart:
 #endif
 
 	// create surface
-#if defined(USE_JK2) || defined(USE_OPENJK)	// should backport (void**) to EJK
-	if (!ri.VK_createSurfaceImpl(vk.instance, (void**)&vk.surface)) 
-#else
-	if (!ri.VK_createSurfaceImpl(vk.instance, &vk.surface)) 
-#endif
+	if (!ri.VK_createSurfaceImpl(vk.instance, &vk.surface))
 	{
 		ri.Error(ERR_FATAL, "Error creating Vulkan surface");
 		return;

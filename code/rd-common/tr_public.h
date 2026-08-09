@@ -26,6 +26,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 #include "tr_types.h"
 #include "../qcommon/qcommon.h"
+#include "sys/sys_public.h"		// window_t, windowDesc_t, VkInstance
 
 #include "../ghoul2/G2.h"
 #include "../ghoul2/ghoul2_gore.h"
@@ -101,6 +102,14 @@ typedef struct {
 	// OpenGL-specific
 	void *			(*GL_GetProcAddress)				( const char *name );
 	qboolean		(*GL_ExtensionSupported)			( const char *extension );
+
+	// Vulkan-specific. Single-player never had these because its renderer was
+	// OpenGL; the names are the ones the Vulkan renderer already calls, so they
+	// stay as they are until the refimport table itself goes away in 2.2.
+	qboolean		(*VK_IsMinimized)					( void );
+	void *			(*VK_GetInstanceProcAddress)		( void );
+	qboolean		(*VK_createSurfaceImpl)				( VkInstance instance, VkSurfaceKHR *surface );
+	void			(*VK_destroyWindow)					( void );
 
 	CMiniHeap *			(*GetG2VertSpaceServer)				( void );
 

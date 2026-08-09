@@ -1166,6 +1166,11 @@ void CL_InitRef( void ) {
 	rit.GL_GetProcAddress = WIN_GL_GetProcAddress;
 	rit.GL_ExtensionSupported = WIN_GL_ExtensionSupported;
 
+	rit.VK_IsMinimized = WIN_VK_IsMinimized;
+	rit.VK_GetInstanceProcAddress = WIN_VK_GetInstanceProcAddress;
+	rit.VK_createSurfaceImpl = WIN_VK_CreateSurface;
+	rit.VK_destroyWindow = WIN_VK_DestroyWindow;
+
 	rit.PD_Load = PD_Load;
 	rit.PD_Store = PD_Store;
 
