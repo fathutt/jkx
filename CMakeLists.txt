@@ -65,12 +65,31 @@ else()
         -Wno-unused-parameter        # pervasive in Raven/id code
         -Wno-missing-field-initializers
         -Wno-invalid-offsetof
-        -Wno-write-strings
         -Wno-comment)
+    # Not debt: MSVC makes this an error under /permissive- (/Zc:strictStrings),
+    # so silencing it on GCC only meant Windows found it first, every time, on
+    # CI. Same rule on both compilers or the two do not agree on what compiles.
+    add_compile_options(-Werror=write-strings)
     if(JKX_WARNINGS_AS_ERRORS)
         add_compile_options(-Werror)
     endif()
 endif()
+
+# ...except in the gamecode, which holds 1243 of the 1252 occurrences: every
+# ent->classname = "func_door" in twenty years of Raven logic. Making those
+# const means changing gEntity_t and everything that touches it - a refactor of
+# game logic this project does not otherwise intend to touch.
+#
+# So the rule holds where the code is ours - engine, renderers, shared - and is
+# suspended per target where it is not. A ratchet, like the layering baseline:
+# call sites get fixed and targets leave this list, they never join it quietly.
+function(jkx_legacy_string_literals target)
+    if(MSVC)
+        target_compile_options(${target} PRIVATE /Zc:strictStrings-)
+    else()
+        target_compile_options(${target} PRIVATE -Wno-write-strings)
+    endif()
+endfunction()
 
 if(JKX_ENABLE_ASAN)
     add_compile_options(-fsanitize=address -fno-omit-frame-pointer)

@@ -103,7 +103,7 @@ void	* QDECL Sys_LoadLegacyGameDll( const char *name, VMMainProc **vmMain, Syste
 void	* QDECL Sys_LoadGameDll( const char *name, GetModuleAPIProc **moduleAPI );
 void	Sys_UnloadDll( void *dllHandle );
 
-char	*Sys_GetCurrentUser( void );
+const char	*Sys_GetCurrentUser( void );
 
 void	NORETURN QDECL Sys_Error( const char *error, ... );
 void	NORETURN Sys_Quit (void);

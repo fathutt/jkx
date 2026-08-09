@@ -495,7 +495,10 @@ static qboolean RawImage_HasAlpha( const byte *scan, const int numPixels )
 
 	return qfalse;
 }
-#if 0
+
+// Was inside an #if 0 that also disabled the buffer-barrier helper below. The
+// two are unrelated, and this one has callers - three in vk_normalmap.cpp -
+// which a Linux shared library link happily leaves unresolved.
 void vk_submit_image_barrier( VkCommandBuffer cb, const VkImageMemoryBarrier2 *barrier )
 {
 	VkDependencyInfo dependency;
@@ -507,6 +510,7 @@ void vk_submit_image_barrier( VkCommandBuffer cb, const VkImageMemoryBarrier2 *b
 	vkCmdPipelineBarrier2( cb, &dependency );
 }
 
+#if 0
 void vk_record_buffer_memory_barrier( VkCommandBuffer cb, VkBuffer buffer, VkDeviceSize size, VkDeviceSize offset,
 	VkPipelineStageFlags2 src_stages, VkPipelineStageFlags2 dst_stages,
 	VkAccessFlags2 src_access, VkAccessFlags2 dst_access ) {

@@ -374,6 +374,10 @@ if(WIN32)
 endif(WIN32)
 
 add_library(${SPGame} SHARED ${SPGameFiles})
+# cgame and icarus are compiled into this library, so the whole of the legacy
+# gamecode is covered here. See jkx_legacy_string_literals in the root
+# CMakeLists for why, and for what it would take to drop this line.
+jkx_legacy_string_literals(${SPGame})
 
 # Hide symbols not explicitly marked public.
 set_property(TARGET ${SPGame} APPEND PROPERTY COMPILE_OPTIONS ${OPENJK_VISIBILITY_FLAGS})

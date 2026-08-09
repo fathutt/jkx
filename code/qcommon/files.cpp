@@ -2422,7 +2422,7 @@ FS_Dir_f
 */
 void FS_Dir_f( void ) {
 	char	*path;
-	char	*extension;
+	const char	*extension;
 	char	**dirnames;
 	int		ndirs;
 	int		i;

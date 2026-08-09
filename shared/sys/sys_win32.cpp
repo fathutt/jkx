@@ -136,7 +136,7 @@ bool Sys_RandomBytes( byte *string, int len )
 Sys_GetCurrentUser
 ==================
 */
-char *Sys_GetCurrentUser( void )
+const char *Sys_GetCurrentUser( void )
 {
 	static char s_userName[1024];
 	DWORD size = sizeof( s_userName );
@@ -303,7 +303,7 @@ DIRECTORY SCANNING
 
 #define	MAX_FOUND_FILES	0x1000
 
-void Sys_ListFilteredFiles( const char *basedir, char *subdirs, char *filter, char **psList, int *numfiles ) {
+void Sys_ListFilteredFiles( const char *basedir, const char *subdirs, const char *filter, char **psList, int *numfiles ) {
 	char		search[MAX_OSPATH], newsubdirs[MAX_OSPATH];
 	char		filename[MAX_OSPATH];
 	intptr_t	findhandle;

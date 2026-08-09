@@ -227,8 +227,8 @@ protected:
 	char	*m_stream;							//Stream of data to be parsed
 	long	m_streamPos;
 
-	static char*			s_IBI_EXT;
-	static char*			s_IBI_HEADER_ID;
+	static const char*		s_IBI_EXT;
+	static const char*		s_IBI_HEADER_ID;
 	static const float		s_IBI_VERSION;
 };
 

@@ -694,25 +694,24 @@ void vk_init_descriptors( void ) {
 	}
 }
 
-void vk_create_indirect_buffer( VkDeviceSize size )
+// One VMA allocation per command buffer, mapped for the lifetime of the buffer.
+// Upstream created all NUM_COMMAND_BUFFERS buffers, took the requirements of the
+// last one, allocated a single block for all of them and bound them at manual
+// offsets - which is only correct while every buffer has identical requirements.
+void vk_create_vertex_buffer( VkDeviceSize size )
 {
-	VkMemoryRequirements vb_memory_requirements;
-	VkDeviceSize indirect_buffer_offset;
-	VkMemoryAllocateInfo alloc_info;
 	VkBufferCreateInfo desc;
-	uint32_t memory_type_bits;
-	void *data;
 	int i;
 
-	vk_debug("Create indirect buffer: vk.cmd->indirect_buffer \n");
-	
+	vk_debug("Create geometry buffer: vk.cmd->vertex_buffer \n");
+
 	desc.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 	desc.pNext = NULL;
 	desc.flags = 0;
 	desc.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 	desc.queueFamilyIndexCount = 0;
 	desc.pQueueFamilyIndices = NULL;
-	
+
 	for (i = 0; i < NUM_COMMAND_BUFFERS; i++) {
 		void *data = NULL;
 
@@ -733,6 +732,40 @@ void vk_create_indirect_buffer( VkDeviceSize size )
 	vk.geometry_buffer_size_new = 0;
 
 	Com_Memset(&vk.stats, 0, sizeof(vk.stats));
+}
+
+void vk_create_indirect_buffer( VkDeviceSize size )
+{
+	VkBufferCreateInfo desc;
+	int i;
+
+	vk_debug("Create indirect buffer: vk.cmd->indirect_buffer \n");
+
+	desc.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	desc.pNext = NULL;
+	desc.flags = 0;
+	desc.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+	desc.queueFamilyIndexCount = 0;
+	desc.pQueueFamilyIndices = NULL;
+
+	for (i = 0; i < NUM_COMMAND_BUFFERS; i++) {
+		void *data = NULL;
+
+		desc.size = size;
+		desc.usage = VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
+
+		if ( !vk_create_buffer_memory( &desc, VK_BUFFER_MEMORY_HOST_WRITE, &vk.tess[i].indirect_buffer,
+				&vk.tess[i].indirect_buffer_allocation, &data, "indirect buffer" ) ) {
+			ri.Error( ERR_DROP, "Vulkan: could not allocate a %i KiB indirect buffer", (int)( size / 1024 ) );
+			return;
+		}
+
+		vk.tess[i].indirect_buffer_ptr = (byte*)data;
+		vk.tess[i].indirect_buffer_offset = 0;
+	}
+
+	vk.indirect_buffer_size = size;
+	vk.indirect_buffer_size_new = 0;
 }
 
 void vk_reset_descriptor( int index )

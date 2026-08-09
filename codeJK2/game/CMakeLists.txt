@@ -285,6 +285,10 @@ if(WIN32)
 endif(WIN32)
 
 add_library(${JK2SPGame} SHARED ${JK2SPGameFiles})
+# cgame and icarus are compiled into this library, so the whole of the legacy
+# gamecode is covered here. See jkx_legacy_string_literals in the root
+# CMakeLists for why, and for what it would take to drop this line.
+jkx_legacy_string_literals(${JK2SPGame})
 
 if(NOT MSVC)
 	# remove "lib" prefix for .so/.dylib files
