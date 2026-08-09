@@ -383,6 +383,37 @@ def test_map_detection() -> None:
     check(ibl.get("ibl") == "cubemaps/mp/ffa3/env.json", "an actual bake is recognised")
 
 
+def test_crash_reporting() -> None:
+    tmp = Path(tempfile.mkdtemp())
+
+    class Args:
+        binary = "eternaljk.x86_64.exe"
+        resolved_game = "/games/GameData"
+        map = "mp/ffa3"
+        runs = 3
+
+    # 0xC0000005. The process is killed outright, so there is no dialog and no
+    # crash log; the exit code is the only thing that survives, which is why it
+    # is now recorded instead of discarded.
+    results = {"map": {"samples": [8.3, 8.0, 8.0], "median": 8.0,
+                       "exit_codes": [3221225477, 3221225477, 3221225477]}}
+    out = tmp / "crash.md"
+    verify.write_report(out, results, {}, Args(), {},
+                        [{"variant": "OpenGL renderer", "exit": 0, "seconds": 9.0},
+                         {"variant": "sound enabled", "exit": 3221225477, "seconds": 8.1}])
+    text = out.read_text(encoding="utf-8")
+    check("did not exit cleanly" in text, "a crashing run is called a crash")
+    check("0xC0000005" in text, "the exit code is translated into something readable")
+    check("| OpenGL renderer | clean |" in text, "triage results are tabulated")
+    check("**OpenGL renderer**" in text, "the variant that avoided the crash is highlighted")
+
+    out = tmp / "clean.md"
+    verify.write_report(out, {"map": {"samples": [8.0], "median": 8.0, "exit_codes": [0]}},
+                        {}, Args(), {}, [])
+    check("did not exit cleanly" not in out.read_text(encoding="utf-8"),
+          "a clean run says nothing about crashes")
+
+
 def test_report() -> None:
     tmp = Path(tempfile.mkdtemp())
 
@@ -585,6 +616,7 @@ def test_end_to_end() -> None:
 def main() -> int:
     for test in (test_vdf, test_layout, test_detection, test_binary, test_renderer_present, test_gamecode,
                  test_merge_into, test_startup_cvars, test_map_detection,
+                 test_crash_reporting,
                  test_parsing, test_report, test_missing, test_end_to_end):
         print(f"\n{test.__name__}")
         test()

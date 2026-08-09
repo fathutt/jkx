@@ -698,8 +698,22 @@ def find_all(roots: list[Path], name: str) -> list[Path]:
     return hits
 
 
+# One variable at a time, re-run only when something crashed. An access
+# violation with no stack is not much to go on, but "it crashes on Vulkan and
+# not on OpenGL" or "it crashes with sound off and not with sound on" narrows it
+# to a subsystem in about half a minute, without a debugger.
+TRIAGE = [
+    ("sound enabled", [("s_initsound", "1")], None),
+    ("OpenGL renderer", [("cl_renderer", "rd-eternaljk")], None),
+    ("a different map", [], "mp/ffa1"),
+    ("the driver's own video mode", [("r_mode", "-1")], None),
+]
+
+
 def run_scenario(binary: Path, game_dir: Path, cfg_dir: Path, home: Path, name: str,
-                 mapname: str, timeout: int) -> tuple[float, int]:
+                 mapname: str, timeout: int,
+                 overrides: list[tuple[str, str]] | None = None,
+                 tag: str = "") -> tuple[float, int]:
     scenario = SCENARIOS[name]
     cfg_name = f"jkx_verify_{name}.cfg"
     (cfg_dir / cfg_name).write_text(build_cfg(scenario["cfg"], mapname), encoding="ascii")
@@ -713,12 +727,15 @@ def run_scenario(binary: Path, game_dir: Path, cfg_dir: Path, home: Path, name: 
     # run writes all land somewhere known and disposable. Without it the engine
     # picks a per-platform directory under a mod name that depends on the build,
     # and the run also edits the player's own configuration.
+    cvars = dict(STARTUP_CVARS)
+    cvars.update(dict(overrides or []))
+
     cmd = [
         str(binary),
         "+set", "fs_basepath", str(game_dir),
         "+set", "fs_homepath", str(home),
     ]
-    for cvar, value in STARTUP_CVARS:
+    for cvar, value in cvars.items():
         cmd += ["+set", cvar, value]
     cmd += ["+exec", cfg_name]
 
@@ -736,7 +753,7 @@ def run_scenario(binary: Path, game_dir: Path, cfg_dir: Path, home: Path, name: 
         (home / f"jkx_{name}_stdout.txt").write_bytes(stream)
 
     for log in find_all([home, game_dir], "qconsole.log"):
-        shutil.copy2(log, home / f"jkx_{name}.log")
+        shutil.copy2(log, home / f"jkx_{name}{tag}.log")
         log.unlink()
 
     return (time.perf_counter() - start, code)
@@ -779,8 +796,10 @@ def fmt(seconds: float | None) -> str:
     return "-" if seconds is None else f"{seconds:.1f} s"
 
 
-def write_report(path: Path, results: dict, info: dict, args, stages: dict | None = None) -> None:
+def write_report(path: Path, results: dict, info: dict, args, stages: dict | None = None,
+                 triage: list | None = None) -> None:
     stages = stages or {}
+    triage = triage or []
     startup = results.get("startup", {}).get("median")
     restart = results.get("vid_restart", {}).get("median")
     mapload = results.get("map", {}).get("median")
@@ -859,6 +878,28 @@ def write_report(path: Path, results: dict, info: dict, args, stages: dict | Non
         lines.append("")
         lines.append("The engine is asked to quit at the end of every scenario, so anything other")
         lines.append("than zero means it died instead. Those timings measure a crash.")
+        lines.append("")
+        if any(code == 3221225477 for codes in crashed.values() for code in codes):
+            lines.append("3221225477 is 0xC0000005, an access violation: the process was killed by")
+            lines.append("the operating system, with no error dialog and no crash log, because")
+            lines.append("nothing in the engine gets to run after that.")
+            lines.append("")
+
+    if triage:
+        lines += ["## Crash triage", "",
+                  "The crashing scenario re-run with one thing changed at a time:", "",
+                  "| variant | result |", "|---|---|"]
+        for entry in triage:
+            verdict = "clean" if entry["exit"] == 0 else f"crashed (exit {entry['exit']})"
+            lines.append(f"| {entry['variant']} | {verdict} |")
+        clean = [e["variant"] for e in triage if e["exit"] == 0]
+        lines.append("")
+        if clean:
+            lines.append("Changing " + ", ".join(f"**{c}**" for c in clean) + " avoids the crash,")
+            lines.append("which is where to start looking.")
+        else:
+            lines.append("None of the variants avoided it, so it is not the renderer choice, the")
+            lines.append("sound setting, the video mode or that particular map on their own.")
         lines.append("")
 
     if info.get("portable"):
@@ -960,6 +1001,8 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--title", choices=["jka", "jk2"], default=None,
                         help="which game, when both are installed (default: jka)")
     parser.add_argument("--list", action="store_true", help="list detected installs and exit")
+    parser.add_argument("--no-triage", action="store_true",
+                        help="do not re-run variants when a scenario crashes")
     parser.add_argument("--doctor", action="store_true",
                         help="print what is installed and what is missing, then exit")
     parser.add_argument("--fetch-engine", action="store_true",
@@ -1043,6 +1086,22 @@ def main(argv: list[str]) -> int:
             results[name] = {"samples": samples, "median": statistics.median(samples),
                              "exit_codes": codes}
 
+    # A crash is not a measurement, so if one happened, spend half a minute
+    # finding out which subsystem it belongs to before writing the report.
+    triage: list[dict] = []
+    crashed = [name for name, data in results.items()
+               if any(code != 0 for code in data.get("exit_codes", []))]
+    if crashed and not args.no_triage:
+        target = "map" if "map" in crashed else crashed[0]
+        print(f"\ntriage ({SCENARIOS[target]['label']} crashed):")
+        for label, overrides, mapname in TRIAGE:
+            elapsed, code = run_scenario(binary, game_dir, cfg_dir, home, target,
+                                         mapname or args.map, args.timeout, overrides,
+                                         tag="_" + label.split()[0].lower())
+            triage.append({"variant": label, "exit": code, "seconds": elapsed,
+                           "overrides": overrides, "map": mapname or args.map})
+            print(f"  {label:28s} {elapsed:5.1f}s  {'clean' if code == 0 else f'exit {code}'}")
+
     # Parsed per scenario as well as together: "how many pipelines exist" means
     # something different at the main menu and in a loaded map, and merging the
     # dumps first would have silently reported the menu number for both.
@@ -1078,7 +1137,7 @@ def main(argv: list[str]) -> int:
     info = parse_console(console)
 
     out = Path(args.out) if args.out else Path(__file__).resolve().parent / "verification-report.md"
-    write_report(out, results, info, args, stages)
+    write_report(out, results, info, args, stages, triage)
 
     evidence = out.parent / "dumps"
     evidence.mkdir(exist_ok=True)
@@ -1097,7 +1156,8 @@ def main(argv: list[str]) -> int:
         print(f"NOTE: {len(info['validation_hits'])} validation message(s); see the report.")
 
     (out.with_suffix(".json")).write_text(
-        json.dumps({"results": results, "info": info, "stages": stages}, indent=2, default=str),
+        json.dumps({"results": results, "info": info, "stages": stages, "triage": triage},
+                   indent=2, default=str),
         encoding="utf-8")
     return 0
 
