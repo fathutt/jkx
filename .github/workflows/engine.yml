@@ -144,9 +144,15 @@ jobs:
               ls -la "$GITHUB_WORKSPACE" >&2
               exit 1
           fi
-          dest="$tree/base"
-          mkdir -p "$dest"
-          cp pak/shaders.pak "$dest/shaders.pak"
+          # base/ is the basegame the engine always searches. The gamecode
+          # installs into its own directory beside it, which is searched too
+          # when it is the active one, so the pak goes to both rather than
+          # depending on which the user runs with.
+          mkdir -p "$tree/base"
+          cp pak/shaders.pak "$tree/base/shaders.pak"
+          while IFS= read -r gamedir; do
+              cp pak/shaders.pak "$gamedir/shaders.pak"
+          done < <(find "$tree" -mindepth 2 -maxdepth 2 \( -name 'jagame*' -o -name 'jospgame*' \) -printf '%h\n' | sort -u)
 
           # The renderer already ships under a name of our own - rdsp-vulkan_
           # rather than upstream's rd-vulkan_ - so a package unpacked over an
