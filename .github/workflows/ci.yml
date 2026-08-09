@@ -71,16 +71,25 @@ jobs:
         run: vcpkg install sdl2:x64-windows
         shell: bash
 
+      # Visual Studio on Windows, not Ninja. The runners have MinGW on PATH, so
+      # -G Ninja silently selected it, and MinGW cannot link vcpkg's MSVC import
+      # libraries: SDL2main.lib pulled in _RTC_CheckStackVars and friends, which
+      # are MSVC runtime-check symbols that GCC has never heard of. Naming the
+      # generator picks the toolchain deliberately instead of by PATH order.
       - name: Configure
         shell: bash
         run: >
-          cmake -B build -G Ninja
+          cmake -B build
+          ${{ runner.os == 'Windows' && '-G "Visual Studio 17 2022" -A x64
+          -DCMAKE_TOOLCHAIN_FILE=$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake
+          -DVCPKG_TARGET_TRIPLET=x64-windows' || '-G Ninja' }}
           -DCMAKE_BUILD_TYPE=${{ matrix.config }}
           -DJKX_WARNINGS_AS_ERRORS=OFF
-          ${{ runner.os == 'Windows' && '-DCMAKE_TOOLCHAIN_FILE=$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x64-windows' || '' }}
 
+      # --config is what a multi-config generator reads; single-config ones
+      # ignore it and use CMAKE_BUILD_TYPE from the configure step.
       - name: Build
-        run: cmake --build build --parallel
+        run: cmake --build build --config ${{ matrix.config }} --parallel
 
       - uses: actions/upload-artifact@v4
         if: matrix.config == 'Release'
@@ -89,6 +98,8 @@ jobs:
           path: |
             build/*.x86_64
             build/*.exe
+            build/${{ matrix.config }}/*.exe
+            build/${{ matrix.config }}/*.dll
             build/**/*.so
             build/**/*.dll
           if-no-files-found: warn

@@ -70,7 +70,9 @@ jobs:
         include:
           - name: windows-x86_64
             os: windows-2022
-            configure_extra: -A x64
+            # Named, not inferred: the runners have MinGW on PATH and it cannot
+            # link the MSVC import libraries the fork bundles for Windows.
+            configure_extra: -G "Visual Studio 17 2022" -A x64
             python: python
           - name: linux-x86_64
             os: ubuntu-24.04
