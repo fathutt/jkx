@@ -673,9 +673,6 @@ void RB_DeformTessGeometry( void ) {
 		case DEFORM_TEXT5:
 		case DEFORM_TEXT6:
 		case DEFORM_TEXT7:
-#ifndef JKX_SP_TYPES
-			DeformText( backEnd.refdef.text[ds->deformation - DEFORM_TEXT0] );
-#endif
 			break;
 		default:
 			break;

@@ -444,13 +444,13 @@ static srfGridMesh_t *R_CreateSurfaceGridMesh( int width, int height,
 	// copy the results out to a grid
 	size = (width * height - 1) * sizeof( srfVert_t ) + sizeof( *grid );
 
-	grid = (struct srfGridMesh_s *)/*Hunk_Alloc*/ R_Z_Malloc( size, TAG_GRIDMESH, qfalse );
+	grid = (struct srfGridMesh_s *)/*Hunk_Alloc*/ R_Z_Malloc( size, TAG_TEMP_WORKSPACE, qfalse );
 	memset(grid, 0, size);
 
-	grid->widthLodError = (float *)/*Hunk_Alloc*/ R_Z_Malloc( width * 4, TAG_GRIDMESH, qfalse );
+	grid->widthLodError = (float *)/*Hunk_Alloc*/ R_Z_Malloc( width * 4, TAG_TEMP_WORKSPACE, qfalse );
 	memcpy( grid->widthLodError, errorTable[0], width * 4 );
 
-	grid->heightLodError = (float *)/*Hunk_Alloc*/ R_Z_Malloc( height * 4, TAG_GRIDMESH, qfalse );
+	grid->heightLodError = (float *)/*Hunk_Alloc*/ R_Z_Malloc( height * 4, TAG_TEMP_WORKSPACE, qfalse );
 	memcpy( grid->heightLodError, errorTable[1], height * 4 );
 
 	grid->width = width;

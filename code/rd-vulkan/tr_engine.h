@@ -10,25 +10,14 @@ Foundation.
 ===========================================================================
 */
 
-// Engine services the two refimports carry under different names.
+// Engine services the renderer names differently from the engine.
 //
-// The pattern is the same one tr_mem.h uses for memory: the capability exists
-// on both sides, so the renderer calls one name and this header points it at
-// whichever the surrounding engine actually offers. Where a service genuinely
-// does not exist on one side - the Vulkan window entries, which single-player
-// has none of because its renderer is OpenGL - there is nothing to adapt and
-// nothing here; those have to be added to the interface and implemented.
-//
-// Everything below is a rename or a shape change with the same meaning. If a
-// mapping ever loses something, it says so in a comment, the way the cached
-// map image one does.
-//
-// This goes away with the refimport table itself in 2.2. Guarded on
-// JKX_SP_FIELDS because every line reaches into refimport_t.
+// This was a compatibility layer over two refimports. There is one now, so what
+// is left is a handful of renames and two shape changes, each with what it
+// costs written above it. It goes away with the refimport table itself in 2.2.
 
 #pragma once
 
-#ifdef JKX_SP_FIELDS
 
 // Multiplayer's collision trace is CM_BoxTrace(results, start, end, mins, maxs,
 // model, brushmask, capsule). Single-player's is SV_Trace, which takes the same
@@ -78,19 +67,3 @@ Foundation.
 #define R_PlayCinematic( name, x, y, w, h, bits ) \
 	ri.CIN_PlayCinematic( ( name ), ( x ), ( y ), ( w ), ( h ), ( bits ), NULL )
 
-#else
-
-#define R_EngineBoxTrace( results, start, end, mins, maxs, brushmask ) \
-	ri.CM_BoxTrace( ( results ), ( start ), ( end ), ( mins ), ( maxs ), 0, ( brushmask ), 0 )
-
-#define R_CachedMapImage()				( ri.CM_GetCachedMapDiskImage() )
-#define R_SetUsingCachedMap( onOff )	( ri.CM_SetUsingCache( onOff ) )
-#define R_ReleaseCachedMapImage() \
-	do { R_Z_Free( ri.CM_GetCachedMapDiskImage() ); ri.CM_SetCachedMapDiskImage( NULL ); } while ( 0 )
-#define R_LowPhysicalMemory()			( ri.Sys_LowPhysicalMemory() )
-#define R_OPrintf						ri.OPrintf
-#define R_AddCommand( name, func, desc )	ri.Cmd_AddCommand( ( name ), ( func ), ( desc ) )
-#define R_PlayCinematic( name, x, y, w, h, bits ) \
-	ri.CIN_PlayCinematic( ( name ), ( x ), ( y ), ( w ), ( h ), ( bits ) )
-
-#endif // JKX_SP_FIELDS

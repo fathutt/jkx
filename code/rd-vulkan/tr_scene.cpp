@@ -220,14 +220,6 @@ void RE_AddRefEntityToScene( const refEntity_t *ent ) {
 
 	assert(!ent || ent->renderfx >= 0);
 
-#ifndef JKX_SP_TYPES
-	// Upstream's own verdict, and the reason the backend cases for this type
-	// could simply be deleted: nothing that reaches the scene can carry it.
-	if (ent->reType == RT_ENT_CHAIN)
-	{ //minirefents must die.
-		return;
-	}
-#endif
 
 #ifdef _DEBUG
 	if (ent->reType == RT_MODEL)
@@ -272,29 +264,8 @@ void RE_AddRefEntityToScene( const refEntity_t *ent ) {
  *    none                                                                                      *
  *                                                                                              *
  ************************************************************************************************/
-#ifndef JKX_SP_TYPES
-void RE_AddMiniRefEntityToScene( const miniRefEntity_t *ent )
-{
 #if 0
-	refEntity_t		*parent;
 #endif
-
-	if ( !tr.registered )
-	{
-		return;
-	}
-	if (!ent)
-	{
-		return;
-	}
-
-	refEntity_t		tempEnt;
-
-	memcpy(&tempEnt, ent, sizeof(*ent));
-	memset(((char *)&tempEnt)+sizeof(*ent), 0, sizeof(tempEnt) - sizeof(*ent));
-	RE_AddRefEntityToScene(&tempEnt);
-}
-#endif // !JKX_SP_TYPES
 
 /*
 =====================
@@ -413,14 +384,6 @@ void RE_AddAdditiveLightToScene( const vec3_t org, float intensity, float r, flo
 void RE_BeginScene( const refdef_t *fd ) {
 	static	int		lastTime = 0;
 
-#ifndef JKX_SP_TYPES
-	// Single-player has no refdef_t::text: the field is commented out of the
-	// struct and the reference renderer's DeformText call is commented out with
-	// it, so "deformVertexes text" parses and draws nothing there. Matching
-	// that, rather than adding a field the single-player client never fills.
-	// Noted in docs/Backlog.md as something that could be brought back.
-	memcpy(tr.refdef.text, fd->text, sizeof(tr.refdef.text));
-#endif
 
 	tr.refdef.x = fd->x;
 	tr.refdef.y = fd->y;

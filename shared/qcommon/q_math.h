@@ -261,6 +261,11 @@ void VectorDec( vec3_t vec );
 void VectorInverse( vec3_t vec );
 void CrossProduct( const vec3_t vec1, const vec3_t vec2, vec3_t vecOut );
 float DotProduct( const vec3_t vec1, const vec3_t vec2 );
+
+// Squaring something with a side effect in it would evaluate it twice, so keep
+// the argument simple. Named because "x*x" spelled out three deep in a sky dome
+// calculation is unreadable.
+#define Square( x )	( ( x ) * ( x ) )
 qboolean VectorCompare( const vec3_t vec1, const vec3_t vec2 );
 qboolean VectorCompare2( const vec3_t v1, const vec3_t v2 );
 

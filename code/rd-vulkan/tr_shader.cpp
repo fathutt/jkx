@@ -81,9 +81,9 @@ const int lightmapsFullBright[MAXLIGHTMAPS] =
 const byte stylesDefault[MAXLIGHTMAPS] =
 {
 	LS_NORMAL,
-	LS_LSNONE,
-	LS_LSNONE,
-	LS_LSNONE
+	LS_NONE,
+	LS_NONE,
+	LS_NONE
 };
 
 void setDefaultShader( void )
@@ -2528,7 +2528,7 @@ static const char *FindShaderInShaderText( const char *shadername ) {
 		}
 		else {
 			// skip the definition
-			R_SkipBracedSection(&p, 0);
+			SkipBracedSection(&p);
 		}
 	}
 	return NULL;
@@ -3281,7 +3281,7 @@ static void ScanAndLoadShaderFiles( void )
 				break;
 			}
 
-			if (!R_SkipBracedSection(&p, 1))
+			if (!SkipBracedSection(&p))
 			{
 				vk_debug("WARNING: Ignoring shader file %s. Shader \"%s\" on line %d missing closing brace.\n",
 					filename, shaderName, shaderLine);
@@ -3338,7 +3338,7 @@ static void ScanAndLoadShaderFiles( void )
 		hash = generateHashValue(token, MAX_SHADERTEXT_HASH);
 		shaderTextHashTableSizes[hash]++;
 		size++;
-		R_SkipBracedSection(&p, 0);
+		SkipBracedSection(&p);
 	}
 
 	size += MAX_SHADERTEXT_HASH;
@@ -3370,7 +3370,7 @@ static void ScanAndLoadShaderFiles( void )
 		hash = generateHashValue(token, MAX_SHADERTEXT_HASH);
 		shaderTextHashTable[hash][shaderTextHashTableSizes[hash]++] = oldp;
 
-		R_SkipBracedSection(&p, 0);
+		SkipBracedSection(&p);
 	}
 
 	return;

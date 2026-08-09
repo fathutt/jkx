@@ -10,44 +10,24 @@ Foundation.
 ===========================================================================
 */
 
-// The renderer's memory API, over two engines that do not agree on one.
+// The renderer's memory API.
 //
-// This is NOT tr_sp_compat.h. That header may only rename things; this one
-// encodes a difference in behaviour, which is why it is separate and why every
-// mapping below says what it is giving up.
-//
-//   multiplayer   Hunk_Alloc(size, ha_pref), Hunk_AllocateTempMemory,
-//                 Hunk_FreeTempMemory, Z_Malloc(size, tag, zero, align).
-//                 A hunk is a stack: allocations are freed wholesale at a mark,
-//                 and ha_pref picks which end of it to take from.
-//   single-player No hunk at all. One tagged heap: ri.Malloc(size, tag, zero,
-//                 align) and ri.Z_Free, with tags standing in for lifetime.
-//
-// The mapping used here - hunk allocations become TAG_HUNKALLOC on the tagged
-// heap - is not invented: it is exactly what the single-player renderer does in
-// rd-vanilla/tr_subs.cpp, and the engine frees that tag at the same moments it
-// used to drop the hunk (see Z_TagFree(TAG_HUNKALLOC) in qcommon/common.cpp).
-// So lifetimes match; what is genuinely lost is ha_pref, which has no meaning
-// against a heap. rd-vanilla drops it too, and its R_Hunk_Alloc does not even
-// take the argument.
-//
-// Only the bodies differ between the two engines, and only they are guarded -
-// by JKX_SP_FIELDS, because they reach into refimport_t, which is the one thing
-// the shape check cannot compile.
+// This was a compatibility layer over two engines that named memory
+// differently. There is one engine now, so what is left is naming: the
+// renderer calls these and they land on the tagged heap. It goes away with the
+// refimport table in 2.2, when the renderer is compiled into the engine and can
+// call Z_Malloc directly.
 
 #pragma once
 
-// Declared for both engines, because these are the renderer's own functions.
-// The single-player engine already declares Z_Free, Z_MemSize and a
-// three-argument Z_Malloc *macro* of its own, so the renderer must not reuse
-// those names - which is exactly why rd-vanilla prefixes its wrappers with R_.
+// The R_ prefix is not decoration: the engine already declares Z_Free, Z_MemSize
+// and a three-argument Z_Malloc *macro*, so the renderer must not reuse those
+// names. rd-vanilla prefixes its wrappers for the same reason.
 //
-// The allocation preference is taken as int rather than ha_pref: multiplayer
-// has that enum, single-player does not, and int accepts both spellings of the
-// constant without this header having to invent a type on one side.
-#ifdef JKX_SP_FIELDS
+// The allocation preference is inherited from the hunk this used to be and does
+// nothing against a tagged heap; the single-player renderer does not pass it
+// either. It stays only so the call sites do not all have to change twice.
 enum { h_high, h_low, h_dontcare };
-#endif
 
 void	*R_Hunk_Alloc( int size, int preference );
 void	*R_Hunk_AllocateTempMemory( int size );

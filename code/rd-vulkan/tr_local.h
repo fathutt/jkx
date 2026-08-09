@@ -80,7 +80,6 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #include "rd-common/tr_common.h"
 // After tr_types.h has been pulled in, because every entry tests what that
 // header did or did not define. Temporary; see the file for its lifetime.
-#include "tr_sp_compat.h"
 // After the shim, because it is guarded on what the shim decided.
 #include "tr_mem.h"
 #include "tr_engine.h"
@@ -2439,9 +2438,6 @@ void R_InitNextFrame( void );
 
 void RE_ClearScene( void );
 void RE_AddRefEntityToScene( const refEntity_t *ent );
-#ifndef JKX_SP_TYPES
-void RE_AddMiniRefEntityToScene( const miniRefEntity_t *ent );
-#endif
 void RE_AddPolyToScene( qhandle_t hShader , int numVerts, const polyVert_t *verts, int num );
 void RE_AddLightToScene( const vec3_t org, float intensity, float r, float g, float b );
 void RE_AddAdditiveLightToScene( const vec3_t org, float intensity, float r, float g, float b );

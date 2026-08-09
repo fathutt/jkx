@@ -16,7 +16,6 @@ Foundation.
 
 #pragma once
 
-#ifdef JKX_SP_FIELDS
 
 // Adapters
 void			RE_SP_RegisterMedia_LevelLoadBegin( const char *psMapName, ForceReload_e eForceReload, qboolean bAllowScreenDissolve );
@@ -55,4 +54,3 @@ qboolean		G2API_GetBoneAnimIndex( CGhoul2Info *ghlInfo, const int iBoneIndex, co
 qboolean		G2API_PauseBoneAnimIndex( CGhoul2Info *ghlInfo, const int boneIndex, const int AcurrentTime );
 qboolean		G2API_SetAnimIndex( CGhoul2Info *ghlInfo, const int index );
 
-#endif // JKX_SP_FIELDS

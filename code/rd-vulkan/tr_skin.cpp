@@ -368,14 +368,6 @@ qhandle_t RE_RegisterServerSkin( const char *name ) {
 	// multiplayer answers by asking whether the hunk mark has been made. Single-
 	// player has no server renderer to register skins for - this function is not
 	// in its export table at all - so the question does not arise.
-#ifndef JKX_SP_FIELDS
-	if (ri.Cvar_VariableIntegerValue( "cl_running" ) &&
-		ri.Com_TheHunkMarkHasBeenMade() &&
-		ShaderHashTableExists())
-	{ //If the client is running then we can go straight into the normal registerskin func
-		return RE_RegisterSkin(name);
-	}
-#endif
 
 	gServerSkinHack = true;
 	r = RE_RegisterSkin(name);

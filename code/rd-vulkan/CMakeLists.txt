@@ -90,7 +90,6 @@ set(SPRDVulkanFiles
 	"${SPDir}/rd-vulkan/tr_shadows.cpp"
 	"${SPDir}/rd-vulkan/tr_skin.cpp"
 	"${SPDir}/rd-vulkan/tr_sky.cpp"
-	"${SPDir}/rd-vulkan/tr_sp_compat.h"
 	"${SPDir}/rd-vulkan/tr_sp_exports.cpp"
 	"${SPDir}/rd-vulkan/tr_sp_exports.h"
 	"${SPDir}/rd-vulkan/tr_subs.cpp"
@@ -228,6 +227,18 @@ set_target_properties(${SPRDVulkanRenderer} PROPERTIES
 	PROJECT_LABEL "SP Vulkan Renderer")
 set_property(TARGET ${SPRDVulkanRenderer} APPEND PROPERTY
 	COMPILE_OPTIONS ${OPENJK_VISIBILITY_FLAGS})
+# The renderer's own diagnostics - the vk_log.log operation trace and, where the
+# layers are installed, validation reporting - in an otherwise ordinary release
+# build. A debug build is not a substitute: it changes the CRT and the struct
+# layouts the gamecode interface depends on, and the result dies before it can
+# write a line. This used to be baked into the source at sync time by the
+# harness, which is exactly the kind of thing that silently does nothing when
+# the sync step is skipped.
+option(JKX_VK_TRACE "Compile the Vulkan renderer's operation trace into a release build" OFF)
+if(JKX_VK_TRACE)
+	target_compile_definitions(${SPRDVulkanRenderer} PRIVATE JKX_VK_TRACE=1)
+endif()
+
 target_compile_features(${SPRDVulkanRenderer} PRIVATE cxx_std_20)
 target_link_libraries(${SPRDVulkanRenderer} ${SPRDVulkanLibraries} Vulkan::Headers)
 jkx_no_undefined_symbols(${SPRDVulkanRenderer})

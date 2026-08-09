@@ -36,7 +36,6 @@ Foundation.
 
 #include "tr_local.h"
 
-#ifdef JKX_SP_FIELDS
 
 #include "tr_cache.h"
 #include "tr_sp_exports.h"
@@ -317,4 +316,3 @@ qboolean G2API_SetAnimIndex( CGhoul2Info *ghlInfo, const int index )
 	return qfalse;
 }
 
-#endif // JKX_SP_FIELDS

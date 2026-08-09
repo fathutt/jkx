@@ -429,6 +429,7 @@ default values.
 ==========================================================
 */
 
+#define	CVAR_NONE			0	// no flags, spelled rather than written as a bare zero
 #define	CVAR_TEMP			0	// can be set even when cheats are disabled, but is not archived
 #define	CVAR_ARCHIVE		1	// set to cause it to be saved to vars.rc
 								// used for system variables, not for player

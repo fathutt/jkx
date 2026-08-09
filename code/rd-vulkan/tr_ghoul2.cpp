@@ -27,7 +27,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #include "ghoul2/G2.h"
 #include "ghoul2/g2_local.h"
 #ifdef _G2_GORE
-#include "ghoul2/G2_gore.h"
+#include "ghoul2/ghoul2_gore.h"
 #include "G2_gore_r2.h"
 #endif
 
@@ -2037,7 +2037,7 @@ void G2_SetUpBolts( mdxaHeader_t *header, CGhoul2Info &ghoul2, mdxaBone_v &boneP
 		{
 			// figure out where the bone hirearchy info is
 			skel = (mdxaSkel_t *)((byte *)header + sizeof(mdxaHeader_t) + offsets->offsets[boltList[i].boneNumber]);
-			Multiply_3x4Matrix(&boltList[i].position, &G2_BONE_MATRIX( bonePtr, boltList[i].boneNumber ), &skel->BasePoseMat);
+			Multiply_3x4Matrix(&boltList[i].position, &bonePtr[boltList[i].boneNumber], &skel->BasePoseMat);
 		}
 	}
 }
@@ -2268,9 +2268,9 @@ void G2_ProcessSurfaceBolt(mdxaBone_v &bonePtr, mdxmSurface_t *surface, int bolt
 			int		iBoneIndex	= G2_GetVertBoneIndex( vert0, k );
 			float	fBoneWeight	= G2_GetVertBoneWeight( vert0, k, fTotalWeight, iNumWeights );
 
- 			pTri[0][0] += fBoneWeight * ( DotProduct( G2_BONE_MATRIX( bonePtr, piBoneRefs[iBoneIndex] ).matrix[0], vert0->vertCoords ) + G2_BONE_MATRIX( bonePtr, piBoneRefs[iBoneIndex] ).matrix[0][3] );
- 			pTri[0][1] += fBoneWeight * ( DotProduct( G2_BONE_MATRIX( bonePtr, piBoneRefs[iBoneIndex] ).matrix[1], vert0->vertCoords ) + G2_BONE_MATRIX( bonePtr, piBoneRefs[iBoneIndex] ).matrix[1][3] );
- 			pTri[0][2] += fBoneWeight * ( DotProduct( G2_BONE_MATRIX( bonePtr, piBoneRefs[iBoneIndex] ).matrix[2], vert0->vertCoords ) + G2_BONE_MATRIX( bonePtr, piBoneRefs[iBoneIndex] ).matrix[2][3] );
+ 			pTri[0][0] += fBoneWeight * ( DotProduct( bonePtr[piBoneRefs[iBoneIndex]].matrix[0], vert0->vertCoords ) + bonePtr[piBoneRefs[iBoneIndex]].matrix[0][3] );
+ 			pTri[0][1] += fBoneWeight * ( DotProduct( bonePtr[piBoneRefs[iBoneIndex]].matrix[1], vert0->vertCoords ) + bonePtr[piBoneRefs[iBoneIndex]].matrix[1][3] );
+ 			pTri[0][2] += fBoneWeight * ( DotProduct( bonePtr[piBoneRefs[iBoneIndex]].matrix[2], vert0->vertCoords ) + bonePtr[piBoneRefs[iBoneIndex]].matrix[2][3] );
 		}
 //		w = vert1->weights;
 		fTotalWeight = 0.0f;
@@ -2280,9 +2280,9 @@ void G2_ProcessSurfaceBolt(mdxaBone_v &bonePtr, mdxmSurface_t *surface, int bolt
 			int		iBoneIndex	= G2_GetVertBoneIndex( vert1, k );
 			float	fBoneWeight	= G2_GetVertBoneWeight( vert1, k, fTotalWeight, iNumWeights );
 
- 			pTri[1][0] += fBoneWeight * ( DotProduct( G2_BONE_MATRIX( bonePtr, piBoneRefs[iBoneIndex] ).matrix[0], vert1->vertCoords ) + G2_BONE_MATRIX( bonePtr, piBoneRefs[iBoneIndex] ).matrix[0][3] );
- 			pTri[1][1] += fBoneWeight * ( DotProduct( G2_BONE_MATRIX( bonePtr, piBoneRefs[iBoneIndex] ).matrix[1], vert1->vertCoords ) + G2_BONE_MATRIX( bonePtr, piBoneRefs[iBoneIndex] ).matrix[1][3] );
- 			pTri[1][2] += fBoneWeight * ( DotProduct( G2_BONE_MATRIX( bonePtr, piBoneRefs[iBoneIndex] ).matrix[2], vert1->vertCoords ) + G2_BONE_MATRIX( bonePtr, piBoneRefs[iBoneIndex] ).matrix[2][3] );
+ 			pTri[1][0] += fBoneWeight * ( DotProduct( bonePtr[piBoneRefs[iBoneIndex]].matrix[0], vert1->vertCoords ) + bonePtr[piBoneRefs[iBoneIndex]].matrix[0][3] );
+ 			pTri[1][1] += fBoneWeight * ( DotProduct( bonePtr[piBoneRefs[iBoneIndex]].matrix[1], vert1->vertCoords ) + bonePtr[piBoneRefs[iBoneIndex]].matrix[1][3] );
+ 			pTri[1][2] += fBoneWeight * ( DotProduct( bonePtr[piBoneRefs[iBoneIndex]].matrix[2], vert1->vertCoords ) + bonePtr[piBoneRefs[iBoneIndex]].matrix[2][3] );
 		}
 //		w = vert2->weights;
 		fTotalWeight = 0.0f;
@@ -2292,9 +2292,9 @@ void G2_ProcessSurfaceBolt(mdxaBone_v &bonePtr, mdxmSurface_t *surface, int bolt
 			int		iBoneIndex	= G2_GetVertBoneIndex( vert2, k );
 			float	fBoneWeight	= G2_GetVertBoneWeight( vert2, k, fTotalWeight, iNumWeights );
 
- 			pTri[2][0] += fBoneWeight * ( DotProduct( G2_BONE_MATRIX( bonePtr, piBoneRefs[iBoneIndex] ).matrix[0], vert2->vertCoords ) + G2_BONE_MATRIX( bonePtr, piBoneRefs[iBoneIndex] ).matrix[0][3] );
- 			pTri[2][1] += fBoneWeight * ( DotProduct( G2_BONE_MATRIX( bonePtr, piBoneRefs[iBoneIndex] ).matrix[1], vert2->vertCoords ) + G2_BONE_MATRIX( bonePtr, piBoneRefs[iBoneIndex] ).matrix[1][3] );
- 			pTri[2][2] += fBoneWeight * ( DotProduct( G2_BONE_MATRIX( bonePtr, piBoneRefs[iBoneIndex] ).matrix[2], vert2->vertCoords ) + G2_BONE_MATRIX( bonePtr, piBoneRefs[iBoneIndex] ).matrix[2][3] );
+ 			pTri[2][0] += fBoneWeight * ( DotProduct( bonePtr[piBoneRefs[iBoneIndex]].matrix[0], vert2->vertCoords ) + bonePtr[piBoneRefs[iBoneIndex]].matrix[0][3] );
+ 			pTri[2][1] += fBoneWeight * ( DotProduct( bonePtr[piBoneRefs[iBoneIndex]].matrix[1], vert2->vertCoords ) + bonePtr[piBoneRefs[iBoneIndex]].matrix[1][3] );
+ 			pTri[2][2] += fBoneWeight * ( DotProduct( bonePtr[piBoneRefs[iBoneIndex]].matrix[2], vert2->vertCoords ) + bonePtr[piBoneRefs[iBoneIndex]].matrix[2][3] );
 		}
 
    		vec3_t normal;
@@ -2367,9 +2367,9 @@ void G2_ProcessSurfaceBolt(mdxaBone_v &bonePtr, mdxmSurface_t *surface, int bolt
 				float	fBoneWeight	= G2_GetVertBoneWeight( v, k, fTotalWeight, iNumWeights );
 
  				//bone = bonePtr + piBoneRefs[w->boneIndex];
- 				pTri[j][0] += fBoneWeight * ( DotProduct( G2_BONE_MATRIX( bonePtr, piBoneRefs[iBoneIndex] ).matrix[0], v->vertCoords ) + G2_BONE_MATRIX( bonePtr, piBoneRefs[iBoneIndex] ).matrix[0][3] );
- 				pTri[j][1] += fBoneWeight * ( DotProduct( G2_BONE_MATRIX( bonePtr, piBoneRefs[iBoneIndex] ).matrix[1], v->vertCoords ) + G2_BONE_MATRIX( bonePtr, piBoneRefs[iBoneIndex] ).matrix[1][3] );
- 				pTri[j][2] += fBoneWeight * ( DotProduct( G2_BONE_MATRIX( bonePtr, piBoneRefs[iBoneIndex] ).matrix[2], v->vertCoords ) + G2_BONE_MATRIX( bonePtr, piBoneRefs[iBoneIndex] ).matrix[2][3] );
+ 				pTri[j][0] += fBoneWeight * ( DotProduct( bonePtr[piBoneRefs[iBoneIndex]].matrix[0], v->vertCoords ) + bonePtr[piBoneRefs[iBoneIndex]].matrix[0][3] );
+ 				pTri[j][1] += fBoneWeight * ( DotProduct( bonePtr[piBoneRefs[iBoneIndex]].matrix[1], v->vertCoords ) + bonePtr[piBoneRefs[iBoneIndex]].matrix[1][3] );
+ 				pTri[j][2] += fBoneWeight * ( DotProduct( bonePtr[piBoneRefs[iBoneIndex]].matrix[2], v->vertCoords ) + bonePtr[piBoneRefs[iBoneIndex]].matrix[2][3] );
  			}
 
  			v++;// = (mdxmVertex_t *)&v->weights[/*v->numWeights*/surface->maxVertBoneWeights];

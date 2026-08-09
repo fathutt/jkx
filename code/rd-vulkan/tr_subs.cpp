@@ -61,7 +61,6 @@ void QDECL Com_Error( int level, const char *error, ... )
 }
 
 // HUNK
-#ifdef JKX_SP_FIELDS
 
 // See tr_mem.h for why these map the way they do. Short version: single-player
 // has no hunk, and TAG_HUNKALLOC on its tagged heap is freed at the same points
@@ -88,64 +87,18 @@ int R_Hunk_MemoryRemaining( void ) {
 	return 0x7fffffff;
 }
 
-#else
 
-void *R_Hunk_AllocateTempMemory( int size ) {
-	return ri.Hunk_AllocateTempMemory( size );
-}
-
-void R_Hunk_FreeTempMemory( void *buf ) {
-	ri.Hunk_FreeTempMemory( buf );
-}
-
-void *R_Hunk_Alloc( int size, int preference ) {
-	// Cast because our signature takes int: the enum exists on this side only.
-	return ri.Hunk_Alloc( size, (ha_pref)preference );
-}
-
-int R_Hunk_MemoryRemaining( void ) {
-	return ri.Hunk_MemoryRemaining();
-}
-
-#endif // JKX_SP_FIELDS
-
-#ifndef JKX_SP_FIELDS
-// The harness build links the fork's own qcommon sources - q_shared.cpp,
-// matcomp.cpp, G2_gore.cpp - and those call the unprefixed names, expecting the
-// renderer module to define them. Single-player's engine defines them itself,
-// so there these must not exist at all. --no-undefined found this the moment
-// the wrappers were renamed, which is the second time that flag has paid for
-// itself this week.
-void *Hunk_AllocateTempMemory( int size )                { return R_Hunk_AllocateTempMemory( size ); }
-void  Hunk_FreeTempMemory( void *buf )                   { R_Hunk_FreeTempMemory( buf ); }
-void *Hunk_Alloc( int size, ha_pref preference )         { return R_Hunk_Alloc( size, (int)preference ); }
-int   Hunk_MemoryRemaining( void )                       { return R_Hunk_MemoryRemaining(); }
-void *Z_Malloc( int iSize, memtag_t eTag, qboolean bZeroit, int iAlign ) {
-	return R_Z_Malloc( iSize, eTag, bZeroit, iAlign );
-}
-void  Z_Free( void *ptr )                                { R_Z_Free( ptr ); }
-int   Z_MemSize( memtag_t eTag )                         { return R_Z_MemSize( eTag ); }
-#endif // !JKX_SP_FIELDS
 
 // ZONE
 void *R_Z_Malloc( int iSize, memtag_t eTag, qboolean bZeroit, int iAlign ) {
-#ifdef JKX_SP_FIELDS
 	// Same call, different name on this side of the fence.
 	return ri.Malloc( iSize, eTag, bZeroit, iAlign );
-#else
-	return ri.Z_Malloc( iSize, eTag, bZeroit, iAlign );
-#endif
 }
 
 int R_Z_Free( void *ptr ) {
 	// Single-player's Z_Free reports how many bytes it freed; multiplayer's
 	// returns nothing. Ours returns the number where there is one.
-#ifdef JKX_SP_FIELDS
 	return ri.Z_Free( ptr );
-#else
-	ri.Z_Free( ptr );
-	return 0;
-#endif
 }
 
 int R_Z_MemSize( memtag_t eTag ) {
@@ -156,7 +109,6 @@ void Z_MorphMallocTag( void *pvBuffer, memtag_t eDesiredTag ) {
 	ri.Z_MorphMallocTag( pvBuffer, eDesiredTag );
 }
 
-#ifdef JKX_SP_FIELDS
 
 // rd-common allocates through these. rd-vanilla defines them the same way; the
 // multiplayer build gets them from its own rd-common instead.
@@ -173,4 +125,3 @@ void R_Free( void *ptr ) {
 // own definition to link, exactly as rd-vanilla has one.
 cvar_t	*com_buildScript;
 
-#endif // JKX_SP_FIELDS

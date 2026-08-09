@@ -127,7 +127,7 @@ static byte* R_ImageScratchAlloc( imageScratchBuffer_t *scratch, size_t size )
 		if ( scratch->buffer )
 			R_Z_Free(scratch->buffer);
 
-		scratch->buffer = (byte*)R_Z_Malloc( size, TAG_TEMP_IMAGE );
+		scratch->buffer = (byte*)R_Z_Malloc( size, TAG_TEMP_WORKSPACE );
 		scratch->size = size;
 	}
 

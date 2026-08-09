@@ -146,7 +146,7 @@ option(BuildSPRdVanilla "Whether to create projects for the SP default renderer 
 # OFF on purpose: this target is phase 2's finish line and does not compile yet.
 # See code/rd-vulkan/CMakeLists.txt - its whole job is to turn "what is left to
 # port" from an estimate into a list the compiler prints.
-option(BuildSPRdVulkan "Whether to create the SP Vulkan renderer project (does not build yet - phase 2)" OFF)
+option(BuildSPRdVulkan "Whether to create the SP Vulkan renderer project" ON)
 
 option(BuildJK2SPEngine "Build the JK2 SP engine" ON)
 option(BuildJK2SPGame "Build the JK2 SP gamecode" ON)

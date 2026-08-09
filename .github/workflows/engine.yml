@@ -1,17 +1,11 @@
 # Produces something that can actually be run.
 #
-# Phase 2 has not happened yet, so code/rd-vulkan cannot be built inside this
-# tree: it still expects the multiplayer headers it was written against. Until
-# it can, the only way to get a runnable engine out of this repository is the
-# same one the developer harness uses - sync the renderer into a checkout of the
-# fork it came from, which does build, and build there.
-#
-# That is what this workflow automates, so that measuring a change does not
-# require a local checkout of anything but this repository. The output is a zip
-# that unpacks over a retail install: engine, both renderers, gamecode, and the
-# shader pak the modernised renderer loads at startup.
-#
-# Delete this workflow when phase 2 lands and the engine builds here directly.
+# Everything is built from this repository now. Until phase 2 bring-up landed
+# the renderer could only be compiled inside a checkout of the fork it came
+# from, and this workflow synced it there; that is gone along with the harness.
+# The output is a zip that unpacks over a retail install: engine, both
+# renderers, gamecode, and the shader pak the modernised renderer loads at
+# startup.
 
 name: engine
 
@@ -20,18 +14,13 @@ on:
   push:
     branches: [main]
     paths:
-      - 'code/rd-vulkan/**'
+      - 'code/**'
+      - 'shared/**'
+      - 'cmake/**'
+      - 'CMakeLists.txt'
       - 'third_party/**'
-      - 'tools/devkit/**'
       - 'tools/shadergen/**'
       - '.github/workflows/engine.yml'
-
-env:
-  # Pinned rather than tracking the branch: a build that changes underneath us
-  # would make two measurements incomparable without anything in this repository
-  # having changed. Bump deliberately.
-  ETERNALJK_REPO: JKSunny/EternalJK
-  ETERNALJK_REF: 7762e3c83a66b2bdfcb1e5df2d304a3b40d1abb5
 
 jobs:
   # The shader pak is platform independent - SPIR-V, compiled by glslc - so it
@@ -70,8 +59,9 @@ jobs:
         include:
           - name: windows-x86_64
             os: windows-2022
-            # Named, not inferred: the runners have MinGW on PATH and it cannot
-            # link the MSVC import libraries the fork bundles for Windows.
+            # Named, not inferred: the runners have MinGW on PATH and it picks
+            # itself over MSVC, which is not what the rest of the toolchain
+            # expects.
             configure_extra: -G "Visual Studio 17 2022" -A x64
             python: python
             config: Release
@@ -97,29 +87,12 @@ jobs:
         with:
           path: jkx
 
-      - uses: actions/checkout@v4
-        with:
-          repository: ${{ env.ETERNALJK_REPO }}
-          ref: ${{ env.ETERNALJK_REF }}
-          path: eternaljk
-
       - name: Install dependencies (Linux)
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y ninja-build libsdl2-dev libjpeg-dev libpng-dev \
                                   zlib1g-dev libopenal-dev libgl1-mesa-dev libvulkan-dev
-
-      # One way only: the harness checkout is disposable and nothing is ever
-      # copied back out of it. This is the same script used locally, so a green
-      # build here means the same thing a green build on a developer machine
-      # does.
-      - name: Sync the renderer into the harness checkout
-        shell: bash
-        env:
-          PYTHON: ${{ matrix.python }}
-          JKX_VK_TRACE: ${{ matrix.trace }}
-        run: bash jkx/tools/devkit/renderer_build_harness.sh "$PWD/eternaljk" --sync-only
 
       # $GITHUB_WORKSPACE rather than the expression: on Windows the expression
       # expands to D:\a\jkx\jkx before bash sees it, and bash then eats the
@@ -129,18 +102,18 @@ jobs:
       - name: Configure
         shell: bash
         run: >
-          cmake -S eternaljk -B build ${{ matrix.configure_extra }}
+          cmake -S jkx -B build ${{ matrix.configure_extra }}
           -DCMAKE_BUILD_TYPE=${{ matrix.config }}
           -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/package"
           -DBuildPortableVersion=OFF
-          -DBuildMPEngine=ON
-          -DBuildMPRdVulkan=ON
-          -DBuildMPRdVanilla=ON
-          -DBuildMPDed=OFF
-          -DBuildMPGame=ON
-          -DBuildMPCGame=ON
-          -DBuildMPUI=ON
-          -DBuildDiscordRichPresence=OFF
+          -DBuildSPEngine=ON
+          -DBuildSPGame=ON
+          -DBuildSPRdVanilla=ON
+          -DBuildSPRdVulkan=ON
+          -DBuildJK2SPEngine=OFF
+          -DBuildJK2SPGame=OFF
+          -DBuildJK2SPRdVanilla=OFF
+          -DJKX_VK_TRACE=${{ matrix.trace && 'ON' || 'OFF' }}
           ${{ runner.os == 'Linux' && '-DUseInternalSDL2=OFF -DUseInternalZlib=OFF -DUseInternalPNG=OFF -DUseInternalJPEG=OFF' || '' }}
 
       - name: Build
@@ -160,8 +133,7 @@ jobs:
       # vk_shaders.cpp loads shaders.pak through the filesystem, so it has to
       # ship inside a searched game directory rather than next to the
       # executable. Without it the renderer starts and then fails on the first
-      # pipeline. The fork's own gamecode installs into its basegame directory,
-      # so the pak goes there too and the retail base/ is left untouched.
+      # pipeline.
       - name: Stage the shader pak
         shell: bash
         run: |
@@ -172,22 +144,16 @@ jobs:
               ls -la "$GITHUB_WORKSPACE" >&2
               exit 1
           fi
-          dest="$tree/EternalJK"
-          [ -d "$dest" ] || dest="$tree/base"
+          dest="$tree/base"
           mkdir -p "$dest"
           cp pak/shaders.pak "$dest/shaders.pak"
 
-          # Ship the renderer under a name of our own. Upstream calls it
-          # rd-vulkan_<arch>, so a package unpacked over an existing install
-          # either overwrites it or, if the unpack skips existing files, leaves
-          # the old one in place and everything still runs - which is how a
-          # measurement of the baseline once got mistaken for a measurement of
-          # this tree. Different name, no ambiguity: either rd-jkx is there and
-          # is ours, or it is not there at all.
-          for lib in "$tree"/rd-vulkan_*; do
-              [ -e "$lib" ] || continue
-              mv "$lib" "$(echo "$lib" | sed 's/rd-vulkan_/rd-jkx_/')"
-          done
+          # The renderer already ships under a name of our own - rdsp-vulkan_
+          # rather than upstream's rd-vulkan_ - so a package unpacked over an
+          # existing install cannot leave someone else's renderer in place and
+          # have everything still run. That happened once with the old name and
+          # a measurement of the baseline was mistaken for a measurement of this
+          # tree.
 
           # Symbols travel with the binary. The renderer installs a fault
           # handler that walks the stack and resolves it through dbghelp, which
@@ -198,7 +164,7 @@ jobs:
               while IFS= read -r pdb; do
                   base=$(basename "$pdb")
                   case "$base" in vc[0-9]*.pdb) continue ;; esac
-                  cp "$pdb" "$tree/$(echo "$base" | sed 's/^rd-vulkan_/rd-jkx_/')"
+                  cp "$pdb" "$tree/$base"
               done < <(find build -name '*.pdb')
           fi
 

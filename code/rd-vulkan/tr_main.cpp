@@ -1511,9 +1511,6 @@ static void R_AddEntitySurface( const trRefdef_t *refdef, trRefEntity_t *ent, in
 	case RT_ORIENTED_QUAD:
 	case RT_ELECTRICITY:
 	case RT_LINE:
-#ifndef JKX_SP_TYPES
-	case RT_ORIENTEDLINE:
-#endif
 	case RT_CYLINDER:
 	case RT_SABER_GLOW:
 		// self blood sprites, talk balloons, etc should not be drawn in the primary
