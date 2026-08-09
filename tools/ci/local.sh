@@ -8,7 +8,7 @@
 # broken across three pushes.
 #
 # What it covers:
-#   policy      the ascii, layering and source-list gates
+#   policy      the ascii, layering and source-list gates, and actionlint
 #   release     the whole tree, Release
 #   debug       the whole tree, Debug: different code is compiled, and it is
 #               the configuration nobody looks at until it fails
@@ -54,7 +54,21 @@ configure() {
 stage_policy() {
     python3 "$ROOT/tools/ci/check_ascii.py" "$ROOT" &&
     python3 "$ROOT/tools/ci/check_layering.py" "$ROOT" &&
-    python3 "$ROOT/tools/ci/check_sources.py" "$ROOT"
+    python3 "$ROOT/tools/ci/check_sources.py" "$ROOT" &&
+    stage_workflows
+}
+
+# An invalid workflow file fails with no log to read, so it is worth catching
+# here. Skipped rather than failed when actionlint is not installed: this script
+# should not need the network.
+stage_workflows() {
+    local lint
+    lint="$(command -v actionlint || true)"
+    if [ -z "$lint" ]; then
+        echo "  (actionlint not installed, workflows not checked)"
+        return 0
+    fi
+    ( cd "$ROOT" && "$lint" -no-color )
 }
 
 stage_release() {

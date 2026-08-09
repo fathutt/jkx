@@ -42,6 +42,17 @@ jobs:
       - name: Renderer source list matches the directory
         run: python3 tools/ci/check_sources.py
 
+      # An invalid workflow file is a push, a red X and no log at all - the one
+      # failure mode with no evidence in it. actionlint reads the expressions
+      # and knows which contexts are available where, which is exactly the
+      # mistake that is easy to make and impossible to see.
+      - name: Workflows are valid
+        run: |
+          curl -sSfL -o actionlint.tar.gz \
+            https://github.com/rhysd/actionlint/releases/download/v1.7.7/actionlint_1.7.7_linux_amd64.tar.gz
+          tar xzf actionlint.tar.gz actionlint
+          ./actionlint -no-color
+
       - name: clang-format
         run: |
           sudo apt-get update -qq

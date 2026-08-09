@@ -19,7 +19,7 @@ on:
   workflow_dispatch:
     inputs:
       trace:
-        description: "Also package the Windows build with the renderer trace compiled in"
+        description: "Compile the renderer's operation trace into this package"
         type: boolean
         default: false
   push:
@@ -86,27 +86,12 @@ jobs:
             configure_extra: -G "Visual Studio 17 2022" -A x64 -DCMAKE_TOOLCHAIN_FILE=$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x64-windows
             python: python
             config: Release
-          # Same release build with the renderer's own diagnostics compiled in:
-          # the vk_log.log operation trace and, where the layers are installed,
-          # validation reporting. Not a debug build - that changes the CRT and
-          # the struct layouts the gamecode interface depends on, and the result
-          # dies before it can write a single line.
-          - name: windows-x86_64-trace
-            when: trace
-            os: windows-2022
-            configure_extra: -G "Visual Studio 17 2022" -A x64 -DCMAKE_TOOLCHAIN_FILE=$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x64-windows
-            python: python
-            config: Release
           - name: linux-x86_64
             os: ubuntu-24.04
             configure_extra: -G Ninja
             python: python3
             config: Release
     runs-on: ${{ matrix.os }}
-    # The trace package doubles the Windows work for a compile define, and it is
-    # wanted when something needs diagnosing rather than on every push. Ask for
-    # it from the Actions tab.
-    if: ${{ matrix.when != 'trace' || inputs.trace }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -162,7 +147,7 @@ jobs:
           -DBuildJK2SPEngine=OFF
           -DBuildJK2SPGame=OFF
           -DBuildJK2SPRdVanilla=OFF
-          -DJKX_VK_TRACE=${{ matrix.when == 'trace' && 'ON' || 'OFF' }}
+          -DJKX_VK_TRACE=${{ inputs.trace && 'ON' || 'OFF' }}
           -DCMAKE_C_COMPILER_LAUNCHER=sccache
           -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
           -DCMAKE_POLICY_DEFAULT_CMP0141=NEW
@@ -249,6 +234,7 @@ jobs:
           git -C jkx rev-parse HEAD > "$tree/jkx-build.txt"
           date -u +"%Y-%m-%dT%H:%M:%SZ" >> "$tree/jkx-build.txt"
           echo "package: ${{ matrix.name }}" >> "$tree/jkx-build.txt"
+          echo "trace: ${{ inputs.trace && 'on' || 'off' }}" >> "$tree/jkx-build.txt"
 
           echo "packaged:"
           find "$tree" -maxdepth 2 -type f | sort
@@ -256,6 +242,6 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: jkx-engine-${{ matrix.name }}
+          name: jkx-engine-${{ matrix.name }}${{ inputs.trace && '-trace' || '' }}
           path: ${{ env.PACKAGE_DIR }}
           if-no-files-found: error
