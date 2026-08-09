@@ -427,6 +427,25 @@ static qboolean vk_create_device( VkPhysicalDevice physical_device, int device_i
 
 	ri.Printf(PRINT_ALL, "selected physical device: %i\n\n", device_index);
 
+	// The renderer records synchronization2 barriers and uses dynamic
+	// rendering, both core in 1.3. Requesting VkPhysicalDeviceVulkan13Features
+	// does not enforce anything on its own: a pre-1.3 driver walks the pNext
+	// chain, does not recognise the sType, skips it, and returns VK_SUCCESS.
+	// volk then resolves vkCmdPipelineBarrier2 to NULL and the first barrier
+	// jumps to address zero. Reject the device here, where the reason can be
+	// stated, instead of there, where it cannot.
+	{
+		VkPhysicalDeviceProperties device_props;
+		vkGetPhysicalDeviceProperties( physical_device, &device_props );
+		if ( device_props.apiVersion < VK_API_VERSION_1_3 ) {
+			ri.Printf( PRINT_ERROR, "...device %i reports Vulkan %i.%i, and this renderer needs 1.3\n",
+				device_index,
+				(int)VK_API_VERSION_MAJOR( device_props.apiVersion ),
+				(int)VK_API_VERSION_MINOR( device_props.apiVersion ) );
+			return qfalse;
+		}
+	}
+
 	// select surface format
 	if (!vk_select_surface_format(physical_device, vk.surface)) {
 		return qfalse;
@@ -656,19 +675,21 @@ static qboolean vk_create_device( VkPhysicalDevice physical_device, int device_i
 		// if the driver cannot provide them it is not a device we support, and
 		// failing at device creation is far better than failing later in a way
 		// that looks like a rendering bug.
-		{
-			static VkPhysicalDeviceVulkan13Features features13;
-			Com_Memset( &features13, 0, sizeof( features13 ) );
-			features13.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
-			features13.synchronization2 = VK_TRUE;
-			features13.dynamicRendering = VK_TRUE;
-			features13.maintenance4 = VK_TRUE;
-			features13.pNext = (void *)device_desc.pNext;
-			device_desc.pNext = &features13;
-		}
+		static VkPhysicalDeviceVulkan13Features features13;
+		Com_Memset( &features13, 0, sizeof( features13 ) );
+		features13.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
+		features13.synchronization2 = VK_TRUE;
+		features13.dynamicRendering = VK_TRUE;
+		features13.maintenance4 = VK_TRUE;
+		features13.pNext = (void *)device_desc.pNext;
+		device_desc.pNext = &features13;
 
 #ifdef _DEBUG
-		pNextPtr = (const void **)&device_desc.pNext;
+		// From features13's own pNext, not from the head of the chain: seeding
+		// it at the head makes the first assignment below overwrite features13
+		// and quietly disable synchronization2 while the renderer keeps
+		// recording synchronization2 barriers.
+		pNextPtr = (const void **)&features13.pNext;
 
 		if ( timelineSemaphore ) {
 			*pNextPtr = &timeline_semaphore;
