@@ -977,6 +977,13 @@ Ghoul2 Insert End
 	ri.Cvar_CheckRange( r_aviMotionJpegQuality, 10, 100, qtrue );
 	ri.Cvar_CheckRange( r_screenshotJpegQuality, 10, 100, qtrue );
 
+	// Defined in tr_subs.cpp, read by rd-common's font loader. It had a
+	// definition and no registration, so the first font registered dereferenced
+	// a null pointer - which is what a cvar_t* that only exists to satisfy the
+	// linker does.
+	extern cvar_t *com_buildScript;
+	com_buildScript = ri.Cvar_Get( "com_buildScript", "0", CVAR_NONE, "1 touches every asset on load, 2 also registers foreign fonts" );
+
 	for ( size_t i = 0; i < numCommands; i++ )
 		R_AddCommand( commands[i].cmd, commands[i].func, "" );
 }
@@ -1124,6 +1131,23 @@ RE_Shutdown
 */
 void RE_Shutdown( qboolean destroyWindow, qboolean restarting ) {
 	vk_debug("RE_Shutdown( %i, %i )\n", destroyWindow, restarting);
+
+	// The engine calls this on its way out of Com_Error, and one of the errors
+	// it can be carrying is "this machine has no Vulkan driver" - raised from
+	// inside vk_initialize, before there is an instance. Everything below wants
+	// a device; without one it walks null function pointers and turns a message
+	// the user could act on into a crash they cannot.
+	if ( vk.instance == VK_NULL_HANDLE ) {
+		for ( size_t i = 0; i < numCommands; i++ )
+			ri.Cmd_RemoveCommand( commands[i].cmd );
+
+		vk_remove_crash_handler();
+		Com_Memset( &tr, 0, sizeof( tr ) );
+		Com_Memset( &backEnd, 0, sizeof( backEnd ) );
+		Com_Memset( &tess, 0, sizeof( tess ) );
+		tr.registered = qfalse;
+		return;
+	}
 
 	for (size_t i = 0; i < numCommands; i++)
 		ri.Cmd_RemoveCommand(commands[i].cmd);

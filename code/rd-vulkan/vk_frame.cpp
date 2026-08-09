@@ -1487,7 +1487,14 @@ static void vk_resize_geometry_buffer( void )
 
 void vk_wait_idle( void )
 {
-    VK_CHECK(vkDeviceWaitIdle(vk.device));
+	// There may be no device to wait on. The engine tears the renderer down
+	// through RE_Shutdown on its way out of Com_Error, and one of the errors it
+	// gets there is "there is no Vulkan driver" - at which point this used to
+	// call through a null function pointer and turn a message into a crash.
+	if ( vk.device == VK_NULL_HANDLE )
+		return;
+
+	VK_CHECK(vkDeviceWaitIdle(vk.device));
 }
 
 void vk_queue_wait_idle( void )

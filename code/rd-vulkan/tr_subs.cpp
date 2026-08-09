@@ -121,7 +121,7 @@ void R_Free( void *ptr ) {
 }
 
 // The font loader reads this to decide whether to touch every glyph while
-// building a script. The engine owns the cvar; the renderer module needs its
-// own definition to link, exactly as rd-vanilla has one.
+// building a script. rd-common declares it and expects the renderer module to
+// define and register it, exactly as rd-vanilla does - see R_Register.
 cvar_t	*com_buildScript;
 

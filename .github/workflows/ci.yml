@@ -188,5 +188,20 @@ jobs:
           sudo apt-get install -y mesa-vulkan-drivers vulkan-tools vulkan-validationlayers
       - name: Assert required features are present
         run: python3 tools/ci/check_vulkan_baseline.py
-      # Once the renderer builds (phase 1 shader toolchain), this job also runs
-      # a headless frame with sync-validation enabled and fails on any message.
+
+      - name: Install what the engine needs to start
+        run: |
+          sudo apt-get install -y ninja-build xvfb glslc libsdl2-dev libjpeg-dev \
+                                  libpng-dev zlib1g-dev libopenal-dev libgl1-mesa-dev
+
+      - name: Build
+        run: |
+          cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DBuildSPRdVulkan=ON -DBuildJK2SPEngine=OFF -DBuildJK2SPGame=OFF \
+            -DBuildJK2SPRdVanilla=OFF
+          cmake --build build --target jkx_ja.x86_64 rdsp-vulkan_x86_64 --parallel
+
+      # No GPU and no retail assets, and neither is needed to answer the
+      # question this asks: does the engine still come up on this renderer.
+      - name: The engine starts on the Vulkan renderer
+        run: bash tools/verify/smoke_headless.sh build
