@@ -108,12 +108,16 @@ wait "$engine"
 status=$?
 set -e
 
-# 143 is the kill above, and 124/1 are ordinary ways for this run to stop. A
-# signal that is not SIGTERM means something broke.
-case "$status" in
-    0|1|124|137|143) ;;
-    *) echo "engine exited with status $status"; tail -40 "$RUN/run.log"; exit 1 ;;
-esac
+# This run always ends in a fatal error - there is no ui/menus.txt - so the exit
+# code is whatever the engine's error path returns, and listing the acceptable
+# ones was wrong twice already. The only exit that means something broke is one
+# from a signal, which the shell reports as 128 + the signal; 143 and 137 are
+# the SIGTERM and SIGKILL sent above. Everything else is judged from the log.
+if [ "$status" -ge 128 ] && [ "$status" -ne 143 ] && [ "$status" -ne 137 ]; then
+    echo "the engine died on signal $(( status - 128 ))"
+    tail -40 "$RUN/run.log"
+    exit 1
+fi
 
 fail=0
 require() {

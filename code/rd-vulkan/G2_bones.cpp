@@ -2879,34 +2879,25 @@ static inline bool G2_ApplyRealBonePhysics(boneInfo_t &bone, SRagEffector &e, CR
 }
 
 #ifdef _DEBUG_BONE_NAMES
+// Ragdoll debug drawing, and the last of the virtual-machine callbacks.
+//
+// Multiplayer asks the client game to draw these, through shared memory and a
+// callback into the VM, because the renderer cannot draw a debug line itself
+// and cgame lives on the other side of a boundary. Single-player has no VM -
+// cgame is compiled into the engine - so there is nobody on the other end.
+//
+// Left as no-ops with their call sites intact rather than deleted: this is
+// ragdoll development scaffolding, it only exists in a debug build, and when
+// the renderer moves into the engine in 2.2 it can call the debug drawing
+// directly and these become two real functions.
 static inline void G2_RagDebugBox(vec3_t mins, vec3_t maxs, int duration)
 {
-	if ( !ri.CGVMLoaded() )
-		return;
-
-	ragCallbackDebugBox_t *callData = (ragCallbackDebugBox_t *)ri.GetSharedMemory();
-
-	callData->duration = duration;
-	VectorCopy(mins, callData->mins);
-	VectorCopy(maxs, callData->maxs);
-
-	ri.CGVM_RagCallback( RAG_CALLBACK_DEBUGBOX );
+	(void)mins; (void)maxs; (void)duration;
 }
 
 static inline void G2_RagDebugLine(vec3_t start, vec3_t end, int time, int color, int radius)
 {
-	if ( !ri.CGVMLoaded() )
-		return;
-
-	ragCallbackDebugLine_t *callData = (ragCallbackDebugLine_t *)ri.GetSharedMemory();
-
-	VectorCopy(start, callData->start);
-	VectorCopy(end, callData->end);
-	callData->time = time;
-	callData->color = color;
-	callData->radius = radius;
-
-	ri.CGVM_RagCallback( RAG_CALLBACK_DEBUGLINE );
+	(void)start; (void)end; (void)time; (void)color; (void)radius;
 }
 #endif
 
