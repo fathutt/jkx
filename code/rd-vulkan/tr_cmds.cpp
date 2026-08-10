@@ -288,6 +288,44 @@ void RE_StretchPic ( float x, float y, float w, float h,
 
 /*
 =============
+RE_LAGoggles
+
+Single-player's light amplification goggles, for this frame only: everything is
+lit flat and everything is fogged green.
+
+The green is a fog rather than a tint over the finished picture, which is what
+makes it read as being inside the effect rather than in front of it - distance
+still fades, and the fog slot it uses is the spare one past the end of the map's
+own fogs. depthForOpaque is deliberately enormous: the fog is there to colour
+the view, not to hide it.
+
+The tcScale wobble is the amplifier being imperfect. It is a function of time,
+so it is recomputed on every frame the goggles are asked for.
+=============
+*/
+void RE_LAGoggles( void )
+{
+	fog_t	*fog;
+
+	if ( !tr.world ) {
+		return;
+	}
+
+	tr.refdef.rdflags |= ( RDF_doLAGoggles | RDF_doFullbright );
+	tr.refdef.doLAGoggles = qtrue;
+
+	fog = &tr.world->fogs[tr.world->numfogs];
+
+	fog->parms.color[0] = 0.75f;
+	fog->parms.color[1] = 0.42f + Q_flrand( 0.0f, 1.0f ) * 0.025f;
+	fog->parms.color[2] = 0.07f;
+	fog->parms.depthForOpaque = 10000;
+	fog->colorInt = ColorBytes4( fog->parms.color[0], fog->parms.color[1], fog->parms.color[2], 1.0f );
+	fog->tcScale = 2.0f / ( fog->parms.depthForOpaque * ( 1.0f + cos( tr.refdef.floatTime ) * 0.1f ) );
+}
+
+/*
+=============
 RE_Scissor
 
 Clip the 2D drawing that follows to a box. It lasts until the next time the

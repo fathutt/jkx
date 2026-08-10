@@ -2456,8 +2456,14 @@ static	void R_LoadFogs( const lump_t *l, const lump_t *brushesLump, lump_t *side
 	count = l->filelen / sizeof(*fogs);
 
 	// create fog strucutres for them
+	//
+	// One more than numfogs: the slot at [numfogs] is the nightvision slot, and
+	// it is not counted because nothing may wander into it by walking the list.
+	// The light amplification goggles fill it on demand, and the code just below
+	// - which multiplayer inherited without the extra slot - writes a whole
+	// fog_t into it every time a sub-BSP with a global fog is loaded.
 	worldData.numfogs = count + 1;
-	worldData.fogs = (fog_t *)R_Hunk_Alloc( worldData.numfogs*sizeof(*out), h_low);
+	worldData.fogs = (fog_t *)R_Hunk_Alloc( (worldData.numfogs + 1)*sizeof(*out), h_low);
 	worldData.globalFog = -1;
 	out = worldData.fogs + 1;
 

@@ -88,10 +88,12 @@ static void R_SetupEntityLightingGrid( trRefEntity_t *ent, world_t *world ) {
 	float			totalFactor;
 	unsigned short	*startGridPos;
 
+	// The goggles amplify light, and the cheap way to say that is to stop
+	// looking at the light grid at all.
 #ifdef RF_FULLBRIGHT
-	if (r_fullbright->integer || r_ambientScale->integer == -1 || (ent->e.renderfx & RF_FULLBRIGHT))
+	if (r_fullbright->integer || r_ambientScale->integer == -1 || (tr.refdef.rdflags & RDF_doLAGoggles) || (ent->e.renderfx & RF_FULLBRIGHT))
 #else
-	if (r_fullbright->integer || r_ambientScale->integer == -1)
+	if (r_fullbright->integer || r_ambientScale->integer == -1 || (tr.refdef.rdflags & RDF_doLAGoggles))
 #endif
 	{
 		ent->ambientLight[0] = ent->ambientLight[1] = ent->ambientLight[2] = 255.0;

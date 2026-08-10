@@ -84,6 +84,11 @@ void RE_ClearScene( void ) {
 	r_firstSceneDlight = r_numdlights;
 	r_firstSceneEntity = r_numentities;
 	r_firstScenePoly = r_numpolys;
+
+	// The goggles are asked for once per frame, so they have to be forgotten
+	// once per frame too.
+	tr.refdef.rdflags &= ~( RDF_doLAGoggles | RDF_doFullbright );
+	tr.refdef.doLAGoggles = qfalse;
 }
 
 /*

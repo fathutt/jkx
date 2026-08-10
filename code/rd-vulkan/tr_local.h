@@ -850,6 +850,11 @@ typedef struct trRefdef_s {
 
 	qboolean			switchRenderPass;
 	qboolean			needScreenMap;
+
+	// Single-player's light amplification goggles. The rdflags carry the same
+	// news to the game side; this is the copy the renderer reads on every fog
+	// lookup, which is often enough to be worth not masking a bit each time.
+	qboolean			doLAGoggles;
 } trRefdef_t;
 
 
@@ -2825,6 +2830,7 @@ void RE_SetColor( const float *rgba );
 void RE_StretchPic( float x, float y, float w, float h,
 					  float s1, float t1, float s2, float t2, qhandle_t hShader );
 void RE_Scissor( float x, float y, float w, float h );
+void RE_LAGoggles( void );
 
 // The single-player screen wipe, in tr_dissolve.cpp.
 qboolean RE_InitDissolve( qboolean bForceCircularExtroWipe );

@@ -27,7 +27,6 @@ bool			RE_SP_GetWindVector( vec3_t windVector, vec3_t atPoint );
 bool			RE_SP_IsShaking( vec3_t pos );
 
 // Not ported yet
-void			RE_LAGoggles( void );
 float *			get_tr_distortionAlpha( void );
 float *			get_tr_distortionStretch( void );
 qboolean *		get_tr_distortionPrePost( void );

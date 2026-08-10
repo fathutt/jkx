@@ -1335,7 +1335,37 @@ const void	*RB_DrawBuffer( const void *data ) {
 	// force depth range and viewport/scissor updates
 	vk.cmd->depth_range = DEPTH_RANGE_COUNT;
 
-	if ( r_clear->integer && vk.clearAttachment ) {
+	// Single-player clears to the colour of the fog it is standing in, so that
+	// anything the world does not cover - a gap in the geometry, the far plane -
+	// is the colour the fog would have made it anyway rather than a hole.
+	//
+	// tr.refdef and not backEnd.refdef: this command runs before the one that
+	// hands the scene to the back end, so backEnd.refdef here is still last
+	// frame's. The front end has finished by now, so tr.refdef is the scene
+	// that is about to be drawn. rd-vanilla reads one of each in this test,
+	// which is how a menu frame can be cleared with the last level's fog.
+	//
+	const fog_t *clearFog = NULL;
+
+	if ( !( tr.refdef.rdflags & RDF_NOWORLDMODEL ) && tr.world ) {
+		if ( tr.refdef.rdflags & RDF_doLAGoggles ) {
+			clearFog = &tr.world->fogs[tr.world->numfogs];
+		}
+		// Not during the menus: wait for a real scene, or the map's fog colour
+		// shows up behind the main menu.
+		else if ( tr.world->globalFog != -1 && tr.sceneCount ) {
+			clearFog = &tr.world->fogs[tr.world->globalFog];
+		}
+	}
+
+	if ( clearFog && vk.clearAttachment ) {
+		const vec4_t color = { clearFog->parms.color[0], clearFog->parms.color[1], clearFog->parms.color[2], 1.0f };
+
+		backEnd.projection2D = qtrue; // to ensure we have viewport that occupies entire window
+		vk_clear_color_attachments( color );
+		backEnd.projection2D = qfalse;
+	}
+	else if ( r_clear->integer && vk.clearAttachment ) {
 		const vec4_t color = { 1, 0, 0.5, 1 };
 
 		backEnd.projection2D = qtrue; // to ensure we have viewport that occupies entire window

@@ -1497,7 +1497,7 @@ void R_BindAnimatedImage( const textureBundle_t *bundle ) {
 		return;
 	}
 
-	if ( ( r_fullbright->value /*|| tr.refdef.doFullbright */ ) && bundle->isLightmap )
+	if ( ( r_fullbright->value || ( tr.refdef.rdflags & RDF_doFullbright ) ) && bundle->isLightmap )
 	{
 		vk_bind( tr.whiteImage );
 		return;

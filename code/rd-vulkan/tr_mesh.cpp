@@ -281,6 +281,10 @@ static int R_ComputeFogNum( mdvModel_t *model, const trRefEntity_t *ent ) {
 		return 0;
 	}
 
+	if ( tr.refdef.doLAGoggles ) {
+		return tr.world->numfogs;
+	}
+
 	// FIXME: non-normalized axis issues
 	mdvFrame = model->frames + ent->e.frame;
 	VectorAdd( ent->e.origin, mdvFrame->localOrigin, localOrigin );

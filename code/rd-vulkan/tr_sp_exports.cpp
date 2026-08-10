@@ -119,11 +119,6 @@ bool RE_SP_IsShaking( vec3_t pos )
 // Not ported yet
 // ---------------------------------------------------------------------------
 
-void RE_LAGoggles( void )
-{
-	JKX_UNPORTED( "LAGoggles" );
-}
-
 // The distortion cvars the client reads straight out of the renderer. Static
 // storage rather than NULL: the client dereferences these without checking.
 float *get_tr_distortionAlpha( void )

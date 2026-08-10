@@ -1114,6 +1114,12 @@ static int R_SpriteFogNum( const trRefEntity_t *ent ) {
 		return 0;
 	}
 
+	// The goggles fog everything, so the answer is the same for every surface
+	// and there is nothing to look up.
+	if ( tr.refdef.doLAGoggles ) {
+		return tr.world->numfogs;
+	}
+
 	for (i = 1; i < tr.world->numfogs; i++) {
 		fog = &tr.world->fogs[i];
 		for (j = 0; j < 3; j++) {
