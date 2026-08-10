@@ -1070,7 +1070,9 @@ extern bool CM_CullWorldBox (const cplane_t *frustum, const vec3pair_t bounds);
 extern qboolean SND_RegisterAudio_LevelLoadEnd(qboolean bDeleteEverythingNotUsedThisLevel /* 99% qfalse */);
 extern cvar_t *Cvar_Set2( const char *var_name, const char *value, qboolean force);
 extern CMiniHeap *G2VertSpaceServer;
-static CMiniHeap *GetG2VertSpaceServer( void ) {
+// Not static any more: the renderer calls it directly now that it is in the
+// same binary, rather than being handed a pointer to it.
+CMiniHeap *GetG2VertSpaceServer( void ) {
 	return G2VertSpaceServer;
 }
 

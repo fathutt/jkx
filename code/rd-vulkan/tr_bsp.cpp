@@ -481,7 +481,7 @@ static	void R_LoadLightmaps( world_t &worldData, lump_t *l, lump_t *surfs ) {
 				int newImageSize = lightmapWidth * lightmapHeight * 4 * 2;
 				if ( tr.worldInternalLightmapping && (lightmapWidth != lightmapSize || lightmapHeight != lightmapSize) )
 				{
-					ri.Printf( PRINT_ALL, "Error loading %s: non %dx%d lightmaps\n", filename, lightmapSize, lightmapSize );
+					CL_RefPrintf( PRINT_ALL, "Error loading %s: non %dx%d lightmaps\n", filename, lightmapSize, lightmapSize );
 					R_Z_Free( externalLightmap );
 					externalLightmap = NULL;
 					continue;
@@ -699,7 +699,7 @@ static	void R_LoadLightmaps( world_t &worldData, lump_t *l, lump_t *surfs ) {
 
 			if (tr.worldInternalLightmapping && (lightmapWidth != lightmapSize || lightmapHeight != lightmapSize))
 			{
-				ri.Printf(PRINT_ALL, "Error loading %s: non %dx%d deluxemaps\n", filename, lightmapSize, lightmapSize);
+				CL_RefPrintf(PRINT_ALL, "Error loading %s: non %dx%d deluxemaps\n", filename, lightmapSize, lightmapSize);
 				R_Z_Free(externalLightmap);
 				externalLightmap = NULL;
 				continue;
@@ -776,7 +776,7 @@ static	void R_LoadLightmaps( world_t &worldData, lump_t *l, lump_t *surfs ) {
 	}
 
 	if ( r_lightmap->integer == 2 )	{
-		ri.Printf( PRINT_ALL, "Brightest lightmap value: %d\n", ( int ) ( maxIntensity * 255 ) );
+		CL_RefPrintf( PRINT_ALL, "Brightest lightmap value: %d\n", ( int ) ( maxIntensity * 255 ) );
 	}
 
 	R_Z_Free( image );
@@ -2225,7 +2225,7 @@ static	void R_LoadSubmodels( const lump_t *l, world_t &worldData, int index ) {
 
 		assert( model != NULL );			// this should never happen
 		if ( model == NULL ) {
-			ri.Error(ERR_DROP, "R_LoadSubmodels: R_AllocModel() failed");
+			Com_Error(ERR_DROP, "R_LoadSubmodels: R_AllocModel() failed");
 		}
 
 		model->type = MOD_BRUSH;
@@ -2816,7 +2816,7 @@ static qboolean R_ParseSpawnVars( char *spawnVarChars, int maxSpawnVarChars, int
 		return qfalse;
 	}
 	if ( com_token[0] != '{' ) {
-		ri.Printf( PRINT_ALL, "R_ParseSpawnVars: found %s when expecting {\n",com_token );
+		CL_RefPrintf( PRINT_ALL, "R_ParseSpawnVars: found %s when expecting {\n",com_token );
 		return qfalse;
 	}
 
@@ -2826,7 +2826,7 @@ static qboolean R_ParseSpawnVars( char *spawnVarChars, int maxSpawnVarChars, int
 
 		// parse key
 		if ( !R_GetEntityToken( keyname, sizeof( keyname ) ) ) {
-			ri.Printf( PRINT_ALL, "R_ParseSpawnVars: EOF without closing brace\n" );
+			CL_RefPrintf( PRINT_ALL, "R_ParseSpawnVars: EOF without closing brace\n" );
 			return qfalse;
 		}
 
@@ -2836,17 +2836,17 @@ static qboolean R_ParseSpawnVars( char *spawnVarChars, int maxSpawnVarChars, int
 
 		// parse value  
 		if ( !R_GetEntityToken( com_token, sizeof( com_token ) ) ) {
-			ri.Printf( PRINT_ALL, "R_ParseSpawnVars: EOF without closing brace\n" );
+			CL_RefPrintf( PRINT_ALL, "R_ParseSpawnVars: EOF without closing brace\n" );
 			return qfalse;
 		}
 
 		if ( com_token[0] == '}' ) {
-			ri.Printf( PRINT_ALL, "R_ParseSpawnVars: closing brace without data\n" );
+			CL_RefPrintf( PRINT_ALL, "R_ParseSpawnVars: closing brace without data\n" );
 			return qfalse;
 		}
 
 		if ( *numSpawnVars == MAX_SPAWN_VARS ) {
-			ri.Printf( PRINT_ALL, "R_ParseSpawnVars: MAX_SPAWN_VARS\n" );
+			CL_RefPrintf( PRINT_ALL, "R_ParseSpawnVars: MAX_SPAWN_VARS\n" );
 			return qfalse;
 		}
 
@@ -2855,7 +2855,7 @@ static qboolean R_ParseSpawnVars( char *spawnVarChars, int maxSpawnVarChars, int
 
 		if ( numSpawnVarChars + keyLength + tokenLength > maxSpawnVarChars )
 		{
-			ri.Printf( PRINT_ALL, "R_ParseSpawnVars: MAX_SPAWN_VAR_CHARS\n" );
+			CL_RefPrintf( PRINT_ALL, "R_ParseSpawnVars: MAX_SPAWN_VAR_CHARS\n" );
 			return qfalse;
 		}
 
@@ -2888,17 +2888,17 @@ static void R_LoadEnvironmentJson( const char *baseName )
 
 	Com_sprintf( filename, sizeof(filename), "cubemaps/%s/env.json", baseName );
 
-	filelen = ri.FS_ReadFile( filename, &buffer.v );
+	filelen = FS_ReadFile( filename, &buffer.v );
 	if ( !buffer.c )
 		return;
 	bufferEnd = buffer.c + filelen;
 
-	ri.Printf( PRINT_ALL, "Loaded Enviroment JSON: %s\n", filename );
+	CL_RefPrintf( PRINT_ALL, "Loaded Enviroment JSON: %s\n", filename );
 
 	if ( JSON_ValueGetType( buffer.c, bufferEnd ) != JSONTYPE_OBJECT )
 	{
-		ri.Printf( PRINT_ALL, "Bad %s: does not start with a object\n", filename );
-		ri.FS_FreeFile( buffer.v );
+		CL_RefPrintf( PRINT_ALL, "Bad %s: does not start with a object\n", filename );
+		FS_FreeFile( buffer.v );
 		return;
 	}
 
@@ -2906,15 +2906,15 @@ static void R_LoadEnvironmentJson( const char *baseName )
 	environmentArrayJson = JSON_ObjectGetNamedValue( buffer.c, bufferEnd, "Cubemaps" );
 	if ( !environmentArrayJson )
 	{
-		ri.Printf( PRINT_ALL, "Bad %s: no Cubemaps\n", filename );
-		ri.FS_FreeFile( buffer.v );
+		CL_RefPrintf( PRINT_ALL, "Bad %s: no Cubemaps\n", filename );
+		FS_FreeFile( buffer.v );
 		return;
 	}
 
 	if ( JSON_ValueGetType( environmentArrayJson, bufferEnd ) != JSONTYPE_ARRAY )
 	{
-		ri.Printf( PRINT_ALL, "Bad %s: Cubemaps not an array\n", filename );
-		ri.FS_FreeFile( buffer.v );
+		CL_RefPrintf( PRINT_ALL, "Bad %s: Cubemaps not an array\n", filename );
+		FS_FreeFile( buffer.v );
 		return;
 	}
 
@@ -2944,7 +2944,7 @@ static void R_LoadEnvironmentJson( const char *baseName )
 			cubemap->parallaxRadius = JSON_ValueGetFloat( keyValueJson, bufferEnd );
 	}
 
-	ri.FS_FreeFile(buffer.v);
+	FS_FreeFile(buffer.v);
 }
 
 static void R_LoadCubemapEntities( const char *cubemapEntityName )
@@ -3035,12 +3035,12 @@ static void R_AssignCubemapsToWorldSurfaces( world_t &worldData )
 		}
 		else
 		{
-			//ri.Printf(PRINT_ALL, "surface %d has no cubemap\n", i);
+			//CL_RefPrintf(PRINT_ALL, "surface %d has no cubemap\n", i);
 			continue;
 		}
 
 		surf->cubemapIndex = R_CubemapForPoint( surfOrigin );
-		//ri.Printf(PRINT_ALL, "[2] surface %d has cubemap %d\n", i, surf->cubemapIndex);
+		//CL_RefPrintf(PRINT_ALL, "[2] surface %d has cubemap %d\n", i, surf->cubemapIndex);
 	}
 }
 
@@ -3201,7 +3201,7 @@ void RE_LoadWorldMap_Actual( const char *name, world_t &worldData, int index )
 	{
 		// still needs loading...
 		//
-		ri.FS_ReadFile( name, (void **)&buffer );
+		FS_ReadFile( name, (void **)&buffer );
 		if ( !buffer ) {
 			Com_Error (ERR_DROP, "RE_LoadWorldMap: %s not found", name);
 		}
@@ -3307,7 +3307,7 @@ void RE_LoadWorldMap_Actual( const char *name, world_t &worldData, int index )
 	}
 	else
 	{
-		ri.FS_FreeFile( buffer );
+		FS_FreeFile( buffer );
 	}
 }
 

@@ -71,14 +71,14 @@ void R_SetColorMappings( void)
     tr.identityLightByte = 255 * tr.identityLight;
 
     if (r_intensity->value < 1.0f) {
-        ri.Cvar_Set("r_intensity", "1");
+        Cvar_Set("r_intensity", "1");
     }
 
     if (r_gamma->value < 0.5f) {
-        ri.Cvar_Set("r_gamma", "0.5");
+        Cvar_Set("r_gamma", "0.5");
     }
     else if (r_gamma->value > 3.0f) {
-        ri.Cvar_Set("r_gamma", "3.0");
+        Cvar_Set("r_gamma", "3.0");
     }
 
     g = r_gamma->value;
@@ -112,7 +112,7 @@ void R_SetColorMappings( void)
     }
 
     if (glConfig.deviceSupportsGamma)
-        ri.WIN_SetGamma(&glConfig, s_gammatable_linear, s_gammatable_linear, s_gammatable_linear);
+        WIN_SetGamma(&glConfig, s_gammatable_linear, s_gammatable_linear, s_gammatable_linear);
 }
 
 /*
@@ -362,7 +362,7 @@ void ResampleTexture( unsigned *in, int inwidth, int inheight, unsigned *out,
     byte* pix1, * pix2, * pix3, * pix4;
 
     if (outwidth > 2048)
-        ri.Error(ERR_DROP, "ResampleTexture: max width");
+        Com_Error(ERR_DROP, "ResampleTexture: max width");
 
     fracstep = inwidth * 0x10000 / outwidth;
 

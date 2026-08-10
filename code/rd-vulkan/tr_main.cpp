@@ -37,6 +37,15 @@ static const float s_flipMatrix[16] QALIGN(16) = {
 	0, 0, 0, 1
 };
 
+// What is left of the refimport table, and why it is still here.
+//
+// Nothing in this renderer reads it any more - every call goes straight to the
+// engine function, see tr_engine_api.h. But code/rd-common is compiled into
+// rd-vanilla as well, rd-vanilla is still a loadable module this phase, and a
+// module has no other way to reach the engine. So rd-common keeps calling
+// through the table and the table keeps being filled for it.
+//
+// It goes when rd-vanilla goes, and rd-common converts with it.
 refimport_t	ri;
 
 // entities that will have procedurally generated surfaces will just
@@ -863,7 +872,7 @@ static qboolean R_GetPortalOrientations( const drawSurf_t *drawSurf, int entityN
 	// to see a surface before the server has communicated the matching
 	// portal surface entity, so we don't want to print anything here...
 
-	//ri.Printf( PRINT_ALL, "Portal surface without a portal entity\n" );
+	//CL_RefPrintf( PRINT_ALL, "Portal surface without a portal entity\n" );
 
 	return qfalse;
 }

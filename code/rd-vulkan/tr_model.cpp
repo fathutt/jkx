@@ -90,7 +90,7 @@ qhandle_t R_RegisterMD3(const char *name, model_t *mod)
 				loaded = R_LoadMDXM(mod, buf, name, bAlreadyCached);
 				break;
 			default:
-				ri.Printf(PRINT_WARNING, "R_RegisterMD3: unknown ident for %s\n", name);
+				CL_RefPrintf(PRINT_WARNING, "R_RegisterMD3: unknown ident for %s\n", name);
 				break;
 		}
 
@@ -117,7 +117,7 @@ qhandle_t R_RegisterMD3(const char *name, model_t *mod)
 	}
 
 #ifdef _DEBUG
-	ri.Printf(PRINT_WARNING,"R_RegisterMD3: couldn't load %s\n", name);
+	CL_RefPrintf(PRINT_WARNING,"R_RegisterMD3: couldn't load %s\n", name);
 #endif
 
 	mod->type = MOD_BAD;
@@ -270,7 +270,7 @@ qboolean R_LoadMDXA_Server( model_t *mod, void *buffer, const char *mod_name, qb
 	if (!bAlreadyFound)
 	{
 		// horrible new hackery, if !bAlreadyFound then we've just done a tag-morph, so we need to set the
-		//	bool reference passed into this function to true, to tell the caller NOT to do an ri.FS_Freefile since
+		//	bool reference passed into this function to true, to tell the caller NOT to do an FS_FreeFile since
 		//	we've hijacked that memory block...
 		//
 		// Aaaargh. Kill me now...
@@ -416,7 +416,7 @@ qboolean R_LoadMDXM_Server( model_t *mod, void *buffer, const char *mod_name, qb
 	if (!bAlreadyFound)
 	{
 		// horrible new hackery, if !bAlreadyFound then we've just done a tag-morph, so we need to set the
-		//	bool reference passed into this function to true, to tell the caller NOT to do an ri.FS_Freefile since
+		//	bool reference passed into this function to true, to tell the caller NOT to do an FS_FreeFile since
 		//	we've hijacked that memory block...
 		//
 		// Aaaargh. Kill me now...
@@ -620,7 +620,7 @@ qhandle_t R_RegisterMDX_Server(const char *name, model_t *mod)
 				loaded = R_LoadMDXM_Server(mod, buf, namebuf, bAlreadyCached);
 				break;
 			default:
-				//ri.Printf(PRINT_WARNING, "R_RegisterMDX_Server: unknown ident for %s\n", name);
+				//CL_RefPrintf(PRINT_WARNING, "R_RegisterMDX_Server: unknown ident for %s\n", name);
 				break;
 		}
 
@@ -647,7 +647,7 @@ qhandle_t R_RegisterMDX_Server(const char *name, model_t *mod)
 	}
 
 /*#ifdef _DEBUG
-	ri.Printf(PRINT_WARNING,"R_RegisterMDX_Server: couldn't load %s\n", name);
+	CL_RefPrintf(PRINT_WARNING,"R_RegisterMDX_Server: couldn't load %s\n", name);
 #endif*/
 
 	mod->type = MOD_BAD;
@@ -679,7 +679,7 @@ qhandle_t RE_RegisterServerModel( const char *name ) {
 
 	if (!r_noServerGhoul2)
 	{ //keep it from choking when it gets to these checks in the g2 code. Registering all r_ cvars for the server would be a Bad Thing though.
-		r_noServerGhoul2 = ri.Cvar_Get( "r_noserverghoul2", "0", 0, "");
+		r_noServerGhoul2 = Cvar_Get( "r_noserverghoul2", "0", 0, "");
 	}
 
 	if ( !name || !name[0] ) {
@@ -704,7 +704,7 @@ qhandle_t RE_RegisterServerModel( const char *name ) {
 
 	// allocate a new model_t
 	if ( ( mod = R_AllocModel() ) == NULL ) {
-		ri.Printf( PRINT_WARNING, "RE_RegisterModel: R_AllocModel() failed for '%s'\n", name);
+		CL_RefPrintf( PRINT_WARNING, "RE_RegisterModel: R_AllocModel() failed for '%s'\n", name);
 		return 0;
 	}
 
@@ -773,12 +773,12 @@ static qhandle_t RE_RegisterModel_Actual( const char *name ) {
 	char		altName[ MAX_QPATH ];
 
 	if ( !name || !name[0] ) {
-		ri.Printf( PRINT_ALL, "RE_RegisterModel: NULL name\n" );
+		CL_RefPrintf( PRINT_ALL, "RE_RegisterModel: NULL name\n" );
 		return 0;
 	}
 
 	if ( strlen( name ) >= MAX_QPATH ) {
-		ri.Printf( PRINT_ALL, "Model name exceeds MAX_QPATH\n" );
+		CL_RefPrintf( PRINT_ALL, "Model name exceeds MAX_QPATH\n" );
 		return 0;
 	}
 
@@ -801,7 +801,7 @@ static qhandle_t RE_RegisterModel_Actual( const char *name ) {
 
 	// allocate a new model_t
 	if ( ( mod = R_AllocModel() ) == NULL ) {
-		ri.Printf( PRINT_WARNING, "RE_RegisterModel: R_AllocModel() failed for '%s'\n", name);
+		CL_RefPrintf( PRINT_WARNING, "RE_RegisterModel: R_AllocModel() failed for '%s'\n", name);
 		return 0;
 	}
 
@@ -867,7 +867,7 @@ static qhandle_t RE_RegisterModel_Actual( const char *name ) {
 		{
 			if( orgNameFailed )
 			{
-				ri.Printf( PRINT_DEVELOPER, "WARNING: %s not present, using %s instead\n",
+				CL_RefPrintf( PRINT_DEVELOPER, "WARNING: %s not present, using %s instead\n",
 						name, altName );
 			}
 
@@ -931,7 +931,7 @@ static qboolean R_LoadMD3 ( model_t *mod, int lod, void *buffer, const char *mod
 	version = LittleLong(md3Model->version);
 	if(version != MD3_VERSION)
 	{
-		ri.Printf(PRINT_WARNING, "R_LoadMD3: %s has wrong version (%i should be %i)\n", mod_name, version, MD3_VERSION);
+		CL_RefPrintf(PRINT_WARNING, "R_LoadMD3: %s has wrong version (%i should be %i)\n", mod_name, version, MD3_VERSION);
 		return qfalse;
 	}
 
@@ -967,7 +967,7 @@ static qboolean R_LoadMD3 ( model_t *mod, int lod, void *buffer, const char *mod
 
 	if(md3Model->numFrames < 1)
 	{
-		ri.Printf(PRINT_WARNING, "R_LoadMD3: %s has no frames\n", mod_name);
+		CL_RefPrintf(PRINT_WARNING, "R_LoadMD3: %s has no frames\n", mod_name);
 		return qfalse;
 	}
 
@@ -1038,14 +1038,14 @@ static qboolean R_LoadMD3 ( model_t *mod, int lod, void *buffer, const char *mod
 
 		if(md3Surf->numVerts >= SHADER_MAX_VERTEXES)
 		{
-			ri.Printf(PRINT_WARNING, "R_LoadMD3: %s has more than %i verts on %s (%i).\n",
+			CL_RefPrintf(PRINT_WARNING, "R_LoadMD3: %s has more than %i verts on %s (%i).\n",
 				mod_name, SHADER_MAX_VERTEXES - 1, md3Surf->name[0] ? md3Surf->name : "a surface",
 				md3Surf->numVerts );
 			return qfalse;
 		}
 		if(md3Surf->numTriangles * 3 >= SHADER_MAX_INDEXES)
 		{
-			ri.Printf(PRINT_WARNING, "R_LoadMD3: %s has more than %i triangles on %s (%i).\n",
+			CL_RefPrintf(PRINT_WARNING, "R_LoadMD3: %s has more than %i triangles on %s (%i).\n",
 				mod_name, ( SHADER_MAX_INDEXES / 3 ) - 1, md3Surf->name[0] ? md3Surf->name : "a surface",
 				md3Surf->numTriangles );
 			return qfalse;
@@ -1234,14 +1234,14 @@ void R_Modellist_f( void ) {
 				lods++;
 			}
 		}
-		ri.Printf( PRINT_ALL, "%8i : (%i) %s\n",mod->dataSize, lods, mod->name );
+		CL_RefPrintf( PRINT_ALL, "%8i : (%i) %s\n",mod->dataSize, lods, mod->name );
 		total += mod->dataSize;
 	}
-	ri.Printf( PRINT_ALL, "%8i : Total models\n", total );
+	CL_RefPrintf( PRINT_ALL, "%8i : Total models\n", total );
 
 #if	0		// not working right with new hunk
 	if ( tr.world ) {
-		ri.Printf( PRINT_ALL, "\n%8i : %s\n", tr.world->dataSize, tr.world->name );
+		CL_RefPrintf( PRINT_ALL, "\n%8i : %s\n", tr.world->dataSize, tr.world->name );
 	}
 #endif
 }

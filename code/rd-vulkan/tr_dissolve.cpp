@@ -444,10 +444,10 @@ qboolean RE_ProcessDissolve( void )
 		// music, and on a slow machine that can eat the whole wipe before it has
 		// been seen once.
 		dissolve.touchNeeded = qfalse;
-		dissolve.startTime = ri.Milliseconds();
+		dissolve.startTime = Sys_Milliseconds2();
 	}
 
-	percentage = (int)( ( ( ri.Milliseconds() - dissolve.startTime ) * 100 ) / ( 1000.0f * fDISSOLVE_SECONDS ) );
+	percentage = (int)( ( ( Sys_Milliseconds2() - dissolve.startTime ) * 100 ) / ( 1000.0f * fDISSOLVE_SECONDS ) );
 
 	if ( percentage > 100 ) {
 		R_KillDissolve();
@@ -617,14 +617,14 @@ qboolean RE_InitDissolve( qboolean bForceCircularExtroWipe )
 	{
 		// No boundary picture, no wipe. Saying so once is better than a level
 		// that appears to hang on a frozen screen.
-		ri.Printf( PRINT_WARNING, "dissolve: %s not found, no screen wipe\n", maskName );
+		CL_RefPrintf( PRINT_WARNING, "dissolve: %s not found, no screen wipe\n", maskName );
 		R_KillDissolve();
 		return qfalse;
 	}
 
 	R_DissolveBuildPipelines();
 
-	dissolve.startTime = ri.Milliseconds();	// replaced on the first drawn frame, but must not be zero
+	dissolve.startTime = Sys_Milliseconds2();	// replaced on the first drawn frame, but must not be zero
 	dissolve.touchNeeded = qtrue;
 
 	return qtrue;

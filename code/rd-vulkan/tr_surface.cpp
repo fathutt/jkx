@@ -1846,7 +1846,7 @@ void RB_SurfaceGrid( srfGridMesh_t *cv ) {
 					}
 					else
 #endif // USE_VBO_GRID
-						ri.Error(ERR_DROP, "Unexpected grid flush during map loading!\n");
+						Com_Error(ERR_DROP, "Unexpected grid flush during map loading!\n");
 				}
 				else {
 					RB_EndSurface();
@@ -2080,7 +2080,7 @@ void RB_SurfaceEntity( const surfaceType_t *surfType ) {
 }
 
 void RB_SurfaceBad( const surfaceType_t *surfType ) {
-	ri.Printf( PRINT_ALL, "Bad surface tesselated.\n" );
+	CL_RefPrintf( PRINT_ALL, "Bad surface tesselated.\n" );
 }
 
 /*

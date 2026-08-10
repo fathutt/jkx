@@ -358,13 +358,13 @@ static void VBO_AddGeometry(vbo_t *vbo, vbo_item_t *vi, shaderCommands_t *input)
 	offs = input->shader->iboOffset + input->shader->curIndexes * sizeof(input->indexes[0]);
 	size = input->numIndexes * sizeof(input->indexes[0]);
 	if (offs + size > vbo->vbo_size) {
-		ri.Error(ERR_DROP, "Index0 overflow");
+		Com_Error(ERR_DROP, "Index0 overflow");
 	}
 	memcpy(vbo->vbo_buffer + offs, input->indexes, size);
 
 	// fill soft buffer too
 	if (vbo->ibo_offset + size > vbo->ibo_size) {
-		ri.Error(ERR_DROP, "Index1 overflow");
+		Com_Error(ERR_DROP, "Index1 overflow");
 	}
 	memcpy(vbo->ibo_buffer + vbo->ibo_offset, input->indexes, size);
 	vbo->ibo_offset += size;
@@ -374,7 +374,7 @@ static void VBO_AddGeometry(vbo_t *vbo, vbo_item_t *vi, shaderCommands_t *input)
 	offs = input->shader->vboOffset + input->shader->curVertexes * sizeof(input->xyz[0]);
 	size = input->numVertexes * sizeof(input->xyz[0]);
 	if (offs + size > vbo->vbo_size) {
-		ri.Error(ERR_DROP, "Vertex overflow");
+		Com_Error(ERR_DROP, "Vertex overflow");
 	}
 	//Com_Printf( "v offs=%i size=%i\n", offs, size );
 	memcpy(vbo->vbo_buffer + offs, input->xyz, size);
@@ -383,7 +383,7 @@ static void VBO_AddGeometry(vbo_t *vbo, vbo_item_t *vi, shaderCommands_t *input)
 	offs = input->shader->normalOffset + input->shader->curVertexes * sizeof(input->normal[0]);
 	size = input->numVertexes * sizeof(input->normal[0]);
 	if (offs + size > vbo->vbo_size) {
-		ri.Error(ERR_DROP, "Normals overflow");
+		Com_Error(ERR_DROP, "Normals overflow");
 	}
 	//Com_Printf( "v offs=%i size=%i\n", offs, size );
 	memcpy(vbo->vbo_buffer + offs, input->normal, size);
@@ -394,7 +394,7 @@ static void VBO_AddGeometry(vbo_t *vbo, vbo_item_t *vi, shaderCommands_t *input)
 		offs = input->shader->qtangentOffset + input->shader->curVertexes * sizeof(input->qtangent[0]);
 		size = input->numVertexes * sizeof(input->qtangent[0]);
 		if (offs + size > vbo->vbo_size) {
-			ri.Error(ERR_DROP, "Qtangent overflow");
+			Com_Error(ERR_DROP, "Qtangent overflow");
 		}
 		//Com_Printf( "v offs=%i size=%i\n", offs, size );
 		memcpy(vbo->vbo_buffer + offs, input->qtangent, size);
@@ -403,7 +403,7 @@ static void VBO_AddGeometry(vbo_t *vbo, vbo_item_t *vi, shaderCommands_t *input)
 		offs = input->shader->lightdirOffset + input->shader->curVertexes * sizeof(input->lightdir[0]);
 		size = input->numVertexes * sizeof(input->lightdir[0]);
 		if (offs + size > vbo->vbo_size) {
-			ri.Error(ERR_DROP, "Lightdir overflow");
+			Com_Error(ERR_DROP, "Lightdir overflow");
 		}
 		//Com_Printf( "v offs=%i size=%i\n", offs, size );
 		memcpy(vbo->vbo_buffer + offs, input->lightdir, size);
@@ -559,7 +559,7 @@ IBO_t *R_CreateIBO( const char *name, const byte *vbo_data, int vbo_size )
 	IBO_t          *ibo;
 
 	if ( tr.numIBOs == MAX_VBOS ) {
-		ri.Error( ERR_DROP, "R_CreateVBO: MAX_VBOS hit");
+		Com_Error( ERR_DROP, "R_CreateVBO: MAX_VBOS hit");
 
 	}
 	vk_release_model_ibo( tr.numIBOs );
@@ -578,7 +578,7 @@ IBO_t *R_CreateIBO( const char *name, const byte *vbo_data, int vbo_size )
 	desc.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
 	if ( !vk_create_buffer_memory( &desc, VK_BUFFER_MEMORY_DEVICE, &tr.ibos[tr.numIBOs]->buffer,
 			&tr.ibos[tr.numIBOs]->allocation, NULL, "static IBO" ) ) {
-		ri.Error( ERR_DROP, "Vulkan: could not allocate a static IBO" );
+		Com_Error( ERR_DROP, "Vulkan: could not allocate a static IBO" );
 		return NULL;
 	}
 
@@ -587,7 +587,7 @@ IBO_t *R_CreateIBO( const char *name, const byte *vbo_data, int vbo_size )
 	desc.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
 	if ( !vk_create_buffer_memory( &desc, VK_BUFFER_MEMORY_HOST_WRITE, &staging_vertex_buffer,
 			&staging_allocation, &data, "ibo staging vertex" ) ) {
-		ri.Error( ERR_DROP, "Vulkan: could not allocate a staging buffer" );
+		Com_Error( ERR_DROP, "Vulkan: could not allocate a staging buffer" );
 		return NULL;
 	}
 
@@ -624,7 +624,7 @@ VBO_t *R_CreateVBO( const char *name, const byte *vbo_data, int vbo_size )
 	VBO_t          *vbo;
 
 	if ( tr.numVBOs == MAX_VBOS ) {
-		ri.Error( ERR_DROP, "R_CreateVBO: MAX_VBOS hit");
+		Com_Error( ERR_DROP, "R_CreateVBO: MAX_VBOS hit");
 
 	}
 
@@ -644,7 +644,7 @@ VBO_t *R_CreateVBO( const char *name, const byte *vbo_data, int vbo_size )
 	desc.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
 	if ( !vk_create_buffer_memory( &desc, VK_BUFFER_MEMORY_DEVICE, &tr.vbos[tr.numVBOs]->buffer,
 			&tr.vbos[tr.numVBOs]->allocation, NULL, "static VBO" ) ) {
-		ri.Error( ERR_DROP, "Vulkan: could not allocate a static VBO" );
+		Com_Error( ERR_DROP, "Vulkan: could not allocate a static VBO" );
 		return NULL;
 	}
 
@@ -653,7 +653,7 @@ VBO_t *R_CreateVBO( const char *name, const byte *vbo_data, int vbo_size )
 	desc.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
 	if ( !vk_create_buffer_memory( &desc, VK_BUFFER_MEMORY_HOST_WRITE, &staging_vertex_buffer,
 			&staging_allocation, &data, "vbo staging vertex" ) ) {
-		ri.Error( ERR_DROP, "Vulkan: could not allocate a staging buffer" );
+		Com_Error( ERR_DROP, "Vulkan: could not allocate a staging buffer" );
 		return NULL;
 	}
 
@@ -690,7 +690,7 @@ VBO_t *R_CreateDynamicVBO( const char *name, int size )
 	void *mapped = NULL;
 
 	if ( tr.numVBOs == MAX_VBOS ) {
-		ri.Error( ERR_DROP, "R_CreateDynamicVBO: MAX_VBOS hit" );
+		Com_Error( ERR_DROP, "R_CreateDynamicVBO: MAX_VBOS hit" );
 	}
 
 	vk_release_model_vbo( tr.numVBOs );
@@ -709,7 +709,7 @@ VBO_t *R_CreateDynamicVBO( const char *name, int size )
 	// first would be overwritten by it and leaked.
 	if ( !vk_create_buffer_memory( &desc, VK_BUFFER_MEMORY_DEVICE, &vbo->buffer,
 			&vbo->allocation, NULL, "dynamic VBO" ) ) {
-		ri.Error( ERR_DROP, "Vulkan: could not allocate a dynamic VBO" );
+		Com_Error( ERR_DROP, "Vulkan: could not allocate a dynamic VBO" );
 		return NULL;
 	}
 
@@ -717,7 +717,7 @@ VBO_t *R_CreateDynamicVBO( const char *name, int size )
 	desc.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 	if ( !vk_create_buffer_memory( &desc, VK_BUFFER_MEMORY_HOST_WRITE, &vbo->staging.buffer,
 			&vbo->staging.allocation, &mapped, "dynamic VBO staging" ) ) {
-		ri.Error( ERR_DROP, "Vulkan: could not allocate dynamic VBO staging" );
+		Com_Error( ERR_DROP, "Vulkan: could not allocate dynamic VBO staging" );
 		return NULL;
 	}
 
@@ -746,7 +746,7 @@ IBO_t *R_CreateDynamicIBO( const char *name, int size )
 	void *mapped = NULL;
 
 	if ( tr.numIBOs == MAX_VBOS ) {
-		ri.Error( ERR_DROP, "R_CreateDynamicIBO: MAX_IBOS hit" );
+		Com_Error( ERR_DROP, "R_CreateDynamicIBO: MAX_IBOS hit" );
 	}
 
 	vk_release_model_ibo(tr.numIBOs);
@@ -766,7 +766,7 @@ IBO_t *R_CreateDynamicIBO( const char *name, int size )
 	// first would be overwritten by it and leaked.
 	if ( !vk_create_buffer_memory( &desc, VK_BUFFER_MEMORY_DEVICE, &ibo->buffer,
 			&ibo->allocation, NULL, "dynamic IBO" ) ) {
-		ri.Error( ERR_DROP, "Vulkan: could not allocate a dynamic IBO" );
+		Com_Error( ERR_DROP, "Vulkan: could not allocate a dynamic IBO" );
 		return NULL;
 	}
 
@@ -774,7 +774,7 @@ IBO_t *R_CreateDynamicIBO( const char *name, int size )
 	desc.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 	if ( !vk_create_buffer_memory( &desc, VK_BUFFER_MEMORY_HOST_WRITE, &ibo->staging.buffer,
 			&ibo->staging.allocation, &mapped, "dynamic IBO staging" ) ) {
-		ri.Error( ERR_DROP, "Vulkan: could not allocate dynamic IBO staging" );
+		Com_Error( ERR_DROP, "Vulkan: could not allocate dynamic IBO staging" );
 		return NULL;
 	}
 
@@ -1353,7 +1353,7 @@ void R_CreateGoreVBO( void )
 void R_UpdateGoreVBO( srfG2GoreSurface_t *goreSurface )
 {
 	if ( !goreSurface || !goreSurface->verts || !goreSurface->indexes ) {
-		ri.Error(ERR_DROP, "RB_UpdateGoreVBO: NULL surface or data");
+		Com_Error(ERR_DROP, "RB_UpdateGoreVBO: NULL surface or data");
 	}
 
 	const int num_vertexes = goreSurface->numVerts;
@@ -1406,7 +1406,7 @@ void R_BuildWorldVBO(msurface_t *surf, int surfCount)
 		return;
 
 	if (glConfig.maxActiveTextures < 3) {
-		ri.Printf(PRINT_WARNING, "... not enough texture units for VBO\n");
+		CL_RefPrintf(PRINT_WARNING, "... not enough texture units for VBO\n");
 		return;
 	}
 
@@ -1475,7 +1475,7 @@ void R_BuildWorldVBO(msurface_t *surf, int surfCount)
 	}
 
 	if (numStaticSurfaces == 0) {
-		ri.Printf(PRINT_ALL, "...no static surfaces for VBO\n");
+		CL_RefPrintf(PRINT_ALL, "...no static surfaces for VBO\n");
 		return;
 	}
 
@@ -1492,7 +1492,7 @@ void R_BuildWorldVBO(msurface_t *surf, int surfCount)
 	vbo->items_queue = (int*)R_Hunk_Alloc((numStaticSurfaces + 1) * sizeof(int), h_low);
 	vbo->items_queue_count = 0;
 
-	ri.Printf(PRINT_ALL, "...found %i VBO surfaces (%i vertexes, %i indexes)\n",
+	CL_RefPrintf(PRINT_ALL, "...found %i VBO surfaces (%i vertexes, %i indexes)\n",
 		numStaticSurfaces, numStaticVertexes, numStaticIndexes);
 
 	//Com_Printf( S_COLOR_CYAN "VBO size: %i\n", vbo_size );
@@ -1536,7 +1536,7 @@ void R_BuildWorldVBO(msurface_t *surf, int surfCount)
 	}
 
 	if (n != numStaticSurfaces) {
-		ri.Error(ERR_DROP, "Invalid VBO surface count");
+		Com_Error(ERR_DROP, "Invalid VBO surface count");
 	}
 
 	// sort surfaces by shader
@@ -1567,7 +1567,7 @@ void R_BuildWorldVBO(msurface_t *surf, int surfCount)
 		}
 #endif
 		else {
-			ri.Error(ERR_DROP, "Unexpected surface type");
+			Com_Error(ERR_DROP, "Unexpected surface type");
 		}
 		initItem(vbo->items + i + 1);
 		RB_BeginSurface(sf->shader, 0, sf->cubemapIndex );
@@ -1586,7 +1586,7 @@ void R_BuildWorldVBO(msurface_t *surf, int surfCount)
 		if (grid->surfaceType == SF_GRID) {
 			vbo_item_t *vi = vbo->items + i + 1;
 			if (vi->num_vertexes != grid->vboExpectVertices || vi->num_indexes != grid->vboExpectIndices) {
-				ri.Error(ERR_DROP, "Unexpected grid vertexes/indexes count");
+				Com_Error(ERR_DROP, "Unexpected grid vertexes/indexes count");
 			}
 		}
 #endif // USE_VBO_GRID
@@ -1600,9 +1600,9 @@ void R_BuildWorldVBO(msurface_t *surf, int surfCount)
 	vk_alloc_vbo( "world", vbo->vbo_buffer, vbo->vbo_size );
 
 	//if ( err == GL_OUT_OF_MEMORY )
-	//	ri.Printf( PRINT_WARNING, "%s: out of memory\n", __func__ );
+	//	CL_RefPrintf( PRINT_WARNING, "%s: out of memory\n", __func__ );
 	//else
-	//	ri.Printf( PRINT_ERROR, "%s: error %i\n", __func__, err );
+	//	CL_RefPrintf( PRINT_ERROR, "%s: error %i\n", __func__, err );
 #if 0
 	// reset vbo markers
 	for (i = 0, sf = surf; i < surfCount; i++, sf++) {
@@ -1712,7 +1712,7 @@ void VBO_QueueItem(int itemIndex)
 	}
 	else
 	{
-		ri.Error(ERR_DROP, "VBO queue overflow");
+		Com_Error(ERR_DROP, "VBO queue overflow");
 	}
 
 }
@@ -1878,7 +1878,7 @@ qboolean vk_alloc_vbo( const char *name, const byte *vbo_data, int vbo_size )
 	// and the copy below wrote into nothing.
 	if ( !vk_create_buffer_memory( &desc, VK_BUFFER_MEMORY_DEVICE, &vk.vbo.vertex_buffer,
 			&vk.vbo.buffer_memory, NULL, va( "vbo vertex buffer: %s", name ) ) ) {
-		ri.Error( ERR_DROP, "Vulkan: could not allocate the world VBO" );
+		Com_Error( ERR_DROP, "Vulkan: could not allocate the world VBO" );
 		return qfalse;
 	}
 

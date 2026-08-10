@@ -41,17 +41,17 @@ static void vk_open_shader_pak( void )
 		return;
 	}
 
-	const long size = ri.FS_ReadFile( "shaders.pak", &s_pakData );
+	const long size = FS_ReadFile( "shaders.pak", &s_pakData );
 	if ( s_pakData == NULL || size <= 0 ) {
-		ri.Error( ERR_FATAL, "Vulkan: shaders.pak is missing. It is produced by the build; "
+		Com_Error( ERR_FATAL, "Vulkan: shaders.pak is missing. It is produced by the build; "
 			"see tools/shadergen/shadergen.py" );
 		return;
 	}
 
 	if ( !s_pak.open( s_pakData, (size_t)size ) ) {
-		ri.FS_FreeFile( s_pakData );
+		FS_FreeFile( s_pakData );
 		s_pakData = NULL;
-		ri.Error( ERR_FATAL, "Vulkan: shaders.pak is corrupt or was built for another version" );
+		Com_Error( ERR_FATAL, "Vulkan: shaders.pak is corrupt or was built for another version" );
 	}
 }
 
@@ -59,7 +59,7 @@ static void vk_close_shader_pak( void )
 {
 	s_pak.close();
 	if ( s_pakData != NULL ) {
-		ri.FS_FreeFile( s_pakData );
+		FS_FreeFile( s_pakData );
 		s_pakData = NULL;
 	}
 }
@@ -72,7 +72,7 @@ static VkShaderModule vk_shader_module( const char *name )
 	if ( code == NULL ) {
 		// A missing variant means the manifest and this file disagree, which is
 		// a build error rather than something to limp along with.
-		ri.Error( ERR_FATAL, "Vulkan: shader variant '%s' is not in shaders.pak", name );
+		Com_Error( ERR_FATAL, "Vulkan: shader variant '%s' is not in shaders.pak", name );
 		return VK_NULL_HANDLE;
 	}
 

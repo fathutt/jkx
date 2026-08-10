@@ -39,7 +39,7 @@ void QDECL Com_Printf( const char *msg, ... )
 	Q_vsnprintf(text, sizeof(text), msg, argptr);
 	va_end(argptr);
 
-	ri.Printf(PRINT_ALL, "%s", text);
+	CL_RefPrintf(PRINT_ALL, "%s", text);
 }
 #endif
 
@@ -65,7 +65,7 @@ void QDECL Com_Error( int level, const char *error, ... )
 	Q_vsnprintf(text, sizeof(text), error, argptr);
 	va_end(argptr);
 
-	ri.Error(level, "%s", text);
+	Com_Error(level, "%s", text);
 }
 #endif
 
@@ -77,16 +77,16 @@ void QDECL Com_Error( int level, const char *error, ... )
 // allocation preference is lost - which the single-player renderer discards too.
 
 void *R_Hunk_AllocateTempMemory( int size ) {
-	return ri.Malloc( size, TAG_TEMP_WORKSPACE, qfalse, 4 );
+	return CL_Malloc( size, TAG_TEMP_WORKSPACE, qfalse, 4 );
 }
 
 void R_Hunk_FreeTempMemory( void *buf ) {
-	ri.Z_Free( buf );
+	Z_Free( buf );
 }
 
 void *R_Hunk_Alloc( int size, int preference ) {
 	(void)preference;
-	return ri.Malloc( size, TAG_HUNKALLOC, qtrue, 4 );
+	return CL_Malloc( size, TAG_HUNKALLOC, qtrue, 4 );
 }
 
 int R_Hunk_MemoryRemaining( void ) {
@@ -101,22 +101,22 @@ int R_Hunk_MemoryRemaining( void ) {
 // ZONE
 void *R_Z_Malloc( int iSize, memtag_t eTag, qboolean bZeroit, int iAlign ) {
 	// Same call, different name on this side of the fence.
-	return ri.Malloc( iSize, eTag, bZeroit, iAlign );
+	return CL_Malloc( iSize, eTag, bZeroit, iAlign );
 }
 
 int R_Z_Free( void *ptr ) {
 	// Single-player's Z_Free reports how many bytes it freed; multiplayer's
 	// returns nothing. Ours returns the number where there is one.
-	return ri.Z_Free( ptr );
+	return Z_Free( ptr );
 }
 
 int R_Z_MemSize( memtag_t eTag ) {
-	return ri.Z_MemSize( eTag );
+	return Z_MemSize( eTag );
 }
 
 #if !defined(JKX_MONOLITH_RENDERER)
 void Z_MorphMallocTag( void *pvBuffer, memtag_t eDesiredTag ) {
-	ri.Z_MorphMallocTag( pvBuffer, eDesiredTag );
+	Z_MorphMallocTag( pvBuffer, eDesiredTag );
 }
 #endif
 
@@ -124,11 +124,11 @@ void Z_MorphMallocTag( void *pvBuffer, memtag_t eDesiredTag ) {
 // rd-common allocates through these. rd-vanilla defines them the same way; the
 // multiplayer build gets them from its own rd-common instead.
 void *R_Malloc( int iSize, memtag_t eTag, qboolean bZeroit ) {
-	return ri.Malloc( iSize, eTag, bZeroit, 4 );
+	return CL_Malloc( iSize, eTag, bZeroit, 4 );
 }
 
 void R_Free( void *ptr ) {
-	ri.Z_Free( ptr );
+	Z_Free( ptr );
 }
 
 // The font loader reads this to decide whether to touch every glyph while

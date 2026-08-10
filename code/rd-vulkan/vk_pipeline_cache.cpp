@@ -75,7 +75,7 @@ void vk_create_pipeline_cache(void)
     vkGetPhysicalDeviceProperties(vk.physical_device, &props);
 
     void* fileData = nullptr;
-    const long fileSize = ri.FS_ReadFile(kCacheFile, &fileData);
+    const long fileSize = FS_ReadFile(kCacheFile, &fileData);
 
     VkPipelineCacheCreateInfo desc;
     Com_Memset(&desc, 0, sizeof(desc));
@@ -92,20 +92,20 @@ void vk_create_pipeline_cache(void)
             // Expected after a driver update or when the config directory is
             // shared between machines. Say so; a silent reset looks like a
             // performance regression nobody can explain.
-            ri.Printf(PRINT_ALL, "Vulkan: pipeline cache is for a different device or driver, rebuilding\n");
+            CL_RefPrintf(PRINT_ALL, "Vulkan: pipeline cache is for a different device or driver, rebuilding\n");
         }
     }
 
     const VkResult result = vkCreatePipelineCache(vk.device, &desc, VK_NULL_HANDLE, &vk.pipelineCache);
 
     if (fileData != nullptr) {
-        ri.FS_FreeFile(fileData);
+        FS_FreeFile(fileData);
     }
 
     if (result != VK_SUCCESS) {
         // A rejected blob is recoverable: retry empty rather than take the
         // whole renderer down over a cache file.
-        ri.Printf(PRINT_WARNING, "Vulkan: pipeline cache rejected (%s), rebuilding\n", vk_result_string(result));
+        CL_RefPrintf(PRINT_WARNING, "Vulkan: pipeline cache rejected (%s), rebuilding\n", vk_result_string(result));
         Com_Memset(&desc, 0, sizeof(desc));
         desc.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
         VK_CHECK(vkCreatePipelineCache(vk.device, &desc, VK_NULL_HANDLE, &vk.pipelineCache));
@@ -113,7 +113,7 @@ void vk_create_pipeline_cache(void)
     }
 
     if (reused) {
-        ri.Printf(PRINT_ALL, "Vulkan: reusing pipeline cache (%li KiB)\n", fileSize / 1024);
+        CL_RefPrintf(PRINT_ALL, "Vulkan: reusing pipeline cache (%li KiB)\n", fileSize / 1024);
     }
 }
 
@@ -137,8 +137,8 @@ void vk_save_pipeline_cache(void)
     // call reports rather than the first.
     size_t written = size;
     if (vkGetPipelineCacheData(vk.device, vk.pipelineCache, &written, data) == VK_SUCCESS && written > 0) {
-        ri.FS_WriteFile(kCacheFile, data, static_cast<int>(written));
-        ri.Printf(PRINT_ALL, "Vulkan: saved pipeline cache (%u KiB)\n", static_cast<unsigned>(written / 1024));
+        FS_WriteFile(kCacheFile, data, static_cast<int>(written));
+        CL_RefPrintf(PRINT_ALL, "Vulkan: saved pipeline cache (%u KiB)\n", static_cast<unsigned>(written / 1024));
     }
 
     R_Hunk_FreeTempMemory(data);

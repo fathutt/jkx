@@ -156,7 +156,7 @@ void R_ImageList_f( void ) {
 	const image_t *image;
 	int i, estTotalSize = 0;
 
-	ri.Printf( PRINT_ALL, "\n -n- --w-- --h-- type  -size- mipmap --name-------\n" );
+	CL_RefPrintf( PRINT_ALL, "\n -n- --w-- --h-- type  -size- mipmap --name-------\n" );
 
 	for ( i = 0; i < tr.images.count; i++ )
 	{
@@ -221,13 +221,13 @@ void R_ImageList_f( void ) {
 			sizeSuffix = "Gb";
 		}
 
-		ri.Printf( PRINT_ALL, " %3i %5i %5i %s %4i%s %s %s\n", i, image->uploadWidth, image->uploadHeight, format, displaySize, sizeSuffix, yesno[(int)image->mipmap], image->imgName );
+		CL_RefPrintf( PRINT_ALL, " %3i %5i %5i %s %4i%s %s %s\n", i, image->uploadWidth, image->uploadHeight, format, displaySize, sizeSuffix, yesno[(int)image->mipmap], image->imgName );
 		estTotalSize += estSize;
 	}
 
-	ri.Printf( PRINT_ALL, " -----------------------\n" );
-	ri.Printf( PRINT_ALL, " approx %i kbytes\n", (estTotalSize + 1023) / 1024 );
-	ri.Printf( PRINT_ALL, " %i total images\n\n", tr.images.count );
+	CL_RefPrintf( PRINT_ALL, " -----------------------\n" );
+	CL_RefPrintf( PRINT_ALL, " approx %i kbytes\n", (estTotalSize + 1023) / 1024 );
+	CL_RefPrintf( PRINT_ALL, " %i total images\n\n", tr.images.count );
 }
 
 /*

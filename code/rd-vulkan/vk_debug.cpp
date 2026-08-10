@@ -150,28 +150,28 @@ void R_ShaderList_f( void ) {
 	int				count;
 	const shader_t	*sh;
 
-	ri.Printf(PRINT_ALL, "-----------------------\n");
+	CL_RefPrintf(PRINT_ALL, "-----------------------\n");
 
 	count = 0;
 	for (i = 0; i < tr.numShaders; i++) {
-		if (ri.Cmd_Argc() > 1) {
+		if (Cmd_Argc() > 1) {
 			sh = tr.sortedShaders[i];
 		}
 		else {
 			sh = tr.shaders[i];
 		}
 
-		ri.Printf( PRINT_ALL, "%i: ", sh->numUnfoggedPasses);
-		ri.Printf( PRINT_ALL, "%s", sh->lightmapIndex[0] >= 0 ? "L " : "  ");
-		ri.Printf( PRINT_ALL, "%s", sh->multitextureEnv ? "MT(x) " : "  ");
-		ri.Printf( PRINT_ALL, "%s", sh->explicitlyDefined ? "E " : "  ");
-		ri.Printf( PRINT_ALL, "%s", sh->sky ? "sky" : "gen");
-		ri.Printf( PRINT_ALL, ": %s %s\n", sh->name, sh->defaultShader ? "(DEFAULTED)" : "");
+		CL_RefPrintf( PRINT_ALL, "%i: ", sh->numUnfoggedPasses);
+		CL_RefPrintf( PRINT_ALL, "%s", sh->lightmapIndex[0] >= 0 ? "L " : "  ");
+		CL_RefPrintf( PRINT_ALL, "%s", sh->multitextureEnv ? "MT(x) " : "  ");
+		CL_RefPrintf( PRINT_ALL, "%s", sh->explicitlyDefined ? "E " : "  ");
+		CL_RefPrintf( PRINT_ALL, "%s", sh->sky ? "sky" : "gen");
+		CL_RefPrintf( PRINT_ALL, ": %s %s\n", sh->name, sh->defaultShader ? "(DEFAULTED)" : "");
 
 		count++;
 	}
-	ri.Printf( PRINT_ALL, "%i total shaders\n", count);
-	ri.Printf( PRINT_ALL, "------------------\n");
+	CL_RefPrintf( PRINT_ALL, "%i total shaders\n", count);
+	CL_RefPrintf( PRINT_ALL, "------------------\n");
 }
 
 /*
@@ -464,7 +464,7 @@ void R_DebugGraphics( void ) {
 	vk_bind(tr.whiteImage);
 	vk_update_mvp(NULL);
 
-	ri.CM_DrawDebugSurface(R_DebugPolygon);
+	CM_DrawDebugSurface(R_DebugPolygon);
 }
 
 /*
@@ -507,12 +507,12 @@ public:
 	{
 		std::lock_guard<std::mutex> lock( mMutex );
 
-		ri.Printf( PRINT_ALL, "========== Vulkan Object Leaks ==========\n" );
+		CL_RefPrintf( PRINT_ALL, "========== Vulkan Object Leaks ==========\n" );
 
 		if ( mObjects.empty() )
 		{
-			ri.Printf( PRINT_ALL, "No Vulkan object leaks detected\n" );
-			ri.Printf( PRINT_ALL, "=========================================\n" );
+			CL_RefPrintf( PRINT_ALL, "No Vulkan object leaks detected\n" );
+			CL_RefPrintf( PRINT_ALL, "=========================================\n" );
 			return;
 		}
 
@@ -523,19 +523,19 @@ public:
 			uint64_t handle = pair.first;
 			const ObjectInfo& info = pair.second;
 
-			ri.Printf( PRINT_ALL, "\nLeak %i\n", leakCount );
-			ri.Printf( PRINT_ALL, "Handle   : 0x%llx\n", (unsigned long long)handle );
-			ri.Printf( PRINT_ALL, "Type     : %s\n", ObjectTypeToString( info.type ) );
-			ri.Printf( PRINT_ALL, "Name     : %s\n", info.name.c_str() );
-			ri.Printf( PRINT_ALL, "File     : %s\n", info.file.c_str() );
-			ri.Printf( PRINT_ALL, "Line     : %i\n", info.line );
-			ri.Printf( PRINT_ALL, "Function : %s\n", info.function.c_str() );
+			CL_RefPrintf( PRINT_ALL, "\nLeak %i\n", leakCount );
+			CL_RefPrintf( PRINT_ALL, "Handle   : 0x%llx\n", (unsigned long long)handle );
+			CL_RefPrintf( PRINT_ALL, "Type     : %s\n", ObjectTypeToString( info.type ) );
+			CL_RefPrintf( PRINT_ALL, "Name     : %s\n", info.name.c_str() );
+			CL_RefPrintf( PRINT_ALL, "File     : %s\n", info.file.c_str() );
+			CL_RefPrintf( PRINT_ALL, "Line     : %i\n", info.line );
+			CL_RefPrintf( PRINT_ALL, "Function : %s\n", info.function.c_str() );
 
 			leakCount++;
 		}
 
-		ri.Printf( PRINT_ALL, "\n%i Vulkan object leak(s)\n", leakCount );
-		ri.Printf( PRINT_ALL, "=========================================\n" );
+		CL_RefPrintf( PRINT_ALL, "\n%i Vulkan object leak(s)\n", leakCount );
+		CL_RefPrintf( PRINT_ALL, "=========================================\n" );
 	}
 
 private:

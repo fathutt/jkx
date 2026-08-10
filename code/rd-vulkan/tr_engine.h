@@ -25,14 +25,14 @@ Foundation.
 // type and a level of detail. Note the argument order differs - end and mins
 // swap places - which is exactly the kind of thing that compiles either way.
 #define R_EngineBoxTrace( results, start, end, mins, maxs, brushmask ) \
-	ri.SV_Trace( ( results ), ( start ), ( mins ), ( maxs ), ( end ), ENTITYNUM_NONE, \
+	SV_Trace( ( results ), ( start ), ( mins ), ( maxs ), ( end ), ENTITYNUM_NONE, \
 		( brushmask ), G2_NOCOLLIDE, 0 )
 
-// The cached map image. Multiplayer wraps it in getter and setter calls;
-// single-player hands out a pointer to the variable itself and to the flag
-// beside it. Same storage, one less layer.
-#define R_CachedMapImage()				( ri.gpvCachedMapDiskImage() )
-#define R_SetUsingCachedMap( onOff )	( *ri.gbUsingCachedMapDataRightNow() = ( onOff ) )
+// The cached map image. This was two layers of wrapping - a getter in the
+// refimport table around a getter in the client around the variable - because
+// a module cannot see another module's globals. It can now.
+#define R_CachedMapImage()				( gpvCachedMapDiskImage )
+#define R_SetUsingCachedMap( onOff )	( gbUsingCachedMapDataRightNow = ( onOff ) )
 
 // Releasing the cached map image is NOT a rename, and the first attempt at one
 // here was a memory-corrupting bug: single-player's accessor returns the
@@ -46,7 +46,7 @@ Foundation.
 #define R_ReleaseCachedMapImage()		( (void)0 )
 
 // Named for the platform on one side and not on the other.
-#define R_LowPhysicalMemory()			( ri.LowPhysicalMemory() )
+#define R_LowPhysicalMemory()			( Sys_LowPhysicalMemory() )
 
 // Multiplayer has a second print entry that goes to the OS console rather than
 // the game console. Single-player has one console; sending both to it loses the
@@ -54,16 +54,16 @@ Foundation.
 // diagnostics it sends to Printf anyway.
 // Single-player's console print takes a level; multiplayer's OS-console print
 // does not. Everything the renderer sends here it also sends to Printf.
-#define R_OPrintf( ... )				ri.Printf( PRINT_ALL, __VA_ARGS__ )
+#define R_OPrintf( ... )				CL_RefPrintf( PRINT_ALL, __VA_ARGS__ )
 
 // Multiplayer carries a one-line description per console command. Unlike the
 // cvar descriptions, which were 136 real strings and worth taking into the
 // engine, every one of these is the empty string - so this drops it rather
 // than widening another interface to carry nothing.
-#define R_AddCommand( name, func, desc )	ri.Cmd_AddCommand( ( name ), ( func ) )
+#define R_AddCommand( name, func, desc )	Cmd_AddCommand( ( name ), ( func ) )
 
 // Single-player's cinematics can carry a separate audio file. The renderer
 // only ever plays shader videos, which have none.
 #define R_PlayCinematic( name, x, y, w, h, bits ) \
-	ri.CIN_PlayCinematic( ( name ), ( x ), ( y ), ( w ), ( h ), ( bits ), NULL )
+	CIN_PlayCinematic( ( name ), ( x ), ( y ), ( w ), ( h ), ( bits ), NULL )
 

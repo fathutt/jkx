@@ -107,11 +107,11 @@ int G2_Add_Bone (const model_t *mod, boneInfo_v &blist, const char *boneName)
 		// didn't find it? Error
 		//assert(0);
 #ifdef _DEBUG
-		ri.Printf( PRINT_ALL, "WARNING: Failed to add bone %s\n", boneName);
+		CL_RefPrintf( PRINT_ALL, "WARNING: Failed to add bone %s\n", boneName);
 #endif
 
 #ifdef _RAG_PRINT_TEST
-		ri.Printf( PRINT_ALL, "WARNING: Failed to add bone %s\n", boneName);
+		CL_RefPrintf( PRINT_ALL, "WARNING: Failed to add bone %s\n", boneName);
 #endif
 		return -1;
 	}
@@ -139,7 +139,7 @@ int G2_Add_Bone (const model_t *mod, boneInfo_v &blist, const char *boneName)
 	}
 
 #ifdef _RAG_PRINT_TEST
-	ri.Printf( PRINT_ALL, "New bone added for %s\n", boneName);
+	CL_RefPrintf( PRINT_ALL, "New bone added for %s\n", boneName);
 #endif
 	// ok, we didn't find an existing bone of that name, or an empty slot. Lets add an entry
 	tempBone.boneNumber = x;
@@ -2741,7 +2741,7 @@ int ragTraceCount = 0;
 void Rag_Trace( trace_t *results, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const int passEntityNum, const int contentmask, const EG2_Collision eG2TraceType, const int useLod )
 {
 #ifdef _DEBUG
-	int ragPreTrace = ri.Milliseconds();
+	int ragPreTrace = Sys_Milliseconds2();
 #endif
 	// Multiplayer runs the ragdoll trace through the client game VM, using a
 	// shared-memory block to pass the arguments across. Single-player has no VM
@@ -2756,7 +2756,7 @@ void Rag_Trace( trace_t *results, const vec3_t start, const vec3_t mins, const v
 	}
 
 #ifdef _DEBUG
-	int ragPostTrace = ri.Milliseconds();
+	int ragPostTrace = Sys_Milliseconds2();
 
 	ragTraceTime += (ragPostTrace - ragPreTrace);
 	if (results->startsolid)
@@ -2981,7 +2981,7 @@ void G2_RagPrintMatrix(mdxaBone_t *mat)
 		n++;
 	}
 	strcat(x, "\n");
-	ri.Printf( PRINT_ALL, x);
+	CL_RefPrintf( PRINT_ALL, x);
 }
 #endif
 
@@ -3343,7 +3343,7 @@ static bool G2_RagDollSettlePositionNumeroTrois(CGhoul2Info_v &ghoul2V, const ve
 				VectorCopy(basePos, goalSpot);
 				goalSpot[2] = (params->position[2]-23)-testMins[2];
 #endif
-				//ri.Printf( PRINT_ALL, "%i: %f %f %f\n", bone.boneNumber, basePos[0], basePos[1], basePos[2]);
+				//CL_RefPrintf( PRINT_ALL, "%i: %f %f %f\n", bone.boneNumber, basePos[0], basePos[1], basePos[2]);
 			}
 			else
 			{ //if deep in solid want to try to rise up out of solid before hinting back to base
@@ -3445,7 +3445,7 @@ static bool G2_RagDollSettlePositionNumeroTrois(CGhoul2Info_v &ghoul2V, const ve
 
 				assert(debugBoneName);
 
-				ri.Printf( PRINT_ALL, "High bone (%s, %i) solid count: %i\n", debugBoneName, bone.boneNumber, bone.solidCount);
+				CL_RefPrintf( PRINT_ALL, "High bone (%s, %i) solid count: %i\n", debugBoneName, bone.boneNumber, bone.solidCount);
 
 				VectorAdd(e.currentOrigin, testMins, absmin);
 				VectorAdd(e.currentOrigin, testMaxs, absmax);

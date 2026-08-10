@@ -45,7 +45,7 @@ static uint32_t vk_alloc_ss_group( const vk_ss_group_def_t *def ) {
     vk_ss_group_t *group;
 
     if ( tr.ss.groups_count >= SS_MAX_GROUP ) {
-        ri.Error(ERR_DROP, "alloc_pipeline: MAX_VK_PIPELINES reached");
+        Com_Error(ERR_DROP, "alloc_pipeline: MAX_VK_PIPELINES reached");
         return 0;
     }
 	Com_Memset( &tr.ss.groups[tr.ss.groups_count], 0, sizeof(vk_ss_group_t) );
@@ -769,7 +769,7 @@ void R_BuildSurfaceSpritesVBO( const world_t &worldData, int index )
 
 			if ( j > 0 && (stage->stateBits & GLS_DEPTHFUNC_EQUAL) )
 			{
-				ri.Printf(PRINT_WARNING, "depthFunc equal is not supported on surface sprites in rend2/vulkan. Skipping stage\n");
+				CL_RefPrintf(PRINT_WARNING, "depthFunc equal is not supported on surface sprites in rend2/vulkan. Skipping stage\n");
 				continue;
 			}
 
@@ -784,10 +784,10 @@ void R_BuildSurfaceSpritesVBO( const world_t &worldData, int index )
 				continue;
 
 			if ( (num_instances + num_surf_instances) > estimate_num_instances ) 
-				ri.Error( ERR_DROP, "Too many sprite instances: %d > %d", num_instances + num_surf_instances, estimate_num_instances );
+				Com_Error( ERR_DROP, "Too many sprite instances: %d > %d", num_instances + num_surf_instances, estimate_num_instances );
 
 			if ( num_surfs > estimate_num_surfs )
-				ri.Error(ERR_DROP, "sprites surf overflow");
+				Com_Error(ERR_DROP, "sprites surf overflow");
 
 			sprites_surf[num_surfs++] = vk_build_surface_sprite_stage( 
 				index,

@@ -148,7 +148,7 @@ static void vk_create_prefilter_framebuffer( filterDef *def ) {
 
 	if ( !vk_alloc_image_memory( def->offscreen.image, qfalse, &def->offscreen.allocation,
 			"cubemap prefilter offscreen" ) ) {
-		ri.Error( ERR_DROP, "Vulkan: could not allocate the cubemap prefilter target" );
+		Com_Error( ERR_DROP, "Vulkan: could not allocate the cubemap prefilter target" );
 		return;
 	}
 

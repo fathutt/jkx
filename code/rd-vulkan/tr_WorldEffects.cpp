@@ -565,7 +565,7 @@ public:
 		//---------------------------------------------------------------------
 		if (!mWeatherZones.size())
 		{
-			ri.Printf( PRINT_ALL, "WARNING: No Weather Zones Encountered\n");
+			CL_RefPrintf( PRINT_ALL, "WARNING: No Weather Zones Encountered\n");
 			AddWeatherZone(tr.world->bmodels[0].bounds[0], tr.world->bmodels[0].bounds[1]);
 		}
 
@@ -602,7 +602,7 @@ public:
 							CurPos[2] = (zbase + q)	* POINTCACHE_CELL_SIZE;
 							CurPos	  += Mins;
 
-							contents = ri.CM_PointContents(CurPos.v, 0);
+							contents = CM_PointContents(CurPos.v, 0);
 							if (contents&CONTENTS_INSIDE || contents&CONTENTS_OUTSIDE)
 							{
 								curPosOutside = ((contents&CONTENTS_OUTSIDE)!=0);
@@ -649,7 +649,7 @@ public:
 	{
 		if (!mCacheInit)
 		{
-			return ContentsOutside(ri.CM_PointContents(pos.v, 0));
+			return ContentsOutside(CM_PointContents(pos.v, 0));
 		}
 		for (int zone=0; zone<mWeatherZones.size(); zone++)
 		{
@@ -1331,7 +1331,7 @@ ratl::vector_vs<CWeatherParticleCloud, MAX_PARTICLE_CLOUDS>	mParticleClouds;
 ////////////////////////////////////////////////////////////////////////////////////////
 void R_InitWorldEffects(void)
 {
-	srand(ri.Milliseconds());
+	srand(Sys_Milliseconds2());
 
 	for (int i=0; i<mParticleClouds.size(); i++)
 	{
@@ -1429,7 +1429,7 @@ void RB_RenderWorldEffects(void)
 
 		if (false)
 		{
-			ri.Printf( PRINT_ALL, "Weather: %d Particles Rendered\n", mParticlesRendered);
+			CL_RefPrintf( PRINT_ALL, "Weather: %d Particles Rendered\n", mParticlesRendered);
 		}
 	}
 }
@@ -1438,7 +1438,7 @@ void RB_RenderWorldEffects(void)
 void R_WorldEffect_f(void)
 {
 	char temp[2048] = {0};
-	ri.Cmd_ArgsBuffer( temp, sizeof( temp ) );
+	Cmd_ArgsBuffer( temp, sizeof( temp ) );
 	RE_WorldEffectCommand( temp );
 }
 
@@ -1454,14 +1454,14 @@ qboolean WE_ParseVector( const char **text, int count, float *v ) {
 	// FIXME: spaces are currently required after parens, should change parseext...
 	token = COM_ParseExt( text, qfalse );
 	if ( strcmp( token, "(" ) ) {
-		ri.Printf (PRINT_WARNING, "WARNING: missing parenthesis in weather effect\n" );
+		CL_RefPrintf (PRINT_WARNING, "WARNING: missing parenthesis in weather effect\n" );
 		return qfalse;
 	}
 
 	for ( i = 0 ; i < count ; i++ ) {
 		token = COM_ParseExt( text, qfalse );
 		if ( !token[0] ) {
-			ri.Printf (PRINT_WARNING, "WARNING: missing vector element in weather effect\n" );
+			CL_RefPrintf (PRINT_WARNING, "WARNING: missing vector element in weather effect\n" );
 			return qfalse;
 		}
 		v[i] = atof( token );
@@ -1469,7 +1469,7 @@ qboolean WE_ParseVector( const char **text, int count, float *v ) {
 
 	token = COM_ParseExt( text, qfalse );
 	if ( strcmp( token, ")" ) ) {
-		ri.Printf (PRINT_WARNING, "WARNING: missing parenthesis in weather effect\n" );
+		CL_RefPrintf (PRINT_WARNING, "WARNING: missing parenthesis in weather effect\n" );
 		return qfalse;
 	}
 
@@ -1843,27 +1843,27 @@ void RE_WorldEffectCommand(const char *command)
 	}
 	else
 	{
-		ri.Printf( PRINT_ALL, "Weather Effect: Please enter a valid command.\n" );
-		ri.Printf( PRINT_ALL, "	die\n" );
-		ri.Printf( PRINT_ALL, "	clear\n" );
-		ri.Printf( PRINT_ALL, "	freeze\n" );
-		ri.Printf( PRINT_ALL, "	zone (mins) (maxs)\n" );
-		ri.Printf( PRINT_ALL, "	wind\n" );
-		ri.Printf( PRINT_ALL, "	constantwind (velocity)\n" );
-		ri.Printf( PRINT_ALL, "	gustingwind\n" );
-		//ri.Printf( PRINT_ALL, "	windzone (mins) (maxs) (velocity)\n" );
-		ri.Printf( PRINT_ALL, "	lightrain\n" );
-		ri.Printf( PRINT_ALL, "	rain\n" );
-		ri.Printf( PRINT_ALL, "	acidrain\n" );
-		ri.Printf( PRINT_ALL, "	heavyrain\n" );
-		ri.Printf( PRINT_ALL, "	snow\n" );
-		ri.Printf( PRINT_ALL, "	spacedust\n" );
-		ri.Printf( PRINT_ALL, "	sand\n" );
-		ri.Printf( PRINT_ALL, "	fog\n" );
-		ri.Printf( PRINT_ALL, "	heavyrainfog\n" );
-		ri.Printf( PRINT_ALL, "	light_fog\n" );
-		ri.Printf( PRINT_ALL, "	outsideshake\n" );
-		ri.Printf( PRINT_ALL, "	outsidepain\n" );
+		CL_RefPrintf( PRINT_ALL, "Weather Effect: Please enter a valid command.\n" );
+		CL_RefPrintf( PRINT_ALL, "	die\n" );
+		CL_RefPrintf( PRINT_ALL, "	clear\n" );
+		CL_RefPrintf( PRINT_ALL, "	freeze\n" );
+		CL_RefPrintf( PRINT_ALL, "	zone (mins) (maxs)\n" );
+		CL_RefPrintf( PRINT_ALL, "	wind\n" );
+		CL_RefPrintf( PRINT_ALL, "	constantwind (velocity)\n" );
+		CL_RefPrintf( PRINT_ALL, "	gustingwind\n" );
+		//CL_RefPrintf( PRINT_ALL, "	windzone (mins) (maxs) (velocity)\n" );
+		CL_RefPrintf( PRINT_ALL, "	lightrain\n" );
+		CL_RefPrintf( PRINT_ALL, "	rain\n" );
+		CL_RefPrintf( PRINT_ALL, "	acidrain\n" );
+		CL_RefPrintf( PRINT_ALL, "	heavyrain\n" );
+		CL_RefPrintf( PRINT_ALL, "	snow\n" );
+		CL_RefPrintf( PRINT_ALL, "	spacedust\n" );
+		CL_RefPrintf( PRINT_ALL, "	sand\n" );
+		CL_RefPrintf( PRINT_ALL, "	fog\n" );
+		CL_RefPrintf( PRINT_ALL, "	heavyrainfog\n" );
+		CL_RefPrintf( PRINT_ALL, "	light_fog\n" );
+		CL_RefPrintf( PRINT_ALL, "	outsideshake\n" );
+		CL_RefPrintf( PRINT_ALL, "	outsidepain\n" );
 	}
 }
 

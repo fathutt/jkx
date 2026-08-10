@@ -59,7 +59,7 @@ static void vk_alloc_attachment_memory( void )
     }
 
     if (vk.image_memory_count >= ARRAY_LEN(vk.image_memory)) {
-        ri.Error(ERR_DROP, "vk.image_memory_count == %i", (int)ARRAY_LEN(vk.image_memory));
+        Com_Error(ERR_DROP, "vk.image_memory_count == %i", (int)ARRAY_LEN(vk.image_memory));
     }
 
     // Each attachment gets its own VMA allocation. The pool this replaces
@@ -68,7 +68,7 @@ static void vk_alloc_attachment_memory( void )
     // incompatible entry constrained the rest.
     for (i = 0; i < num_attachments; i++) {
         if (vk.image_memory_count >= ARRAY_LEN(vk.image_memory)) {
-            ri.Error(ERR_DROP, "attachment allocation overflow (%i)", (int)ARRAY_LEN(vk.image_memory));
+            Com_Error(ERR_DROP, "attachment allocation overflow (%i)", (int)ARRAY_LEN(vk.image_memory));
             return;
         }
 
@@ -81,7 +81,7 @@ static void vk_alloc_attachment_memory( void )
             // Deliberately not "out of memory": the allocator has already
             // printed the actual result code, and guessing the cause here sent
             // a whole debugging session looking at a heap that was empty.
-            ri.Error(ERR_DROP, "Vulkan: could not allocate attachment %i, see the message above", i);
+            Com_Error(ERR_DROP, "Vulkan: could not allocate attachment %i, see the message above", i);
             return;
         }
 
@@ -169,7 +169,7 @@ static void vk_add_attachment_desc( VkImage desc, VkImageView *image_view, VkIma
     uint32_t mip_levels )
 {
     if (num_attachments >= ARRAY_LEN(attachments)) {
-        ri.Error(ERR_FATAL, "Attachments array overflow: max attachments: %d while %d given", (int)ARRAY_LEN(vk.image_memory), num_attachments);
+        Com_Error(ERR_FATAL, "Attachments array overflow: max attachments: %d while %d given", (int)ARRAY_LEN(vk.image_memory), num_attachments);
     }
     else {
         attachments[num_attachments].descriptor = desc;

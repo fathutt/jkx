@@ -131,7 +131,7 @@ void vk_add_compute_normalmap( shaderStage_t *stage, image_t *albedo, imgFlags_t
 		return;
 
 	if ( tr.compute_normalmaps_batch_num == MAX_BATCH_COMPUTE_NORMALMAPS ) {
-		ri.Error( ERR_DROP, "%s: MAX_BATCH_COMPUTE_NORMALMAPS hit", __func__ );
+		Com_Error( ERR_DROP, "%s: MAX_BATCH_COMPUTE_NORMALMAPS hit", __func__ );
 	}
 
 	VkWriteDescriptorSet writes[2] = {};

@@ -1051,7 +1051,7 @@ qboolean R_WriteWireframeMapToFile( void )
 	}
 
 
-	f = ri.FS_FOpenFileWrite("blahblah.bla", qtrue);
+	f = FS_FOpenFileWrite("blahblah.bla", qtrue);
 	if (!f)
 	{ //can't create?
 		return qfalse;
@@ -1077,9 +1077,9 @@ qboolean R_WriteWireframeMapToFile( void )
 	}
 
 	//now write the buffer, and close
-	ri.FS_Write(rOut, requiredSize, f);
+	FS_Write(rOut, requiredSize, f);
 	R_Z_Free(rOut);
-	ri.FS_FCloseFile(f);
+	FS_FCloseFile(f);
 
 	return qtrue;
 }
@@ -1094,7 +1094,7 @@ qboolean R_GetWireframeMapFromFile( void )
 	int len;
 	int stepBytes;
 
-	len = ri.FS_FOpenFileRead("blahblah.bla", &f, qfalse);
+	len = FS_FOpenFileRead("blahblah.bla", &f, qfalse);
 	if (!f || len <= 0)
 	{ //it doesn't exist
 		return qfalse;
@@ -1102,7 +1102,7 @@ qboolean R_GetWireframeMapFromFile( void )
 
 	surfs = (wireframeMapSurf_t *)R_Z_Malloc(len, TAG_ALL, qtrue);
 	rSurfs = surfs;
-	ri.FS_Read(surfs, len, f);
+	FS_Read(surfs, len, f);
 
 	while (i < len)
 	{
@@ -1126,7 +1126,7 @@ qboolean R_GetWireframeMapFromFile( void )
 	//it should end up being equal, if not something was wrong with this file.
 	assert(i == len);
 
-	ri.FS_FCloseFile(f);
+	FS_FCloseFile(f);
 	R_Z_Free(rSurfs);
 	return qtrue;
 }
@@ -1401,7 +1401,7 @@ qboolean R_inPVS( const vec3_t p1, const vec3_t p2, byte *mask ) {
 	(void)mask;
 
 	leaf = R_PointInLeaf( p1 );
-	mask = ri.CM_ClusterPVS( leaf->cluster );
+	mask = CM_ClusterPVS( leaf->cluster );
 
 	leaf = R_PointInLeaf( p2 );
 	if ( mask && !( mask[leaf->cluster >> 3] & ( 1 << ( leaf->cluster & 7 ) ) ) )
@@ -1446,7 +1446,7 @@ static void R_MarkLeaves ( void ) {
 	if ( r_showcluster->modified || r_showcluster->integer ) {
 		r_showcluster->modified = qfalse;
 		if ( r_showcluster->integer ) {
-			ri.Printf( PRINT_ALL, "cluster:%i  area:%i\n", cluster, leaf->area );
+			CL_RefPrintf( PRINT_ALL, "cluster:%i  area:%i\n", cluster, leaf->area );
 		}
 	}
 

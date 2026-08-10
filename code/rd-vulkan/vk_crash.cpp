@@ -243,7 +243,7 @@ void vk_install_crash_handler( void )
 	jkx_crash_vectored_handle = AddVectoredExceptionHandler( 0, jkx_crash_vectored );
 	jkx_crash_previous_filter = SetUnhandledExceptionFilter( jkx_crash_unhandled );
 
-	ri.Printf( PRINT_ALL, "JKX: crash reports go to %s%s\n", jkx_crash_path,
+	CL_RefPrintf( PRINT_ALL, "JKX: crash reports go to %s%s\n", jkx_crash_path,
 		jkx_crash_symbols ? "" : " (no symbols, addresses only)" );
 }
 

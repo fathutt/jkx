@@ -1383,16 +1383,16 @@ void vk_begin_frame( void )
 		if ( res != VK_SUCCESS ) {
 			if ( res == VK_ERROR_DEVICE_LOST ) {
 				// silently discard previous command buffer
-				ri.Printf( PRINT_WARNING, "Vulkan: %s returned %s", "vkWaitForFences", vk_result_string( res ) );
+				CL_RefPrintf( PRINT_WARNING, "Vulkan: %s returned %s", "vkWaitForFences", vk_result_string( res ) );
 			}
 			else {
-				ri.Error( ERR_FATAL, "Vulkan: %s returned %s", "vkWaitForFences", vk_result_string( res ) );
+				Com_Error( ERR_FATAL, "Vulkan: %s returned %s", "vkWaitForFences", vk_result_string( res ) );
 			}
 		}
 		VK_CHECK( vkResetFences( vk.device, 1, &vk.cmd->rendering_finished_fence ) );
     }
 
-	if ( !ri.VK_IsMinimized() && !vk.cmd->swapchain_image_acquired && backEnd.viewParms.targetCube == NULL ) {
+	if ( !WIN_VK_IsMinimized() && !vk.cmd->swapchain_image_acquired && backEnd.viewParms.targetCube == NULL ) {
 		qboolean retry = qfalse;
 _retry:
         res = vkAcquireNextImageKHR( vk.device, vk.swapchain, 1 * 1000000000ULL, vk.cmd->image_acquired, VK_NULL_HANDLE, &vk.cmd->swapchain_image_index );
@@ -1405,7 +1405,7 @@ _retry:
 				vk_restart_swapchain( __func__ );
 				goto _retry;
 			} else {
-				ri.Error( ERR_FATAL, "vkAcquireNextImageKHR returned %s", vk_result_string( res ) );
+				Com_Error( ERR_FATAL, "vkAcquireNextImageKHR returned %s", vk_result_string( res ) );
 			}
 		}
         vk.cmd->swapchain_image_acquired = qtrue;
@@ -1525,7 +1525,7 @@ static void vk_resize_geometry_buffer( void )
     for (i = 0; i < NUM_COMMAND_BUFFERS; i++)
         vk_update_uniform_descriptor(vk.tess[i].uniform_descriptor, vk.tess[i].vertex_buffer);
 
-    ri.Printf(PRINT_DEVELOPER, "...geometry buffer resized to %iK\n", (int)(vk.geometry_buffer_size / 1024));
+    CL_RefPrintf(PRINT_DEVELOPER, "...geometry buffer resized to %iK\n", (int)(vk.geometry_buffer_size / 1024));
 }
 
 void vk_wait_idle( void )
@@ -1640,7 +1640,7 @@ void vk_end_frame( void )
             vkCmdDraw(vk.cmd->command_buffer, 4, 1, 0, 0);
         }
 
-        if ( !ri.VK_IsMinimized() && backEnd.viewParms.targetCube == NULL ) {
+        if ( !WIN_VK_IsMinimized() && backEnd.viewParms.targetCube == NULL ) {
             vk_end_render_pass();
 
             vk.renderWidth = gls.windowWidth;
@@ -1681,7 +1681,7 @@ void vk_end_frame( void )
         }
     } else 
 #endif
-    if ( !ri.VK_IsMinimized() ) 
+    if ( !WIN_VK_IsMinimized() ) 
     {
 #ifdef VK_CUBEMAP
         if ( vk.cmd->swapchain_image_acquired )
@@ -1718,7 +1718,7 @@ void vk_end_frame( void )
     vk.cmd->waitForFence = qtrue;
 
     // presentation may take undefined time to complete, we can't measure it in a reliable way
-    backEnd.pc.msec = ri.Milliseconds() - backEnd.pc.msec;
+    backEnd.pc.msec = Sys_Milliseconds2() - backEnd.pc.msec;
 
     vk.renderPassIndex = RENDER_PASS_MAIN;
 }
@@ -1733,7 +1733,7 @@ void vk_present_frame( void )
         return;
 #endif
 
-	if ( ri.VK_IsMinimized() || !vk.cmd->swapchain_image_acquired )
+	if ( WIN_VK_IsMinimized() || !vk.cmd->swapchain_image_acquired )
 		return;
 
 	if ( !vk.cmd->waitForFence ) {
@@ -1763,11 +1763,11 @@ void vk_present_frame( void )
 			break;
 		case VK_ERROR_DEVICE_LOST:
 			// we can ignore that
-			ri.Printf( PRINT_DEVELOPER, "vkQueuePresentKHR: device lost\n" );
+			CL_RefPrintf( PRINT_DEVELOPER, "vkQueuePresentKHR: device lost\n" );
 			break;
 		default:
 			// or we don't
-			ri.Error( ERR_FATAL, "vkQueuePresentKHR returned %s", vk_result_string( res ) );
+			Com_Error( ERR_FATAL, "vkQueuePresentKHR returned %s", vk_result_string( res ) );
 	}
 
 	// pickup next command buffer for rendering
@@ -1865,7 +1865,7 @@ void vk_read_pixels( byte *buffer, uint32_t width, uint32_t height )
             memory_reqs = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
             alloc_info.memoryTypeIndex = vk_find_memory_type_lazy(memory_requirements.memoryTypeBits, memory_reqs, &memory_flags);
             if (alloc_info.memoryTypeIndex == ~0U) {
-                ri.Error(ERR_FATAL, "%s(): failed to find matching memory type for image capture", __func__);
+                Com_Error(ERR_FATAL, "%s(): failed to find matching memory type for image capture", __func__);
             }
         }
     }

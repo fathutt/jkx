@@ -26,7 +26,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 void vk_restart_swapchain( const char *funcname )
 {
     uint32_t i;
-    ri.Printf( PRINT_WARNING, "%s(): restarting swapchain...\n", funcname );
+    CL_RefPrintf( PRINT_WARNING, "%s(): restarting swapchain...\n", funcname );
     vk_debug( "Restarting swapchain \n" );
 
     vk_wait_idle();
@@ -122,10 +122,10 @@ void vk_create_swapchain( VkPhysicalDevice physical_device, VkDevice device,
     //present_modes = (VkPresentModeKHR*)R_Z_Malloc(present_mode_count * sizeof(VkPresentModeKHR));
     VK_CHECK( vkGetPhysicalDeviceSurfacePresentModesKHR( physical_device, surface, &present_mode_count, present_modes ) );
 
-    ri.Printf( PRINT_ALL, "----- Presentation modes -----\n" );
+    CL_RefPrintf( PRINT_ALL, "----- Presentation modes -----\n" );
 
     for ( i = 0; i < present_mode_count; i++ ) {
-        ri.Printf( PRINT_ALL, " %s\n", vk_pmode_to_str( present_modes[i] ) );
+        CL_RefPrintf( PRINT_ALL, " %s\n", vk_pmode_to_str( present_modes[i] ) );
         
         switch ( present_modes[i] ) {
             case VK_PRESENT_MODE_MAILBOX_KHR: mailbox_supported = qtrue; break;
@@ -137,7 +137,7 @@ void vk_create_swapchain( VkPhysicalDevice physical_device, VkDevice device,
 
     free( present_modes );
 
-    if ( ( v = ri.Cvar_VariableIntegerValue( "r_swapInterval" ) ) != 0 ) {
+    if ( ( v = Cvar_VariableIntegerValue( "r_swapInterval" ) ) != 0 ) {
         if ( v == 3 && mailbox_supported )
             present_mode = VK_PRESENT_MODE_MAILBOX_KHR;
         else if ( v == 2 && fifo_relaxed_supported )
@@ -175,7 +175,7 @@ void vk_create_swapchain( VkPhysicalDevice physical_device, VkDevice device,
         image_count = MIN( MIN( image_count, surface_caps.maxImageCount ), MAX_SWAPCHAIN_IMAGES );
     }
 
-    ri.Printf( PRINT_ALL, "selected presentation mode: %s, image count: %i\n", vk_pmode_to_str( present_mode ), image_count );
+    CL_RefPrintf( PRINT_ALL, "selected presentation mode: %s, image count: %i\n", vk_pmode_to_str( present_mode ), image_count );
 
     // create swap chain
     desc.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;

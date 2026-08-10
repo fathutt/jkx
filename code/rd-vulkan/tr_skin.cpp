@@ -115,7 +115,7 @@ qhandle_t RE_RegisterIndividualSkin( const char *name , qhandle_t hSkin)
 	char			surfName[MAX_QPATH];
 
 	// load and parse the skin file
-	ri.FS_ReadFile( name, (void **)&text );
+	FS_ReadFile( name, (void **)&text );
 	if ( !text ) {
 #ifndef FINAL_BUILD
 		vk_debug("WARNING: RE_RegisterSkin( '%s' ) failed to load!\n", name );
@@ -161,7 +161,7 @@ qhandle_t RE_RegisterIndividualSkin( const char *name , qhandle_t hSkin)
 		if ( (unsigned)skin->numSurfaces >= ARRAY_LEN( skin->surfaces ) )
 		{
 			assert( ARRAY_LEN( skin->surfaces ) > (unsigned)skin->numSurfaces );
-			ri.Printf(PRINT_WARNING, "WARNING: RE_RegisterSkin( '%s' ) more than %u surfaces!\n", name, (unsigned int )ARRAY_LEN( skin->surfaces ) );
+			CL_RefPrintf(PRINT_WARNING, "WARNING: RE_RegisterSkin( '%s' ) more than %u surfaces!\n", name, (unsigned int )ARRAY_LEN( skin->surfaces ) );
 			break;
 		}
 		surf = (skinSurface_t *) R_Hunk_Alloc( sizeof( *skin->surfaces[0] ), h_low );
@@ -174,7 +174,7 @@ qhandle_t RE_RegisterIndividualSkin( const char *name , qhandle_t hSkin)
 		skin->numSurfaces++;
 	}
 
-	ri.FS_FreeFile( text );
+	FS_FreeFile( text );
 
 
 	// never let a skin have 0 shaders
@@ -190,12 +190,12 @@ qhandle_t RE_RegisterSkin( const char *name ) {
 	skin_t		*skin;
 
 	if ( !name || !name[0] ) {
-		ri.Printf(PRINT_WARNING, "Empty name passed to RE_RegisterSkin\n" );
+		CL_RefPrintf(PRINT_WARNING, "Empty name passed to RE_RegisterSkin\n" );
 		return 0;
 	}
 
 	if ( strlen( name ) >= MAX_QPATH ) {
-		ri.Printf(PRINT_WARNING, "Skin name exceeds MAX_QPATH\n" );
+		CL_RefPrintf(PRINT_WARNING, "Skin name exceeds MAX_QPATH\n" );
 		return 0;
 	}
 
@@ -212,7 +212,7 @@ qhandle_t RE_RegisterSkin( const char *name ) {
 
 	// allocate a new skin
 	if ( tr.numSkins == MAX_SKINS ) {
-		ri.Printf(PRINT_WARNING, "WARNING: RE_RegisterSkin( '%s' ) MAX_SKINS hit\n", name );
+		CL_RefPrintf(PRINT_WARNING, "WARNING: RE_RegisterSkin( '%s' ) MAX_SKINS hit\n", name );
 		return 0;
 	}
 	tr.numSkins++;
@@ -418,18 +418,18 @@ void	R_SkinList_f( void ) {
 	int			i, j;
 	skin_t		*skin;
 
-	ri.Printf( PRINT_ALL,  "------------------\n");
+	CL_RefPrintf( PRINT_ALL,  "------------------\n");
 
 	for ( i = 0 ; i < tr.numSkins ; i++ ) {
 		skin = tr.skins[i];
 
-		ri.Printf( PRINT_ALL, "%3i:%s\n", i, skin->name );
+		CL_RefPrintf( PRINT_ALL, "%3i:%s\n", i, skin->name );
 		for ( j = 0 ; j < skin->numSurfaces ; j++ ) {
-			ri.Printf( PRINT_ALL, "       %s = %s\n",
+			CL_RefPrintf( PRINT_ALL, "       %s = %s\n",
 				skin->surfaces[j]->name, ((shader_t* )skin->surfaces[j]->shader)->name );
 		}
 	}
-	ri.Printf( PRINT_ALL,  "------------------\n");
+	CL_RefPrintf( PRINT_ALL,  "------------------\n");
 }
 
 /*
@@ -460,7 +460,7 @@ int RE_GetAnimationCFG( const char *psCFGFilename, char *psDest, int iDestSize )
 	else
 	{
 		fileHandle_t f;
-		int iLen = ri.FS_FOpenFileRead( psCFGFilename, &f, qfalse );
+		int iLen = FS_FOpenFileRead( psCFGFilename, &f, qfalse );
 		if ( iLen <= 0 )
 		{
 			return 0;
@@ -468,9 +468,9 @@ int RE_GetAnimationCFG( const char *psCFGFilename, char *psDest, int iDestSize )
 
 		psText = (char *)R_Malloc( iLen + 1, TAG_ANIMATION_CFG, qfalse );
 
-		ri.FS_Read( psText, iLen, f );
+		FS_Read( psText, iLen, f );
 		psText[iLen] = '\0';
-		ri.FS_FCloseFile( f );
+		FS_FCloseFile( f );
 
 		AnimationCFGs[psCFGFilename] = psText;
 	}

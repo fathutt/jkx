@@ -34,7 +34,7 @@ void vk_select_texture( const int index )
 		return;
 
 	if ( index >= glConfig.maxActiveTextures )
-		ri.Error(ERR_DROP, "%s: texture unit overflow = %i", __func__, index);
+		Com_Error(ERR_DROP, "%s: texture unit overflow = %i", __func__, index);
 
 	vk.ctmu = index;
 }
@@ -119,7 +119,7 @@ void vk_set_2d( void )
 
 	// set 2D virtual screen size
 	// set time for 2D shaders
-	backEnd.refdef.time = ri.Milliseconds() * ri.Cvar_VariableValue("timescale");
+	backEnd.refdef.time = Sys_Milliseconds2() * Cvar_VariableValue("timescale");
 	backEnd.refdef.floatTime = (double)backEnd.refdef.time * 0.001; // -EC-: cast to double
 
 	return;
@@ -510,7 +510,7 @@ void vk_create_storage_buffer( vk_storage_buffer_t *out, uint32_t size, const ch
 		void *mapped = NULL;
 		if ( !vk_create_buffer_memory( &desc, VK_BUFFER_MEMORY_HOST_WRITE, &out->buffer,
 				&out->allocation, &mapped, name ) ) {
-			ri.Error( ERR_DROP, "Vulkan: could not allocate storage buffer '%s'", name );
+			Com_Error( ERR_DROP, "Vulkan: could not allocate storage buffer '%s'", name );
 			return;
 		}
 		out->buffer_ptr = (byte*)mapped;
@@ -740,7 +740,7 @@ void vk_create_vertex_buffer( VkDeviceSize size )
 
 		if ( !vk_create_buffer_memory( &desc, VK_BUFFER_MEMORY_HOST_WRITE, &vk.tess[i].vertex_buffer,
 				&vk.tess[i].vertex_buffer_allocation, &data, "geometry buffer" ) ) {
-			ri.Error( ERR_DROP, "Vulkan: could not allocate a %i KiB geometry buffer", (int)( size / 1024 ) );
+			Com_Error( ERR_DROP, "Vulkan: could not allocate a %i KiB geometry buffer", (int)( size / 1024 ) );
 			return;
 		}
 
@@ -776,7 +776,7 @@ void vk_create_indirect_buffer( VkDeviceSize size )
 
 		if ( !vk_create_buffer_memory( &desc, VK_BUFFER_MEMORY_HOST_WRITE, &vk.tess[i].indirect_buffer,
 				&vk.tess[i].indirect_buffer_allocation, &data, "indirect buffer" ) ) {
-			ri.Error( ERR_DROP, "Vulkan: could not allocate a %i KiB indirect buffer", (int)( size / 1024 ) );
+			Com_Error( ERR_DROP, "Vulkan: could not allocate a %i KiB indirect buffer", (int)( size / 1024 ) );
 			return;
 		}
 
@@ -1509,8 +1509,8 @@ void R_BindAnimatedImage( const textureBundle_t *bundle ) {
 	int64_t index;
 
 	if ( bundle->isVideoMap ) {
-		ri.CIN_RunCinematic( bundle->videoMapHandle );
-		ri.CIN_UploadCinematic( bundle->videoMapHandle );
+		CIN_RunCinematic( bundle->videoMapHandle );
+		CIN_UploadCinematic( bundle->videoMapHandle );
 		return;
 	}
 	if ( bundle->isScreenMap ) {
@@ -1668,7 +1668,7 @@ void ComputeTexCoords( const int b, const textureBundle_t *bundle ) {
 			break;
 
 		default:
-			ri.Error(ERR_DROP, "ERROR: unknown texmod '%d' in shader '%s'", bundle->texMods[tm].type, tess.shader->name);
+			Com_Error(ERR_DROP, "ERROR: unknown texmod '%d' in shader '%s'", bundle->texMods[tm].type, tess.shader->name);
 			break;
 		}
 	}
@@ -1737,7 +1737,7 @@ static void vk_compute_tex_mods( const textureBundle_t *bundle, float *outMatrix
 			break;
 
 		default:
-			ri.Error( ERR_DROP, "ERROR: unknown texmod '%d' in shader '%s'", bundle->texMods[tm].type, tess.shader->name );
+			Com_Error( ERR_DROP, "ERROR: unknown texmod '%d' in shader '%s'", bundle->texMods[tm].type, tess.shader->name );
 			break;
 		}
 

@@ -512,7 +512,7 @@ static void vk_push_vertex_input_binding_attribute( const Vk_Pipeline_Def *def )
             break;
 
         default:
-            ri.Error(ERR_DROP, "%s: invalid shader type - %i", __func__, def->shader_type);
+            Com_Error(ERR_DROP, "%s: invalid shader type - %i", __func__, def->shader_type);
             break;
     }
 
@@ -650,7 +650,7 @@ static void vk_set_pipeline_color_blend_attachment_factor( const Vk_Pipeline_Def
             attachment_blend_state->dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA;
             break;
         default:
-            ri.Error(ERR_DROP, "create_pipeline: invalid dst blend state bits\n");
+            Com_Error(ERR_DROP, "create_pipeline: invalid dst blend state bits\n");
             break;
     }
 }
@@ -883,7 +883,7 @@ VkPipeline vk_create_pipeline( const Vk_Pipeline_Def *def, renderPass_t renderPa
             break;
 
         default:
-            ri.Error(ERR_DROP, "create_pipeline: unknown shader type %i\n", def->shader_type);
+            Com_Error(ERR_DROP, "create_pipeline: unknown shader type %i\n", def->shader_type);
             return 0;
     }
 
@@ -1214,7 +1214,7 @@ VkPipeline vk_create_pipeline( const Vk_Pipeline_Def *def, renderPass_t renderPa
             rasterization_state.cullMode = (def->mirror ? VK_CULL_MODE_BACK_BIT : VK_CULL_MODE_FRONT_BIT);
             break;
         default:
-            ri.Error(ERR_DROP, "create_pipeline: invalid face culling mode %i\n", def->face_culling);
+            Com_Error(ERR_DROP, "create_pipeline: invalid face culling mode %i\n", def->face_culling);
             break;
     }
 
@@ -1547,7 +1547,7 @@ static void vk_create_post_process_pipeline( int program_index, uint32_t width, 
     }
 
     if ( !vk_surface_format_color_depth( vk.present_format.format, &frag_spec_data.depth_r, &frag_spec_data.depth_g, &frag_spec_data.depth_b ) )
-        ri.Printf(PRINT_ALL, "Format %s not recognized, dither to assume 8bpc\n", vk_format_string(vk.base_format.format));
+        CL_RefPrintf(PRINT_ALL, "Format %s not recognized, dither to assume 8bpc\n", vk_format_string(vk.base_format.format));
 
     INIT_SPEC_ENTRY_FRAG( 0,    gamma )
     INIT_SPEC_ENTRY_FRAG( 1,    overbright )
@@ -1896,7 +1896,7 @@ static uint32_t vk_alloc_pipeline( const Vk_Pipeline_Def *def ) {
     VK_Pipeline_t* pipeline;
 
     if (vk.pipelines_count >= MAX_VK_PIPELINES) {
-        ri.Error(ERR_DROP, "alloc_pipeline: MAX_VK_PIPELINES reached");
+        Com_Error(ERR_DROP, "alloc_pipeline: MAX_VK_PIPELINES reached");
         return 0;
     }
     else {

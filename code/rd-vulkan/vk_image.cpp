@@ -117,7 +117,7 @@ static byte* R_ImageScratchAlloc( imageScratchBuffer_t *scratch, size_t size )
 {
 	if ( scratch->size < size ) 
 	{
-		ri.Printf(
+		CL_RefPrintf(
 			PRINT_ALL,
 			S_COLOR_YELLOW "Resizing image scratch buffer from %.2f MB to %.2f MB\n",
 			(float)scratch->size / (1024.0f * 1024.0f),
@@ -188,7 +188,7 @@ static void R_AddImageToPool(image_t *image)
     {
         uint32_t new_capacity = tr.images.capacity * 2;
 
-		ri.Printf( PRINT_ALL, S_COLOR_YELLOW "Resizing image pool from %u to %u entries\n", tr.images.capacity, new_capacity );
+		CL_RefPrintf( PRINT_ALL, S_COLOR_YELLOW "Resizing image pool from %u to %u entries\n", tr.images.capacity, new_capacity );
 
         image_t **new_items = (image_t**)R_Z_Malloc(sizeof(image_t*) * new_capacity, TAG_IMAGE_T);
 		Com_Memset(new_items, 0, sizeof(*new_items) * new_capacity);
@@ -231,7 +231,7 @@ void vk_texture_mode( const char *string, const qboolean init ) {
 	mode = GetTextureMode( string );
 
 	if ( mode == NULL ) {
-		ri.Printf( PRINT_ALL, "bad texture filter name '%s'\n", string );
+		CL_RefPrintf( PRINT_ALL, "bad texture filter name '%s'\n", string );
 		return;
 	}
 
@@ -291,7 +291,7 @@ void R_LoadHDRImage( const char* filename, byte** data, int* width, int* height 
 {
 	byte* buf = NULL;
 	int x, y, n;
-	int len = ri.FS_ReadFile(filename, (void**)&buf);
+	int len = FS_ReadFile(filename, (void**)&buf);
 	if (len <= 0 || buf == NULL)
 	{
 		return;
@@ -299,10 +299,10 @@ void R_LoadHDRImage( const char* filename, byte** data, int* width, int* height 
 	stbi_set_flip_vertically_on_load(0);
 	*data = (byte*)stbi_loadf_from_memory(buf, len, &x, &y, &n, 3);
 
-	ri.FS_FreeFile(buf);
+	FS_FreeFile(buf);
 
 	if (!data)
-		ri.Printf(PRINT_DEVELOPER, "R_LoadHDRImage(%s) failed: %s\n", filename, stbi_failure_reason());
+		CL_RefPrintf(PRINT_DEVELOPER, "R_LoadHDRImage(%s) failed: %s\n", filename, stbi_failure_reason());
 
 	if (width)
 		*width = x;
@@ -350,7 +350,7 @@ VkSampler vk_find_sampler( const Vk_Sampler_Def *def ) {
 
 	// Create new sampler.
 	if (vk.samplers.count >= MAX_VK_SAMPLERS) {
-		ri.Error(ERR_DROP, "vk_find_sampler: MAX_VK_SAMPLERS hit\n");
+		Com_Error(ERR_DROP, "vk_find_sampler: MAX_VK_SAMPLERS hit\n");
 	}
 
 	address_mode = def->address_mode;
@@ -362,7 +362,7 @@ VkSampler vk_find_sampler( const Vk_Sampler_Def *def ) {
 		mag_filter = VK_FILTER_LINEAR;
 	}
 	else {
-		ri.Error(ERR_FATAL, "vk_find_sampler: invalid gl_mag_filter");
+		Com_Error(ERR_FATAL, "vk_find_sampler: invalid gl_mag_filter");
 		return VK_NULL_HANDLE;
 	}
 
@@ -395,7 +395,7 @@ VkSampler vk_find_sampler( const Vk_Sampler_Def *def ) {
 		mipmap_mode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
 	}
 	else {
-		ri.Error(ERR_FATAL, "vk_find_sampler: invalid gl_min_filter");
+		Com_Error(ERR_FATAL, "vk_find_sampler: invalid gl_min_filter");
 		return VK_NULL_HANDLE;
 	}
 
@@ -474,7 +474,7 @@ uint32_t vk_find_memory_type( uint32_t memory_type_bits, VkMemoryPropertyFlags p
             return i;
         }
     }
-    ri.Error(ERR_FATAL, "Vulkan: failed to find matching memory type with requested properties");
+    Com_Error(ERR_FATAL, "Vulkan: failed to find matching memory type with requested properties");
     return ~0U;
 }
 
@@ -620,7 +620,7 @@ void vk_record_image_layout_transition( VkCommandBuffer cmdBuf, VkImage image,
 			barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_SHADER_READ_BIT;
 			break;
 		default:
-			ri.Error( ERR_DROP, "unsupported old layout %i", old_layout );
+			Com_Error( ERR_DROP, "unsupported old layout %i", old_layout );
 			src_stage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
 			barrier.srcAccessMask = VK_ACCESS_NONE;
 			break;
@@ -657,7 +657,7 @@ void vk_record_image_layout_transition( VkCommandBuffer cmdBuf, VkImage image,
 			barrier.dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_SHADER_READ_BIT;
 			break;
 		default:
-			ri.Error( ERR_DROP, "unsupported new layout %i", new_layout);
+			Com_Error( ERR_DROP, "unsupported new layout %i", new_layout);
 			dst_stage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
 			barrier.dstAccessMask = VK_ACCESS_NONE;
 			break;
@@ -1007,7 +1007,7 @@ static qboolean vk_wait_staging_buffer( void )
 		VkResult res = vkWaitForFences( vk.device, 1, &vk.aux_fence, VK_TRUE, 5 * 1000000000ULL );
 
 		if ( res != VK_SUCCESS ) {
-			ri.Error( ERR_FATAL, "vkWaitForFences() failed with %s at %s", vk_result_string( res ), __func__ );
+			Com_Error( ERR_FATAL, "vkWaitForFences() failed with %s at %s", vk_result_string( res ), __func__ );
 		}
 		vkResetFences( vk.device, 1, &vk.aux_fence );
 		VK_CHECK( vkResetCommandBuffer( vk.staging_command_buffer, 0 ) );
@@ -1031,7 +1031,7 @@ void vk_flush_staging_buffer( qboolean final )
 		return;
 	}
 
-	//ri.Printf( PRINT_WARNING, S_COLOR_CYAN ">>> flush %i bytes (final=%i)<<<\n", (int)vk.staging_buffer.offset, final );
+	//CL_RefPrintf( PRINT_WARNING, S_COLOR_CYAN ">>> flush %i bytes (final=%i)<<<\n", (int)vk.staging_buffer.offset, final );
 
 	vk.staging_buffer.offset = 0;
 
@@ -1057,7 +1057,7 @@ void vk_flush_staging_buffer( qboolean final )
 	submit_info.pCommandBuffers = &vk.staging_command_buffer;
 
 	if ( vk.image_uploaded != VK_NULL_HANDLE ) {
-		ri.Error( ERR_FATAL, "Vulkan: incorrect state during image upload" );
+		Com_Error( ERR_FATAL, "Vulkan: incorrect state during image upload" );
 	}
 	if ( final ) {
 		// final submission before recording
@@ -1073,7 +1073,7 @@ void vk_flush_staging_buffer( qboolean final )
 		VK_CHECK( vkQueueSubmit( vk.queue, 1, &submit_info, vk.aux_fence ) );
 		res = vkWaitForFences( vk.device, 1, &vk.aux_fence, VK_TRUE, 5 * 1000000000ULL );
 		if ( res != VK_SUCCESS ) {
-			ri.Error( ERR_FATAL, "vkWaitForFences() failed with %s at %s", vk_result_string( res ), __func__ );
+			Com_Error( ERR_FATAL, "vkWaitForFences() failed with %s at %s", vk_result_string( res ), __func__ );
 		}
 		vkResetFences( vk.device, 1, &vk.aux_fence );
 		VK_CHECK( vkResetCommandBuffer( vk.staging_command_buffer, 0 ) );
@@ -1104,7 +1104,7 @@ void vk_alloc_staging_buffer( VkDeviceSize size )
 	buffer_desc.pQueueFamilyIndices = NULL;
 	if ( !vk_create_buffer_memory( &buffer_desc, VK_BUFFER_MEMORY_HOST_WRITE, &vk.staging_buffer.handle,
 			&vk.staging_buffer.allocation, &data, "staging buffer" ) ) {
-		ri.Error( ERR_DROP, "Vulkan: could not allocate a %i KiB staging buffer", (int)( size / 1024 ) );
+		Com_Error( ERR_DROP, "Vulkan: could not allocate a %i KiB staging buffer", (int)( size / 1024 ) );
 		return;
 	}
 
@@ -1287,7 +1287,7 @@ void vk_upload_image_data( image_t *image, int x, int y, int width,
 		VK_CHECK( vkBeginCommandBuffer( vk.staging_command_buffer, &begin_info ) );
 	}
 
-	//ri.Printf( PRINT_WARNING, "batch @%6i + %i %s \n", (int)vk.staging_buffer.offset, (int)buffer_size, image->imgName );
+	//CL_RefPrintf( PRINT_WARNING, "batch @%6i + %i %s \n", (int)vk.staging_buffer.offset, (int)buffer_size, image->imgName );
 	vk.staging_buffer.offset += buffer_size;
 
 	command_buffer = vk.staging_command_buffer;
@@ -1423,7 +1423,7 @@ void vk_create_image( image_t *image, int width, int height, int mip_levels ) {
 		desc.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
 		if ( !vk_create_image_memory( &desc, &image->handle, &image->allocation, image->imgName ) ) {
-			ri.Error( ERR_DROP, "Vulkan: out of device memory creating image '%s' (%ix%i)",
+			Com_Error( ERR_DROP, "Vulkan: out of device memory creating image '%s' (%ix%i)",
 				image->imgName, width, height );
 			return;
 		}
@@ -1515,7 +1515,7 @@ image_t *R_GetLoadedImage( const char *name, int flags ) {
 			// the white image can be used with any set of parms, but other mismatches are errors
 			if ( strcmp( name, "*white" ) ) {
 				if ( image->flags != flags ) {
-					ri.Printf( PRINT_DEVELOPER, "WARNING: reused image %s with mixed flags (%i vs %i)\n", name, image->flags, flags );
+					CL_RefPrintf( PRINT_DEVELOPER, "WARNING: reused image %s with mixed flags (%i vs %i)\n", name, image->flags, flags );
 				}
 			}
 			return image;
@@ -1532,7 +1532,7 @@ image_t *R_CreateImage( const char *name, byte *pic, int width, int height, imgF
 
     namelen = (int)strlen(name) + 1;
     if (namelen > MAX_QPATH) {
-        ri.Error(ERR_DROP, "R_CreateImage: \"%s\" is too long", name);
+        Com_Error(ERR_DROP, "R_CreateImage: \"%s\" is too long", name);
     }
 
 #if 0
@@ -1599,7 +1599,7 @@ image_t *R_FindImageFile( const char *name, imgFlags_t flags, uint32_t type ){
         byte		*pic;
         int			hash;
 
-		if (!name || ri.Cvar_VariableIntegerValue("dedicated"))	// stop ghoul2 horribleness as regards image loading from server
+		if (!name || Cvar_VariableIntegerValue("dedicated"))	// stop ghoul2 horribleness as regards image loading from server
 		{
 			return NULL;
 		}
@@ -1619,7 +1619,7 @@ image_t *R_FindImageFile( const char *name, imgFlags_t flags, uint32_t type ){
                 // the white image can be used with any set of parms, but other mismatches are errors
                 if (strcmp(name, "*white")) {
                     if (image->flags != flags) {
-                        ri.Printf(PRINT_DEVELOPER, "WARNING: reused image %s with mixed flags (%i vs %i)\n", name, image->flags, flags);
+                        CL_RefPrintf(PRINT_DEVELOPER, "WARNING: reused image %s with mixed flags (%i vs %i)\n", name, image->flags, flags);
                     }
                 }
                 return image;
@@ -1638,7 +1638,7 @@ image_t *R_FindImageFile( const char *name, imgFlags_t flags, uint32_t type ){
 		//
 		if ((width & (width - 1)) || (height & (height - 1)))
 		{
-			ri.Printf(PRINT_ALL, "Refusing to load non-power-2-dims(%d,%d) pic \"%s\"...\n", width, height, name);
+			CL_RefPrintf(PRINT_ALL, "Refusing to load non-power-2-dims(%d,%d) pic \"%s\"...\n", width, height, name);
 			return NULL;
 		}
 

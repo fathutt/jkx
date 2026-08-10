@@ -26,7 +26,7 @@ Foundation.
 // Attachments and buffers follow; they are correct today, just manual.
 //
 // VMA also gives us budget tracking, which replaces
-// ri.Error("GPU memory heap overflow") with something a player can act on.
+// Com_Error("GPU memory heap overflow") with something a player can act on.
 
 #include "tr_local.h"
 
@@ -87,7 +87,7 @@ qboolean vk_create_image_memory(const VkImageCreateInfo* desc, VkImage* image, V
     // an access violation and no message at all, which is how an initialisation
     // order mistake cost a full round of hardware testing.
     if (vk.allocator == VK_NULL_HANDLE) {
-        ri.Error(ERR_FATAL, "Vulkan: %s called before vk_create_allocator()", __func__);
+        Com_Error(ERR_FATAL, "Vulkan: %s called before vk_create_allocator()", __func__);
         return qfalse;
     }
 
@@ -112,7 +112,7 @@ qboolean vk_create_image_memory(const VkImageCreateInfo* desc, VkImage* image, V
             budget += budgets[i].budget;
         }
 
-        ri.Printf(PRINT_WARNING,
+        CL_RefPrintf(PRINT_WARNING,
                   "Vulkan: image allocation failed (%s), %ux%u; %u MiB in use of %u MiB budget\n",
                   vk_result_string(result), desc->extent.width, desc->extent.height,
                   (unsigned)(used / (1024 * 1024)), (unsigned)(budget / (1024 * 1024)));
@@ -135,7 +135,7 @@ void vk_destroy_image_memory(VkImage* image, VmaAllocation* allocation)
     // driver turns into an access violation with no message. Say so instead:
     // the fix is always an ordering one, and it is cheap to point straight at.
     if (vk.allocator == VK_NULL_HANDLE) {
-        ri.Printf(PRINT_WARNING, "Vulkan: %s called after vk_destroy_allocator()\n", __func__);
+        CL_RefPrintf(PRINT_WARNING, "Vulkan: %s called after vk_destroy_allocator()\n", __func__);
         return;
     }
     // Unlike the chunk allocator this actually returns the memory, so a texture
@@ -159,13 +159,13 @@ void vk_print_memory_usage(void)
     VkPhysicalDeviceMemoryProperties props;
     vkGetPhysicalDeviceMemoryProperties(vk.physical_device, &props);
 
-    ri.Printf(PRINT_ALL, "Vulkan memory:\n");
+    CL_RefPrintf(PRINT_ALL, "Vulkan memory:\n");
     for (uint32_t i = 0; i < props.memoryHeapCount; ++i) {
         const VmaBudget& b = budgets[i];
         if (b.budget == 0) {
             continue;
         }
-        ri.Printf(PRINT_ALL, "  heap %u%s: %5u MiB used, %5u MiB allocated, %5u MiB budget (%u block(s))\n", i,
+        CL_RefPrintf(PRINT_ALL, "  heap %u%s: %5u MiB used, %5u MiB allocated, %5u MiB budget (%u block(s))\n", i,
                   (props.memoryHeaps[i].flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT) ? " [device]" : "         ",
                   (unsigned)(b.statistics.allocationBytes / (1024 * 1024)),
                   (unsigned)(b.statistics.blockBytes / (1024 * 1024)),
@@ -180,7 +180,7 @@ qboolean vk_alloc_image_memory(VkImage image, qboolean transient, VmaAllocation*
     // an access violation and no message at all, which is how an initialisation
     // order mistake cost a full round of hardware testing.
     if (vk.allocator == VK_NULL_HANDLE) {
-        ri.Error(ERR_FATAL, "Vulkan: %s called before vk_create_allocator()", __func__);
+        Com_Error(ERR_FATAL, "Vulkan: %s called before vk_create_allocator()", __func__);
         return qfalse;
     }
 
@@ -205,7 +205,7 @@ qboolean vk_alloc_image_memory(VkImage image, qboolean transient, VmaAllocation*
 
     const VkResult result = vmaAllocateMemoryForImage(vk.allocator, image, &alloc, allocation, NULL);
     if (result != VK_SUCCESS) {
-        ri.Printf(PRINT_WARNING, "Vulkan: attachment allocation failed (%s) for '%s'\n", vk_result_string(result),
+        CL_RefPrintf(PRINT_WARNING, "Vulkan: attachment allocation failed (%s) for '%s'\n", vk_result_string(result),
                   name != NULL ? name : "?");
         return qfalse;
     }
@@ -231,7 +231,7 @@ void vk_free_image_memory(VmaAllocation* allocation)
     // driver turns into an access violation with no message. Say so instead:
     // the fix is always an ordering one, and it is cheap to point straight at.
     if (vk.allocator == VK_NULL_HANDLE) {
-        ri.Printf(PRINT_WARNING, "Vulkan: %s called after vk_destroy_allocator()\n", __func__);
+        CL_RefPrintf(PRINT_WARNING, "Vulkan: %s called after vk_destroy_allocator()\n", __func__);
         return;
     }
     vmaFreeMemory(vk.allocator, *allocation);
@@ -246,7 +246,7 @@ qboolean vk_create_buffer_memory(const VkBufferCreateInfo* desc, vk_buffer_memor
     // an access violation and no message at all, which is how an initialisation
     // order mistake cost a full round of hardware testing.
     if (vk.allocator == VK_NULL_HANDLE) {
-        ri.Error(ERR_FATAL, "Vulkan: %s called before vk_create_allocator()", __func__);
+        Com_Error(ERR_FATAL, "Vulkan: %s called before vk_create_allocator()", __func__);
         return qfalse;
     }
 
@@ -284,7 +284,7 @@ qboolean vk_create_buffer_memory(const VkBufferCreateInfo* desc, vk_buffer_memor
     VmaAllocationInfo info = {};
     const VkResult result = vmaCreateBuffer(vk.allocator, desc, &alloc, buffer, allocation, &info);
     if (result != VK_SUCCESS) {
-        ri.Printf(PRINT_WARNING, "Vulkan: buffer allocation failed (%s) for '%s', %u KiB\n",
+        CL_RefPrintf(PRINT_WARNING, "Vulkan: buffer allocation failed (%s) for '%s', %u KiB\n",
                   vk_result_string(result), name != NULL ? name : "?",
                   (unsigned)(desc->size / 1024));
         return qfalse;
@@ -312,7 +312,7 @@ void vk_destroy_buffer_memory(VkBuffer* buffer, VmaAllocation* allocation)
     // driver turns into an access violation with no message. Say so instead:
     // the fix is always an ordering one, and it is cheap to point straight at.
     if (vk.allocator == VK_NULL_HANDLE) {
-        ri.Printf(PRINT_WARNING, "Vulkan: %s called after vk_destroy_allocator()\n", __func__);
+        CL_RefPrintf(PRINT_WARNING, "Vulkan: %s called after vk_destroy_allocator()\n", __func__);
         return;
     }
     vmaDestroyBuffer(vk.allocator, *buffer, allocation != NULL ? *allocation : VK_NULL_HANDLE);

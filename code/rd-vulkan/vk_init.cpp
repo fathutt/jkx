@@ -370,7 +370,7 @@ void vk_create_window( void ) {
 		windowDesc_t windowDesc = { GRAPHICS_API_VULKAN };
 
 		glConfig.deviceSupportsGamma = qfalse;
-		vidWindow = ri.WIN_Init(&windowDesc, &glConfig);
+		vidWindow = WIN_Init(&windowDesc, &glConfig);
 
 		if (r_ignorehwgamma->integer)
 			glConfig.deviceSupportsGamma = qfalse;
@@ -381,7 +381,7 @@ void vk_create_window( void ) {
 		gls.captureWidth = glConfig.vidWidth;
 		gls.captureHeight = glConfig.vidHeight;
 
-		//ri.CL_SetScaling(1.0, glConfig.vidWidth, glConfig.vidHeight);	// consolefont and avi capture
+		//CL_SetScaling(1.0, glConfig.vidWidth, glConfig.vidHeight);	// consolefont and avi capture
 
 		{
 			if (r_renderScale->integer){
@@ -392,31 +392,31 @@ void vk_create_window( void ) {
 			gls.captureWidth = glConfig.vidWidth;
 			gls.captureHeight = glConfig.vidHeight;
 		
-			//ri.CL_SetScaling(1.0, gls.captureWidth, gls.captureHeight);	// consolefont and avi capture
+			//CL_SetScaling(1.0, gls.captureWidth, gls.captureHeight);	// consolefont and avi capture
 
 			if (r_ext_supersample->integer){
 				glConfig.vidWidth *= 2;
 				glConfig.vidHeight *= 2;
 
-				//ri.CL_SetScaling(2.0, gls.captureWidth, gls.captureHeight);	// consolefont and avi capture
+				//CL_SetScaling(2.0, gls.captureWidth, gls.captureHeight);	// consolefont and avi capture
 			}
 		}
 
 		vk_initialize();
 
-		gls.initTime = ri.Milliseconds();
+		gls.initTime = Sys_Milliseconds2();
 	}
 
 	if ( !vk.active && vk.instance ){
 		// might happen after REF_KEEP_WINDOW
 		vk_initialize();
-		gls.initTime = ri.Milliseconds();
+		gls.initTime = Sys_Milliseconds2();
 	}
 	if ( vk.active ) {
 		vk_init_descriptors();
 	}
 	else {
-		ri.Error( ERR_FATAL, "Recursive error during Vulkan initialization" );
+		Com_Error( ERR_FATAL, "Recursive error during Vulkan initialization" );
 	}
 
 	glState.glStateBits = GLS_DEPTHTEST_DISABLE | GLS_DEPTHMASK_TRUE;
@@ -497,7 +497,7 @@ void vk_initialize( void )
 		}
 
 		if ( maxDedicatedSize != 0 ) {
-			ri.Printf( PRINT_ALL, "...device memory size: %iMB\n", (int)((maxDedicatedSize + (1024 * 1024) - 1) / (1024 * 1024)) );
+			CL_RefPrintf( PRINT_ALL, "...device memory size: %iMB\n", (int)((maxDedicatedSize + (1024 * 1024) - 1) / (1024 * 1024)) );
 		}
 		if ( maxBARSize != 0 ) {
 			if ( maxBARSize >= 128 * 1024 * 1024 ) {
@@ -506,7 +506,7 @@ void vk_initialize( void )
 				vk.defaults.staging_size = STAGING_BUFFER_SIZE_HI;
 			}
 #ifdef _DEBUG
-			ri.Printf( PRINT_ALL, "...BAR memory size: %iMB\n", (int)((maxBARSize + (1024 * 1024) - 1) / (1024 * 1024)) );
+			CL_RefPrintf( PRINT_ALL, "...BAR memory size: %iMB\n", (int)((maxBARSize + (1024 * 1024) - 1) / (1024 * 1024)) );
 #endif
 		}
 	}
@@ -555,8 +555,8 @@ void vk_initialize( void )
 	// to enable is simply always available here.
 	glConfig.doStencilShadowsInOneDrawcall = qtrue;
 
-	ri.Printf( PRINT_ALL, "\nVK_MAX_TEXTURE_SIZE: %d\n", glConfig.maxTextureSize );
-	ri.Printf( PRINT_ALL, "VK_MAX_TEXTURE_UNITS: %d\n", glConfig.maxActiveTextures );
+	CL_RefPrintf( PRINT_ALL, "\nVK_MAX_TEXTURE_SIZE: %d\n", glConfig.maxTextureSize );
+	CL_RefPrintf( PRINT_ALL, "VK_MAX_TEXTURE_UNITS: %d\n", glConfig.maxActiveTextures );
 
 	R_InitImageScratch();
 	vk_initTextureCompression();
@@ -594,7 +594,7 @@ void vk_initialize( void )
 	// So a report can state which package produced it. A trace build and a
 	// plain release build are otherwise indistinguishable from the outside,
 	// and one of them answers questions the other cannot.
-	ri.Printf( PRINT_ALL, "JKX: trace build, writing vk_log.log next to the executable\n" );
+	CL_RefPrintf( PRINT_ALL, "JKX: trace build, writing vk_log.log next to the executable\n" );
 #endif
 
 	// Say which lighting path is actually running. This used to be silent: on a
@@ -605,15 +605,15 @@ void vk_initialize( void )
 	// tools/verify/verify.py keys on to tell you which path was measured.
 	if ( vk.useFastLight ) {
 		if ( vk.maxBoundDescriptorSets < 11 ) {
-			ri.Printf( PRINT_WARNING,
+			CL_RefPrintf( PRINT_WARNING,
 				"JKX: lighting path = fastlight (PBR OFF): this device reports maxBoundDescriptorSets %i, "
 				"and the PBR path needs 11. Bindless removes this limit.\n", vk.maxBoundDescriptorSets );
 		} else {
-			ri.Printf( PRINT_ALL,
+			CL_RefPrintf( PRINT_ALL,
 				"JKX: lighting path = fastlight (PBR OFF): r_normalMapping and r_specularMapping are both off.\n" );
 		}
 	} else {
-		ri.Printf( PRINT_ALL, "JKX: lighting path = PBR (maxBoundDescriptorSets %i)\n",
+		CL_RefPrintf( PRINT_ALL, "JKX: lighting path = PBR (maxBoundDescriptorSets %i)\n",
 			vk.maxBoundDescriptorSets );
 	}
 
@@ -644,10 +644,10 @@ void vk_initialize( void )
 		vkSamples = VK_SAMPLE_COUNT_1_BIT;
 	}
 
-	ri.Printf( PRINT_ALL, "MSAA max: %dx, using %dx\n", vkMaxSamples, vkSamples );
+	CL_RefPrintf( PRINT_ALL, "MSAA max: %dx, using %dx\n", vkMaxSamples, vkSamples );
 
 	// Anisotropy
-	ri.Printf( PRINT_ALL, "Anisotropy max: %dx, using %dx\n\n", r_ext_max_anisotropy->integer, r_ext_texture_filter_anisotropic->integer );
+	CL_RefPrintf( PRINT_ALL, "Anisotropy max: %dx, using %dx\n\n", r_ext_max_anisotropy->integer, r_ext_texture_filter_anisotropic->integer );
 		
 	// Bloom
 	if ( r_bloom->integer )
@@ -726,7 +726,7 @@ void vk_initialize( void )
 // Shutdown vulkan subsystem by releasing resources acquired by Vk_Instance.
 void vk_shutdown( void )
 {
-    ri.Printf( PRINT_ALL, "vk_shutdown()\n" );
+    CL_RefPrintf( PRINT_ALL, "vk_shutdown()\n" );
 
 	if (!vkQueuePresentKHR) {// not fully initialized
 		goto __cleanup;
