@@ -210,6 +210,14 @@ jobs:
       # are written blind against Windows.
       - name: verification tool
         run: python3 tools/verify/selftest.py
+      # The font atlas is generated, not authored, and its failure modes are
+      # pictures - a flat sheet, a shape half a pixel off - that no build log
+      # would mention. So the generator draws its own output back and compares
+      # it against the bitmap it was built from.
+      - name: font atlas generator
+        run: |
+          python3 -m pip install --quiet --break-system-packages freetype-py pillow numpy
+          python3 tools/fontgen/selftest.py
 
   # ---------------------------------------------------------------------------
   # The renderer is the part of this repository that changes most and is checked

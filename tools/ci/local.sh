@@ -13,7 +13,9 @@
 #   debug       the whole tree, Debug: different code is compiled, and it is
 #               the configuration nobody looks at until it fails
 #   sanitizers  Debug with asan and ubsan, which is what the CI job builds
-#   tests       the unit tests
+#   tests       the unit tests, including the font atlas generator's, which
+#               redraws its own output and compares it against the bitmap it
+#               was built from
 #   smoke       the engine drawing frames on the Vulkan renderer, headless,
 #               under the validation layer
 #   smokesan    the same run against the sanitizer build. Building sanitizers
@@ -93,7 +95,8 @@ stage_sanitizers() {
 }
 
 stage_tests() {
-    python3 "$ROOT/tools/verify/selftest.py"
+    python3 "$ROOT/tools/verify/selftest.py" &&
+    python3 "$ROOT/tools/fontgen/selftest.py"
 }
 
 stage_smoke() {
