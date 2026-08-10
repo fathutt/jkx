@@ -3506,7 +3506,7 @@ static void UI_Update(const char *name)
 				Cvar_SetValue( "ui_r_colorbits", 32 );
 				Cvar_SetValue( "ui_r_depthbits", 24 );
 				Cvar_SetValue( "ui_r_picmip", 0 );
-				Cvar_SetValue( "ui_r_mode", 4 );
+				Cvar_SetValue( "ui_r_mode", -2 );
 				Cvar_SetValue( "ui_r_texturebits", 32 );
 				Cvar_SetValue( "ui_r_fastSky", 0 );
 				Cvar_SetValue( "ui_r_inGameVideo", 1 );
@@ -3521,7 +3521,7 @@ static void UI_Update(const char *name)
 				Cvar_SetValue( "ui_r_colorbits", 0 );
 				Cvar_SetValue( "ui_r_depthbits", 24 );
 				Cvar_SetValue( "ui_r_picmip", 1 );
-				Cvar_SetValue( "ui_r_mode", 3 );
+				Cvar_SetValue( "ui_r_mode", -2 );
 				Cvar_SetValue( "ui_r_texturebits", 0 );
 				Cvar_SetValue( "ui_r_fastSky", 0 );
 				Cvar_SetValue( "ui_r_inGameVideo", 1 );
@@ -3537,7 +3537,7 @@ static void UI_Update(const char *name)
 				Cvar_SetValue( "ui_r_colorbits", 0 );
 				Cvar_SetValue( "ui_r_depthbits", 0 );
 				Cvar_SetValue( "ui_r_picmip", 2 );
-				Cvar_SetValue( "ui_r_mode", 3 );
+				Cvar_SetValue( "ui_r_mode", -2 );
 				Cvar_SetValue( "ui_r_texturebits", 0 );
 				Cvar_SetValue( "ui_r_fastSky", 1 );
 				Cvar_SetValue( "ui_r_inGameVideo", 0 );
@@ -3552,7 +3552,7 @@ static void UI_Update(const char *name)
 				Cvar_SetValue( "ui_r_lodbias", 2 );
 				Cvar_SetValue( "ui_r_colorbits", 16 );
 				Cvar_SetValue( "ui_r_depthbits", 16 );
-				Cvar_SetValue( "ui_r_mode", 3 );
+				Cvar_SetValue( "ui_r_mode", -2 );
 				Cvar_SetValue( "ui_r_picmip", 3 );
 				Cvar_SetValue( "ui_r_texturebits", 16 );
 				Cvar_SetValue( "ui_r_fastSky", 1 );

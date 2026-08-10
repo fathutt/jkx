@@ -71,29 +71,72 @@ typedef struct vidmode_s
     int         width, height;
 } vidmode_t;
 
+// The modes offered in the video menu.
+//
+// Raven's list started at 320x240, was ten-thirteenths 4:3, topped out at
+// 2048x1536, and contained exactly one widescreen entry - 856x480, which is
+// 16:9 in the sense that 856/480 is about 1.78 and in no other sense. It was
+// written for monitors that no longer exist. This one starts at 720p, because
+// below that the interface is not readable on any panel made this decade, and
+// covers the shapes people actually own.
+//
+// The index is not stable across this change and cannot be: r_mode is an
+// ordinal into this array, so a config that said 6 now means something else.
+// That is why the default is -2 - use whatever the desktop is - and why anyone
+// who has picked a resolution by hand will pick it again once. Custom sizes are
+// still -1 with r_customWidth and r_customHeight, which is the escape hatch for
+// anything not listed.
 const vidmode_t r_vidModes[] = {
-    { "Mode  0: 320x240",		320,	240 },
-    { "Mode  1: 400x300",		400,	300 },
-    { "Mode  2: 512x384",		512,	384 },
-    { "Mode  3: 640x480",		640,	480 },
-    { "Mode  4: 800x600",		800,	600 },
-    { "Mode  5: 960x720",		960,	720 },
-    { "Mode  6: 1024x768",		1024,	768 },
-    { "Mode  7: 1152x864",		1152,	864 },
-    { "Mode  8: 1280x1024",		1280,	1024 },
-    { "Mode  9: 1600x1200",		1600,	1200 },
-    { "Mode 10: 2048x1536",		2048,	1536 },
-    { "Mode 11: 856x480 (wide)", 856,	 480 },
-    { "Mode 12: 2400x600(surround)",2400,600 }
+    // 16:9
+    { "Mode  0: 1280x720  (16:9)",   1280,  720 },
+    { "Mode  1: 1600x900  (16:9)",   1600,  900 },
+    { "Mode  2: 1920x1080 (16:9)",   1920, 1080 },
+    { "Mode  3: 2560x1440 (16:9)",   2560, 1440 },
+    { "Mode  4: 3200x1800 (16:9)",   3200, 1800 },
+    { "Mode  5: 3840x2160 (16:9)",   3840, 2160 },
+
+    // 16:10
+    { "Mode  6: 1280x800  (16:10)",  1280,  800 },
+    { "Mode  7: 1680x1050 (16:10)",  1680, 1050 },
+    { "Mode  8: 1920x1200 (16:10)",  1920, 1200 },
+    { "Mode  9: 2560x1600 (16:10)",  2560, 1600 },
+
+    // 21:9
+    { "Mode 10: 2560x1080 (21:9)",   2560, 1080 },
+    { "Mode 11: 3440x1440 (21:9)",   3440, 1440 },
+    { "Mode 12: 5120x2160 (21:9)",   5120, 2160 },
+
+    // 32:9 and 32:10 - the super ultrawides, which are two 16:9 panels wide.
+    // An aspect of 3.56 is far enough outside anything this engine was built
+    // for that it is worth listing explicitly rather than leaving to
+    // r_customWidth: it is where a stretched interface stops being ugly and
+    // starts being unusable, and where the cutscene framing policy in
+    // docs/Backlog.md has to do its work.
+    { "Mode 13: 3840x1080 (32:9)",   3840, 1080 },
+    { "Mode 14: 5120x1440 (32:9)",   5120, 1440 },
+    { "Mode 15: 7680x2160 (32:9)",   7680, 2160 },
+    { "Mode 16: 3840x1200 (32:10)",  3840, 1200 },
+
+    // 4:3, for the monitors this game was written for. Two entries rather than
+    // seven: anyone still on a CRT knows what their tube does.
+    { "Mode 17: 1024x768  (4:3)",    1024,  768 },
+    { "Mode 18: 1600x1200 (4:3)",    1600, 1200 }
 };
 static const int	s_numVidModes = ARRAY_LEN( r_vidModes );
 
-#define R_MODE_FALLBACK (4) // 640x480
+// The desktop's own resolution. It was 4, which the comment beside it said was
+// 640x480 and which was in fact 800x600 - the list had been edited and the
+// comment had not. A fallback that is an index into a list that can change is
+// the wrong kind of constant; "whatever the display already is" cannot go
+// stale.
+#define R_MODE_FALLBACK (-2)
 
 qboolean R_GetModeInfo( int *width, int *height, int mode ) {
 	const vidmode_t	*vm;
 
     if ( mode < -1 ) {
+        // -2 is the desktop's resolution, which this function cannot answer -
+        // it is decided against the display, in GLimp_SetMode.
         return qfalse;
 	}
 	if ( mode >= s_numVidModes ) {
@@ -761,7 +804,7 @@ window_t WIN_Init( const windowDesc_t *windowDesc, glconfig_t *glConfig )
 	r_customheight		= Cvar_Get( "r_customheight",		"1024",		CVAR_ARCHIVE|CVAR_LATCH );
 	r_swapInterval		= Cvar_Get( "r_swapInterval",		"0",		CVAR_ARCHIVE_ND );
 	r_stereo			= Cvar_Get( "r_stereo",				"0",		CVAR_ARCHIVE_ND|CVAR_LATCH );
-	r_mode				= Cvar_Get( "r_mode",				"4",		CVAR_ARCHIVE|CVAR_LATCH );
+	r_mode				= Cvar_Get( "r_mode",				"-2",		CVAR_ARCHIVE|CVAR_LATCH );
 	r_displayRefresh	= Cvar_Get( "r_displayRefresh",		"0",		CVAR_LATCH );
 	Cvar_CheckRange( r_displayRefresh, 0, 240, qtrue );
 

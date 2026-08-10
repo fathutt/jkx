@@ -353,7 +353,12 @@ static cvarTable_t cvarTable[] = {
 	{ &cg_autoswitch, "cg_autoswitch", "1", CVAR_ARCHIVE },
 	{ &cg_drawGun, "cg_drawGun", "1", CVAR_ARCHIVE },
 	{ &cg_fov, "cg_fov", "80", CVAR_ARCHIVE },
-	{ &cg_fovAspectAdjust, "cg_fovAspectAdjust", "0", CVAR_ARCHIVE },
+	// On by default. With it off the horizontal field of view is held at the 4:3
+	// value and the vertical is cropped to fit the window - so the wider the
+	// monitor, the less of the world is visible, which is backwards. On a 32:9
+	// panel it leaves a horizontal slit. On gives Hor+: the vertical field of
+	// view is the one 4:3 had, and width is added at the sides.
+	{ &cg_fovAspectAdjust, "cg_fovAspectAdjust", "1", CVAR_ARCHIVE },
 	{ &cg_stereoSeparation, "cg_stereoSeparation", "0.4", CVAR_ARCHIVE  },
 	{ &cg_shadows, "cg_shadows", "1", CVAR_ARCHIVE  },
 	{ &cg_renderToTextureFX, "cg_renderToTextureFX", "1", CVAR_ARCHIVE  },
