@@ -277,6 +277,56 @@ static void vk_render_splash( void )
 		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 		0, 0 );
 
+	// The splash is a blit straight to the swapchain, so none of the 2D
+	// machinery applies to it - not the fitted frame the interface is drawn in,
+	// not the black bars the client fills beside it. It went to the whole
+	// window, which on anything but 4:3 stretched it. The videos that follow
+	// are drawn properly and fit, so the first thing the game shows was the one
+	// thing out of shape.
+	//
+	// Fitted here instead, against the image's own proportions rather than a
+	// fixed 4:3 - menu/splash_16_9 exists and is chosen above, and it should be
+	// allowed to fill a 16:9 window.
+	const int availX0 = vk.blitX0;
+	const int availY0 = vk.blitY0;
+	const int availW = gls.windowWidth - 2 * vk.blitX0;
+	const int availH = gls.windowHeight - 2 * vk.blitY0;
+
+	int dstW = availW;
+	int dstH = availH;
+
+	if ( splashImage->width > 0 && splashImage->height > 0 && availW > 0 && availH > 0 ) {
+		const float want = (float)splashImage->width / (float)splashImage->height;
+		const float have = (float)availW / (float)availH;
+
+		if ( have > want ) {
+			dstH = availH;
+			dstW = (int)( (float)availH * want + 0.5f );
+		} else {
+			dstW = availW;
+			dstH = (int)( (float)availW / want + 0.5f );
+		}
+	}
+
+	const int dstX0 = availX0 + ( availW - dstW ) / 2;
+	const int dstY0 = availY0 + ( availH - dstH ) / 2;
+
+	// The swapchain image came from UNDEFINED, so whatever the blit does not
+	// cover is undefined memory. Without this the margins are not black bars,
+	// they are whatever was in that buffer.
+	{
+		VkClearColorValue		black = {{ 0.0f, 0.0f, 0.0f, 1.0f }};
+		VkImageSubresourceRange	whole;
+
+		Com_Memset( &whole, 0, sizeof( whole ) );
+		whole.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		whole.levelCount = 1;
+		whole.layerCount = 1;
+
+		vkCmdClearColorImage( vk.cmd->command_buffer, imageBuffer,
+			VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &black, 1, &whole );
+	}
+
 	Com_Memset( &imageBlit, 0, sizeof(imageBlit) );
 	imageBlit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 	imageBlit.srcSubresource.mipLevel = 0;
@@ -288,8 +338,8 @@ static void vk_render_splash( void )
 	imageBlit.dstSubresource.mipLevel = 0;
 	imageBlit.dstSubresource.baseArrayLayer = 0;
 	imageBlit.dstSubresource.layerCount = 1;
-	imageBlit.dstOffsets[0] = { vk.blitX0, vk.blitY0, 0 };
-	imageBlit.dstOffsets[1] = { ( gls.windowWidth - vk.blitX0 ), ( gls.windowHeight - vk.blitY0 ), 1 };
+	imageBlit.dstOffsets[0] = { dstX0, dstY0, 0 };
+	imageBlit.dstOffsets[1] = { dstX0 + dstW, dstY0 + dstH, 1 };
 
 	vkCmdBlitImage( vk.cmd->command_buffer, splashImage->handle,
 		VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, imageBuffer,
