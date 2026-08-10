@@ -189,8 +189,6 @@ public:
 	CollisionRecord_t	*collRecMap;
 	int					entNum;
 	int					modelIndex;
-	skin_t				*skin;
-    shader_t			*cust_shader;
 	intptr_t			*TransformedVertsArray;
 	int					traceFlags;
 	bool				hitOne;
@@ -218,8 +216,6 @@ public:
 	CollisionRecord_t	*initcollRecMap,
 	int					initentNum,
 	int					initmodelIndex,
-	skin_t				*initskin,
-	shader_t			*initcust_shader,
 	intptr_t			*initTransformedVertsArray,
 	int					inittraceFlags,
 #ifdef _G2_GORE
@@ -241,8 +237,6 @@ public:
  	collRecMap(initcollRecMap),
 	entNum(initentNum),
 	modelIndex(initmodelIndex),
-	skin(initskin),
-	cust_shader(initcust_shader),
 	TransformedVertsArray(initTransformedVertsArray),
 	traceFlags(inittraceFlags),
 #ifdef _G2_GORE
@@ -1039,10 +1033,17 @@ void G2_GorePolys( const mdxmSurface_t *surface, CTraceSurface &TS, const mdxmSu
 			}
 		}
 
+		// Indexes relative to this surface's own first vertex. They used to be
+		// biased here by tr.goreVBOCurrentIndex, which is read before
+		// R_UpdateGoreVBO runs and therefore before it decides whether the ring
+		// buffer wraps: on the frame it wrapped, the vertices went to the start
+		// of the buffer and the indexes still pointed at where they would have
+		// gone, and the gore drew as a spray of triangles across the model.
+		// The bias belongs where the decision is made.
 		goreSurface->indexes = (glIndex_t *)R_Z_Malloc(sizeof(glIndex_t)*newNumTris*3, TAG_GHOUL2_GORE, qtrue);
 		for (j = 0; j < newNumTris * 3; j++)
 		{
-			goreSurface->indexes[j] = GoreIndecies[j] + tr.goreVBOCurrentIndex;
+			goreSurface->indexes[j] = GoreIndecies[j];
 		}
 		goreSurface->numIndexes = newNumTris * 3;
 
@@ -1126,54 +1127,12 @@ static bool G2_TracePolys(const mdxmSurface_t *surface, const mdxmSurfHierarchy_
 									   point3, point3[3], point3[4],
 									   hitPoint, &x_pos, &y_pos,newCol.mBarycentricI,newCol.mBarycentricJ);
 
-/*
-					const shader_t		*shader = 0;
-					// now, we know what surface this hit belongs to, we need to go get the shader handle so we can get the correct hit location and hit material info
-					if ( cust_shader )
-					{
-						shader = cust_shader;
-					}
-					else if ( skin )
-					{
-						int		j;
-
-						// match the surface name to something in the skin file
-						shader = tr.defaultShader;
-						for ( j = 0 ; j < skin->numSurfaces ; j++ )
-						{
-							// the names have both been lowercased
-							if ( !strcmp( skin->surfaces[j]->name, surfInfo->name ) )
-							{
-								shader = skin->surfaces[j]->shader;
-								break;
-							}
-						}
-					}
-					else
-					{
-						shader = R_GetShaderByHandle( surfInfo->shaderIndex );
-					}
-
-					// do we even care to decide what the hit or location area's are? If we don't have them in the shader there is little point
-					if ((shader->hitLocation) || (shader->hitMaterial))
-					{
- 						// ok, we have a floating point position. - determine location in data we need to look at
-						if (shader->hitLocation)
-						{
-							newCol.mLocation = *(hitMatReg[shader->hitLocation].loc +
-												((int)(y_pos * hitMatReg[shader->hitLocation].height) * hitMatReg[shader->hitLocation].width) +
-												((int)(x_pos * hitMatReg[shader->hitLocation].width)));
-							CL_RefPrintf( PRINT_ALL, "G2_TracePolys hit location: %d\n", newCol.mLocation);
-						}
-
-						if (shader->hitMaterial)
-						{
-							newCol.mMaterial = *(hitMatReg[shader->hitMaterial].loc +
-												((int)(y_pos * hitMatReg[shader->hitMaterial].height) * hitMatReg[shader->hitMaterial].width) +
-												((int)(x_pos * hitMatReg[shader->hitMaterial].width)));
-						}
-					}
-*/
+// Raven's hit-location and hit-material lookup stood here, commented out, since
+					// the game shipped: it read a shader's hitLocation and hitMaterial images to
+					// decide which part of a body a trace struck. Reinstating it needs a shader
+					// and a skin, which is the only reason this file ever knew what either was,
+					// and it is in the history if it is ever wanted.
+					
 					// exit now if we should
 					if (TS.traceFlags == G2_RETURNONHIT)
 					{
@@ -1495,8 +1454,6 @@ void G2_TraceModels(CGhoul2Info_v &ghoul2, vec3_t rayStart, vec3_t rayEnd, Colli
 #endif
 {
 	int				i, lod;
-	skin_t			*skin;
-	shader_t		*cust_shader;
 	qboolean		firstModelOnly = qfalse;
 
 #ifdef _G2_GORE
@@ -1536,25 +1493,6 @@ void G2_TraceModels(CGhoul2Info_v &ghoul2, vec3_t rayStart, vec3_t rayEnd, Colli
 			continue;
 		}
 
-		if (ghoul2[i].mCustomShader && ghoul2[i].mCustomShader != -20) //rww - -20 is a server instance (hack)
-		{
-			cust_shader = (shader_t *)R_GetShaderByHandle( ghoul2[i].mCustomShader );
-		}
-		else
-		{
-			cust_shader = NULL;
-		}
-
-		// figure out the custom skin thing
-		if ( ghoul2[i].mSkin > 0 && ghoul2[i].mSkin < tr.numSkins )
-		{
-			skin = R_GetSkinByHandle( ghoul2[i].mSkin );
-		}
-		else
-		{
-			skin = NULL;
-		}
-
 		lod = G2_DecideTraceLod(ghoul2[i],useLod);
 #ifdef _G2_GORE
 		if ( skipIfLODNotMatch )
@@ -1570,9 +1508,9 @@ void G2_TraceModels(CGhoul2Info_v &ghoul2, vec3_t rayStart, vec3_t rayEnd, Colli
 		G2_FindOverrideSurface(-1, ghoul2[i].mSlist);
 
 #ifdef _G2_GORE
-		CTraceSurface TS(ghoul2[i].mSurfaceRoot, ghoul2[i].mSlist,  ghoul2[i].currentModel, lod, rayStart, rayEnd, collRecMap, entNum, i, skin, cust_shader, ghoul2[i].mTransformedVertsArray, eG2TraceType, fRadius, ssize,	tsize, theta, shader, &ghoul2[i], gore);
+		CTraceSurface TS(ghoul2[i].mSurfaceRoot, ghoul2[i].mSlist,  ghoul2[i].currentModel, lod, rayStart, rayEnd, collRecMap, entNum, i, ghoul2[i].mTransformedVertsArray, eG2TraceType, fRadius, ssize,	tsize, theta, shader, &ghoul2[i], gore);
 #else
-		CTraceSurface TS(ghoul2[i].mSurfaceRoot, ghoul2[i].mSlist,  ghoul2[i].currentModel, lod, rayStart, rayEnd, collRecMap, entNum, i, skin, cust_shader, ghoul2[i].mTransformedVertsArray, eG2TraceType, fRadius);
+		CTraceSurface TS(ghoul2[i].mSurfaceRoot, ghoul2[i].mSlist,  ghoul2[i].currentModel, lod, rayStart, rayEnd, collRecMap, entNum, i, ghoul2[i].mTransformedVertsArray, eG2TraceType, fRadius);
 #endif
 		// start the surface recursion loop
 		G2_TraceSurfaces(TS);

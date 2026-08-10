@@ -1372,7 +1372,18 @@ void R_UpdateGoreVBO( srfG2GoreSurface_t *goreSurface )
 	size_t ibo_size = sizeof(glIndex_t) * num_indexes;
 
 	Com_Memcpy((byte *)tr.goreVBO->mapped + vbo_offset, goreSurface->verts, vbo_size);
-	Com_Memcpy((byte *)tr.goreIBO->mapped + ibo_offset, goreSurface->indexes, ibo_size);
+
+	// The surface's indexes are relative to its own first vertex, and this is
+	// where that vertex is finally known - after the wrap above, not before it.
+	// Biasing them at the point they were built read this counter one wrap too
+	// early. Written into the mapped buffer rather than back into the surface,
+	// so uploading the same surface twice cannot bias it twice.
+	{
+		glIndex_t *dst = (glIndex_t *)((byte *)tr.goreIBO->mapped + ibo_offset);
+		const glIndex_t bias = (glIndex_t)tr.goreVBOCurrentIndex;
+		for ( int i = 0; i < num_indexes; i++ )
+			dst[i] = goreSurface->indexes[i] + bias;
+	}
 
 	// Upload to GPU
 	R_UpdateDynamicBuffer(tr.goreVBO->buffer, tr.goreVBO->staging.buffer, vbo_offset, vbo_size);
