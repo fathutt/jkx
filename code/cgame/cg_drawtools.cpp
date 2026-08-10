@@ -491,3 +491,53 @@ void CG_DrawProportionalString( int x, int y, const char* str, int style, vec4_t
 	//assert(!style);//call this directly if you need style (OR it into the font handle)
 	cgi_R_Font_DrawString (x, y, str, color, cgs.media.qhFontMedium, -1, 1.0f);
 }
+
+/*
+================================================================================
+
+ WHERE THE EDGE OF THE SCREEN IS
+
+ Everything in here is positioned in a space 480 units tall. It used to be 640
+ units wide as well, always, and stretched to whatever the window was: on 16:9
+ that is eleven per cent wider than it was drawn, on 32:9 it is a smear.
+
+ There are two spaces now. Menus and anything else composed as a picture keep
+ their proportions and are fitted into the window with margins - that is
+ SPACE2D_FRAME, and it is the default. The head-up display is not a picture: it
+ is a set of things pinned to the corners of the monitor the player has, so it
+ works in SPACE2D_SCREEN, where the height is still 480 and the width is
+ whatever the aspect calls for.
+
+ An element that says nothing stays where it was, measured from the left edge,
+ which is what most of the display wants. The ones that do not - the right-hand
+ corner, anything centred - say so by asking for their x through CG_AnchorX.
+
+================================================================================
+*/
+
+float CG_ScreenWidth( void )
+{
+	return ( cgs.glconfig.virtualWidth > 0.0f )
+		? cgs.glconfig.virtualWidth : (float)SCREEN_WIDTH;
+}
+
+float CG_AnchorX( float x, hudAnchor_t anchor )
+{
+	const float slack = CG_ScreenWidth() - (float)SCREEN_WIDTH;
+
+	switch ( anchor ) {
+	case HUD_RIGHT:		return x + slack;
+	case HUD_CENTRE:	return x + slack * 0.5f;
+	default:			return x;
+	}
+}
+
+void CG_HudSpace( void )
+{
+	cgi_R_Set2DSpace( 1 );		// SPACE2D_SCREEN
+}
+
+void CG_FrameSpace( void )
+{
+	cgi_R_Set2DSpace( 0 );		// SPACE2D_FRAME
+}

@@ -1059,6 +1059,20 @@ void	cgi_R_DrawRotatePic2( float x, float y, float w, float h,
 void	cgi_R_SetRangeFog(float range);
 void	cgi_R_LAGoggles( void );
 void	cgi_R_Scissor( float x, float y, float w, float h);
+void	cgi_R_Set2DSpace( int space );
+
+// Which edge an element belongs to when the window is wider than the interface
+// was drawn for. See the note in cg_drawtools.cpp.
+typedef enum {
+	HUD_LEFT = 0,
+	HUD_CENTRE,
+	HUD_RIGHT
+} hudAnchor_t;
+
+float	CG_ScreenWidth( void );
+float	CG_AnchorX( float x, hudAnchor_t anchor );
+void	CG_HudSpace( void );
+void	CG_FrameSpace( void );
 
 // The glconfig_t will not change during the life of a cgame.
 // If it needs to change, the entire cgame will be restarted, because

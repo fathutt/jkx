@@ -221,6 +221,11 @@ Ghoul2 Insert End
 
 	CG_OPENJK_MENU_PAINT,
 	CG_OPENJK_GETMENU_BYNAME,
+
+	// Appended, and appended deliberately: this enum is ordinal and the JK2
+	// table below is a translation of one set of ordinals into another, so
+	// anything inserted in the middle renumbers both.
+	CG_R_SET2DSPACE,
 } cgameImport_t;
 
 #ifdef JK2_MODE

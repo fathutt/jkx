@@ -2003,7 +2003,11 @@ void CG_DrawDataPadHUD( centity_t *cent )
 	CG_DrawMessageLit(cent,x,y);
 
 	cgi_R_SetColor( colorTable[CT_WHITE]);
-	CG_DrawPic( 0, 0, 640, 480, cgs.media.dataPadFrame );
+	// A picture, so it keeps its shape and is fitted rather than
+		// smeared across the window.
+		CG_FrameSpace();
+		CG_DrawPic( 0, 0, 640, 480, cgs.media.dataPadFrame );
+		CG_HudSpace();
 
 }
 
@@ -2126,7 +2130,11 @@ static void CG_DrawZoomMask( void )
 			CG_DrawPic( 82, 94, 16, 16, cgs.media.binocularCircle );
 		}
 
+		// A picture, so it keeps its shape and is fitted rather than
+		// smeared across the window.
+		CG_FrameSpace();
 		CG_DrawPic( 0, 0, 640, 480, cgs.media.binocularMask );
+		CG_HudSpace();
 
 		if ( power )
 		{
@@ -2197,7 +2205,11 @@ static void CG_DrawZoomMask( void )
 
 		// Draw target mask
 		cgi_R_SetColor( colorTable[CT_WHITE] );
+		// A picture, so it keeps its shape and is fitted rather than
+		// smeared across the window.
+		CG_FrameSpace();
 		CG_DrawPic( 0, 0, 640, 480, cgs.media.disruptorMask );
+		CG_HudSpace();
 
 		// apparently 99.0f is the full zoom level
 		if ( level >= 99 )
@@ -2335,7 +2347,11 @@ static void CG_DrawZoomMask( void )
 			CG_DrawPic( 65, 94, 16, 16, cgs.media.binocularCircle );
 		}
 
+		// A picture, so it keeps its shape and is fitted rather than
+		// smeared across the window.
+		CG_FrameSpace();
 		CG_DrawPic( 0, 0, 640, 480, cgs.media.laGogglesMask );
+		CG_HudSpace();
 	}
 }
 
@@ -3504,7 +3520,7 @@ static void CG_DrawAmmoWarning( void ) {
 	}
 
 	w = cgi_R_Font_StrLenPixels(text, cgs.media.qhFontSmall, 1.0f);
-	cgi_R_Font_DrawString(320 - w/2, 64, text, colorTable[CT_LTGOLD1], cgs.media.qhFontSmall, -1, 1.0f);
+	cgi_R_Font_DrawString((int)( CG_ScreenWidth() * 0.5f ) - w/2, 64, text, colorTable[CT_LTGOLD1], cgs.media.qhFontSmall, -1, 1.0f);
 }
 
 //---------------------------------------
@@ -3523,11 +3539,15 @@ static qboolean CG_RenderingFromMiscCamera()
 			// Only doing a misc_camera, so check health.
 			if ( g_entities[cg.snap->ps.viewEntity].health > 0 )
 			{
-				CG_DrawPic( 0, 0, 640, 480, cgi_R_RegisterShader( "gfx/2d/workingCamera" ));
+				CG_FrameSpace();
+			CG_DrawPic( 0, 0, 640, 480, cgi_R_RegisterShader( "gfx/2d/workingCamera" ));
+			CG_HudSpace();
 			}
 			else
 			{
-				CG_DrawPic( 0, 0, 640, 480, cgi_R_RegisterShader( "gfx/2d/brokenCamera" ));
+				CG_FrameSpace();
+			CG_DrawPic( 0, 0, 640, 480, cgi_R_RegisterShader( "gfx/2d/brokenCamera" ));
+			CG_HudSpace();
 			}
 			// don't render other 2d stuff
 			return qtrue;
@@ -3541,7 +3561,9 @@ static qboolean CG_RenderingFromMiscCamera()
 		else
 		{
 			// FIXME: make sure that this assumption is correct...because I'm assuming that I must be a droid.
+			CG_FrameSpace();
 			CG_DrawPic( 0, 0, 640, 480, cgi_R_RegisterShader( "gfx/2d/droid_view" ));
+			CG_HudSpace();
 		}
 	}
 
@@ -3593,7 +3615,7 @@ static void CG_Draw2DScreenTints( void )
 
 		if (!cg.renderingThirdPerson)
 		{
-			CG_FillRect( 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, hcolor  );
+			CG_FillRect( 0, 0, CG_ScreenWidth(), SCREEN_HEIGHT, hcolor  );
 		}
 
 		cgRageFadeTime = 0;
@@ -3648,7 +3670,7 @@ static void CG_Draw2DScreenTints( void )
 
 		if (!cg.renderingThirdPerson && rageTime)
 		{
-			CG_FillRect( 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, hcolor  );
+			CG_FillRect( 0, 0, CG_ScreenWidth(), SCREEN_HEIGHT, hcolor  );
 		}
 		else
 		{
@@ -3658,7 +3680,7 @@ static void CG_Draw2DScreenTints( void )
 				hcolor[0] = 0.2f;
 				hcolor[1] = 0.2f;
 				hcolor[2] = 0.2f;
-				CG_FillRect( 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, hcolor  );
+				CG_FillRect( 0, 0, CG_ScreenWidth(), SCREEN_HEIGHT, hcolor  );
 			}
 			cgRageTime = 0;
 		}
@@ -3690,7 +3712,7 @@ static void CG_Draw2DScreenTints( void )
 
 		if ( !cg.renderingThirdPerson )
 		{
-			CG_FillRect( 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, hcolor  );
+			CG_FillRect( 0, 0, CG_ScreenWidth(), SCREEN_HEIGHT, hcolor  );
 		}
 
 		cgRageRecFadeTime = 0;
@@ -3724,7 +3746,7 @@ static void CG_Draw2DScreenTints( void )
 
 		if (!cg.renderingThirdPerson && rageRecTime)
 		{
-			CG_FillRect( 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, hcolor  );
+			CG_FillRect( 0, 0, CG_ScreenWidth(), SCREEN_HEIGHT, hcolor  );
 		}
 		else
 		{
@@ -3759,7 +3781,7 @@ static void CG_Draw2DScreenTints( void )
 
 		if ( !cg.renderingThirdPerson )
 		{
-			CG_FillRect( 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, hcolor  );
+			CG_FillRect( 0, 0, CG_ScreenWidth(), SCREEN_HEIGHT, hcolor  );
 		}
 
 		cgAbsorbFadeTime = 0;
@@ -3793,7 +3815,7 @@ static void CG_Draw2DScreenTints( void )
 
 		if ( !cg.renderingThirdPerson && absorbTime )
 		{
-			CG_FillRect( 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, hcolor  );
+			CG_FillRect( 0, 0, CG_ScreenWidth(), SCREEN_HEIGHT, hcolor  );
 		}
 		else
 		{
@@ -3828,7 +3850,7 @@ static void CG_Draw2DScreenTints( void )
 
 		if ( !cg.renderingThirdPerson )
 		{
-			CG_FillRect( 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, hcolor  );
+			CG_FillRect( 0, 0, CG_ScreenWidth(), SCREEN_HEIGHT, hcolor  );
 		}
 
 		cgProtectFadeTime = 0;
@@ -3862,7 +3884,7 @@ static void CG_Draw2DScreenTints( void )
 
 		if ( !cg.renderingThirdPerson && protectTime )
 		{
-			CG_FillRect( 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, hcolor  );
+			CG_FillRect( 0, 0, CG_ScreenWidth(), SCREEN_HEIGHT, hcolor  );
 		}
 		else
 		{
@@ -3878,7 +3900,7 @@ static void CG_Draw2DScreenTints( void )
 		hcolor[1] = 0;
 		hcolor[2] = 0;
 
-		CG_FillRect( 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, hcolor  );
+		CG_FillRect( 0, 0, CG_ScreenWidth(), SCREEN_HEIGHT, hcolor  );
 	}
 	else if ( (cg.refdef.viewContents&CONTENTS_SLIME) )
 	{//tint screen green
@@ -3888,7 +3910,7 @@ static void CG_Draw2DScreenTints( void )
 		hcolor[1] = 0.7f;
 		hcolor[2] = 0;
 
-		CG_FillRect( 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, hcolor  );
+		CG_FillRect( 0, 0, CG_ScreenWidth(), SCREEN_HEIGHT, hcolor  );
 	}
 	else if ( (cg.refdef.viewContents&CONTENTS_WATER) )
 	{//tint screen light blue -- FIXME: check to see if in fog?
@@ -3898,7 +3920,7 @@ static void CG_Draw2DScreenTints( void )
 		hcolor[1] = 0.2f;
 		hcolor[2] = 0.8f;
 
-		CG_FillRect( 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, hcolor  );
+		CG_FillRect( 0, 0, CG_ScreenWidth(), SCREEN_HEIGHT, hcolor  );
 	}
 }
 /*
@@ -3924,9 +3946,21 @@ static void CG_Draw2D( void )
 		return;
 	}
 
+	// The head-up display belongs to the corners of the monitor, not to a
+	// composition, so it works in the screen's own space. Anything in here
+	// that is a picture rather than a display - the scope masks, the datapad
+	// frame - switches back for itself and switches out again.
+	//
+	// Nothing has to be moved to make this safe: the two spaces agree on
+	// height and on where x=0 is, so an element that says nothing keeps the
+	// position it had, measured from the left edge. Only the things that
+	// belong to the other edge or to the middle need CG_AnchorX.
+	CG_HudSpace();
+
 	if ( cg.snap->ps.pm_type == PM_INTERMISSION )
 	{
 		CG_DrawIntermission();
+		CG_FrameSpace();
 		return;
 	}
 
@@ -3962,6 +3996,7 @@ static void CG_Draw2D( void )
 	if ( in_camera )
 	{//still draw the saber clash flare, but nothing else
 		CG_SaberClashFlare();
+		CG_FrameSpace();
 		return;
 	}
 
@@ -3971,13 +4006,16 @@ static void CG_Draw2D( void )
 
 		// allowing center print when in camera mode, probably just an alpha thing - dmv
 		CG_DrawCenterString();
+		CG_FrameSpace();
 		return;
 	}
 
 	if ( (cg.snap->ps.forcePowersActive&(1<<FP_SEE)) )
 	{//force sight is on
 		//indicate this with sight cone thingy
-		CG_DrawPic( 0, 0, 640, 480, cgi_R_RegisterShader( "gfx/2d/jsense" ));
+		CG_FrameSpace();
+			CG_DrawPic( 0, 0, 640, 480, cgi_R_RegisterShader( "gfx/2d/jsense" ));
+			CG_HudSpace();
 		CG_DrawHealthBars();
 	}
 	else if ( cg_debugHealthBars.integer )
@@ -4082,7 +4120,7 @@ static void CG_Draw2D( void )
 			int x_pos = 0;
 			y_pos = 20;
 			w = cgi_R_Font_StrLenPixels(text,cgs.media.qhFontMedium, 1.0f);
-			x_pos = (SCREEN_WIDTH/2)-(w/2);
+			x_pos = (int)( CG_ScreenWidth() * 0.5f ) - ( w / 2 );
 			cgi_R_Font_DrawString(x_pos, y_pos, text,  colorTable[CT_LTRED1], cgs.media.qhFontMedium, -1, 1.0f);
 		}
 	}
@@ -4094,10 +4132,12 @@ static void CG_Draw2D( void )
 		gi.Cvar_VariableStringBuffer( "cg_WeaponPickupText", text, sizeof(text) );
 
 		w = cgi_R_Font_StrLenPixels(text,cgs.media.qhFontMedium, 0.8f);
-		x_pos = (SCREEN_WIDTH/2)-(w/2);
+		x_pos = (int)( CG_ScreenWidth() * 0.5f ) - ( w / 2 );
 
 		cgi_R_Font_DrawString(x_pos, y_pos, text,  colorTable[CT_WHITE], cgs.media.qhFontMedium, -1, 0.8f);
 	}
+
+	CG_FrameSpace();
 }
 
 /*
