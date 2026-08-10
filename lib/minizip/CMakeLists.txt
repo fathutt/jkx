@@ -54,6 +54,16 @@ set(MINIZIP_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/lib/minizip/include/ PARENT_SCOPE)
 
 mark_as_advanced(MINIZIP_LIBRARIES MINIZIP_INCLUDE_DIRS)
 
+# minizip is a zip reader on top of zlib's inflate, and has the same ordering
+# problem as libpng - see the note there.
+# Only when zlib is the bundled copy. On a system where zlib is found rather
+# than built, bundled_zlib is not a target and naming it here becomes a literal
+# -lbundled_zlib on the link line - which is how this went red on Linux the
+# first time, while the cross-build it was written for was green.
+if(TARGET bundled_zlib)
+    target_link_libraries(bundled_minizip PUBLIC bundled_zlib)
+endif()
+
 # We need to build it as position-independent code, because it might get linked
 # into dynamic libraries.
 set_property(TARGET bundled_minizip PROPERTY POSITION_INDEPENDENT_CODE True)

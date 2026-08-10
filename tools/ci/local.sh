@@ -12,6 +12,10 @@
 #   release     the whole tree, Release
 #   debug       the whole tree, Debug: different code is compiled, and it is
 #               the configuration nobody looks at until it fails
+#   windows     a MinGW-w64 cross-build. Not MSVC, but it compiles every
+#               #ifdef _WIN32 branch in the tree against real Windows headers -
+#               a whole platform's worth of code whose first compiler used to be
+#               fifteen minutes away in CI
 #   sanitizers  Debug with asan and ubsan, which is what the CI job builds
 #   tests       the unit tests, including the font atlas generator's, which
 #               redraws its own output and compares it against the bitmap it
@@ -23,9 +27,10 @@
 #               run it reported two misaligned accesses in the zone allocator,
 #               on the first allocation the engine makes
 #
-# What it cannot cover: MSVC. There is no Windows compiler here, so the Windows
-# jobs remain the one thing that can only fail remotely - which is a reason to
-# keep the Windows-only surface small, not a reason to skip the rest.
+# What it cannot cover: MSVC itself - its dialect and its linker. That used to
+# be read as "Windows", which is a much larger thing; the windows stage compiles
+# the platform's code here, so what is left to fail remotely is only what is
+# specific to Microsoft's compiler.
 #
 # Usage:
 #   tools/ci/local.sh [stage ...]        default: all of them, in this order
@@ -38,7 +43,7 @@ JOBS="${JOBS:-$(nproc)}"
 
 STAGES=( "$@" )
 if [ "${#STAGES[@]}" -eq 0 ]; then
-    STAGES=( policy release debug sanitizers tests smoke smokesan )
+    STAGES=( policy release debug windows sanitizers tests smoke smokesan )
 fi
 
 failed=()
@@ -97,6 +102,10 @@ stage_debug() {
     cmake --build "$BUILD_ROOT/debug" --parallel "$JOBS"
 }
 
+stage_windows() {
+    bash "$ROOT/tools/ci/win_cross.sh" "$BUILD_ROOT/win"
+}
+
 stage_sanitizers() {
     configure "$BUILD_ROOT/san" -DCMAKE_BUILD_TYPE=Debug \
         -DJKX_ENABLE_ASAN=ON -DJKX_ENABLE_UBSAN=ON &&
@@ -138,4 +147,4 @@ if [ "${#failed[@]}" -ne 0 ]; then
     printf 'FAILED: %s\n' "${failed[*]}"
     exit 1
 fi
-printf 'all stages passed (MSVC is not among them - see the note at the top)\n'
+printf 'all stages passed (MSVC itself is not among them - see the note at the top)\n'

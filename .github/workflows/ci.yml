@@ -152,14 +152,26 @@ jobs:
 
       # --config is what a multi-config generator reads; single-config ones
       # ignore it and use CMAKE_BUILD_TYPE from the configure step.
+      # The failure summary is printed plainly and also written to the job
+      # summary. It used to be inside a ::group::, which folds - so a red build
+      # showed the command that ran and nothing about why, and reading it meant
+      # knowing there was a fold to open. A build log is only useful at the
+      # moment someone is annoyed.
       - name: Build
         shell: bash
         run: |
           set -o pipefail
           cmake --build build --config ${{ matrix.config }} --parallel 2>&1 | tee build.log || {
-            echo "::group::compiler and linker errors"
-            grep -aE "error [A-Z]+[0-9]+|error:|LNK[0-9]+" build.log | sort -u | head -60
-            echo "::endgroup::"
+            echo "--- compiler and linker errors ---"
+            grep -aE "error [A-Z]+[0-9]+|error:|LNK[0-9]+|fatal error" build.log \
+              | sed 's/^[[:space:]]*//' | sort -u | head -60 | tee errors.txt
+            {
+              echo "### ${{ matrix.os }} ${{ matrix.config }}: build failed"
+              echo
+              echo '```'
+              cat errors.txt
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
             exit 1
           }
 
