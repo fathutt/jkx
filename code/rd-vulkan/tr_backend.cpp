@@ -965,8 +965,38 @@ const void *RB_StretchPic ( const void *data ) {
 		vk_bloom();
 	}
 
-	RB_AddQuadStamp2( cmd->x, cmd->y, cmd->w, cmd->h, cmd->s1, cmd->t1, 
+	RB_AddQuadStamp2( cmd->x, cmd->y, cmd->w, cmd->h, cmd->s1, cmd->t1,
 		cmd->s2, cmd->t2, backEnd.color2D );
+
+	return (const void *)(cmd + 1);
+}
+
+/*
+=============
+RB_Scissor
+
+The scissor is read when the next draw picks its rectangle, so what is left to
+do here is end the batch in flight: the pictures already in it were meant to be
+clipped by the old rectangle, not this one.
+=============
+*/
+const void *RB_Scissor( const void *data ) {
+	const scissorCommand_t	*cmd;
+
+	cmd = (const scissorCommand_t *)data;
+
+	RB_EndSurface();
+
+	// vk_set_2d clears the scissor, so it has to happen before the new one is
+	// set and not after.
+	vk_set_2d();
+	vk_set_2d_scissor( cmd->x, cmd->y, cmd->w, cmd->h );
+
+	// Pick the batch back up where it was, so the next picture does not have to
+	// notice that anything happened. Nothing is in flight before the first one.
+	if ( tess.shader ) {
+		RB_BeginSurface( tess.shader, tess.fogNum, 0 );
+	}
 
 	return (const void *)(cmd + 1);
 }
@@ -1483,6 +1513,9 @@ void RB_ExecuteRenderCommands( const void *data ) {
 			break;
 		case RC_STRETCH_PIC:
 			data = RB_StretchPic( data );
+			break;
+		case RC_SCISSOR:
+			data = RB_Scissor( data );
 			break;
 		case RC_ROTATE_PIC:
 			data = RB_RotatePic( data );

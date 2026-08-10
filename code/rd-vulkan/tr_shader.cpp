@@ -5048,6 +5048,12 @@ static void FixRenderCommandList( int newShader ) {
 				curCmd = (const void*)(sp_cmd + 1);
 				break;
 			}
+			case RC_SCISSOR:
+			{
+				const scissorCommand_t* sc_cmd = (const scissorCommand_t*)curCmd;
+				curCmd = (const void*)(sc_cmd + 1);
+				break;
+			}
 			case RC_ROTATE_PIC:
 			{
 				const rotatePicCommand_t* sp_cmd = (const rotatePicCommand_t*)curCmd;

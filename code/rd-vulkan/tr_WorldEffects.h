@@ -36,3 +36,7 @@ bool R_IsRaining();
 //bool R_IsSnowing();
 bool R_IsPuffing();
 void RE_AddWeatherZone(vec3_t mins, vec3_t maxs);
+
+// Single-player only: the scripted fog recolour, which remembers the map's own
+// colour so the script can put it back by asking for black.
+bool R_SetTempGlobalFogColor(vec3_t color);

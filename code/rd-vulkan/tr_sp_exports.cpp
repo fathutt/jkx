@@ -21,8 +21,8 @@ Foundation.
 // NOT PORTED YET. Single-player has the entry point and this renderer does not
 // implement it at all, because it grew up as a multiplayer renderer and these
 // are features multiplayer does not have: the screen dissolve, the goggles
-// overlay, the scissor rectangle, the save-game thumbnail path. They are stubs
-// that warn once and return something harmless.
+// overlay, the heat-haze distortion. They are stubs that warn once and return
+// something harmless.
 //
 // A stub is not a port. The point of putting them all in one file, each with
 // the same shape, is that the list is countable: `grep -c JKX_UNPORTED` here is
@@ -124,12 +124,6 @@ void RE_LAGoggles( void )
 	JKX_UNPORTED( "LAGoggles" );
 }
 
-void RE_Scissor( float x, float y, float w, float h )
-{
-	JKX_UNPORTED( "Scissor" );
-	(void)x; (void)y; (void)w; (void)h;
-}
-
 qboolean RE_InitDissolve( qboolean bForceCircularExtroWipe )
 {
 	JKX_UNPORTED( "InitDissolve" );
@@ -143,43 +137,6 @@ qboolean RE_ProcessDissolve( void )
 {
 	JKX_UNPORTED( "ProcessDissolve" );
 	return qfalse;
-}
-
-void RE_GetScreenShot( byte *data, int w, int h )
-{
-	JKX_UNPORTED( "GetScreenShot" );
-	if ( data )
-		Com_Memset( data, 0, (size_t)w * (size_t)h * 3 );
-}
-
-byte *RE_TempRawImage_ReadFromFile( const char *psLocalFilename, int *piWidth, int *piHeight,
-	byte *pbReSampleBuffer, qboolean qbVertFlip )
-{
-	JKX_UNPORTED( "TempRawImage_ReadFromFile" );
-	(void)psLocalFilename; (void)pbReSampleBuffer; (void)qbVertFlip;
-	if ( piWidth ) *piWidth = 0;
-	if ( piHeight ) *piHeight = 0;
-	return NULL;
-}
-
-void RE_TempRawImage_CleanUp( void )
-{
-	JKX_UNPORTED( "TempRawImage_CleanUp" );
-}
-
-void RE_GetModelBounds( refEntity_t *refEnt, vec3_t bounds1, vec3_t bounds2 )
-{
-	JKX_UNPORTED( "GetModelBounds" );
-	(void)refEnt;
-	VectorClear( bounds1 );
-	VectorClear( bounds2 );
-}
-
-bool RE_SetTempGlobalFogColor( vec3_t color )
-{
-	JKX_UNPORTED( "SetTempGlobalFogColor" );
-	(void)color;
-	return false;
 }
 
 // The distortion cvars the client reads straight out of the renderer. Static

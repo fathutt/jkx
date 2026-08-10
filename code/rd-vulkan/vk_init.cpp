@@ -141,7 +141,56 @@ void get_viewport( VkViewport *viewport, Vk_Depth_Range depth_range ) {
 	}
 }
 
+// The single-player scissor rectangle, in render-target pixels, or inactive.
+// It lives here because get_scissor_rect below is its only reader, and it is
+// cleared on every entry into 2D - see vk_set_2d.
+static qboolean	vk_scissor2DActive = qfalse;
+static VkRect2D	vk_scissor2D;
+
+void vk_clear_2d_scissor( void ) {
+	vk_scissor2DActive = qfalse;
+}
+
+// Virtual 640x480 in, render-target pixels out: the same mapping the 2D
+// projection applies to everything else the client draws with these numbers.
+void vk_set_2d_scissor( float x, float y, float w, float h ) {
+	if ( x < 0.0f ) {
+		vk_scissor2DActive = qfalse;
+		return;
+	}
+
+	const float sx = (float)vk.renderWidth / (float)SCREEN_WIDTH;
+	const float sy = (float)vk.renderHeight / (float)SCREEN_HEIGHT;
+
+	int x0 = (int)( x * sx );
+	int y0 = (int)( y * sy );
+	int x1 = (int)( ( x + w ) * sx );
+	int y1 = (int)( ( y + h ) * sy );
+
+	const int maxX = (int)vk.renderWidth;
+	const int maxY = (int)vk.renderHeight;
+
+	x0 = ( x0 < 0 ) ? 0 : ( ( x0 > maxX ) ? maxX : x0 );
+	x1 = ( x1 < x0 ) ? x0 : ( ( x1 > maxX ) ? maxX : x1 );
+	y0 = ( y0 < 0 ) ? 0 : ( ( y0 > maxY ) ? maxY : y0 );
+	y1 = ( y1 < y0 ) ? y0 : ( ( y1 > maxY ) ? maxY : y1 );
+
+	vk_scissor2D.offset.x = x0;
+	vk_scissor2D.offset.y = y0;
+	vk_scissor2D.extent.width = (uint32_t)( x1 - x0 );
+	vk_scissor2D.extent.height = (uint32_t)( y1 - y0 );
+	vk_scissor2DActive = qtrue;
+}
+
 void get_scissor_rect( VkRect2D *r ) {
+
+	// Only 2D drawing is clipped: the client sets this between pictures, and a
+	// 3D view arriving in the middle of a 2D block has its own scissor.
+	if (backEnd.projection2D && vk_scissor2DActive)
+	{
+		*r = vk_scissor2D;
+		return;
+	}
 
 	if (backEnd.viewParms.portalView != PV_NONE)
 	{

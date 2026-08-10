@@ -150,6 +150,42 @@ static int R_CullModel( mdvModel_t *model, const trRefEntity_t *ent, vec3_t boun
 
 /*
 =================
+RE_GetModelBounds
+
+The bounds of one frame of a vertex-animated model, for callers that need the
+size of a model they are not drawing. hModel and frame in refEnt are the inputs.
+
+Anything that is not a mesh - a Ghoul2 model, a brush model, a handle that never
+loaded - answers an empty box rather than reading through a pointer that is not
+there. rd-vanilla asserts instead, which in a release build is the same read.
+=================
+*/
+void RE_GetModelBounds( refEntity_t *refEnt, vec3_t bounds1, vec3_t bounds2 ) {
+	VectorClear( bounds1 );
+	VectorClear( bounds2 );
+
+	if ( !refEnt ) {
+		return;
+	}
+
+	const model_t *model = R_GetModelByHandle( refEnt->hModel );
+	if ( !model || model->type != MOD_MESH ) {
+		return;
+	}
+
+	const mdvModel_t *mdv = model->data.mdv[0];
+	if ( !mdv || refEnt->frame < 0 || refEnt->frame >= mdv->numFrames ) {
+		return;
+	}
+
+	const mdvFrame_t *frame = mdv->frames + refEnt->frame;
+
+	VectorCopy( frame->bounds[0], bounds1 );
+	VectorCopy( frame->bounds[1], bounds2 );
+}
+
+/*
+=================
 R_ComputeLOD
 
 =================

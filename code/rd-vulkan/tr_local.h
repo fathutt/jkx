@@ -2133,6 +2133,7 @@ Ghoul2 Insert End
 
 void		R_RenderView( const viewParms_t *parms );
 void		R_AddMD3Surfaces( trRefEntity_t *ent, int entityNum );
+void		RE_GetModelBounds( refEntity_t *refEnt, vec3_t bounds1, vec3_t bounds2 );
 void		R_AddPolygonSurfaces( const trRefdef_t *refdef );
 void		R_DecomposeSort( uint32_t sort, int *entityNum, shader_t **shader, int *cubemap );
 uint32_t	R_CreateSortKey(int entityNum, int sortedShaderIndex, int cubemapIndex, int postRender);
@@ -2189,6 +2190,12 @@ qboolean	R_GetModeInfo( int *width, int *height, int mode );
 void		R_SetColorMappings( void );
 void		R_GammaCorrect( byte *buffer, int bufSize );
 void		R_Set2DRatio( void );
+
+// Raw pixels for code outside the renderer: single-player's save-game thumbnail
+// is written before the level is drawn, so it comes from a file, not the screen.
+// The reader holds one picture; the clean-up releases it.
+byte *		RE_TempRawImage_ReadFromFile( const char *psLocalFilename, int *piWidth, int *piHeight, byte *pbReSampleBuffer, qboolean qbVertFlip );
+void		RE_TempRawImage_CleanUp( void );
 
 void		R_ImageList_f( void );
 void		R_SkinList_f( void );
@@ -2651,6 +2658,15 @@ typedef struct rotatePicCommand_s {
 	float		a;
 } rotatePicCommand_t;
 
+// Single-player only. Coordinates are the 640x480 virtual screen, like every
+// other 2D coordinate the client hands the renderer; a negative x means "the
+// whole screen again".
+typedef struct scissorCommand_s {
+	int			commandId;
+	float		x, y;
+	float		w, h;
+} scissorCommand_t;
+
 typedef struct drawSurfsCommand_s {
 	int			commandId;
 	trRefdef_t	refdef;
@@ -2669,6 +2685,7 @@ typedef enum {
 	RC_END_OF_LIST = 0,
 	RC_SET_COLOR,
 	RC_STRETCH_PIC,
+	RC_SCISSOR,
 	RC_ROTATE_PIC,
 	RC_ROTATE_PIC2,
 	RC_DRAW_SURFS,
@@ -2799,6 +2816,7 @@ void R_AddDrawSurfCmd( drawSurf_t *drawSurfs, int numDrawSurfs );
 void RE_SetColor( const float *rgba );
 void RE_StretchPic( float x, float y, float w, float h,
 					  float s1, float t1, float s2, float t2, qhandle_t hShader );
+void RE_Scissor( float x, float y, float w, float h );
 void RE_RotatePic( float x, float y, float w, float h,
 					  float s1, float t1, float s2, float t2,float a, qhandle_t hShader );
 void RE_RotatePic2( float x, float y, float w, float h,
@@ -2868,6 +2886,8 @@ void		R_IssueRenderCommands( qboolean runPerformanceCounters );
 void		WIN_Shutdown( void );
 
 // screenshot
+// The frame on screen as a small RGBA picture, for the save game to embed.
+void		RE_GetScreenShot( byte *buffer, int w, int h );
 void		R_TakeScreenshot( int x, int y, int width, int height, char *fileName );
 void		R_TakeScreenshotJPEG( int x, int y, int width, int height, char *fileName );
 void		R_TakeScreenshotPNG( int x, int y, int width, int height, char *fileName );

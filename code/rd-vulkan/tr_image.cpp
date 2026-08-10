@@ -283,3 +283,147 @@ float	R_FogFactor( float s, float t ) {
 
 	return d;
 }
+
+/*
+=================
+RE_ReSample
+
+Box-filter a loaded picture down into a caller-supplied buffer. Separate from
+the reader below because the screen dissolve wants the same downsample without
+the file.
+
+Downsample only: every source pixel inside a destination cell is averaged, and
+with fXStep or fYStep below one the same source pixel is read for several
+destination pixels while the divisor still counts one - so asking for a larger
+size than the file gives a darkened image, not an upscale. rd-vanilla has the
+same limit and no caller that hits it.
+=================
+*/
+static byte *RE_ReSample( byte *pbLoadedPic, int iLoadedWidth, int iLoadedHeight,
+	byte *pbReSampleBuffer, int *piWidth, int *piHeight )
+{
+	// Nothing to do: no buffer to resample into, or it is already the size the
+	// caller asked for. Either way the answer is the loaded picture itself,
+	// which is why the caller has to use the return value rather than assume
+	// its own buffer was filled.
+	if ( pbReSampleBuffer == NULL ||
+		( iLoadedWidth == *piWidth && iLoadedHeight == *piHeight ) )
+	{
+		*piWidth = iLoadedWidth;
+		*piHeight = iLoadedHeight;
+		return pbLoadedPic;
+	}
+
+	const float	fXStep = (float)iLoadedWidth / (float)*piWidth;
+	const float	fYStep = (float)iLoadedHeight / (float)*piHeight;
+	const int	iTotPixelsPerDownSample = (int)ceil( fXStep ) * (int)ceil( fYStep );
+
+	byte *pbDst = pbReSampleBuffer;
+
+	for ( int y = 0; y < *piHeight; y++ )
+	{
+		for ( int x = 0; x < *piWidth; x++ )
+		{
+			int r = 0, g = 0, b = 0;
+
+			for ( float yy = (float)y * fYStep; yy < (float)( y + 1 ) * fYStep; yy += 1.0f )
+			{
+				for ( float xx = (float)x * fXStep; xx < (float)( x + 1 ) * fXStep; xx += 1.0f )
+				{
+					const byte *pbSrc = pbLoadedPic + 4 * ( ( (int)yy * iLoadedWidth ) + (int)xx );
+
+					assert( pbSrc < pbLoadedPic + ( (size_t)iLoadedWidth * iLoadedHeight * 4 ) );
+
+					r += pbSrc[0];
+					g += pbSrc[1];
+					b += pbSrc[2];
+				}
+			}
+
+			assert( pbDst < pbReSampleBuffer + ( (size_t)*piWidth * *piHeight * 4 ) );
+
+			pbDst[0] = (byte)( r / iTotPixelsPerDownSample );
+			pbDst[1] = (byte)( g / iTotPixelsPerDownSample );
+			pbDst[2] = (byte)( b / iTotPixelsPerDownSample );
+			pbDst[3] = 255;
+			pbDst += 4;
+		}
+	}
+
+	return pbReSampleBuffer;
+}
+
+// The one picture the reader below is holding. One static rather than a return
+// to be freed, because the caller of the export cannot see this allocator.
+static byte *tr_tempRawImage = NULL;
+
+/*
+=================
+RE_TempRawImage_ReadFromFile
+
+Raw pixels for code outside the renderer. Single-player writes a thumbnail into
+the auto-save, which happens before the level is drawn, so a screenshot is not
+available and the picture has to come from a file instead.
+
+pbReSampleBuffer NULL means the file's own size, and piWidth/piHeight are pure
+outputs. Non-NULL means they are inputs too: the buffer is assumed big enough
+for that size, and the picture is scaled into it.
+
+The return value is the pixels to use and it is not always the caller's buffer -
+see RE_ReSample. RE_TempRawImage_CleanUp releases what this allocated, and has
+to be called whichever buffer came back.
+
+qbVertFlip is for callers that want the bottom-up order OpenGL's pixel reads
+used to produce.
+=================
+*/
+byte *RE_TempRawImage_ReadFromFile( const char *psLocalFilename, int *piWidth, int *piHeight,
+	byte *pbReSampleBuffer, qboolean qbVertFlip )
+{
+	RE_TempRawImage_CleanUp();	// in case the last caller did not
+
+	byte *pbReturn = NULL;
+
+	if ( psLocalFilename && piWidth && piHeight )
+	{
+		int iLoadedWidth, iLoadedHeight;
+
+		R_LoadImage( psLocalFilename, &tr_tempRawImage, &iLoadedWidth, &iLoadedHeight );
+		if ( tr_tempRawImage )
+		{
+			pbReturn = RE_ReSample( tr_tempRawImage, iLoadedWidth, iLoadedHeight,
+				pbReSampleBuffer, piWidth, piHeight );
+		}
+	}
+
+	if ( pbReturn && qbVertFlip )
+	{
+		// A pixel is four bytes, so the lines swap as unsigned ints.
+		unsigned int *pSrcLine = (unsigned int *)pbReturn;
+		unsigned int *pDstLine = (unsigned int *)pbReturn + ( *piHeight * *piWidth );
+		pDstLine -= *piWidth;	// the start of the last line, not one past the buffer
+
+		for ( int iLineCount = 0; iLineCount < *piHeight / 2; iLineCount++ )
+		{
+			for ( int x = 0; x < *piWidth; x++ )
+			{
+				const unsigned int l = pSrcLine[x];
+				pSrcLine[x] = pDstLine[x];
+				pDstLine[x] = l;
+			}
+			pSrcLine += *piWidth;
+			pDstLine -= *piWidth;
+		}
+	}
+
+	return pbReturn;
+}
+
+void RE_TempRawImage_CleanUp( void )
+{
+	if ( tr_tempRawImage )
+	{
+		R_Free( tr_tempRawImage );
+		tr_tempRawImage = NULL;
+	}
+}

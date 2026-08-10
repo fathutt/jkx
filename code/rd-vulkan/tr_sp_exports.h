@@ -28,14 +28,8 @@ bool			RE_SP_IsShaking( vec3_t pos );
 
 // Not ported yet
 void			RE_LAGoggles( void );
-void			RE_Scissor( float x, float y, float w, float h );
 qboolean		RE_InitDissolve( qboolean bForceCircularExtroWipe );
 qboolean		RE_ProcessDissolve( void );
-void			RE_GetScreenShot( byte *data, int w, int h );
-byte *			RE_TempRawImage_ReadFromFile( const char *psLocalFilename, int *piWidth, int *piHeight, byte *pbReSampleBuffer, qboolean qbVertFlip );
-void			RE_TempRawImage_CleanUp( void );
-void			RE_GetModelBounds( refEntity_t *refEnt, vec3_t bounds1, vec3_t bounds2 );
-bool			RE_SetTempGlobalFogColor( vec3_t color );
 float *			get_tr_distortionAlpha( void );
 float *			get_tr_distortionStretch( void );
 qboolean *		get_tr_distortionPrePost( void );

@@ -384,6 +384,13 @@ public:
 	bool			mOutsideShake;
 	float			mOutsidePain;
 
+	// Where the map's own global fog colour is kept while a script has
+	// temporarily replaced it. Multiplayer has no script that does that, which
+	// is why its COutside has nowhere to put it.
+	CVec3			mFogColor;
+	int				mFogColorInt;
+	bool			mFogColorTempActive;
+
 private:
 	////////////////////////////////////////////////////////////////////////////////////
 	// The Outside Cache
@@ -478,6 +485,9 @@ public:
 	{
 		mOutsideShake = false;
 		mOutsidePain = 0.0;
+		mFogColor.Clear();
+		mFogColorInt = 0;
+		mFogColorTempActive = false;
 		mCacheInit = false;
 		SWeatherZone::mMarkedOutside = false;
 		for (int wz=0; wz<mWeatherZones.size(); wz++)
@@ -1886,4 +1896,52 @@ bool R_IsRaining()
 bool R_IsPuffing()
 { //Eh? Don't want surfacesprites to know this?
 	return false;
+}
+
+/*
+=================
+R_SetTempGlobalFogColor
+
+Scripts recolour the map's global fog and then put it back. Putting it back is
+the whole reason the previous colour is remembered here rather than by the
+caller: the caller signals "restore" by asking for black, and by then it no
+longer knows what black replaced.
+=================
+*/
+bool R_SetTempGlobalFogColor( vec3_t color )
+{
+	if ( !tr.world || tr.world->globalFog == -1 )
+	{
+		return true;
+	}
+
+	if ( color[0] || color[1] || color[2] )
+	{
+		if ( !mOutside.mFogColorTempActive )
+		{
+			mOutside.mFogColor = tr.world->fogs[tr.world->globalFog].parms.color;
+			mOutside.mFogColorInt = tr.world->fogs[tr.world->globalFog].colorInt;
+			mOutside.mFogColorTempActive = true;
+		}
+
+		tr.world->fogs[tr.world->globalFog].parms.color[0] = color[0];
+		tr.world->fogs[tr.world->globalFog].parms.color[1] = color[1];
+		tr.world->fogs[tr.world->globalFog].parms.color[2] = color[2];
+		tr.world->fogs[tr.world->globalFog].colorInt = ColorBytes4(
+			color[0] * tr.identityLight,
+			color[1] * tr.identityLight,
+			color[2] * tr.identityLight,
+			1.0f );
+	}
+	else if ( mOutside.mFogColorTempActive )
+	{
+		mOutside.mFogColorTempActive = false;
+
+		tr.world->fogs[tr.world->globalFog].parms.color[0] = mOutside.mFogColor[0];
+		tr.world->fogs[tr.world->globalFog].parms.color[1] = mOutside.mFogColor[1];
+		tr.world->fogs[tr.world->globalFog].parms.color[2] = mOutside.mFogColor[2];
+		tr.world->fogs[tr.world->globalFog].colorInt = mOutside.mFogColorInt;
+	}
+
+	return true;
 }

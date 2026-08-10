@@ -288,6 +288,37 @@ void RE_StretchPic ( float x, float y, float w, float h,
 
 /*
 =============
+RE_Scissor
+
+Clip the 2D drawing that follows to a box. It lasts until the next time the
+backend enters 2D, which is once a frame, so the client sets it again every
+frame it wants it - the same lifetime the OpenGL renderer gave it by resetting
+the scissor whenever it set up the 2D projection.
+
+x < 0 means the whole screen.
+=============
+*/
+void RE_Scissor( float x, float y, float w, float h ) {
+	scissorCommand_t	*cmd;
+
+	if ( !tr.registered ) {
+		return;
+	}
+
+	cmd = (scissorCommand_t *)R_GetCommandBuffer( sizeof( *cmd ) );
+	if ( !cmd ) {
+		return;
+	}
+
+	cmd->commandId = RC_SCISSOR;
+	cmd->x = x;
+	cmd->y = y;
+	cmd->w = w;
+	cmd->h = h;
+}
+
+/*
+=============
 RE_RotatePic
 =============
 */

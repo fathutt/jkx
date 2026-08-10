@@ -108,6 +108,10 @@ void vk_set_2d( void )
 
 	backEnd.projection2D = qtrue;
 
+	// A scissor set by the client belongs to the 2D block it was set in and
+	// does not survive into the next one.
+	vk_clear_2d_scissor();
+
 	vk_update_mvp(NULL);
 
 	// force depth range and viewport/scissor updates

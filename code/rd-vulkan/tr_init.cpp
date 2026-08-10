@@ -408,6 +408,62 @@ byte *RB_ReadPixels( int x, int y, int width, int height, size_t *offset, int *p
 
 /*
 ==================
+RE_GetScreenShot
+
+A small RGBA picture of the frame on screen, for the save game to embed.
+
+The 4x3 box filter is not a general resample: it takes exactly twelve source
+pixels per destination pixel, which is what makes the fixed thumbnail size the
+save game wants out of any video mode. The rows come back bottom-up, as they do
+from the screenshot path, and are flipped on the way out.
+==================
+*/
+void RE_GetScreenShot( byte *buffer, int w, int h )
+{
+	size_t	offset = 0, memcount;
+	int		padlen;
+
+	if ( !buffer || w <= 0 || h <= 0 ) {
+		return;
+	}
+
+	byte *source = RB_ReadPixels( 0, 0, glConfig.vidWidth, glConfig.vidHeight, &offset, &padlen, 0 );
+	memcount = (size_t)( glConfig.vidWidth * 3 + padlen ) * glConfig.vidHeight;
+
+	if ( glConfig.deviceSupportsGamma && !glConfigExt.doGammaCorrectionWithShaders ) {
+		R_GammaCorrect( source + offset, (int)memcount );
+	}
+
+	const float xScale = glConfig.vidWidth / ( 4.0f * w );
+	const float yScale = glConfig.vidHeight / ( 3.0f * h );
+
+	for ( int y = 0; y < h; y++ ) {
+		for ( int x = 0; x < w; x++ ) {
+			int r = 0, g = 0, b = 0;
+
+			for ( int yy = 0; yy < 3; yy++ ) {
+				for ( int xx = 0; xx < 4; xx++ ) {
+					const byte *src = source + offset + 3 *
+						( glConfig.vidWidth * (int)( ( y * 3 + yy ) * yScale ) + (int)( ( x * 4 + xx ) * xScale ) );
+					r += src[0];
+					g += src[1];
+					b += src[2];
+				}
+			}
+
+			byte *dst = buffer + 4 * ( ( h - y - 1 ) * w + x );
+			dst[0] = (byte)( r / 12 );
+			dst[1] = (byte)( g / 12 );
+			dst[2] = (byte)( b / 12 );
+			dst[3] = 255;
+		}
+	}
+
+	R_Hunk_FreeTempMemory( source );
+}
+
+/*
+==================
 R_TakeScreenshot
 ==================
 */
@@ -1491,7 +1547,7 @@ Q_EXPORT refexport_t* QDECL GetRefAPI( int apiVersion, refimport_t *rimp ) {
 	re.GetChanceOfSaberFizz                   = R_GetChanceOfSaberFizz;
 	re.IsShaking                              = RE_SP_IsShaking;
 	re.AddWeatherZone                         = RE_AddWeatherZone;
-	re.SetTempGlobalFogColor                  = RE_SetTempGlobalFogColor;
+	re.SetTempGlobalFogColor                  = R_SetTempGlobalFogColor;
 
 	re.SetRangedFog                           = SetRangedFog;
 
