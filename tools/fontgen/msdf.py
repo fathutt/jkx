@@ -543,8 +543,20 @@ def build(args):
     face.set_char_size(args.size * 64)
 
     upem = face.units_per_EM
-    scale = args.size / float(upem)          # font units -> pixels
+    scale = args.size / float(upem)          # font units -> field texels
     pad = args.range                          # texels of field around the glyph
+
+    # How big the atlas is and how big the text is are two different questions,
+    # and tying them together is a mistake worth not making. The field is
+    # generated at --size texels per em, which is a quality knob: more texels
+    # means a more accurate outline. The metrics come out at --point-size, which
+    # is what the engine believes the font's size to be and therefore what it
+    # lays the interface out with. Generate at 48 and report 16 and you get a
+    # sharp 16 pixel font; tie them together and asking for a better atlas
+    # doubles the size of every menu.
+    point = args.point_size if args.point_size else args.size
+    metric = point / float(upem)             # font units -> the size the game draws at
+    shrink = metric / scale                  # field texels -> the same
 
     chars = []
     seen = set()
@@ -568,9 +580,7 @@ def build(args):
         face.load_glyph(index, freetype.FT_LOAD_NO_SCALE | freetype.FT_LOAD_NO_BITMAP)
 
         bbox = face.glyph.outline.get_bbox()
-        advance = face.glyph.linearHoriAdvance / 65536.0 if face.glyph.linearHoriAdvance else 0
-        if advance == 0:
-            advance = face.glyph.metrics.horiAdvance * scale
+        advance = face.glyph.metrics.horiAdvance * metric
 
         if face.glyph.outline.n_points == 0:
             glyphs.append({'cp': cp, 'w': 0, 'h': 0, 'field': None,
@@ -597,18 +607,19 @@ def build(args):
         # the quad sits, xoff how far right of it the left edge does.
         glyphs.append({'cp': cp, 'w': w, 'h': h, 'field': field,
                        'advance': advance,
-                       'xoff': x0, 'baseline': y1,
-                       'gw': w, 'gh': h})
+                       'xoff': x0 * shrink, 'baseline': y1 * shrink,
+                       'gw': w * shrink, 'gh': h * shrink})
 
     return glyphs, {
         'font': os.path.basename(args.font),
         'source': 'truetype',
-        'pointSize': args.size,
+        'pointSize': point,
+        # In texels of the atlas, which is where the shader measures it.
         'range': args.range,
         'upscale': 1,
-        'ascender': round(face.ascender * scale, 3),
-        'descender': round(face.descender * scale, 3),
-        'lineHeight': round(face.height * scale, 3),
+        'ascender': round(face.ascender * metric, 3),
+        'descender': round(face.descender * metric, 3),
+        'lineHeight': round(face.height * metric, 3),
     }
 
 
@@ -624,7 +635,14 @@ def build(args):
 JKXFONT_MAGIC = b'JKXF'
 JKXFONT_VERSION = 1
 JKXFONT_HEADER = '<4sIHHhhhhfI'      # magic, version, atlas w/h, metrics, range, count
-JKXFONT_GLYPH = '<I4H2h2hf'          # cp, x,y,w,h, xoff,baseline, gw,gh, advance
+JKXFONT_GLYPH = '<I4H5f'             # cp, x,y,w,h, xoff,baseline,gw,gh,advance
+
+# The placement is float and not integer pixels. With the field generated at one
+# resolution and the metrics reported at another - which is the whole point of
+# --point-size - a glyph 41 texels wide in a 48 texel em reported at 16 point is
+# 13.67 pixels wide, and rounding that to 14 is a two per cent error in the size
+# of every letter. It also stops the atlas resolution being a free choice, which
+# was the reason for separating them.
 
 
 def write_jkxfont(path, meta):
@@ -643,8 +661,8 @@ def write_jkxfont(path, meta):
         out += struct.pack(JKXFONT_GLYPH,
                            g['cp'],
                            g['x'], g['y'], g['w'], g['h'],
-                           int(g['xoff']), int(round(g['baseline'])),
-                           int(round(g['gw'])), int(round(g['gh'])),
+                           float(g['xoff']), float(g['baseline']),
+                           float(g['gw']), float(g['gh']),
                            float(g['advance']))
 
     with open(path, 'wb') as f:
@@ -736,7 +754,10 @@ def main(argv):
     p.add_argument('--upscale', type=int, default=1,
                    help='generate the field on a finer grid than the source bitmap; '
                         'rarely worth it, see sdf_from_coverage')
-    p.add_argument('--size', type=int, default=48, help='em size in pixels the field is generated at')
+    p.add_argument('--size', type=int, default=48,
+                   help='texels per em the field is generated at: a quality knob')
+    p.add_argument('--point-size', type=int, default=0,
+                   help='the size the engine lays out with, if different from --size')
     p.add_argument('--range', type=int, default=4, help='width of the distance field in texels')
     p.add_argument('--atlas', type=int, default=512, help='atlas width in texels')
     p.add_argument('--gutter', type=int, default=1,

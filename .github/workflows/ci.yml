@@ -218,6 +218,11 @@ jobs:
         run: |
           python3 -m pip install --quiet --break-system-packages freetype-py pillow numpy
           python3 tools/fontgen/selftest.py
+      # The atlases in assets/fonts are generated and checked in, so they can go
+      # stale against the tool that made them without anything noticing. This
+      # rebuilds them into a temporary directory and compares.
+      - name: font atlases are up to date
+        run: python3 tools/fontgen/build_fonts.py --check
 
   # ---------------------------------------------------------------------------
   # The renderer is the part of this repository that changes most and is checked

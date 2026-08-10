@@ -63,11 +63,16 @@ typedef struct {
 	unsigned int	glyphCount;
 } jkxFontHeader_t;
 
+// The atlas rectangle is in texels and integral; the placement is in the units
+// the game lays out with and is not. The field can be generated at 48 texels
+// per em and reported at 16 point - that is what keeps atlas resolution a free
+// choice - and at that ratio a glyph 41 texels wide is 13.67 points, which does
+// not survive being an integer.
 typedef struct {
 	unsigned int	codePoint;
 	unsigned short	x, y, w, h;			// where in the atlas
-	short			xoff, baseline;		// where against the pen, in game units
-	short			gw, gh;				// and how big it is drawn, in game units
+	float			xoff, baseline;		// where against the pen
+	float			gw, gh;				// and how big it is drawn
 	float			advance;
 } jkxFontGlyph_t;
 

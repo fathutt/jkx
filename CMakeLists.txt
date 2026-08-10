@@ -547,6 +547,11 @@ else()
         "the shaderc package (or the Vulkan SDK) to build base/shaders.pak.")
 endif()
 
+# The generated font atlases, copied into base/fonts. See cmake/Fonts.cmake for
+# why they are checked in rather than built here.
+include(Fonts)
+jkx_add_fonts(fonts)
+
 # Always use bundled minizip (sets MINIZIP_{LIBRARIES,INCLUDE_DIR})
 add_subdirectory(lib/minizip)
 
