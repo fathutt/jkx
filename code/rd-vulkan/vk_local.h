@@ -1118,6 +1118,7 @@ void		vk_clear_depthstencil_attachments( qboolean clear_stencil );
 void		vk_set_2d( void );
 void		vk_set_2d_scissor( float x, float y, float w, float h );
 void		vk_get_2d_viewport( float *x, float *y, float *w, float *h, float *virtualW );
+float		vk_ui_scale( void );
 void		vk_clear_2d_scissor( void );
 void		vk_set_depthrange( const Vk_Depth_Range depthRange );
 

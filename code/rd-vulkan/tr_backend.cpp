@@ -984,11 +984,12 @@ static const void *RB_Set2DSpace( const void *data )
 {
 	const space2DCommand_t *cmd = (const space2DCommand_t *)data;
 
-	if ( backEnd.space2D != cmd->space ) {
+	if ( backEnd.space2D != cmd->space || backEnd.space2DOffsetX != cmd->offsetX ) {
 		if ( tess.numIndexes ) {
 			RB_EndSurface();
 		}
 		backEnd.space2D = cmd->space;
+		backEnd.space2DOffsetX = cmd->offsetX;
 		backEnd.projection2D = qfalse;
 	}
 

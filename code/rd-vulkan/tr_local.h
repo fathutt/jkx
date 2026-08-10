@@ -1683,6 +1683,7 @@ typedef struct backEndState_s {
 	qboolean			skyRenderedThisView;	// flag for drawing sun
 	qboolean			projection2D;			// if qtrue, drawstretchpic doesn't need to change modes
 	int					space2D;				// space2D_t: which rectangle 640x480 maps onto
+	float				space2DOffsetX;			// virtual units, for anchoring a block to an edge
 	color4ub_t			color2D;
 	qboolean			vertexes2D;				// shader needs to be finished
 	trRefEntity_t		entity2D;				// currentEntity will point at this when doing 2D rendering
@@ -2707,6 +2708,15 @@ typedef enum {
 typedef struct space2DCommand_s {
 	int			commandId;
 	int			space;
+	// Virtual units to shift everything drawn after this by, horizontally.
+	//
+	// This is what anchors a block of interface to the right-hand edge without
+	// anything inside the block knowing: the head-up display's right half is a
+	// menu painted from a .menu file, laid out in absolute coordinates by code
+	// that takes no offset, and moving it any other way would mean teaching the
+	// whole menu system about anchors. Shifting the space it is drawn in costs
+	// two numbers in a matrix.
+	float		offsetX;
 } space2DCommand_t;
 
 // Single-player only. Coordinates are the 640x480 virtual screen, like every
@@ -2870,7 +2880,7 @@ void RE_SetColor( const float *rgba );
 void RE_StretchPic( float x, float y, float w, float h,
 					  float s1, float t1, float s2, float t2, qhandle_t hShader );
 void RE_Scissor( float x, float y, float w, float h );
-void RE_Set2DSpace( int space );
+void RE_Set2DSpace( int space, float offsetX );
 void RE_LAGoggles( void );
 
 // The single-player screen wipe, in tr_dissolve.cpp.

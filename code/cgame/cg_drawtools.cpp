@@ -515,10 +515,51 @@ void CG_DrawProportionalString( int x, int y, const char* str, int style, vec4_t
 ================================================================================
 */
 
+/*
+================
+CG_UIScale
+
+r_uiScale, the size the head-up display is drawn at relative to how it was
+authored. It magnifies by shrinking the space it is drawn in - half as many
+units across the same pixels is twice the size - which is why it moves the
+edges, and why CG_ScreenWidth and CG_ScreenHeight both have to know about it.
+
+An element positioned absolutely from the top left corner is already right
+under any scale: it grows away from that corner and stays attached to it. The
+ones that belong to the other edges are right when they are measured from these
+two and not from the constants.
+================
+*/
+float CG_UIScale( void )
+{
+	// Registered here rather than read every call: cgame reaches cvars through
+	// a vmCvar_t that the engine refreshes, and r_uiScale belongs to the
+	// renderer, so this is a second handle on the same cvar.
+	static vmCvar_t uiScale;
+	static qboolean registered = qfalse;
+
+	if ( !registered ) {
+		cgi_Cvar_Register( &uiScale, "r_uiScale", "1", CVAR_ARCHIVE );
+		registered = qtrue;
+	}
+	cgi_Cvar_Update( &uiScale );
+
+	if ( uiScale.value < 0.5f ) return 1.0f;		// unset or nonsense
+	if ( uiScale.value > 2.0f ) return 2.0f;
+	return uiScale.value;
+}
+
 float CG_ScreenWidth( void )
 {
-	return ( cgs.glconfig.virtualWidth > 0.0f )
+	const float width = ( cgs.glconfig.virtualWidth > 0.0f )
 		? cgs.glconfig.virtualWidth : (float)SCREEN_WIDTH;
+
+	return width / CG_UIScale();
+}
+
+float CG_ScreenHeight( void )
+{
+	return (float)SCREEN_HEIGHT / CG_UIScale();
 }
 
 float CG_AnchorX( float x, hudAnchor_t anchor )
@@ -534,10 +575,28 @@ float CG_AnchorX( float x, hudAnchor_t anchor )
 
 void CG_HudSpace( void )
 {
-	cgi_R_Set2DSpace( 1 );		// SPACE2D_SCREEN
+	cgi_R_Set2DSpace( 1, 0.0f );		// SPACE2D_SCREEN
 }
 
 void CG_FrameSpace( void )
 {
-	cgi_R_Set2DSpace( 0 );		// SPACE2D_FRAME
+	cgi_R_Set2DSpace( 0, 0.0f );		// SPACE2D_FRAME
+}
+
+/*
+================
+CG_HudAnchorRight
+
+Shift everything drawn until the next call to the right-hand edge.
+
+This is what anchors a block whose insides cannot be told about anchors - the
+right half of the head-up display is a menu, laid out in absolute coordinates
+in a .menu file and painted by code that takes no offset. Moving the space it
+is drawn in costs two numbers in a matrix; teaching the menu system about
+anchors would cost the menu system.
+================
+*/
+void CG_HudAnchorRight( void )
+{
+	cgi_R_Set2DSpace( 1, CG_ScreenWidth() - (float)SCREEN_WIDTH );
 }

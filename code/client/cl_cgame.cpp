@@ -1046,7 +1046,7 @@ intptr_t CL_CgameSystemCalls( intptr_t *args ) {
 		re.Scissor( VMF(1), VMF(2), VMF(3), VMF(4));
 		return 0;
 	case CG_R_SET2DSPACE:
-		re.Set2DSpace( args[1] );
+		re.Set2DSpace( args[1], VMF(2) );
 		return 0;
 	case CG_GETGLCONFIG:
 		CL_GetGlconfig( (glconfig_t *) VMA(1) );

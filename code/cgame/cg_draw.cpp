@@ -1889,6 +1889,12 @@ static void CG_DrawHUD( centity_t *cent )
 	// Draw the lower right section of the HUD
 	if (cgi_UI_GetMenuInfo("righthud",&sectionXPos,&sectionYPos,&sectionWidth,&sectionHeight))
 	{
+		// This half belongs to the right-hand edge of the monitor, and
+		// everything in it is positioned absolutely in a .menu file by code
+		// that takes no offset. Shifting the space it is drawn in is what
+		// anchors it without any of that having to know.
+		CG_HudAnchorRight();
+
 		// Draw all the HUD elements --eez
 		cgi_UI_Menu_Paint( cgi_UI_GetMenuByName( "righthud" ), qtrue );
 
@@ -1937,6 +1943,8 @@ static void CG_DrawHUD( centity_t *cent )
 			CG_DrawAmmo(cent,sectionXPos,sectionYPos);
 		}
 //		CG_DrawMessageLit(cent,x,y);
+
+		CG_HudSpace();		// back to the left-hand edge
 	}
 }
 

@@ -376,9 +376,9 @@ void	cgi_R_Scissor( float x, float y, float w, float h)
 	Q_syscall( CG_R_SCISSOR, PASSFLOAT(x), PASSFLOAT(y), PASSFLOAT(w), PASSFLOAT(h));
 }
 
-void	cgi_R_Set2DSpace( int space )
+void	cgi_R_Set2DSpace( int space, float offsetX )
 {
-	Q_syscall( CG_R_SET2DSPACE, space );
+	Q_syscall( CG_R_SET2DSPACE, space, PASSFLOAT(offsetX) );
 }
 
 void		cgi_GetGlconfig( glconfig_t *glconfig ) {

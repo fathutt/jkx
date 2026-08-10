@@ -353,7 +353,7 @@ static void SCR_FillFrameMargins( void ) {
 		return;					// the frame covers the window
 	}
 
-	re.Set2DSpace( 1 );			// SPACE2D_SCREEN
+	re.Set2DSpace( 1, 0.0f );		// SPACE2D_SCREEN
 	re.SetColor( colorBlack );
 
 	if ( have > frame ) {
@@ -376,7 +376,7 @@ static void SCR_FillFrameMargins( void ) {
 	}
 
 	re.SetColor( NULL );
-	re.Set2DSpace( 0 );			// SPACE2D_FRAME
+	re.Set2DSpace( 0, 0.0f );		// SPACE2D_FRAME
 }
 
 void SCR_DrawScreenField( stereoFrame_t stereoFrame ) {

@@ -352,7 +352,12 @@ static qboolean SDF_Load( sdfFont_t *font, const char *name )
 	font->missing = NULL;
 	font->missing = SDF_FindGlyph( font, '.' );
 
-	font->shader = RE_RegisterShaderNoMip( va( "fonts/%s", name ) );
+	// With the extension, deliberately. Without it the image loader tries jpg,
+	// then png, then tga - and a retail install has fonts/<name>.tga sitting in
+	// an assets pak, which is a bitmap of letters where a distance field is
+	// wanted. It would load, it would draw, and it would look like a grey
+	// smear that nobody could trace back to a search order.
+	font->shader = RE_RegisterShaderNoMip( va( "fonts/%s.png", name ) );
 	SDF_UseTextPipeline( font->shader );
 
 	return qtrue;

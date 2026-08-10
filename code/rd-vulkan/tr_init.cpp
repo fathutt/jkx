@@ -264,6 +264,7 @@ cvar_t	*r_noPrecacheGLA;
 cvar_t	*r_noServerGhoul2;
 cvar_t	*r_Ghoul2AnimSmooth=0;
 cvar_t	*r_Ghoul2UnSqashAfterSmooth=0;
+cvar_t	*r_uiScale=0;
 cvar_t	*r_Ghoul2UnSqash=0;
 cvar_t	*r_Ghoul2NoLerp=0;
 cvar_t	*r_Ghoul2NoBlend=0;
@@ -1027,6 +1028,15 @@ Ghoul2 Insert Start
 	//
 	// The name is spelt with the u it is missing everywhere else in this file;
 	// the old one is registered too, so a config that has it keeps working.
+	// How much bigger the head-up display is drawn than it was authored. Not
+	// applied to menus: a menu is fitted to the window already, so there is
+	// nothing for a magnifier to fix. Distance field text stays sharp at any
+	// value of this, which is what makes it worth having at all - magnifying a
+	// bitmap font was how it used to look.
+	r_uiScale							= Cvar_Get( "r_uiScale",						"1",						CVAR_ARCHIVE,
+											"Size of the head-up display, 0.5 to 2" );
+	Cvar_CheckRange( r_uiScale, 0.5f, 2.0f, qfalse );
+
 	r_Ghoul2UnSqashAfterSmooth			= Cvar_Get( "r_ghoul2unsquashaftersmooth",		"1",						CVAR_NONE,
 											"Remove non-uniform scale from bones after animation smoothing" );
 	Cvar_Get( "r_ghoul2unsqashaftersmooth", "1", CVAR_NONE, "Old spelling of r_ghoul2unsquashaftersmooth" );

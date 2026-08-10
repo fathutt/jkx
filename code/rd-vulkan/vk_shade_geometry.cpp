@@ -65,6 +65,31 @@ stretched to fit: on 21:9 the stretch is seventy-eight per cent wider than it
 was drawn.
 =================
 */
+/*
+=================
+vk_ui_scale
+
+r_uiScale, clamped and never zero. Read here rather than at the cvar because
+this is on the path of every 2D draw and a division by nothing is not the place
+to find out the cvar was unregistered.
+=================
+*/
+float vk_ui_scale( void )
+{
+	extern cvar_t *r_uiScale;
+
+	if ( !r_uiScale || r_uiScale->value <= 0.0f ) {
+		return 1.0f;
+	}
+	if ( r_uiScale->value < 0.5f ) {
+		return 0.5f;
+	}
+	if ( r_uiScale->value > 2.0f ) {
+		return 2.0f;
+	}
+	return r_uiScale->value;
+}
+
 void vk_get_2d_viewport( float *x, float *y, float *w, float *h, float *virtualW )
 {
 	const float targetW = (float)vk.renderWidth;
@@ -113,10 +138,19 @@ static void get_mvp_transform( float *mvp )
 		const float targetW = (float)vk.renderWidth;
 		const float targetH = (float)vk.renderHeight;
 
-		const float mvp0 = 2.0f * ( vw / targetW ) / virtualW;
-		const float mvp5 = 2.0f * ( vh / targetH ) / SCREEN_HEIGHT;
+		// r_uiScale magnifies by shrinking the space: half as many units across
+		// the same pixels is twice the size on screen. It applies to the
+		// head-up display and not to a fitted picture, which is already as big
+		// as the window it was fitted to.
+		const float virtualH = ( backEnd.space2D == SPACE2D_SCREEN )
+			? (float)SCREEN_HEIGHT / vk_ui_scale() : (float)SCREEN_HEIGHT;
 
-		const float ox = -1.0f + 2.0f * ( vx / targetW );
+		const float mvp0 = 2.0f * ( vw / targetW ) / virtualW;
+		const float mvp5 = 2.0f * ( vh / targetH ) / virtualH;
+
+		// The anchoring shift is in virtual units, so it goes through the same
+		// scale the coordinates do.
+		const float ox = -1.0f + 2.0f * ( vx / targetW ) + mvp0 * backEnd.space2DOffsetX;
 		const float oy = -1.0f + 2.0f * ( vy / targetH );
 
 		mvp[0] = mvp0; mvp[1] = 0.0f; mvp[2] = 0.0f; mvp[3] = 0.0f;

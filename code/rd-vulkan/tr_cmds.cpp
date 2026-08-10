@@ -346,7 +346,7 @@ display. It stays set until changed and is reset to FRAME at the start of every
 frame, so a caller that does not care never has to say anything.
 =============
 */
-void RE_Set2DSpace( int space ) {
+void RE_Set2DSpace( int space, float offsetX ) {
 	space2DCommand_t	*cmd;
 
 	if ( !tr.registered ) {
@@ -360,6 +360,7 @@ void RE_Set2DSpace( int space ) {
 
 	cmd->commandId = RC_2D_SPACE;
 	cmd->space = space;
+	cmd->offsetX = offsetX;
 }
 
 void RE_Scissor( float x, float y, float w, float h ) {

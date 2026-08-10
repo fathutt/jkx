@@ -1059,7 +1059,7 @@ void	cgi_R_DrawRotatePic2( float x, float y, float w, float h,
 void	cgi_R_SetRangeFog(float range);
 void	cgi_R_LAGoggles( void );
 void	cgi_R_Scissor( float x, float y, float w, float h);
-void	cgi_R_Set2DSpace( int space );
+void	cgi_R_Set2DSpace( int space, float offsetX );
 
 // Which edge an element belongs to when the window is wider than the interface
 // was drawn for. See the note in cg_drawtools.cpp.
@@ -1069,9 +1069,12 @@ typedef enum {
 	HUD_RIGHT
 } hudAnchor_t;
 
+float	CG_UIScale( void );
 float	CG_ScreenWidth( void );
+float	CG_ScreenHeight( void );
 float	CG_AnchorX( float x, hudAnchor_t anchor );
 void	CG_HudSpace( void );
+void	CG_HudAnchorRight( void );
 void	CG_FrameSpace( void );
 
 // The glconfig_t will not change during the life of a cgame.
