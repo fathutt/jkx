@@ -362,13 +362,27 @@ if(MSVC)
 	#
 	#     0  0x00007ff6bbe0f699  jkx_ja.x86_64+0x9f699  GetRefAPI+0x4fc9
 	#
-	# /Zi only emits debug information; it does not change what is generated or
-	# how it is optimised. /DEBUG makes the linker write the .pdb, and it turns
-	# off /OPT:REF and /OPT:ICF by default, which would change the binary - so
-	# both are asked for back explicitly. The result is the same code with a
-	# file beside it that turns an address into a line.
-	set(CMAKE_C_FLAGS_RELEASE   "${CMAKE_C_FLAGS_RELEASE} /Zi")
-	set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /Zi")
+	# Two halves. The compiler has to emit the information, and the linker has
+	# to write the file.
+	#
+	# The compiler half is not a flag any more. CMP0141 - NEW here, because
+	# cmake_minimum_required names a policy max above 3.25 - moves the choice
+	# out of CMAKE_<LANG>_FLAGS_<CONFIG> and into this variable, and its
+	# default is debug information for Debug and RelWithDebInfo only. Adding
+	# /Zi by hand alongside it is how you get /Z7 and /Zi on one command line,
+	# which is warning D9025 and whichever the compiler saw last. Embedded is
+	# /Z7: the information goes into the object files, which is also what lets
+	# sccache cache them at all - a .pdb is written by the compiler out of band
+	# and a cache has nothing to replay.
+	#
+	# /DEBUG then makes the linker collect that into one .pdb per binary. It
+	# also flips the /OPT defaults to NOREF and NOICF, which would change the
+	# code, so both are asked for back explicitly: same binary, plus a file
+	# beside it that turns an address into a line.
+	if(POLICY CMP0141)
+		cmake_policy(SET CMP0141 NEW)
+	endif()
+	set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "Embedded")
 	foreach(kind EXE SHARED MODULE)
 		set(CMAKE_${kind}_LINKER_FLAGS_RELEASE
 			"${CMAKE_${kind}_LINKER_FLAGS_RELEASE} /DEBUG /OPT:REF /OPT:ICF")
