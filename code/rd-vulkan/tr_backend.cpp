@@ -973,6 +973,30 @@ const void *RB_StretchPic ( const void *data ) {
 
 /*
 =============
+RB_Set2DSpace
+
+Changing the space changes the projection, so anything already batched has to be
+drawn under the old one first. Dropping projection2D is what makes the next draw
+push the new one: vk_set_2d does nothing while it is already set.
+=============
+*/
+static const void *RB_Set2DSpace( const void *data )
+{
+	const space2DCommand_t *cmd = (const space2DCommand_t *)data;
+
+	if ( backEnd.space2D != cmd->space ) {
+		if ( tess.numIndexes ) {
+			RB_EndSurface();
+		}
+		backEnd.space2D = cmd->space;
+		backEnd.projection2D = qfalse;
+	}
+
+	return (const void *)( cmd + 1 );
+}
+
+/*
+=============
 RB_Scissor
 
 The scissor is read when the next draw picks its rectangle, so what is left to
@@ -1546,6 +1570,9 @@ void RB_ExecuteRenderCommands( const void *data ) {
 			break;
 		case RC_SCISSOR:
 			data = RB_Scissor( data );
+			break;
+		case RC_2D_SPACE:
+			data = RB_Set2DSpace( data );
 			break;
 		case RC_DISSOLVE:
 			data = RB_Dissolve( data );

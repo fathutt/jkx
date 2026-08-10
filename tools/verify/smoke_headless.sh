@@ -77,7 +77,7 @@ if [ -f /usr/share/vulkan/explicit_layer.d/VkLayer_khronos_validation.json ] &&
     export VK_LOADER_LAYERS_ENABLE='*validation*'
 fi
 
-Xvfb "$DISPLAY_NUM" -screen 0 1280x720x24 >/dev/null 2>&1 &
+Xvfb "$DISPLAY_NUM" -screen 0 ${JKX_SMOKE_SCREEN:-1280x720}x24 >/dev/null 2>&1 &
 XVFB_PID=$!
 sleep 2
 

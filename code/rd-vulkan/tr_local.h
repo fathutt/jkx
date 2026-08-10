@@ -1682,6 +1682,7 @@ typedef struct backEndState_s {
 	trRefEntity_t		*currentEntity;
 	qboolean			skyRenderedThisView;	// flag for drawing sun
 	qboolean			projection2D;			// if qtrue, drawstretchpic doesn't need to change modes
+	int					space2D;				// space2D_t: which rectangle 640x480 maps onto
 	color4ub_t			color2D;
 	qboolean			vertexes2D;				// shader needs to be finished
 	trRefEntity_t		entity2D;				// currentEntity will point at this when doing 2D rendering
@@ -2681,6 +2682,33 @@ typedef struct dissolveCommand_s {
 	int			percentage;
 } dissolveCommand_t;
 
+// Which rectangle of the window the 640x480 virtual screen is mapped onto.
+//
+// It used to be the whole of it, always, which is a stretch: 4:3 content on a
+// 16:9 panel is eleven per cent wider than it was drawn, on 21:9 it is
+// seventy-eight, and on 32:9 it is a smear. Two answers are wanted and they are
+// wanted for different things.
+//
+// SPACE2D_FRAME is for anything composed as a picture - menus, the loading
+// screen, cutscene overlays. The virtual screen keeps its own shape, is scaled
+// to fit and centred, and what is left over at the sides or top is a bar. It
+// never distorts.
+//
+// SPACE2D_SCREEN is for the head-up display, which is not a picture but a set
+// of things pinned to the corners of the monitor the player actually has. The
+// height stays 480 virtual units and the width becomes 480 times the real
+// aspect, so x runs from 0 to more than 640 on a wide screen and an element
+// placed against the right edge is against the right edge.
+typedef enum {
+	SPACE2D_FRAME = 0,
+	SPACE2D_SCREEN
+} space2D_t;
+
+typedef struct space2DCommand_s {
+	int			commandId;
+	int			space;
+} space2DCommand_t;
+
 // Single-player only. Coordinates are the 640x480 virtual screen, like every
 // other 2D coordinate the client hands the renderer; a negative x means "the
 // whole screen again".
@@ -2709,6 +2737,7 @@ typedef enum {
 	RC_SET_COLOR,
 	RC_STRETCH_PIC,
 	RC_SCISSOR,
+	RC_2D_SPACE,
 	RC_DISSOLVE,
 	RC_ROTATE_PIC,
 	RC_ROTATE_PIC2,

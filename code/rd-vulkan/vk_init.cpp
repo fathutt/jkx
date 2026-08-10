@@ -159,13 +159,19 @@ void vk_set_2d_scissor( float x, float y, float w, float h ) {
 		return;
 	}
 
-	const float sx = (float)vk.renderWidth / (float)SCREEN_WIDTH;
-	const float sy = (float)vk.renderHeight / (float)SCREEN_HEIGHT;
+	// The same mapping the 2D projection uses, or the scissor clips a different
+	// rectangle from the one the caller can see - which on a wide screen means
+	// the menu is cut off inside its own frame.
+	float vx, vy, vw, vh;
+	vk_get_2d_viewport( &vx, &vy, &vw, &vh );
 
-	int x0 = (int)( x * sx );
-	int y0 = (int)( y * sy );
-	int x1 = (int)( ( x + w ) * sx );
-	int y1 = (int)( ( y + h ) * sy );
+	const float sx = vw / (float)SCREEN_WIDTH;
+	const float sy = vh / (float)SCREEN_HEIGHT;
+
+	int x0 = (int)( vx + x * sx );
+	int y0 = (int)( vy + y * sy );
+	int x1 = (int)( vx + ( x + w ) * sx );
+	int y1 = (int)( vy + ( y + h ) * sy );
 
 	const int maxX = (int)vk.renderWidth;
 	const int maxY = (int)vk.renderHeight;

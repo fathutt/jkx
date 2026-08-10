@@ -336,6 +336,32 @@ the scissor whenever it set up the 2D projection.
 x < 0 means the whole screen.
 =============
 */
+/*
+=============
+RE_Set2DSpace
+
+Which rectangle of the window the next 2D drawing is laid out in. See
+space2D_t: FRAME for anything composed as a picture, SCREEN for the head-up
+display. It stays set until changed and is reset to FRAME at the start of every
+frame, so a caller that does not care never has to say anything.
+=============
+*/
+void RE_Set2DSpace( int space ) {
+	space2DCommand_t	*cmd;
+
+	if ( !tr.registered ) {
+		return;
+	}
+
+	cmd = (space2DCommand_t *)R_GetCommandBuffer( sizeof( *cmd ) );
+	if ( !cmd ) {
+		return;
+	}
+
+	cmd->commandId = RC_2D_SPACE;
+	cmd->space = space;
+}
+
 void RE_Scissor( float x, float y, float w, float h ) {
 	scissorCommand_t	*cmd;
 

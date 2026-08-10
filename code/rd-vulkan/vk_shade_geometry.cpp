@@ -49,21 +49,77 @@ VkBuffer vk_get_vertex_buffer( void )
 	return vk.cmd->vertex_buffer;
 }
  
+/*
+=================
+vk_get_2d_viewport
+
+Where the 640x480 virtual screen lands in the render target, in texels.
+
+SPACE2D_SCREEN covers the whole of it: the caller is working in a space that is
+already the window's shape, because the client widened it before drawing.
+
+SPACE2D_FRAME keeps the virtual screen's own proportions - it fits by whichever
+axis runs out first and centres what is left. That is the difference between an
+interface designed at one shape and shown at another, and the same interface
+stretched to fit: on 21:9 the stretch is seventy-eight per cent wider than it
+was drawn.
+=================
+*/
+void vk_get_2d_viewport( float *x, float *y, float *w, float *h )
+{
+	const float targetW = (float)vk.renderWidth;
+	const float targetH = (float)vk.renderHeight;
+
+	if ( backEnd.space2D == SPACE2D_SCREEN ) {
+		*x = 0.0f;
+		*y = 0.0f;
+		*w = targetW;
+		*h = targetH;
+		return;
+	}
+
+	const float want = (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT;
+	const float have = targetW / targetH;
+
+	if ( have > want ) {			// window is wider: bars at the sides
+		*h = targetH;
+		*w = targetH * want;
+		*x = ( targetW - *w ) * 0.5f;
+		*y = 0.0f;
+	} else {						// window is taller: bars top and bottom
+		*w = targetW;
+		*h = targetW / want;
+		*x = 0.0f;
+		*y = ( targetH - *h ) * 0.5f;
+	}
+}
+
 static void get_mvp_transform( float *mvp )
 {
 	if (backEnd.projection2D)
 	{
-		float mvp0 = 2.0f / SCREEN_WIDTH;
-		float mvp5 = 2.0f / SCREEN_HEIGHT;
+		// The virtual screen onto its rectangle of the target, and that
+		// rectangle onto normalised device coordinates.
+		float vx, vy, vw, vh;
+		vk_get_2d_viewport( &vx, &vy, &vw, &vh );
+
+		const float targetW = (float)vk.renderWidth;
+		const float targetH = (float)vk.renderHeight;
+
+		const float mvp0 = 2.0f * ( vw / targetW ) / SCREEN_WIDTH;
+		const float mvp5 = 2.0f * ( vh / targetH ) / SCREEN_HEIGHT;
+
+		const float ox = -1.0f + 2.0f * ( vx / targetW );
+		const float oy = -1.0f + 2.0f * ( vy / targetH );
 
 		mvp[0] = mvp0; mvp[1] = 0.0f; mvp[2] = 0.0f; mvp[3] = 0.0f;
 		mvp[4] = 0.0f; mvp[5] = mvp5; mvp[6] = 0.0f; mvp[7] = 0.0f;
 #ifdef USE_REVERSED_DEPTH
 		mvp[8] = 0.0f; mvp[9] = 0.0f; mvp[10] = 0.0f; mvp[11] = 0.0f;
-		mvp[12] = -1.0f; mvp[13] = -1.0f; mvp[14] = 1.0f; mvp[15] = 1.0f;
+		mvp[12] = ox; mvp[13] = oy; mvp[14] = 1.0f; mvp[15] = 1.0f;
 #else
 		mvp[8] = 0.0f; mvp[9] = 0.0f; mvp[10] = 1.0f; mvp[11] = 0.0f;
-		mvp[12] = -1.0f; mvp[13] = -1.0f; mvp[14] = 0.0f; mvp[15] = 1.0f;
+		mvp[12] = ox; mvp[13] = oy; mvp[14] = 0.0f; mvp[15] = 1.0f;
 #endif
 	}
 	else
