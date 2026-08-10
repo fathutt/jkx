@@ -28,6 +28,21 @@ project(${ProjectName})
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
+# Where the generated game data - base/shaders.pak, base/fonts - has to land so
+# that it is beside the executable and not merely near it.
+#
+# Visual Studio is a multi-config generator: it puts binaries in a per-config
+# subdirectory and CMAKE_RUNTIME_OUTPUT_DIRECTORY names the parent. A custom
+# command writing to ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/base therefore puts the
+# data one directory above the exe, where the engine does not look. On Ninja and
+# Makefiles there is no subdirectory and the two are the same, which is why this
+# has never been noticed: nothing has run the Windows build.
+if(CMAKE_CONFIGURATION_TYPES)
+    set(JKX_GAME_DATA_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>/base")
+else()
+    set(JKX_GAME_DATA_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/base")
+endif()
+
 #=============================================================================
 #
 # JKX build policy

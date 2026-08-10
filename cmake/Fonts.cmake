@@ -15,7 +15,7 @@
 
 function(jkx_add_fonts TARGET_NAME)
     set(FONT_SRC "${CMAKE_SOURCE_DIR}/assets/fonts")
-    set(FONT_DST "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/base/fonts")
+    set(FONT_DST "${JKX_GAME_DATA_DIR}/fonts")
 
     file(GLOB FONT_FILES "${FONT_SRC}/*.jkxfont" "${FONT_SRC}/*.png")
 

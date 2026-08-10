@@ -27,7 +27,7 @@ function(jkx_add_shaders TARGET_NAME)
     set(GLSL_DIR     "${SHADER_DIR}/glsl")
     set(SHADERGEN    "${CMAKE_SOURCE_DIR}/tools/shadergen/shadergen.py")
     set(SPV_DIR      "${CMAKE_CURRENT_BINARY_DIR}/spirv")
-    set(PAK_FILE     "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/base/shaders.pak")
+    set(PAK_FILE     "${JKX_GAME_DATA_DIR}/shaders.pak")
     set(PLAN_FILE    "${CMAKE_CURRENT_BINARY_DIR}/shader_variants.cmake")
 
     if(NOT GLSLC_EXECUTABLE)
