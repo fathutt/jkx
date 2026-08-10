@@ -890,7 +890,7 @@ typedef struct {
 		VkShaderModule irradiancecube_fs;
 		VkShaderModule prefilterenvmap_fs;
 		VkShaderModule refraction_vs[3];
-		VkShaderModule refraction_fs;
+		VkShaderModule refraction_fs[2];	// [0] pbr, [1] fastlight - see refraction_frag.tmpl
 
 		VkShaderModule normalmap;
 	} shaders;
@@ -968,6 +968,11 @@ typedef struct {
 
 	uint32_t image_chunk_size;
 	uint32_t maxBoundDescriptorSets;
+
+	// How many sets the main pipeline layout has: the full VK_DESC_COUNT, or
+	// four on a device sitting at the Vulkan minimum. Nothing may bind or update
+	// a set at or above this.
+	uint32_t descriptorSetCount;
 	
 #ifdef USE_UPLOAD_QUEUE
 	VkFence aux_fence;

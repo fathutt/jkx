@@ -14,7 +14,15 @@ layout(set = VK_DESC_TEXTURE0, binding = 0) uniform sampler2D texture0;
 // Roughness, for the blur. Only read when the surface actually has a physical
 // map: without one this texture is white, which would read as fully rough and
 // blur everything to nothing. The renderer says so by sending a zero blur.
+//
+// Behind USE_FAST_LIGHT because a descriptor set that is only referenced still
+// has to exist in the pipeline layout, and on a device that reports the Vulkan
+// minimum of eight bound sets the layout is built with four. gen_frag guards
+// its own PBR samplers the same way; this file did not, and a headless run
+// under the validation layers is what said so.
+#if !defined(USE_FAST_LIGHT)
 layout(set = VK_DESC_PBR_PHYSICAL, binding = 0) uniform sampler2D physical_texture;
+#endif
 
 layout(set = VK_DESC_UNIFORM, binding = VK_DESC_UNIFORM_GLOBAL_BINDING) uniform Global {
 	vkUniformGlobal_t u_global;
@@ -31,10 +39,12 @@ layout(location = 0) out vec4 out_color;
 
 layout (constant_id = 2) const float depth_fragment = 0.85;
 
+#if !defined(USE_FAST_LIGHT)
 // Matches gen_frag: below zero is the metallic-roughness workflow, where
 // roughness is the green channel; at or above zero it is specular-gloss, where
 // gloss is the alpha and roughness is its opposite.
 layout (constant_id = 11) const int physical_texture_set = 0;
+#endif
 
 vec2 ToScreen( vec4 clipPos )
 {
@@ -73,6 +83,8 @@ void main()
 	// mip this may reach; zero means the extract has no mip chain, or the
 	// surface has no roughness to read, and the sample stays sharp.
 	float lod = 0.0;
+
+#if !defined(USE_FAST_LIGHT)
 	float maxLod = u_global.refraction.z;
 
 	if ( maxLod > 0.0 )
@@ -84,6 +96,7 @@ void main()
 
 		lod = roughness * maxLod;
 	}
+#endif
 
 	vec4 color;
 	color.r = textureLod( texture0, uvR, lod ).r;

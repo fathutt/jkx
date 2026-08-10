@@ -795,6 +795,17 @@ void vk_reset_descriptor( int index )
 
 void vk_update_descriptor( int tmu, VkDescriptorSet curDesSet )
 {
+	// A set the pipeline layout does not have cannot be bound. On a device that
+	// reports the Vulkan minimum of eight bound sets the layout has four, and
+	// the PBR descriptors above that were being handed to vkCmdBindDescriptorSets
+	// anyway - twenty-one spec violations per frame, invisible on a desktop GPU
+	// with a limit of 32 and found by running headless under the validation
+	// layers. Nothing reads them in that configuration either: the shaders that
+	// would are not the ones built when the sets are missing.
+	if ( tmu >= (int)vk.descriptorSetCount ) {
+		return;
+	}
+
 	if (vk.cmd->descriptor_set.current[tmu] != curDesSet) {
 		vk.cmd->descriptor_set.start = 
 			(tmu < vk.cmd->descriptor_set.start) ? tmu : vk.cmd->descriptor_set.start;

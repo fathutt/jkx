@@ -162,7 +162,7 @@ void vk_create_pipeline_layout( void )
     desc.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     desc.pNext = NULL;
     desc.flags = 0;
-    desc.setLayoutCount = (vk.maxBoundDescriptorSets >= VK_DESC_COUNT) ? VK_DESC_COUNT : 4;
+    desc.setLayoutCount = vk.descriptorSetCount;
     desc.pSetLayouts = set_layouts;
     desc.pushConstantRangeCount = 1;
     desc.pPushConstantRanges = &push_range;
@@ -756,7 +756,11 @@ VkPipeline vk_create_pipeline( const Vk_Pipeline_Def *def, renderPass_t renderPa
     switch ( def->shader_type ) {
         case TYPE_REFRACTION:
             vs_module = &vk.shaders.refraction_vs[vbo];
-            fs_module = &vk.shaders.refraction_fs;
+            // The fastlight half has no physical-map sampler at all, because on
+            // a device that reports the Vulkan minimum of eight bound descriptor
+            // sets the pipeline layout only has four and a referenced set has to
+            // be in it.
+            fs_module = &vk.shaders.refraction_fs[fastlight];
         break;
         case TYPE_SINGLE_TEXTURE_LIGHTING:
             vs_module = &vk.shaders.vert.light[0];

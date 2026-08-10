@@ -281,7 +281,20 @@ jobs:
             -DBuildJK2SPRdVanilla=OFF
           cmake --build build --target jkx_ja.x86_64 rdsp-vulkan_x86_64 --parallel
 
-      # No GPU and no retail assets, and neither is needed to answer the
-      # question this asks: does the engine still come up on this renderer.
-      - name: The engine starts on the Vulkan renderer
-        run: bash tools/verify/smoke_headless.sh build
+      # No GPU and no retail assets, and neither is needed to answer what this
+      # asks: does the engine still draw frames on this renderer, and does the
+      # validation layer have anything to say about how it does it.
+      - name: The engine draws on the Vulkan renderer
+        run: |
+          JKX_SMOKE_KEEP_SHOT="$PWD/jkx_smoke.tga" \
+            bash tools/verify/smoke_headless.sh build
+
+      # The frame the run ended on, so a change of appearance can be looked at
+      # rather than argued about.
+      - name: Keep the frame
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-frame
+          path: jkx_smoke.tga
+          if-no-files-found: ignore

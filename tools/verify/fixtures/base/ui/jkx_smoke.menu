@@ -1,0 +1,24 @@
+// The menu has to be called mainMenu: that is the name the client asks for when
+// it has nothing else to show, and if it is missing the client asks again every
+// frame forever instead of settling into a frame loop.
+{
+menuDef
+{
+	name					"mainMenu"
+	fullScreen				1
+	rect					0 0 640 480
+	visible					1
+
+	// One picture, off-centre and not filling the screen, so that a frame which
+	// drew nothing and a frame which drew this are different pictures.
+	itemDef
+	{
+		name				smokebox
+		rect				64 64 512 352
+		background			"jkx/smoke"
+		forecolor			1 1 1 1
+		visible				1
+		decoration
+	}
+}
+}

@@ -1,0 +1,6 @@
+{
+	loadmenu
+	{
+		"ui/jkx_smoke.menu"
+	}
+}

@@ -89,6 +89,11 @@
       "name": "refraction_{vbo}",
       "slot": "refraction_vs[{vbo.index}]" },
 
+    { "source": "refraction_frag.tmpl", "stage": "frag",
+      "product": ["fastlight"],
+      "name": "refraction_frag_{fastlight}",
+      "slot": "refraction_fs[{fastlight.index}]" },
+
     { "source": "gen_vert.tmpl", "stage": "vert",
       "product": ["vbo", "fastlight", "light", "tx", "cl", "env", "fog"],
       "name": "vert_{vbo}{fastlight}{light}{tx}{cl}{env}{fog}",

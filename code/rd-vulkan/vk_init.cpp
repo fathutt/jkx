@@ -530,6 +530,13 @@ void vk_initialize( void )
 
 	vk.maxBoundDescriptorSets = props.limits.maxBoundDescriptorSets;
 
+	// How many descriptor sets the main pipeline layout will actually have. The
+	// Vulkan minimum is eight and the full set is ten, so on a device at the
+	// minimum - lavapipe, and some integrated parts - the layout is built with
+	// four and everything past the third set does not exist. Recorded here, at
+	// the limit it comes from, because two other places have to agree with it.
+	vk.descriptorSetCount = ( vk.maxBoundDescriptorSets >= VK_DESC_COUNT ) ? VK_DESC_COUNT : 4;
+
 	if ( r_ext_texture_env_add->integer != 0 )
 		glConfig.textureEnvAddAvailable = qtrue;
 	else
