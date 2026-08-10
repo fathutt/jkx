@@ -39,7 +39,13 @@ class CMiniHeap;
 void QDECL	CL_RefPrintf( int printLevel, const char *fmt, ... ) __attribute__ ((format (printf, 2, 3)));
 
 // Was ri.Error.
-void QDECL	Com_Error( int errorLevel, const char *fmt, ... ) NORETURN __attribute__ ((format (printf, 2, 3)));
+//
+// NORETURN goes before the name, not after the parameter list. Under GCC it is
+// __attribute__((noreturn)), which is happy in either place; under MSVC it is
+// __declspec(noreturn), which is only a declaration specifier and is silently
+// dropped anywhere else. Trailing, MSVC warns C4091 and then fails to parse
+// what follows. Every other declaration in the tree already writes it here.
+void NORETURN QDECL	Com_Error( int errorLevel, const char *fmt, ... ) __attribute__ ((format (printf, 2, 3)));
 
 void QDECL	Com_Printf( const char *fmt, ... ) __attribute__ ((format (printf, 1, 2)));
 

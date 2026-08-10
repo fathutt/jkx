@@ -42,6 +42,13 @@ jobs:
       - name: Renderer source list matches the directory
         run: python3 tools/ci/check_sources.py
 
+      # This one fails here in two seconds instead of failing in the Windows
+      # job twenty minutes in, with an error message that names the wrong
+      # token. Everything it looks for compiles cleanly on every compiler this
+      # project can run locally, MinGW included.
+      - name: No MSVC-only declaration shapes
+        run: python3 tools/ci/check_msvc.py
+
       # An invalid workflow file is a push, a red X and no log at all - the one
       # failure mode with no evidence in it. actionlint reads the expressions
       # and knows which contexts are available where, which is exactly the

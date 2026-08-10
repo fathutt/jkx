@@ -8,7 +8,8 @@
 # broken across three pushes.
 #
 # What it covers:
-#   policy      the ascii, layering and source-list gates, and actionlint
+#   policy      the ascii, layering and source-list gates, the MSVC dialect
+#               traps, and actionlint
 #   release     the whole tree, Release
 #   debug       the whole tree, Debug: different code is compiled, and it is
 #               the configuration nobody looks at until it fails
@@ -31,6 +32,10 @@
 # be read as "Windows", which is a much larger thing; the windows stage compiles
 # the platform's code here, so what is left to fail remotely is only what is
 # specific to Microsoft's compiler.
+#
+# That remainder is not left to chance either. Every time MSVC rejects a shape
+# that every compiler here accepts, the shape goes into check_msvc.py and the
+# policy stage catches the next one in two seconds instead of twenty minutes.
 #
 # Usage:
 #   tools/ci/local.sh [stage ...]        default: all of them, in this order
@@ -67,6 +72,7 @@ stage_policy() {
     python3 "$ROOT/tools/ci/check_ascii.py" "$ROOT" &&
     python3 "$ROOT/tools/ci/check_layering.py" "$ROOT" &&
     python3 "$ROOT/tools/ci/check_sources.py" "$ROOT" &&
+    python3 "$ROOT/tools/ci/check_msvc.py" "$ROOT" &&
     stage_workflows
 }
 
