@@ -218,4 +218,3 @@ void *		WIN_VK_GetInstanceProcAddress( void );
 qboolean	WIN_VK_CreateSurface( VkInstance instance, VkSurfaceKHR *surface );
 void		WIN_VK_DestroyWindow( void );
 
-uint8_t ConvertUTF32ToExpectedCharset( uint32_t utf32 );

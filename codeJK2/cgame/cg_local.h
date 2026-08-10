@@ -380,7 +380,13 @@ typedef struct {
 	int			centerPrintLines;
 
 	// Scrolling text, caption text and LCARS text use this
-	char		printText[MAX_PRINTTEXT][128];
+	// 256 and not 128. A line is filled until its drawn width passes the
+	// screen, so how many bytes that takes depends on the font and on the
+	// encoding: Libre Franklin is narrower than the face this was sized for,
+	// and Cyrillic in UTF-8 is two bytes a letter. At 128 the opening crawl
+	// would lose the end of a line to a truncation that looks like a bug in
+	// the translation.
+	char		printText[MAX_PRINTTEXT][256];
 	int			printTextY;
 
 	char		captionText[MAX_CAPTIONTEXT][256/*128*/];	// bosted for taiwanese squealy radio static speech in kejim post

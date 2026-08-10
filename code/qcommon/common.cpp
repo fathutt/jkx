@@ -1902,6 +1902,105 @@ void Field_AutoComplete( field_t *field ) {
 
 /*
 ===============
+Q_UTF8Encode
+
+A code point as UTF-8, into a buffer with at least five bytes in it. Returns
+how many were written, not counting the terminator.
+
+This is the other half of ConvertUTF8ToUTF32, and it did not exist because
+nothing needed it: text arrived as codepage bytes and left as codepage bytes.
+It exists now because the atlas the renderer draws from is indexed by code
+point, so everything between the keyboard and the atlas is UTF-8.
+===============
+*/
+int Q_UTF8Encode( char *out, uint32_t cp )
+{
+	if ( cp < 0x80 ) {
+		out[0] = (char)cp;
+		out[1] = '\0';
+		return 1;
+	}
+	if ( cp < 0x800 ) {
+		out[0] = (char)( 0xC0 | ( cp >> 6 ) );
+		out[1] = (char)( 0x80 | ( cp & 0x3F ) );
+		out[2] = '\0';
+		return 2;
+	}
+	if ( cp < 0x10000 ) {
+		out[0] = (char)( 0xE0 | ( cp >> 12 ) );
+		out[1] = (char)( 0x80 | ( ( cp >> 6 ) & 0x3F ) );
+		out[2] = (char)( 0x80 | ( cp & 0x3F ) );
+		out[3] = '\0';
+		return 3;
+	}
+	if ( cp <= 0x10FFFF ) {
+		out[0] = (char)( 0xF0 | ( cp >> 18 ) );
+		out[1] = (char)( 0x80 | ( ( cp >> 12 ) & 0x3F ) );
+		out[2] = (char)( 0x80 | ( ( cp >> 6 ) & 0x3F ) );
+		out[3] = (char)( 0x80 | ( cp & 0x3F ) );
+		out[4] = '\0';
+		return 4;
+	}
+
+	// Not a code point. A question mark says so without pretending.
+	out[0] = '?';
+	out[1] = '\0';
+	return 1;
+}
+
+/*
+===============
+Q_UTF8SeqLen
+
+How many bytes the character starting here occupies. One for anything that is
+not a valid lead byte, which keeps a caller stepping through a codepage string
+moving one byte at a time rather than stalling or running off the end.
+===============
+*/
+int Q_UTF8SeqLen( const char *s )
+{
+	const unsigned char c = (unsigned char)*s;
+
+	if ( c < 0x80 )                     return 1;
+	if ( ( c & 0xE0 ) == 0xC0 )         return ( ( s[1] & 0xC0 ) == 0x80 ) ? 2 : 1;
+	if ( ( c & 0xF0 ) == 0xE0 )         return ( ( s[1] & 0xC0 ) == 0x80 && ( s[2] & 0xC0 ) == 0x80 ) ? 3 : 1;
+	if ( ( c & 0xF8 ) == 0xF0 )         return ( ( s[1] & 0xC0 ) == 0x80 && ( s[2] & 0xC0 ) == 0x80
+	                                             && ( s[3] & 0xC0 ) == 0x80 ) ? 4 : 1;
+	return 1;
+}
+
+/*
+===============
+Q_UTF8PrevOffset
+
+The byte offset of the character before 'offset'. Walking backwards over
+continuation bytes rather than subtracting one is what makes backspace delete a
+letter instead of half of one.
+===============
+*/
+int Q_UTF8PrevOffset( const char *s, int offset )
+{
+	if ( offset <= 0 ) {
+		return 0;
+	}
+
+	int at = offset - 1;
+	int steps = 0;
+	while ( at > 0 && ( (unsigned char)s[at] & 0xC0 ) == 0x80 && steps < 3 ) {
+		at--;
+		steps++;
+	}
+
+	// A run of continuation bytes with no lead in front of it is not UTF-8, so
+	// back off by the one byte a codepage string would want.
+	if ( Q_UTF8SeqLen( s + at ) != offset - at ) {
+		return offset - 1;
+	}
+	return at;
+}
+
+/*
+===============
 Converts a UTF-8 character to UTF-32.
 ===============
 */

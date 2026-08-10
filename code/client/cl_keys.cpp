@@ -416,11 +416,14 @@ void Field_Paste( field_t *edit ) {
 		return;
 	}
 
-	// send as if typed, so insert / overstrike works properly
+	// Send as if typed, so insert and overstrike work properly. The code point
+	// goes through whole: Field_CharEvent encodes it back to UTF-8 in the
+	// buffer, where it used to be squeezed into one byte of Windows-1251 and
+	// anything outside that page lost.
 	while( *c )
 	{
 		uint32_t utf32 = ConvertUTF8ToUTF32( c, &c );
-		Field_CharEvent( edit, ConvertUTF32ToExpectedCharset( utf32 ) );
+		Field_CharEvent( edit, (int)utf32 );
 	}
 
 	Z_Free( cbd );
@@ -450,8 +453,9 @@ void Field_KeyDownEvent( field_t *edit, int key ) {
 
 	if ( key == A_DELETE ) {
 		if ( edit->cursor < len ) {
+			const int seq = Q_UTF8SeqLen( edit->buffer + edit->cursor );
 			memmove( edit->buffer + edit->cursor,
-				edit->buffer + edit->cursor + 1, len - edit->cursor );
+				edit->buffer + edit->cursor + seq, len + 1 - edit->cursor - seq );
 		}
 		return;
 	}
@@ -459,7 +463,7 @@ void Field_KeyDownEvent( field_t *edit, int key ) {
 	if ( key == A_CURSOR_RIGHT )
 	{
 		if ( edit->cursor < len ) {
-			edit->cursor++;
+			edit->cursor += Q_UTF8SeqLen( edit->buffer + edit->cursor );
 		}
 		if ( edit->cursor >= edit->scroll + edit->widthInChars && edit->cursor <= len )
 		{
@@ -471,11 +475,11 @@ void Field_KeyDownEvent( field_t *edit, int key ) {
 	if ( key == A_CURSOR_LEFT )
 	{
 		if ( edit->cursor > 0 ) {
-			edit->cursor--;
+			edit->cursor = Q_UTF8PrevOffset( edit->buffer, edit->cursor );
 		}
 		if ( edit->cursor < edit->scroll )
 		{
-			edit->scroll--;
+			edit->scroll = edit->cursor;
 		}
 		return;
 	}
@@ -521,12 +525,13 @@ void Field_CharEvent( field_t *edit, int ch ) {
 
 	if ( ch == 'h' - 'a' + 1 )	{	// ctrl-h is backspace
 		if ( edit->cursor > 0 ) {
-			memmove( edit->buffer + edit->cursor - 1,
+			const int prev = Q_UTF8PrevOffset( edit->buffer, edit->cursor );
+			memmove( edit->buffer + prev,
 				edit->buffer + edit->cursor, len + 1 - edit->cursor );
-			edit->cursor--;
+			edit->cursor = prev;
 			if ( edit->cursor < edit->scroll )
 			{
-				edit->scroll--;
+				edit->scroll = edit->cursor;
 			}
 		}
 		return;
@@ -551,21 +556,33 @@ void Field_CharEvent( field_t *edit, int ch ) {
 		return;
 	}
 
+	// The character arrives as a code point and is stored as UTF-8, so it is
+	// one to four bytes and not one. Overstrike replaces the whole character
+	// under the cursor rather than its first byte, which is the only way it can
+	// mean anything when characters are not all the same width.
+	char encoded[5];
+	const int encodedLen = Q_UTF8Encode( encoded, (uint32_t)ch );
+
 	if ( kg.key_overstrikeMode ) {
+		const int under = ( edit->cursor < len ) ? Q_UTF8SeqLen( edit->buffer + edit->cursor ) : 0;
+
 		// - 2 to leave room for the leading slash and trailing \0
-		if ( edit->cursor == MAX_EDIT_LINE - 2 )
+		if ( len - under + encodedLen > MAX_EDIT_LINE - 2 ) {
 			return;
-		edit->buffer[edit->cursor] = ch;
-		edit->cursor++;
+		}
+		memmove( edit->buffer + edit->cursor + encodedLen,
+			edit->buffer + edit->cursor + under, len + 1 - edit->cursor - under );
+		Com_Memcpy( edit->buffer + edit->cursor, encoded, encodedLen );
+		edit->cursor += encodedLen;
 	} else {	// insert mode
 		// - 2 to leave room for the leading slash and trailing \0
-		if ( len == MAX_EDIT_LINE - 2 ) {
+		if ( len + encodedLen > MAX_EDIT_LINE - 2 ) {
 			return; // all full
 		}
-		memmove( edit->buffer + edit->cursor + 1,
+		memmove( edit->buffer + edit->cursor + encodedLen,
 			edit->buffer + edit->cursor, len + 1 - edit->cursor );
-		edit->buffer[edit->cursor] = ch;
-		edit->cursor++;
+		Com_Memcpy( edit->buffer + edit->cursor, encoded, encodedLen );
+		edit->cursor += encodedLen;
 	}
 
 	if ( edit->cursor >= edit->widthInChars )

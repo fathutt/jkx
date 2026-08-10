@@ -222,11 +222,16 @@ typedef struct {
 #define	NUM_CON_TIMES	4
 
 typedef union {
+	// A code point, not a byte. The console is where messages land, and
+	// messages are UTF-8 now; a cell that holds one byte holds a third of a
+	// Cyrillic letter. Twenty-four bits is more than Unicode has ever needed -
+	// the top code point is 0x10FFFF - so this still fits in a word alongside
+	// the colour, and the buffer is four bytes a cell rather than eight.
 	struct {
-		unsigned char	color;
-		char			character;
+		unsigned int	codePoint : 24;
+		unsigned int	color     : 8;
 	} f;
-	unsigned short	compare;
+	unsigned int	compare;
 } conChar_t;
 
 typedef struct {

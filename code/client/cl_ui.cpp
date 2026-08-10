@@ -79,11 +79,24 @@ static void GetClipboardData( char *buf, int buflen ) {
 		return;
 	}
 
-	for ( int i = 0, end = buflen - 1; *c && i < end; i++ )
+	// The clipboard is UTF-8 and so is the buffer it goes into; this used to
+	// convert each character to one byte of Windows-1251 on the way, which is
+	// how pasting anything outside that page produced a row of question marks.
+	int i = 0;
+	const int end = buflen - 1;
+	while ( *c && i < end )
 	{
-		uint32_t utf32 = ConvertUTF8ToUTF32( c, &c );
-		buf[i] = ConvertUTF32ToExpectedCharset( utf32 );
+		char encoded[5];
+		const uint32_t utf32 = ConvertUTF8ToUTF32( c, &c );
+		const int encodedLen = Q_UTF8Encode( encoded, utf32 );
+
+		if ( i + encodedLen > end ) {
+			break;
+		}
+		Com_Memcpy( buf + i, encoded, encodedLen );
+		i += encodedLen;
 	}
+	buf[i] = '\0';
 
 	Z_Free( cbd );
 }

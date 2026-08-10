@@ -51,8 +51,8 @@ cvar_t		*con_timestamps;
 #define CON_MIN_WIDTH			20
 
 
-static const conChar_t CON_WRAP = { { ColorIndex(COLOR_GREY), '\\' } };
-static const conChar_t CON_BLANK = { { ColorIndex(COLOR_WHITE), CON_BLANK_CHAR } };
+static const conChar_t CON_WRAP = { { '\\', ColorIndex(COLOR_GREY) } };
+static const conChar_t CON_BLANK = { { CON_BLANK_CHAR, ColorIndex(COLOR_WHITE) } };
 
 /*
 ===============================================================================
@@ -133,24 +133,33 @@ Con_Advance
 How far the pen moves for one character, in virtual pixels.
 ================
 */
-static float Con_Advance( unsigned char ch )
+static float Con_Advance( unsigned int cp )
 {
 	if ( !Con_FontReady() ) {
 		return Con_ToVirtualX( (float)con.charWidth );
 	}
 
-	if ( con.advance[ch] == 0.0f ) {
-		const char s[2] = { (char)ch, '\0' };
-		float width = (float)re.Font_StrLenPixels( s, con.advanceFont, con.advanceScale );
-
-		// A glyph the font has nothing for still has to move the pen, or a run
-		// of them would pile up in one place and never wrap.
-		if ( width <= 0.0f ) {
-			width = Con_ToVirtualX( (float)con.charWidth );
-		}
-		con.advance[ch] = width;
+	// The cache covers the first 256 code points, which is what a console is
+	// almost entirely made of. Above that the width is asked for each time -
+	// rare enough that a second cache would cost more than it saves.
+	const qboolean cached = (qboolean)( cp < ARRAY_LEN( con.advance ) );
+	if ( cached && con.advance[cp] != 0.0f ) {
+		return con.advance[cp];
 	}
-	return con.advance[ch];
+
+	char encoded[5];
+	Q_UTF8Encode( encoded, cp );
+	float width = (float)re.Font_StrLenPixels( encoded, con.advanceFont, con.advanceScale );
+
+	// A glyph the font has nothing for still has to move the pen, or a run of
+	// them would pile up in one place and never wrap.
+	if ( width <= 0.0f ) {
+		width = Con_ToVirtualX( (float)con.charWidth );
+	}
+	if ( cached ) {
+		con.advance[cp] = width;
+	}
+	return width;
 }
 
 /*
@@ -167,17 +176,17 @@ static void Con_RowToString( const conChar_t *text, int count, char *out, int ou
 	int len = 0;
 	int colour = -1;
 
-	while ( count > 0 && text[count - 1].f.character == CON_BLANK_CHAR ) {
+	while ( count > 0 && text[count - 1].f.codePoint == CON_BLANK_CHAR ) {
 		count--;
 	}
 
-	for ( int i = 0 ; i < count && len < outSize - 3 ; i++ ) {
-		if ( text[i].f.color != colour ) {
-			colour = text[i].f.color;
+	for ( int i = 0 ; i < count && len < outSize - 8 ; i++ ) {
+		if ( (int)text[i].f.color != colour ) {
+			colour = (int)text[i].f.color;
 			out[len++] = '^';
 			out[len++] = (char)( '0' + ( colour & 7 ) );
 		}
-		out[len++] = text[i].f.character;
+		len += Q_UTF8Encode( out + len, text[i].f.codePoint );
 	}
 	out[len] = '\0';
 }
@@ -280,7 +289,7 @@ void Con_Dump_f (void)
 		line = ((con.current + l) % con.totallines) * con.rowwidth;
 
 		for (j = CON_TIMESTAMP_LEN ; j < con.rowwidth - 1 ; j++)
-			if (con.text[line + j].f.character != CON_BLANK_CHAR)
+			if (con.text[line + j].f.codePoint != CON_BLANK_CHAR)
 				empty = qfalse;
 	}
 
@@ -294,7 +303,7 @@ void Con_Dump_f (void)
 			line = ((con.current + l) % con.totallines) * con.rowwidth;
 
 			for (i = 0; i < CON_TIMESTAMP_LEN; i++)
-				buffer[i] = con.text[line + i].f.character;
+				buffer[i] = (char)con.text[line + i].f.codePoint;
 
 			lineLen = CON_TIMESTAMP_LEN;
 		}
@@ -304,14 +313,16 @@ void Con_Dump_f (void)
 		{
 			line = ((con.current + l) % con.totallines) * con.rowwidth;
 
-			for (j = CON_TIMESTAMP_LEN; j < con.rowwidth - 1 && i < (int)sizeof(buffer) - 1; j++, i++) {
-				buffer[i] = con.text[line + j].f.character;
+			// The dump is a text file, so the cells go back out as UTF-8.
+			for (j = CON_TIMESTAMP_LEN; j < con.rowwidth - 1 && i < (int)sizeof(buffer) - 5; j++) {
+				const int wrote = Q_UTF8Encode( buffer + i, con.text[line + j].f.codePoint );
+				i += wrote;
 
-				if (con.text[line + j].f.character != CON_BLANK_CHAR)
-					lineLen = i + 1;
+				if (con.text[line + j].f.codePoint != CON_BLANK_CHAR)
+					lineLen = i;
 			}
 
-			if (i == sizeof(buffer) - 1)
+			if (i >= (int)sizeof(buffer) - 5)
 				break;
 
 			if (con.text[line + j].compare != CON_WRAP.compare)
@@ -434,7 +445,7 @@ static void Con_Resize(int rowwidth)
 					for (j = CON_TIMESTAMP_LEN; j < oldrowwidth - 1 && i < (int)ARRAY_LEN(line); j++, i++) {
 						line[i] = tbuf[oldline + j];
 
-						if (line[i].f.character != CON_BLANK_CHAR)
+						if (line[i].f.codePoint != CON_BLANK_CHAR)
 							lineLen = i + 1;
 					}
 
@@ -461,7 +472,7 @@ static void Con_Resize(int rowwidth)
 					con.text[newline + j] = timestamp[j];
 
 				for (j = CON_TIMESTAMP_LEN; j < con.rowwidth - 1 && i < lineLen; j++, i++) {
-					const float advance = Con_Advance( (unsigned char)line[i].f.character );
+					const float advance = Con_Advance( line[i].f.codePoint );
 					if ( con.textWidth > 0.0f && used + advance > con.textWidth
 							&& j > CON_TIMESTAMP_LEN ) {
 						break;
@@ -640,7 +651,7 @@ void Con_Linefeed (void)
 			tms->tm_hour, tms->tm_min, tms->tm_sec);
 
 		for ( i = 0; i < CON_TIMESTAMP_LEN; i++ ) {
-			con.text[line + i].f = { color, timestamp[i] };
+			con.text[line + i].f = { (unsigned int)(unsigned char)timestamp[i], color };
 		}
 	}
 
@@ -672,8 +683,8 @@ If no console is visible, the text will appear at the top of the game window
 */
 void CL_ConsolePrint( const char *txt) {
 	int		y;
-	char			c;
-	unsigned char	color;
+	unsigned int	c;
+	unsigned int	color;
 
 	// for some demos we don't want to ever show anything on the console
 	if ( cl_noprint && cl_noprint->integer ) {
@@ -686,14 +697,20 @@ void CL_ConsolePrint( const char *txt) {
 
 	color = ColorIndex(COLOR_WHITE);
 
-	while ( (c = (unsigned char) *txt) != 0 ) {
+	// A character at a time, where a character is a code point and not a byte:
+	// the text arriving here is UTF-8, and storing its bytes in separate cells
+	// would put a third of a Cyrillic letter in each of them.
+	while ( *txt ) {
 		if ( Q_IsColorString( (unsigned char*) txt ) ) {
 			color = ColorIndex( *(txt+1) );
 			txt += 2;
 			continue;
 		}
 
-		txt++;
+		c = ConvertUTF8ToUTF32( (char *)txt, (char **)&txt );
+		if ( c == 0 ) {
+			break;
+		}
 
 		switch (c)
 		{
@@ -712,7 +729,7 @@ void CL_ConsolePrint( const char *txt) {
 			// drawn, or the row is out of cells. The first is what the reader
 			// sees; the second is what keeps this inside the buffer, and with
 			// a narrow font it is reached first surprisingly often.
-			const float advance = Con_Advance( (unsigned char)c );
+			const float advance = Con_Advance( c );
 			const qboolean tooWide = (qboolean)( con.textWidth > 0.0f
 				&& con.xPixels + advance > con.textWidth );
 			const qboolean tooMany = (qboolean)( con.x == con.rowwidth - CON_TIMESTAMP_LEN - 1 );
@@ -723,7 +740,7 @@ void CL_ConsolePrint( const char *txt) {
 				y = con.current % con.totallines;
 			}
 
-			con.text[y * con.rowwidth + CON_TIMESTAMP_LEN + con.x].f = { color, c };
+			con.text[y * con.rowwidth + CON_TIMESTAMP_LEN + con.x].f = { c, color };
 			con.x++;
 			con.xPixels += advance;
 			break;

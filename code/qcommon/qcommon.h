@@ -805,6 +805,9 @@ bool PD_Store ( const char *name, const void *data, size_t size );
 const void *PD_Load ( const char *name, size_t *size );
 
 uint32_t ConvertUTF8ToUTF32( char *utf8CurrentChar, char **utf8NextChar );
+int      Q_UTF8Encode( char *out, uint32_t cp );          // out needs five bytes
+int      Q_UTF8SeqLen( const char *s );
+int      Q_UTF8PrevOffset( const char *s, int offset );
 
 #include "sys/sys_public.h"
 
