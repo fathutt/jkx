@@ -39,8 +39,8 @@ Foundation.
 // pointer's value, not its address, so writing through it writes through the
 // image. There is no setter because the renderer is not meant to set it.
 //
-// rd-vanilla/tr_bsp.cpp:1451 has the same code and the same free commented out,
-// with the reason: the engine keeps the disk image for a respawn, and only
+// The single-player renderer had the same code with the same free commented
+// out, and the reason: the engine keeps the disk image for a respawn, and only
 // holds one at all when the machine has memory to spare. So under single-player
 // this is a no-op and the engine owns the lifetime, which is where it belongs.
 #define R_ReleaseCachedMapImage()		( (void)0 )

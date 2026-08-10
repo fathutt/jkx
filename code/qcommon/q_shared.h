@@ -60,10 +60,18 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 #endif
 
-//rww - conveniently toggle "gore" code, for model decals and stuff.
-#ifndef JK2_MODE
+// Gore: model decals, the marks a blaster leaves. Unconditional now.
+//
+// It used to be off under JK2_MODE, which is defensible as a statement about
+// the game - Outcast has no gore - and indefensible as a statement about the
+// engine, because it changes the signatures of G2_TransformModel and
+// G2_TraceModels. With one renderer linked into both engines those signatures
+// have to agree, and the two builds disagreed at the link step.
+//
+// The capability being compiled in is not the same as the game using it: JK2's
+// gamecode never asks for a gore mark, so none appear. Which game is being
+// played decides what the gamecode does, not what the engine is made of.
 #define _G2_GORE
-#endif // !JK2_MODE
 
 #if JK2_MODE
 #define PRODUCT_NAME			"openjo_sp"

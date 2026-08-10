@@ -143,20 +143,23 @@ set(SPRDVulkanGhoul2Files
 source_group("ghoul2" FILES ${SPRDVulkanGhoul2Files})
 list(APPEND SPRDVulkanFiles ${SPRDVulkanGhoul2Files})
 
+# rd-common was the code two renderers shared. There is one renderer, so the
+# image loaders, the noise table and the font declarations have moved in here
+# where they are read. What is left in rd-common is the pair of headers the
+# engine itself includes - the interface between the two - plus the model
+# format, which the gamecode also reads.
 set(SPRDVulkanRdCommonFiles
 	"${SPDir}/rd-common/mdx_format.h"
-	"${SPDir}/rd-common/tr_common.h"
-	# tr_font.cpp is rd-vanilla's now. This renderer draws text from distance
-	# fields; see tr_font_sdf.cpp and tools/fontgen.
-	"${SPDir}/rd-common/tr_font.h"
-	"${SPDir}/rd-vulkan/tr_font_sdf.cpp"
-	"${SPDir}/rd-common/tr_image_load.cpp"
-	"${SPDir}/rd-common/tr_image_jpg.cpp"
-	"${SPDir}/rd-common/tr_image_tga.cpp"
-	"${SPDir}/rd-common/tr_image_png.cpp"
-	"${SPDir}/rd-common/tr_noise.cpp"
 	"${SPDir}/rd-common/tr_public.h"
-	"${SPDir}/rd-common/tr_types.h")
+	"${SPDir}/rd-common/tr_types.h"
+	"${SPDir}/rd-vulkan/tr_common.h"
+	"${SPDir}/rd-vulkan/tr_font.h"
+	"${SPDir}/rd-vulkan/tr_font_sdf.cpp"
+	"${SPDir}/rd-vulkan/tr_image_load.cpp"
+	"${SPDir}/rd-vulkan/tr_image_jpg.cpp"
+	"${SPDir}/rd-vulkan/tr_image_tga.cpp"
+	"${SPDir}/rd-vulkan/tr_image_png.cpp"
+	"${SPDir}/rd-vulkan/tr_noise.cpp")
 source_group("rd-common" FILES ${SPRDVulkanRdCommonFiles})
 list(APPEND SPRDVulkanFiles ${SPRDVulkanRdCommonFiles})
 
@@ -213,30 +216,16 @@ if(NOT JKX_SHADER_GENERATED_DIR)
 endif()
 list(APPEND SPRDVulkanIncludeDirectories "${JKX_SHADER_GENERATED_DIR}")
 
-# Phase 2.2: one binary. The renderer is a static library linked into the engine
-# rather than a module loaded at runtime, which removes the whole class of defect
-# that lives on a DLL boundary - two heaps, two copies of a struct layout, and an
+# One binary. The renderer is a static library linked into the engine rather
+# than a module loaded at runtime, which removes the whole class of defect that
+# lives on a DLL boundary - two heaps, two copies of a struct layout, and an
 # unload path that has to put everything back exactly as it found it.
 #
-# JKX_MONOLITH is an option and not a hard-coded choice only because rd-vanilla
-# is still around as a reference this phase, and comparing the two renderers at
-# runtime needs a loadable module. It goes when rd-vanilla does.
-option(JKX_MONOLITH "Link the Vulkan renderer into the engine instead of loading it" ON)
+# This used to be an option, because rd-vanilla was still around to compare
+# against and comparing two renderers at runtime needs a loadable module.
+# rd-vanilla is gone.
 
-if(JKX_MONOLITH)
-	add_library(${SPRDVulkanRenderer} STATIC ${SPRDVulkanFiles})
-	# The renderer has to know too: inside the engine it must stop defining the
-	# engine's own symbols, which it could only get away with behind a module
-	# boundary.
-	list(APPEND SPRDVulkanDefines "JKX_MONOLITH_RENDERER=1")
-else()
-	add_library(${SPRDVulkanRenderer} SHARED ${SPRDVulkanFiles})
-endif()
-
-if(NOT MSVC)
-	# remove "lib" prefix for .so/.dylib files
-	set_target_properties(${SPRDVulkanRenderer} PROPERTIES PREFIX "")
-endif()
+add_library(${SPRDVulkanRenderer} STATIC ${SPRDVulkanFiles})
 
 set_target_properties(${SPRDVulkanRenderer} PROPERTIES
 	COMPILE_DEFINITIONS "${SPRDVulkanDefines}"
@@ -259,12 +248,8 @@ endif()
 target_compile_features(${SPRDVulkanRenderer} PRIVATE cxx_std_20)
 target_link_libraries(${SPRDVulkanRenderer} ${SPRDVulkanLibraries} Vulkan::Headers)
 
-# --no-undefined only means anything for something that links: a static library
-# is an archive and has nothing to resolve against. Inside the engine the same
-# check happens when the engine links.
-if(NOT JKX_MONOLITH)
-	jkx_no_undefined_symbols(${SPRDVulkanRenderer})
-endif()
+# --no-undefined would mean nothing here: a static library is an archive and has
+# nothing to resolve against. The same check happens when the engine links.
 
 if(WIN32)
 	# vk_crash.cpp walks the stack and resolves the frames through dbghelp. It
@@ -287,21 +272,9 @@ if(MSVC)
 	# and the difference between a build a compiler cache can reuse and one it
 	# cannot.
 	target_compile_options(${SPRDVulkanRenderer} PRIVATE /Z7)
-	# An archive is not linked, so link options on it do nothing. Inside the
-	# engine the engine's own link options apply, and /Z7 above means the symbols
-	# are in the objects and travel into it.
-	if(NOT JKX_MONOLITH)
-		target_link_options(${SPRDVulkanRenderer} PRIVATE /DEBUG /OPT:REF /OPT:ICF)
-	endif()
+	# An archive is not linked, so link options on it would do nothing. The
+	# engine's own apply, and /Z7 above means the symbols are in the objects and
+	# travel into it.
 endif()
 
-# Nothing to install when it is inside the engine.
-if(NOT JKX_MONOLITH)
-	if(WIN32)
-		install(TARGETS ${SPRDVulkanRenderer}
-			RUNTIME DESTINATION ${JKAInstallDir} COMPONENT ${JKASPClientComponent})
-	else()
-		install(TARGETS ${SPRDVulkanRenderer}
-			LIBRARY DESTINATION ${JKAInstallDir} COMPONENT ${JKASPClientComponent})
-	endif()
-endif()
+# Nothing to install: it is inside the engine.

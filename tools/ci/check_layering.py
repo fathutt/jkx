@@ -26,7 +26,7 @@ from pathlib import Path
 LAYERS: dict[str, tuple[str, ...]] = {
     "platform": ("shared/sys", "shared/sdl"),
     "engine": ("code/qcommon", "code/server", "code/client", "shared/qcommon"),
-    "render": ("code/rd-vulkan", "code/rd-common", "code/rd-vanilla"),
+    "render": ("code/rd-vulkan", "code/rd-common"),
     "game": ("code/game", "code/cgame", "code/ui", "code/icarus", "codeJK2"),
 }
 

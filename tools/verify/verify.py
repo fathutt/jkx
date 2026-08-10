@@ -1273,7 +1273,7 @@ def write_report(path: Path, results: dict, info: dict, args, stages: dict | Non
         "## Still needs a human",
         "",
         "- FPS against the OpenGL renderer on the same scene",
-        "  (`/cl_renderer rd-eternaljk; vid_restart`, or rd-vanilla in a build that has it)",
+        "  (there is one renderer now, so this is a build-to-build comparison rather than a cvar)",
         "- one RenderDoc capture: draw call count, pipeline switches, where time goes",
         "- hitching when new materials first appear, which is the lazy pipeline creation",
         "",

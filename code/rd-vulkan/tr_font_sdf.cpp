@@ -33,7 +33,7 @@ Foundation.
 // and the problem does not arise.
 
 #include "tr_local.h"
-#include "../rd-common/tr_font.h"
+#include "tr_font.h"
 #include "qcommon/qfiles.h"
 
 // Texels of field either side of the outline. This is the generator's default

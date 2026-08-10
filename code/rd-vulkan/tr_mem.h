@@ -13,16 +13,17 @@ Foundation.
 // The renderer's memory API.
 //
 // This was a compatibility layer over two engines that named memory
-// differently. There is one engine now, so what is left is naming: the
-// renderer calls these and they land on the tagged heap. It goes away with the
-// refimport table in 2.2, when the renderer is compiled into the engine and can
-// call Z_Malloc directly.
+// differently. There is one engine now, so what is left is one real collision:
+// the engine declares Z_Free, Z_MemSize and a three-argument Z_Malloc *macro*,
+// so the renderer cannot reuse those names even in the same binary. These
+// wrappers exist for that reason and no other.
 
 #pragma once
 
 // The R_ prefix is not decoration: the engine already declares Z_Free, Z_MemSize
 // and a three-argument Z_Malloc *macro*, so the renderer must not reuse those
-// names. rd-vanilla prefixes its wrappers for the same reason.
+// names. The old
+// single-player renderer prefixed its wrappers for the same reason.
 //
 // The allocation preference is inherited from the hunk this used to be and does
 // nothing against a tagged heap; the single-player renderer does not pass it

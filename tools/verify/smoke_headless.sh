@@ -92,7 +92,6 @@ set +e
   VK_ICD_FILENAMES="${VK_ICD_FILENAMES:-/usr/share/vulkan/icd.d/lvp_icd.json}" \
   timeout 300 "./$(basename "$ENGINE")" \
       +set fs_basepath "$RUN" +set fs_homepath "$RUN/home" \
-      +set cl_renderer rdsp-vulkan \
       +set s_initsound 0 \
       +wait 60 +screenshot_tga jkx_smoke \
       +toggleconsole +wait 30 +screenshot_tga jkx_console \
@@ -116,10 +115,9 @@ require() {
     fi
 }
 
-# Either the module was loaded or it is inside the engine; both are the renderer
-# coming up, and which one depends on how this was built.
-if ! grep -q -- 'Trying to load "rdsp-vulkan_' "$RUN/run.log" &&
-   ! grep -q -- 'renderer: rdsp-vulkan, built in' "$RUN/run.log"; then
+# There is one renderer and it is inside the engine, so this is a check that it
+# started rather than a check on which one started.
+if ! grep -q -- 'renderer: rd-vulkan, built in' "$RUN/run.log"; then
     report "the log does not say the Vulkan renderer came up"
 fi
 

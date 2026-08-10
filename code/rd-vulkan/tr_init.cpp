@@ -26,7 +26,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #include "tr_local.h"
 
 #include <algorithm>
-#include "../rd-common/tr_common.h"
+#include "tr_common.h"
 #include "tr_WorldEffects.h"
 #include "qcommon/MiniHeap.h"
 #include "ghoul2/g2_local.h"
@@ -189,11 +189,7 @@ cvar_t	*r_device;
 // definitions were fine while this was a module; inside the engine there is one,
 // and R_Register still fetches it - Cvar_Get on an existing name hands back the
 // same cvar.
-#if defined(JKX_MONOLITH_RENDERER)
 extern cvar_t	*r_ext_multisample;
-#else
-cvar_t	*r_ext_multisample;
-#endif
 cvar_t	*r_ext_supersample;
 cvar_t	*r_ext_alpha_to_coverage;
 cvar_t	*r_hdr;
@@ -210,11 +206,7 @@ cvar_t	*r_bloom_modulate;
 cvar_t	*r_renderWidth;
 cvar_t	*r_renderHeight;
 cvar_t	*r_renderScale;
-#if defined(JKX_MONOLITH_RENDERER)
 extern cvar_t	*r_ignorehwgamma;
-#else
-cvar_t	*r_ignorehwgamma;
-#endif
 
 #ifdef HDR_DELUXE_LIGHTMAP
 cvar_t	*r_deluxeMapping;
@@ -297,11 +289,7 @@ Ghoul2 Insert End
 */
 
 // The engine owns the language cvar; the string tables are its, not ours.
-#if defined(JKX_MONOLITH_RENDERER)
 extern cvar_t *se_language;
-#else
-cvar_t *se_language;
-#endif
 
 cvar_t *r_aviMotionJpegQuality;
 cvar_t *r_screenshotJpegQuality;
@@ -1444,12 +1432,8 @@ GetRefAPI
 @@@@@@@@@@@@@@@@@@@@@
 */
 extern "C" {
-Q_EXPORT refexport_t* QDECL GetRefAPI( int apiVersion, refimport_t *rimp ) {
+Q_EXPORT refexport_t* QDECL GetRefAPI( int apiVersion ) {
 	static refexport_t re;
-
-	assert( rimp );
-	// Only code/rd-common reads this now; see the note beside the definition.
-	ri = *rimp;
 
 	memset( &re, 0, sizeof( re ) );
 

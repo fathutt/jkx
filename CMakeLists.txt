@@ -142,10 +142,9 @@ option(BuildPortableVersion "Build portable version (does not read or write file
 
 option(BuildSPEngine "Whether to create projects for the SP engine (openjk_sp.exe)" ON)
 option(BuildSPGame "Whether to create projects for the SP gamecode (jagamex86.dll)" ON)
-option(BuildSPRdVanilla "Whether to create projects for the SP default renderer (rdsp-vanilla_x86.dll)" ON)
-# OFF on purpose: this target is phase 2's finish line and does not compile yet.
-# See code/rd-vulkan/CMakeLists.txt - its whole job is to turn "what is left to
-# port" from an estimate into a list the compiler prints.
+# The one renderer. rd-vanilla was kept through phase 2 as something to compare
+# against; it is gone, and with it the module boundary that existed only so two
+# renderers could be swapped at runtime.
 option(BuildSPRdVulkan "Whether to create the SP Vulkan renderer project" ON)
 
 option(BuildJK2SPEngine "Build the JK2 SP engine" ON)
@@ -276,10 +275,8 @@ endif()
 #=============================================================================
 set(SPEngine "jkx_ja.${Architecture}")
 set(SPGame "jagame${Architecture}")
-set(SPRDVanillaRenderer "rdsp-vanilla_${Architecture}")
 set(SPRDVulkanRenderer "rdsp-vulkan_${Architecture}")
 set(MPEngine "openjk.${Architecture}")
-set(MPVanillaRenderer "rd-vanilla_${Architecture}")
 set(MPDed "openjkded.${Architecture}")
 set(MPGame "jampgame${Architecture}")
 set(MPCGame "cgame${Architecture}")
@@ -287,7 +284,6 @@ set(MPUI "ui${Architecture}")
 set(MPRend2 "rd-rend2_${Architecture}")
 set(JK2SPEngine "jkx_jo.${Architecture}")
 set(JK2SPGame "jospgame${Architecture}")
-set(JK2SPVanillaRenderer "rdjosp-vanilla_${Architecture}")
 set(AssetsPk3 "openjk-${Architecture}.pk3")
 # Library names
 set(MPBotLib "botlib")

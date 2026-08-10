@@ -36,7 +36,6 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 #define	RETRANSMIT_TIMEOUT	3000	// time between connection packet retransmits
 
-cvar_t	*cl_renderer;
 
 cvar_t	*cl_nodelta;
 cvar_t	*cl_debugMove;
@@ -86,7 +85,6 @@ clientStatic_t		cls;
 
 // Structure containing functions exported from refresh DLL
 refexport_t	re;
-static void *rendererLib = NULL;
 
 //RAZFIXME: BAD BAD, maybe? had to move it out of ghoul2_shared.h -> CGhoul2Info_v at the least..
 IGhoul2InfoArray &_TheGhoul2InfoArray( void ) {
@@ -897,11 +895,6 @@ static void CL_ShutdownRef( qboolean restarting ) {
 	}
 
 	memset( &re, 0, sizeof( re ) );
-
-	if ( rendererLib != NULL ) {
-		Sys_UnloadDll (rendererLib);
-		rendererLib = NULL;
-	}
 }
 
 /*
@@ -1083,156 +1076,30 @@ CMiniHeap *GetG2VertSpaceServer( void ) {
 	return G2VertSpaceServer;
 }
 
-// NOTENOTE: If you change the output name of rd-vanilla, change this define too!
-#ifdef JK2_MODE
-#define DEFAULT_RENDER_LIBRARY	"rdjosp-vanilla"
-#else
-#define DEFAULT_RENDER_LIBRARY	"rdsp-vanilla"
-#endif
+// The renderer is linked in. There is no file to find, no symbol to look up, no
+// second heap, and no unload path that has to put the world back exactly as it
+// found it - and no refimport_t either.
+//
+// That table was about a hundred function pointers, filled in here and handed
+// over at load time, because the renderer was a separate module and had no
+// other way to reach the engine. It bought an indirection per call, a place for
+// the two sides to disagree about a signature without the compiler noticing,
+// and a backtrace with a pointer in it where a function name should be. The
+// renderer calls the engine directly now; what it may call is declared in
+// code/rd-vulkan/tr_engine_api.h.
+//
+// cl_renderer goes with it. It named a module to load, and there is one
+// renderer.
 
-#if defined(JKX_MONOLITH_RENDERER)
-// The renderer this build has inside it. Named so that cl_renderer keeps meaning
-// what it always meant, and so that asking for the built-in one by name is the
-// same thing as asking for nothing.
-#define BUILTIN_RENDERER_NAME	"rdsp-vulkan"
-
-extern "C" refexport_t *GetRefAPI( int apiVersion, refimport_t *rimp );
-#endif
+extern "C" refexport_t *GetRefAPI( int apiVersion );
 
 void CL_InitRef( void ) {
-	refexport_t	*ret;
-	static refimport_t rit;
-	char		dllName[MAX_OSPATH];
-	GetRefAPI_t	getRefAPI = NULL;
-
 	Com_Printf( "----- Initializing Renderer ----\n" );
-#if defined(JKX_MONOLITH_RENDERER)
-	cl_renderer = Cvar_Get( "cl_renderer", BUILTIN_RENDERER_NAME, CVAR_ARCHIVE|CVAR_LATCH );
-#else
-	cl_renderer = Cvar_Get( "cl_renderer", DEFAULT_RENDER_LIBRARY, CVAR_ARCHIVE|CVAR_LATCH );
-#endif
+	Com_Printf( "renderer: rd-vulkan, built in\n" );
 
-#if defined(JKX_MONOLITH_RENDERER)
-	// The renderer is linked in. No file to find, no symbol to look up, no
-	// second heap, and no unload path that has to put the world back exactly as
-	// it found it. Any other name still goes through the loader, because
-	// rd-vanilla is still here to compare against this phase.
-	if ( !Q_stricmp( cl_renderer->string, BUILTIN_RENDERER_NAME ) ) {
-		Com_Printf( "renderer: %s, built in\n", BUILTIN_RENDERER_NAME );
-		getRefAPI = GetRefAPI;
-	}
-#endif
-
-	if ( !getRefAPI ) {
-		Com_sprintf( dllName, sizeof( dllName ), "%s_" ARCH_STRING DLL_EXT, cl_renderer->string );
-
-		if( !(rendererLib = Sys_LoadDll( dllName, qfalse )) && strcmp( cl_renderer->string, cl_renderer->resetString ) )
-		{
-			Com_Printf( "failed: trying to load fallback renderer\n" );
-			Cvar_ForceReset( "cl_renderer" );
-
-			Com_sprintf( dllName, sizeof( dllName ), DEFAULT_RENDER_LIBRARY "_" ARCH_STRING DLL_EXT );
-			rendererLib = Sys_LoadDll( dllName, qfalse );
-		}
-
-		if ( !rendererLib ) {
-			Com_Error( ERR_FATAL, "Failed to load renderer\n" );
-		}
-
-		getRefAPI = (GetRefAPI_t)Sys_LoadFunction( rendererLib, "GetRefAPI" );
-		if ( !getRefAPI )
-			Com_Error( ERR_FATAL, "Can't load symbol GetRefAPI: '%s'", Sys_LibraryError() );
-	}
-
-	memset( &rit, 0, sizeof( rit ) );
-
-#define RIT(y)	rit.y = y
-	RIT(CIN_PlayCinematic);
-	RIT(CIN_RunCinematic);
-	RIT(CIN_UploadCinematic);
-	RIT(CL_IsRunningInGameCinematic);
-	RIT(Cmd_AddCommand);
-	RIT(Cmd_Argc);
-	RIT(Cmd_ArgsBuffer);
-	RIT(Cmd_Argv);
-	RIT(Cmd_ExecuteString);
-	RIT(Cmd_RemoveCommand);
-	RIT(CM_ClusterPVS);
-	RIT(CM_CullWorldBox);
-	RIT(CM_DeleteCachedMap);
-	RIT(CM_DrawDebugSurface);
-	RIT(CM_PointContents);
-	RIT(Cvar_Get);
-	RIT(Cvar_Set);
-	RIT(Cvar_SetValue);
-	RIT(Cvar_CheckRange);
-	RIT(Cvar_VariableIntegerValue);
-	RIT(Cvar_VariableString);
-	RIT(Cvar_VariableStringBuffer);
-	RIT(Cvar_VariableValue);
-	RIT(FS_FCloseFile);
-	RIT(FS_FileIsInPAK);
-	RIT(FS_FOpenFileByMode);
-	RIT(FS_FOpenFileRead);
-	RIT(FS_FOpenFileWrite);
-	RIT(FS_FreeFile);
-	RIT(FS_FreeFileList);
-	RIT(FS_ListFiles);
-	RIT(FS_Read);
-	RIT(FS_ReadFile);
-	RIT(FS_Write);
-	RIT(FS_WriteFile);
-	RIT(Hunk_ClearToMark);
-	RIT(SND_RegisterAudio_LevelLoadEnd);
-	//RIT(SV_PointContents);
-	RIT(SV_Trace);
-	RIT(S_RestartMusic);
-	RIT(Z_Free);
-	rit.Malloc=CL_Malloc;
-	RIT(Z_MemSize);
-	RIT(Z_MorphMallocTag);
-
-	RIT(Hunk_ClearToMark);
-
-    rit.WIN_Init = WIN_Init;
-	rit.WIN_SetGamma = WIN_SetGamma;
-    rit.WIN_Shutdown = WIN_Shutdown;
-    rit.WIN_Present = WIN_Present;
-	rit.GL_GetProcAddress = WIN_GL_GetProcAddress;
-	rit.GL_ExtensionSupported = WIN_GL_ExtensionSupported;
-
-	rit.VK_IsMinimized = WIN_VK_IsMinimized;
-	rit.VK_GetInstanceProcAddress = WIN_VK_GetInstanceProcAddress;
-	rit.VK_createSurfaceImpl = WIN_VK_CreateSurface;
-	rit.VK_destroyWindow = WIN_VK_DestroyWindow;
-
-	rit.PD_Load = PD_Load;
-	rit.PD_Store = PD_Store;
-
-	rit.Error = Com_Error;
-	rit.FS_FileExists = S_FileExists;
-	rit.GetG2VertSpaceServer = GetG2VertSpaceServer;
-	rit.LowPhysicalMemory = Sys_LowPhysicalMemory;
-	rit.Milliseconds = Sys_Milliseconds2;
-	rit.Printf = CL_RefPrintf;
-	rit.SE_GetString = String_GetStringValue;
-
-	rit.SV_Trace = SV_Trace;
-
-	rit.gpvCachedMapDiskImage = get_gpvCachedMapDiskImage;
-	rit.gsCachedMapDiskImage = get_gsCachedMapDiskImage;
-	rit.gbUsingCachedMapDataRightNow = get_gbUsingCachedMapDataRightNow;
-	rit.gbAlreadyDoingLoad = get_gbAlreadyDoingLoad;
-	rit.com_frameTime = get_com_frameTime;
-
-	rit.SV_PointContents = SV_PointContents;
-
-	rit.saved_game = &ojk::SavedGame::get_instance();
-
-	ret = getRefAPI( REF_API_VERSION, &rit );
-
+	refexport_t *ret = GetRefAPI( REF_API_VERSION );
 	if ( !ret ) {
-		Com_Error (ERR_FATAL, "Couldn't initialize refresh" );
+		Com_Error( ERR_FATAL, "Couldn't initialize refresh" );
 	}
 
 	re = *ret;

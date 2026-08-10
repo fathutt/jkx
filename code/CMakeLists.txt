@@ -27,7 +27,6 @@ if(BuildSPGame)
 endif(BuildSPGame)
 
 #    Add Modular Renderer project
-add_subdirectory("${SPDir}/rd-vanilla")
 add_subdirectory("${SPDir}/rd-vulkan")
 
 #    Add Engine Project
@@ -490,12 +489,11 @@ if(BuildSPEngine OR BuildJK2SPEngine)
 	if(BuildSPEngine)
 		add_sp_project(${SPEngine} "SP Client" ${SPDir} ${JKAInstallDir} ${JKASPClientComponent})
 
-		# Phase 2.2: the renderer is part of the engine, not a module beside it.
-		# GetRefAPI is then an ordinary function call and the client says so at
-		# compile time rather than looking for a file at runtime.
-		if(BuildSPRdVulkan AND JKX_MONOLITH)
+		# The renderer is part of the engine, not a module beside it. GetRefAPI
+		# is then an ordinary function call and the client says so at compile
+		# time rather than looking for a file at runtime.
+		if(BuildSPRdVulkan)
 			target_link_libraries(${SPEngine} ${SPRDVulkanRenderer})
-			target_compile_definitions(${SPEngine} PRIVATE JKX_MONOLITH_RENDERER=1)
 			target_sources(${SPEngine} PRIVATE ${SPEngineGhoul2Sources})
 			source_group("ghoul2" FILES ${SPEngineGhoul2Sources})
 		endif()
@@ -503,6 +501,15 @@ if(BuildSPEngine OR BuildJK2SPEngine)
 	if(BuildJK2SPEngine)
 		set(SPEngineDefines ${SPEngineDefines} "JK2_MODE")
 		add_sp_project(${JK2SPEngine} "JK2 SP Client" ${JK2SPDir} ${JK2InstallDir} ${JK2SPClientComponent})
+
+		# The same renderer, linked the same way. It used to be the one place
+		# the two engines diverged: JK2 loaded a renderer module while JKA had
+		# one inside it, which was a stopgap and is now not even possible - the
+		# loader is gone. The renderer does not know which game it is drawing.
+		if(BuildSPRdVulkan)
+			target_link_libraries(${JK2SPEngine} ${SPRDVulkanRenderer})
+			target_sources(${JK2SPEngine} PRIVATE ${SPEngineGhoul2Sources})
+		endif()
 	endif(BuildJK2SPEngine)
 
 endif(BuildSPEngine OR BuildJK2SPEngine)

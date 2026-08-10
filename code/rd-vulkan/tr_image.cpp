@@ -24,7 +24,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 // tr_image.c
 
 #include "tr_local.h"
-#include "../rd-common/tr_common.h"
+#include "tr_common.h"
 
 #include <map>
 

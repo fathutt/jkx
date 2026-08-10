@@ -46,7 +46,6 @@ static const float s_flipMatrix[16] QALIGN(16) = {
 // through the table and the table keeps being filled for it.
 //
 // It goes when rd-vanilla goes, and rd-common converts with it.
-refimport_t	ri;
 
 // entities that will have procedurally generated surfaces will just
 // point at this for their sorting surface

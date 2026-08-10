@@ -29,19 +29,6 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 // list below got shorter.
 #include "tr_local.h"
 
-#if !defined(JKX_MONOLITH_RENDERER)
-void QDECL Com_Printf( const char *msg, ... )
-{
-	va_list         argptr;
-	char            text[1024];
-
-	va_start(argptr, msg);
-	Q_vsnprintf(text, sizeof(text), msg, argptr);
-	va_end(argptr);
-
-	CL_RefPrintf(PRINT_ALL, "%s", text);
-}
-#endif
 
 void QDECL Com_OPrintf( const char *msg, ... )
 {
@@ -55,19 +42,6 @@ void QDECL Com_OPrintf( const char *msg, ... )
 	R_OPrintf("%s", text);
 }
 
-#if !defined(JKX_MONOLITH_RENDERER)
-void QDECL Com_Error( int level, const char *error, ... )
-{
-	va_list         argptr;
-	char            text[1024];
-
-	va_start(argptr, error);
-	Q_vsnprintf(text, sizeof(text), error, argptr);
-	va_end(argptr);
-
-	Com_Error(level, "%s", text);
-}
-#endif
 
 // HUNK
 
@@ -114,11 +88,6 @@ int R_Z_MemSize( memtag_t eTag ) {
 	return Z_MemSize( eTag );
 }
 
-#if !defined(JKX_MONOLITH_RENDERER)
-void Z_MorphMallocTag( void *pvBuffer, memtag_t eDesiredTag ) {
-	Z_MorphMallocTag( pvBuffer, eDesiredTag );
-}
-#endif
 
 
 // rd-common allocates through these. rd-vanilla defines them the same way; the
@@ -135,7 +104,4 @@ void R_Free( void *ptr ) {
 // building a script. rd-common declares it and expects the renderer module to
 // define and register it, exactly as rd-vanilla does - see R_Register. Inside
 // the engine it is the engine's, which has had one all along.
-#if !defined(JKX_MONOLITH_RENDERER)
-cvar_t	*com_buildScript;
-#endif
 

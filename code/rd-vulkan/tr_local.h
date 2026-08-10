@@ -77,7 +77,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #include "qcommon/q_shared.h"
 #include "qcommon/qfiles.h"
 #include "rd-common/tr_public.h"
-#include "rd-common/tr_common.h"
+#include "tr_common.h"
 // After tr_types.h has been pulled in, because every entry tests what that
 // header did or did not define. Temporary; see the file for its lifetime.
 // After the shim, because it is guarded on what the shim decided.

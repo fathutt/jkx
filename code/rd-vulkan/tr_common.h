@@ -23,10 +23,15 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 #pragma once
 
-#include "../rd-common/tr_public.h"
-#include "../rd-common/tr_font.h"
+// The engine functions the renderer calls. These files used to reach the engine
+// through the refimport table, which is gone; the declarations are here so that
+// the image loaders and the noise table can call Com_Printf and the filesystem
+// by name like everything else in the renderer does.
+#include "tr_engine_api.h"
 
-extern refimport_t ri;
+#include "../rd-common/tr_public.h"
+#include "tr_font.h"
+
 
 /*
 ================================================================================
