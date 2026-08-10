@@ -264,11 +264,10 @@ cvar_t	*r_noPrecacheGLA;
 cvar_t	*r_noServerGhoul2;
 cvar_t	*r_Ghoul2AnimSmooth=0;
 cvar_t	*r_Ghoul2UnSqashAfterSmooth=0;
-//cvar_t	*r_Ghoul2UnSqash;
-//cvar_t	*r_Ghoul2TimeBase=0; from single player
-//cvar_t	*r_Ghoul2NoLerp;
-//cvar_t	*r_Ghoul2NoBlend;
-//cvar_t	*r_Ghoul2BlendMultiplier=0;
+cvar_t	*r_Ghoul2UnSqash=0;
+cvar_t	*r_Ghoul2NoLerp=0;
+cvar_t	*r_Ghoul2NoBlend=0;
+cvar_t	*r_Ghoul2BlendMultiplier=0;
 
 cvar_t	*broadsword=0;
 cvar_t	*broadsword_kickbones=0;
@@ -1021,7 +1020,25 @@ Ghoul2 Insert Start
 #endif
 	r_noServerGhoul2					= Cvar_Get( "r_noserverghoul2",					"0",						CVAR_CHEAT, "" );
 	r_Ghoul2AnimSmooth					= Cvar_Get( "r_ghoul2animsmooth",				"0.3",						CVAR_NONE, "" );
-	r_Ghoul2UnSqashAfterSmooth			= Cvar_Get( "r_ghoul2unsqashaftersmooth",		"1",						CVAR_NONE, "" );
+	// Ghoul2's own knobs, back from the single-player renderer this one
+	// replaced. They arrived here commented out, along with the code they
+	// guarded, because this renderer came by way of a multiplayer fork that had
+	// dropped them - and one of them was not a debug switch at all.
+	//
+	// The name is spelt with the u it is missing everywhere else in this file;
+	// the old one is registered too, so a config that has it keeps working.
+	r_Ghoul2UnSqashAfterSmooth			= Cvar_Get( "r_ghoul2unsquashaftersmooth",		"1",						CVAR_NONE,
+											"Remove non-uniform scale from bones after animation smoothing" );
+	Cvar_Get( "r_ghoul2unsqashaftersmooth", "1", CVAR_NONE, "Old spelling of r_ghoul2unsquashaftersmooth" );
+
+	r_Ghoul2UnSqash						= Cvar_Get( "r_ghoul2unsquash",					"1",						CVAR_NONE,
+											"Remove non-uniform scale from bone matrices. Off is what this renderer did before it was asked" );
+	r_Ghoul2NoLerp						= Cvar_Get( "r_ghoul2nolerp",					"0",						CVAR_NONE,
+											"Never interpolate between animation frames" );
+	r_Ghoul2NoBlend						= Cvar_Get( "r_ghoul2noblend",					"0",						CVAR_NONE,
+											"Never blend between animations" );
+	r_Ghoul2BlendMultiplier				= Cvar_Get( "r_ghoul2blendmultiplier",			"1",						CVAR_NONE,
+											"Scale every animation blend time. 0 disables blending" );
 	broadsword							= Cvar_Get( "broadsword",						"0",						CVAR_ARCHIVE_ND, "" );
 	broadsword_kickbones				= Cvar_Get( "broadsword_kickbones",				"1",						CVAR_NONE, "" );
 	broadsword_kickorigin				= Cvar_Get( "broadsword_kickorigin",				"1",						CVAR_NONE, "" );

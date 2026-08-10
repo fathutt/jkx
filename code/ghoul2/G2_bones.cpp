@@ -43,6 +43,9 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 #include "client/client.h"
 #include "server/server.h"	// the ragdoll trace, which is the engine's
+
+// Registered by the renderer; see tr_init.cpp.
+extern cvar_t	*r_Ghoul2BlendMultiplier;
 //rww - RAGDOLL_END
 
 //=====================================================================================================================
@@ -654,10 +657,27 @@ qboolean G2_Set_Bone_Anim_Index(
 	const float animSpeed,
 	const int currentTime,
 	const float setFrame,
-	const int blendTime,
+	const int requestedBlendTime,
 	const int numFrames)
 {
 	int			modFlags = flags;
+
+	// r_ghoul2blendmultiplier scales every blend the gamecode asks for, and
+	// zero turns blending off outright. It is the one knob that says whether a
+	// wobble is the blend's fault, and it was not here.
+	int			blendTime = requestedBlendTime;
+
+	if ( r_Ghoul2BlendMultiplier && r_Ghoul2BlendMultiplier->value != 1.0f )
+	{
+		if ( r_Ghoul2BlendMultiplier->value <= 0.0f )
+		{
+			modFlags &= ~BONE_ANIM_BLEND;
+		}
+		else
+		{
+			blendTime = (int)ceil( (float)requestedBlendTime * r_Ghoul2BlendMultiplier->value );
+		}
+	}
 
 	if ((index >= (int)blist.size()) || (blist[index].boneNumber == -1))
 	{

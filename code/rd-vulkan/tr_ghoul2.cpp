@@ -133,6 +133,9 @@ bool G2_SetupModelPointers(CGhoul2Info_v &ghoul2);
 
 extern cvar_t	*r_Ghoul2AnimSmooth;
 extern cvar_t	*r_Ghoul2UnSqashAfterSmooth;
+extern cvar_t	*r_Ghoul2UnSqash;
+extern cvar_t	*r_Ghoul2NoLerp;
+extern cvar_t	*r_Ghoul2NoBlend;
 
 #if 0
 static inline int G2_Find_Bone_ByNum(const model_t *mod, boneInfo_v &blist, const int boneNum)
@@ -1559,7 +1562,7 @@ void G2_TransformBone (int child,CBoneCache &BC)
 				TB.blendMode = false;
 			}
 		}
-		else if (/*r_Ghoul2NoBlend->integer||*/((boneList[boneListIndex].flags) & (BONE_ANIM_OVERRIDE_LOOP | BONE_ANIM_OVERRIDE)))
+		else if (r_Ghoul2NoBlend->integer||((boneList[boneListIndex].flags) & (BONE_ANIM_OVERRIDE_LOOP | BONE_ANIM_OVERRIDE)))
 		// turn off blending if we are just doing a straing animation override
 		{
 			TB.blendMode = false;
@@ -1573,13 +1576,15 @@ void G2_TransformBone (int child,CBoneCache &BC)
 #if DEBUG_G2_TIMING
 		printTiming=true;
 #endif
-		/*
+		// BONE_ANIM_NO_LERP is a flag the gamecode sets on a bone to say "do not
+		// interpolate this one", and it was commented out here with a note
+		// asking whether it should be used. It should: the flag is in
+		// ghoul2_shared.h, the gamecode can set it, and a bone that asks not to
+		// be interpolated was being interpolated anyway.
 		if ((r_Ghoul2NoLerp->integer)||((boneList[boneListIndex].flags) & (BONE_ANIM_NO_LERP)))
 		{
 			TB.backlerp = 0.0f;
 		}
-		*/
-		//rwwFIXMEFIXME: Use?
 	}
 	// figure out where the location of the bone animation data is
 	assert(TB.newFrame>=0&&TB.newFrame<BC.header->numFrames);
@@ -2006,7 +2011,11 @@ void G2_TransformBone (int child,CBoneCache &BC)
 		  	Multiply_3x4Matrix(&BC.mFinalBones[child].boneMatrix, &tempMatrix, &boneList[boneListIndex].matrix);
 		}
 	}
-	/*
+	// This one is not a debug switch. It takes the non-uniform scale back out
+	// of a bone matrix - the squash that blending two animations puts into it -
+	// and single-player had it on by default. It arrived here commented out,
+	// with the rest, so bones have been keeping a squash that the renderer this
+	// replaced removed. On a bone that is turning, that reads as a wobble.
 	if (r_Ghoul2UnSqash->integer)
 	{
 		mdxaBone_t tempMatrix;
@@ -2022,9 +2031,6 @@ void G2_TransformBone (int child,CBoneCache &BC)
 		VectorScale(&tempMatrix.matrix[2][0],maxl,&tempMatrix.matrix[2][0]);
 		Multiply_3x4Matrix(&BC.mFinalBones[child].boneMatrix,&tempMatrix,&skel->BasePoseMatInv);
 	}
-	*/
-	//rwwFIXMEFIXME: Care?
-
 }
 
 void G2_SetUpBolts( mdxaHeader_t *header, CGhoul2Info &ghoul2, mdxaBone_v &bonePtr, boltInfo_v &boltList)
