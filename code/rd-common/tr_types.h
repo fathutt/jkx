@@ -241,6 +241,17 @@ typedef struct glconfig_s {
 
 	int						vidWidth, vidHeight;
 
+	// The 2D space the head-up display works in: 480 units tall, like the
+	// virtual screen has always been, and as many units wide as the window's
+	// aspect calls for. 640 on a 4:3 display, 853 on 16:9, 1138 on 21:9.
+	//
+	// This is what an element pinned to the right edge is pinned to. Menus do
+	// not use it - they are composed as a picture and fitted into the window
+	// with margins, which is SPACE2D_FRAME in the renderer - but anything that
+	// belongs to the corners of the monitor rather than to the composition
+	// needs a number for where the corner is, and 640 is not it.
+	float					virtualWidth;
+
 	int						displayFrequency;
 
 	qboolean				doStencilShadowsInOneDrawcall;

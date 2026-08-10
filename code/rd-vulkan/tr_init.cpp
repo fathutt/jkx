@@ -1506,6 +1506,7 @@ Q_EXPORT refexport_t* QDECL GetRefAPI( int apiVersion ) {
 	re.DrawRotatePic2                         = RE_RotatePic2;
 	re.LAGoggles                              = RE_LAGoggles;
 	re.Scissor                                = RE_Scissor;
+	re.Set2DSpace                             = RE_Set2DSpace;
 
 	// Draw images for cinematic rendering, pass as 32 bit rgba
 	re.DrawStretchRaw                         = RE_StretchRaw;

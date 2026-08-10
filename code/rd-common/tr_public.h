@@ -105,6 +105,12 @@ typedef struct {
 	void	(*LAGoggles)(void);
 	void	(*Scissor) ( float x, float y, float w, float h);	// 0 = white
 
+	// Which rectangle of the window the 640x480 virtual screen maps onto:
+	// 0 for a picture fitted and centred with margins, 1 for the head-up
+	// display's space, which is the shape of the window and as wide as
+	// glconfig_t::virtualWidth says. See space2D_t in the renderer.
+	void	(*Set2DSpace) ( int space );
+
 	// Draw images for cinematic rendering, pass as 32 bit rgba
 	void	(*DrawStretchRaw) (int x, int y, int w, int h, int cols, int rows, const byte *data, int client, qboolean dirty);
 	void	(*UploadCinematic) (int cols, int rows, const byte *data, int client, qboolean dirty);

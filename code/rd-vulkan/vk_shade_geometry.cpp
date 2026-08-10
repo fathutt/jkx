@@ -65,18 +65,25 @@ stretched to fit: on 21:9 the stretch is seventy-eight per cent wider than it
 was drawn.
 =================
 */
-void vk_get_2d_viewport( float *x, float *y, float *w, float *h )
+void vk_get_2d_viewport( float *x, float *y, float *w, float *h, float *virtualW )
 {
 	const float targetW = (float)vk.renderWidth;
 	const float targetH = (float)vk.renderHeight;
 
 	if ( backEnd.space2D == SPACE2D_SCREEN ) {
+		// The whole target, and a virtual space as wide as the window is. This
+		// is the one that has no margins by construction: the space is the
+		// shape of the screen, so it covers it exactly.
 		*x = 0.0f;
 		*y = 0.0f;
 		*w = targetW;
 		*h = targetH;
+		*virtualW = ( glConfig.virtualWidth > 0.0f )
+			? glConfig.virtualWidth : (float)SCREEN_WIDTH;
 		return;
 	}
+
+	*virtualW = (float)SCREEN_WIDTH;
 
 	const float want = (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT;
 	const float have = targetW / targetH;
@@ -100,13 +107,13 @@ static void get_mvp_transform( float *mvp )
 	{
 		// The virtual screen onto its rectangle of the target, and that
 		// rectangle onto normalised device coordinates.
-		float vx, vy, vw, vh;
-		vk_get_2d_viewport( &vx, &vy, &vw, &vh );
+		float vx, vy, vw, vh, virtualW;
+		vk_get_2d_viewport( &vx, &vy, &vw, &vh, &virtualW );
 
 		const float targetW = (float)vk.renderWidth;
 		const float targetH = (float)vk.renderHeight;
 
-		const float mvp0 = 2.0f * ( vw / targetW ) / SCREEN_WIDTH;
+		const float mvp0 = 2.0f * ( vw / targetW ) / virtualW;
 		const float mvp5 = 2.0f * ( vh / targetH ) / SCREEN_HEIGHT;
 
 		const float ox = -1.0f + 2.0f * ( vx / targetW );

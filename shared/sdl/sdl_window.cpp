@@ -115,12 +115,7 @@ const vidmode_t r_vidModes[] = {
     { "Mode 13: 3840x1080 (32:9)",   3840, 1080 },
     { "Mode 14: 5120x1440 (32:9)",   5120, 1440 },
     { "Mode 15: 7680x2160 (32:9)",   7680, 2160 },
-    { "Mode 16: 3840x1200 (32:10)",  3840, 1200 },
-
-    // 4:3, for the monitors this game was written for. Two entries rather than
-    // seven: anyone still on a CRT knows what their tube does.
-    { "Mode 17: 1024x768  (4:3)",    1024,  768 },
-    { "Mode 18: 1600x1200 (4:3)",    1600, 1200 }
+    { "Mode 16: 3840x1200 (32:10)",  3840, 1200 }
 };
 static const int	s_numVidModes = ARRAY_LEN( r_vidModes );
 

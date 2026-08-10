@@ -325,6 +325,60 @@ SCR_DrawScreenField
 This will be called twice if rendering in stereo mode
 ==================
 */
+/*
+================
+SCR_FillFrameMargins
+
+Black over whatever is outside the interface's frame.
+
+The frame keeps the interface's own proportions and is centred, so on anything
+that is not the shape it was drawn at there is a margin. During play that
+margin belongs to the scene and must not be painted - the world is rendered to
+the whole window, and only the 2D on top of it is framed. When the interface is
+the entire picture there is nothing behind it, and the margin is a bar.
+
+Drawn in the head-up display's space, because that is the one whose coordinates
+reach the edge of the window.
+================
+*/
+static void SCR_FillFrameMargins( void ) {
+	const float virtualWidth = ( cls.glconfig.virtualWidth > 0.0f )
+		? cls.glconfig.virtualWidth : (float)SCREEN_WIDTH;
+
+	const float frame = (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT;
+	const float have = ( cls.glconfig.vidHeight > 0 )
+		? (float)cls.glconfig.vidWidth / (float)cls.glconfig.vidHeight : frame;
+
+	if ( fabsf( have - frame ) < 0.001f ) {
+		return;					// the frame covers the window
+	}
+
+	re.Set2DSpace( 1 );			// SPACE2D_SCREEN
+	re.SetColor( colorBlack );
+
+	if ( have > frame ) {
+		// Bars at the sides. The frame is SCREEN_HEIGHT * frame units wide in
+		// this space, centred.
+		const float frameWidth = (float)SCREEN_HEIGHT * frame;
+		const float bar = ( virtualWidth - frameWidth ) * 0.5f;
+
+		re.DrawStretchPic( 0, 0, bar, SCREEN_HEIGHT, 0, 0, 0, 0, cls.whiteShader );
+		re.DrawStretchPic( virtualWidth - bar, 0, bar, SCREEN_HEIGHT,
+			0, 0, 0, 0, cls.whiteShader );
+	} else {
+		// Bars top and bottom.
+		const float frameHeight = virtualWidth / frame;
+		const float bar = ( (float)SCREEN_HEIGHT - frameHeight ) * 0.5f;
+
+		re.DrawStretchPic( 0, 0, virtualWidth, bar, 0, 0, 0, 0, cls.whiteShader );
+		re.DrawStretchPic( 0, (float)SCREEN_HEIGHT - bar, virtualWidth, bar,
+			0, 0, 0, 0, cls.whiteShader );
+	}
+
+	re.SetColor( NULL );
+	re.Set2DSpace( 0 );			// SPACE2D_FRAME
+}
+
 void SCR_DrawScreenField( stereoFrame_t stereoFrame ) {
 
 	re.BeginFrame( stereoFrame );
@@ -372,6 +426,12 @@ void SCR_DrawScreenField( stereoFrame_t stereoFrame ) {
 	re.ProcessDissolve();
 
 	// draw downloading progress bar
+
+	// Bars first, so the interface draws over them and the scene, when there is
+	// one, is not covered by them.
+	if ( uiFullscreen || cls.state < CA_ACTIVE ) {
+		SCR_FillFrameMargins();
+	}
 
 	// the menu draws next
 	_UI_Refresh( cls.realtime );

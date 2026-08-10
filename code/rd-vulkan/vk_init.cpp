@@ -162,10 +162,10 @@ void vk_set_2d_scissor( float x, float y, float w, float h ) {
 	// The same mapping the 2D projection uses, or the scissor clips a different
 	// rectangle from the one the caller can see - which on a wide screen means
 	// the menu is cut off inside its own frame.
-	float vx, vy, vw, vh;
-	vk_get_2d_viewport( &vx, &vy, &vw, &vh );
+	float vx, vy, vw, vh, virtualW;
+	vk_get_2d_viewport( &vx, &vy, &vw, &vh, &virtualW );
 
-	const float sx = vw / (float)SCREEN_WIDTH;
+	const float sx = vw / virtualW;
 	const float sy = vh / (float)SCREEN_HEIGHT;
 
 	int x0 = (int)( vx + x * sx );
@@ -383,6 +383,15 @@ void vk_create_window( void ) {
 
 		gls.windowWidth = glConfig.vidWidth;
 		gls.windowHeight = glConfig.vidHeight;
+
+		// The width of the head-up display's 2D space, in the same units its
+		// height has always been measured in. Taken from the window and not
+		// from the render target: r_renderScale can make those different
+		// shapes, and what an element pinned to the right edge is pinned to is
+		// the edge of the monitor.
+		glConfig.virtualWidth = ( gls.windowHeight > 0 )
+			? (float)SCREEN_HEIGHT * (float)gls.windowWidth / (float)gls.windowHeight
+			: (float)SCREEN_WIDTH;
 
 		gls.captureWidth = glConfig.vidWidth;
 		gls.captureHeight = glConfig.vidHeight;
