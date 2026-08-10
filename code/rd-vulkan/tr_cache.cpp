@@ -164,6 +164,12 @@ void CModelCacheManager::DeleteAll( void )
 
 	FileCache().swap(files);
 	AssetCache().swap(assets);
+
+	// The animation.cfg cache keys off the same models and has to go with them:
+	// a cached model with a re-read cfg has frame numbers that no longer match
+	// its skeleton.
+	extern void RE_AnimationCFGs_DeleteAll( void );
+	RE_AnimationCFGs_DeleteAll();
 }
 
 /*

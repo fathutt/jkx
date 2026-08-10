@@ -1129,6 +1129,14 @@ void R_Init( void ) {
 RE_Shutdown
 ===============
 */
+// Called by the engine between a savegame load and the Ghoul2 instances that
+// belong to it, so that nothing left in tr points at models that are about to
+// be replaced.
+void R_ClearStuffToStopGhoul2CrashingThings( void )
+{
+	Com_Memset( &tr, 0, sizeof( tr ) );
+}
+
 void RE_Shutdown( qboolean destroyWindow, qboolean restarting ) {
 	vk_debug("RE_Shutdown( %i, %i )\n", destroyWindow, restarting);
 

@@ -23,6 +23,9 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 #include "tr_local.h"
 
+#include <map>
+#include <string>
+
 /*
 ============================================================================
 
@@ -427,4 +430,64 @@ void	R_SkinList_f( void ) {
 		}
 	}
 	ri.Printf( PRINT_ALL,  "------------------\n");
+}
+
+/*
+=================
+RE_GetAnimationCFG
+
+animation.cfg says which frame ranges are which animation, and both the server
+and the UI ask the renderer for it - because the renderer is what caches models,
+and a cached model with a re-read cfg is a model whose frame numbers no longer
+mean what its skeleton does.
+
+Cached for the same reason, and dropped with the model cache in
+CModelCacheManager::DeleteAll for the same reason.
+=================
+*/
+typedef std::map<std::string, char *> AnimationCFGs_t;
+static AnimationCFGs_t AnimationCFGs;
+
+int RE_GetAnimationCFG( const char *psCFGFilename, char *psDest, int iDestSize )
+{
+	char *psText = NULL;
+
+	AnimationCFGs_t::iterator it = AnimationCFGs.find( psCFGFilename );
+	if ( it != AnimationCFGs.end() )
+	{
+		psText = (*it).second;
+	}
+	else
+	{
+		fileHandle_t f;
+		int iLen = ri.FS_FOpenFileRead( psCFGFilename, &f, qfalse );
+		if ( iLen <= 0 )
+		{
+			return 0;
+		}
+
+		psText = (char *)R_Malloc( iLen + 1, TAG_ANIMATION_CFG, qfalse );
+
+		ri.FS_Read( psText, iLen, f );
+		psText[iLen] = '\0';
+		ri.FS_FCloseFile( f );
+
+		AnimationCFGs[psCFGFilename] = psText;
+	}
+
+	if ( psDest )
+	{
+		Q_strncpyz( psDest, psText, iDestSize );
+	}
+
+	return strlen( psText );
+}
+
+void RE_AnimationCFGs_DeleteAll( void )
+{
+	for ( AnimationCFGs_t::iterator it = AnimationCFGs.begin(); it != AnimationCFGs.end(); ++it )
+	{
+		R_Free( (*it).second );
+	}
+	AnimationCFGs.clear();
 }

@@ -125,6 +125,18 @@ void G2_Animate_Bone_List( CGhoul2Info_v &ghoul2, const int currentTime, const i
 // export table gets the reference one through tr_sp_exports.cpp.
 void G2API_GiveMeVectorFromMatrix( mdxaBone_t *boltMatrix, Eorientations flags, vec3_t vec );
 
+// The index-based half of the Ghoul2 API, ported from rd-vanilla. Declared here
+// rather than in ghoul2/G2.h because that header carries what the engine calls
+// and these are reached through the export table.
+qboolean	G2API_SetAnimIndex( CGhoul2Info *ghlInfo, const int index );
+int			G2API_GetAnimIndex( CGhoul2Info *ghlInfo );
+qboolean	G2API_GetAnimRangeIndex( CGhoul2Info *ghlInfo, const int boneIndex, int *startFrame, int *endFrame );
+qboolean	G2API_PauseBoneAnimIndex( CGhoul2Info *ghlInfo, const int boneIndex, const int AcurrentTime );
+qboolean	G2API_GetBoneAnimIndex( CGhoul2Info *ghlInfo, const int iBoneIndex, const int AcurrentTime, float *currentFrame, int *startFrame, int *endFrame, int *flags, float *animSpeed, int * );
+char *		G2API_GetAnimFileInternalNameIndex( qhandle_t modelIndex );
+void		G2API_DetachEnt( int *boltInfo );
+void		G2API_AnimateG2Models( CGhoul2Info_v &ghoul2, int AcurrentTime, CRagDollUpdateParams *params );
+
 // Same again: single-player's public declaration takes a reference, this
 // renderer defines and calls the pointer form, and they are overloads.
 qboolean G2API_RemoveGhoul2Model( CGhoul2Info_v **ghlRemove, const int modelIndex );
@@ -139,6 +151,8 @@ qboolean G2_GetAnimFileName( const char *fileName, char **filename );
 int G2_GetParentSurface( CGhoul2Info *ghlInfo, const int index );
 int G2_GetSurfaceIndex( CGhoul2Info *ghlInfo, const char *surfaceName );
 qboolean G2_Get_Bone_Anim( CGhoul2Info *ghlInfo, boneInfo_v &blist, const char *boneName, const int currentTime, float *currentFrame, int *startFrame, int *endFrame, int *flags, float *retAnimSpeed, qhandle_t *modelList, int modelIndex );
+qboolean G2_Get_Bone_Anim_Range_Index( boneInfo_v &blist, const int boneIndex, int *startFrame, int *endFrame );
+qboolean G2_Pause_Bone_Anim_Index( boneInfo_v &blist, const int boneIndex, const int currentTime, int numFrames );
 qboolean G2_Get_Bone_Anim_Index( boneInfo_v &blist, const int index, const int currentTime, float *currentFrame, int *startFrame, int *endFrame, int *flags, float *retAnimSpeed, qhandle_t *modelList, int numFrames );
 qboolean G2_Get_Bone_Anim_Range( CGhoul2Info *ghlInfo, boneInfo_v &blist, const char *boneName, int *startFrame, int *endFrame );
 int G2_Get_Bone_Index( CGhoul2Info *ghoul2, const char *boneName, qboolean bAddIfNotFound );

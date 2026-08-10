@@ -473,3 +473,46 @@ int R_CubemapForPoint( const vec3_t point )
 
 	return cubemapIndex + 1;
 }
+
+/*
+=================
+RE_GetLighting
+
+What the light grid says at a point, which the gamecode uses to light effects
+and first-person geometry the same way the world lights everything else.
+
+Ported from rd-vanilla; multiplayer asks for this through a different path and
+so never had the entry point.
+=================
+*/
+qboolean RE_GetLighting( const vec3_t origin, vec3_t ambientLight, vec3_t directedLight, vec3_t lightDir )
+{
+	trRefEntity_t tr_ent;
+
+	// No grid - no map loaded, or a map built without one. Full white rather
+	// than black: an unlit answer that makes things invisible is worse than one
+	// that makes them flat.
+	if ( !tr.world || !tr.world->lightGridData ) {
+		ambientLight[0] = ambientLight[1] = ambientLight[2] = 255.0f;
+		directedLight[0] = directedLight[1] = directedLight[2] = 255.0f;
+		VectorCopy( tr.sunDirection, lightDir );
+		return qfalse;
+	}
+
+	Com_Memset( &tr_ent, 0, sizeof( tr_ent ) );
+
+	// The caller's way of asking for the grid value without the model-specific
+	// clamping. rd-vanilla's comment on it is "HAX0R" and it is not wrong, but
+	// the gamecode relies on it.
+	if ( ambientLight[0] == 666 ) {
+		tr_ent.e.hModel = -1;
+	}
+
+	VectorCopy( origin, tr_ent.e.origin );
+	R_SetupEntityLightingGrid( &tr_ent, tr.world );
+
+	VectorCopy( tr_ent.ambientLight, ambientLight );
+	VectorCopy( tr_ent.directedLight, directedLight );
+	VectorCopy( tr_ent.lightDir, lightDir );
+	return qtrue;
+}

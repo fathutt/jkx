@@ -886,6 +886,58 @@ qboolean G2_Get_Bone_Anim_Range(CGhoul2Info *ghlInfo, boneInfo_v &blist, const c
 // NOTE if we aren't running an animation, then qfalse is returned
 void G2_TimingModel(boneInfo_t &bone,int currentTime,int numFramesInFile,int &currentFrame,int &newFrame,float &lerp);
 
+// The two index-based internals single-player has and multiplayer does not.
+// Multiplayer's callers live in a virtual machine and pass bone names across the
+// boundary; single-player's gamecode holds the index and asks by number, which
+// is most of why its Ghoul2 API has an index variant of everything.
+qboolean G2_Get_Bone_Anim_Range_Index( boneInfo_v &blist, const int boneIndex, int *startFrame, int *endFrame )
+{
+	if ( boneIndex >= 0 && boneIndex < (int)blist.size() )
+	{
+		// only an animating bone has a range
+		if ( blist[boneIndex].flags & ( BONE_ANIM_OVERRIDE_LOOP | BONE_ANIM_OVERRIDE ) )
+		{
+			*startFrame = blist[boneIndex].startFrame;
+			*endFrame = blist[boneIndex].endFrame;
+			return qtrue;
+		}
+	}
+	return qfalse;
+}
+
+qboolean G2_Pause_Bone_Anim_Index( boneInfo_v &blist, const int boneIndex, const int currentTime, int numFrames )
+{
+	if ( boneIndex < 0 || boneIndex >= (int)blist.size() )
+	{
+		assert( 0 );
+		return qfalse;
+	}
+
+	// unpausing: work out which frame the pause left us on and restart the
+	// animation there, so it resumes rather than jumps
+	if ( blist[boneIndex].pauseTime )
+	{
+		int		startFrame, endFrame, flags;
+		float	currentFrame, animSpeed;
+
+		if ( !G2_Get_Bone_Anim_Index( blist, boneIndex, blist[boneIndex].pauseTime, &currentFrame,
+				&startFrame, &endFrame, &flags, &animSpeed, NULL, numFrames ) )
+		{
+			return qfalse;
+		}
+
+		G2_Set_Bone_Anim_Index( blist, boneIndex, startFrame, endFrame, flags, animSpeed,
+			currentTime, currentFrame, 0, numFrames );
+		blist[boneIndex].pauseTime = 0;
+	}
+	else
+	{
+		blist[boneIndex].pauseTime = currentTime;
+	}
+
+	return qtrue;
+}
+
 qboolean G2_Get_Bone_Anim_Index( boneInfo_v &blist, const int index, const int currentTime,
 						  float *currentFrame, int *startFrame, int *endFrame, int *flags, float *retAnimSpeed, qhandle_t *modelList, int numFrames)
 {

@@ -21,9 +21,8 @@ Foundation.
 // NOT PORTED YET. Single-player has the entry point and this renderer does not
 // implement it at all, because it grew up as a multiplayer renderer and these
 // are features multiplayer does not have: the screen dissolve, the goggles
-// overlay, the scissor rectangle, the save-game thumbnail path, the Ghoul2
-// index-based animation calls. They are stubs that warn once and return
-// something harmless.
+// overlay, the scissor rectangle, the save-game thumbnail path. They are stubs
+// that warn once and return something harmless.
 //
 // A stub is not a port. The point of putting them all in one file, each with
 // the same shape, is that the list is countable: `grep -c JKX_UNPORTED` here is
@@ -31,8 +30,6 @@ Foundation.
 // number has to reach zero before this renderer can replace rd-vanilla.
 // docs/Phase2-BringUp.md carries the same list with what each one needs.
 //
-// This file only exists in the single-player build. Under the harness the
-// whole thing is empty.
 
 #include "tr_local.h"
 
@@ -122,25 +119,6 @@ bool RE_SP_IsShaking( vec3_t pos )
 // Not ported yet
 // ---------------------------------------------------------------------------
 
-int RE_GetAnimationCFG( const char *psCFGFilename, char *psDest, int iDestSize )
-{
-	JKX_UNPORTED( "GetAnimationCFG" );
-	(void)psCFGFilename;
-	if ( psDest && iDestSize > 0 )
-		psDest[0] = '\0';
-	return 0;
-}
-
-qboolean RE_GetLighting( const vec3_t org, vec3_t ambientLight, vec3_t directedLight, vec3_t lightDir )
-{
-	JKX_UNPORTED( "GetLighting" );
-	(void)org;
-	VectorClear( ambientLight );
-	VectorClear( directedLight );
-	VectorSet( lightDir, 0.0f, 0.0f, 1.0f );
-	return qfalse;
-}
-
 void RE_LAGoggles( void )
 {
 	JKX_UNPORTED( "LAGoggles" );
@@ -197,11 +175,6 @@ void RE_GetModelBounds( refEntity_t *refEnt, vec3_t bounds1, vec3_t bounds2 )
 	VectorClear( bounds2 );
 }
 
-void R_ClearStuffToStopGhoul2CrashingThings( void )
-{
-	JKX_UNPORTED( "R_ClearStuffToStopGhoul2CrashingThings" );
-}
-
 bool RE_SetTempGlobalFogColor( vec3_t color )
 {
 	JKX_UNPORTED( "SetTempGlobalFogColor" );
@@ -249,70 +222,5 @@ unsigned int AnyLanguage_ReadCharFromString2( char **psText, qboolean *pbIsTrail
 
 	*psText += iAdvanceCount;
 	return c;
-}
-
-// The Ghoul2 calls that take a bone or animation index instead of a name.
-// Single-player's Ghoul2 has them and multiplayer's does not, so they arrive
-// with the rest of Ghoul2 in 2.3 rather than one at a time here.
-void G2API_AnimateG2Models( CGhoul2Info_v &ghoul2, int AcurrentTime, CRagDollUpdateParams *params )
-{
-	JKX_UNPORTED( "G2API_AnimateG2Models" );
-	(void)ghoul2; (void)AcurrentTime; (void)params;
-}
-
-void G2API_DetachEnt( int *boltInfo )
-{
-	JKX_UNPORTED( "G2API_DetachEnt" );
-	(void)boltInfo;
-}
-
-char *G2API_GetAnimFileInternalNameIndex( qhandle_t modelIndex )
-{
-	JKX_UNPORTED( "G2API_GetAnimFileInternalNameIndex" );
-	(void)modelIndex;
-	return NULL;
-}
-
-int G2API_GetAnimIndex( CGhoul2Info *ghlInfo )
-{
-	JKX_UNPORTED( "G2API_GetAnimIndex" );
-	(void)ghlInfo;
-	return 0;
-}
-
-qboolean G2API_GetAnimRangeIndex( CGhoul2Info *ghlInfo, const int boneIndex, int *startFrame, int *endFrame )
-{
-	JKX_UNPORTED( "G2API_GetAnimRangeIndex" );
-	(void)ghlInfo; (void)boneIndex;
-	if ( startFrame ) *startFrame = 0;
-	if ( endFrame ) *endFrame = 0;
-	return qfalse;
-}
-
-qboolean G2API_GetBoneAnimIndex( CGhoul2Info *ghlInfo, const int iBoneIndex, const int AcurrentTime,
-	float *currentFrame, int *startFrame, int *endFrame, int *flags, float *animSpeed, int *ignore )
-{
-	JKX_UNPORTED( "G2API_GetBoneAnimIndex" );
-	(void)ghlInfo; (void)iBoneIndex; (void)AcurrentTime; (void)ignore;
-	if ( currentFrame ) *currentFrame = 0.0f;
-	if ( startFrame ) *startFrame = 0;
-	if ( endFrame ) *endFrame = 0;
-	if ( flags ) *flags = 0;
-	if ( animSpeed ) *animSpeed = 0.0f;
-	return qfalse;
-}
-
-qboolean G2API_PauseBoneAnimIndex( CGhoul2Info *ghlInfo, const int boneIndex, const int AcurrentTime )
-{
-	JKX_UNPORTED( "G2API_PauseBoneAnimIndex" );
-	(void)ghlInfo; (void)boneIndex; (void)AcurrentTime;
-	return qfalse;
-}
-
-qboolean G2API_SetAnimIndex( CGhoul2Info *ghlInfo, const int index )
-{
-	JKX_UNPORTED( "G2API_SetAnimIndex" );
-	(void)ghlInfo; (void)index;
-	return qfalse;
 }
 

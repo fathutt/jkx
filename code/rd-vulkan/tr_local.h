@@ -2349,6 +2349,12 @@ void R_AddBrushModelSurfaces( trRefEntity_t *ent, int entityNum );
 void R_AddWorldSurfaces( viewParms_t *viewParms, trRefdef_t *refdef );
 qboolean R_inPVS( const vec3_t p1, const vec3_t p2, byte *mask );
 
+// Ported from rd-vanilla, and reached through the export table rather than by
+// the rest of the renderer.
+int			RE_GetAnimationCFG( const char *psCFGFilename, char *psDest, int iDestSize );
+qboolean	RE_GetLighting( const vec3_t origin, vec3_t ambientLight, vec3_t directedLight, vec3_t lightDir );
+void		R_ClearStuffToStopGhoul2CrashingThings( void );
+
 
 /*
 ============================================================

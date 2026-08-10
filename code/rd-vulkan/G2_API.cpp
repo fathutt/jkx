@@ -711,6 +711,128 @@ qboolean G2_ShouldRegisterServer(void)
 	return qfalse;
 }
 
+// The index-based half of the Ghoul2 API.
+//
+// Single-player's gamecode holds a bone index and asks by number; multiplayer's
+// lives in a virtual machine, cannot hold one across the boundary, and asks by
+// name. That is why single-player has an index variant of almost everything and
+// this renderer, which grew up in multiplayer, arrived without them. The
+// gamecode calls these from sixty places - without them nothing animates.
+
+qboolean G2API_SetAnimIndex( CGhoul2Info *ghlInfo, const int index )
+{
+	if ( !ghlInfo )
+		return qfalse;
+
+	if ( ghlInfo->animModelIndexOffset != index )
+	{
+		ghlInfo->animModelIndexOffset = index;
+		// cleared so SetupModelPointers recalculates it against the new file
+		ghlInfo->currentAnimModelSize = 0;
+
+		// a different animation file means every override on every bone refers
+		// to frames that no longer mean the same thing
+		for ( size_t bone = 0; bone < ghlInfo->mBlist.size(); bone++ )
+		{
+			ghlInfo->mBlist[bone].flags &= ~( BONE_ANIM_TOTAL );
+			ghlInfo->mBlist[bone].flags &= ~( BONE_ANGLES_TOTAL );
+		}
+	}
+	return qtrue;
+}
+
+int G2API_GetAnimIndex( CGhoul2Info *ghlInfo )
+{
+	return ghlInfo ? ghlInfo->animModelIndexOffset : 0;
+}
+
+qboolean G2API_GetAnimRangeIndex( CGhoul2Info *ghlInfo, const int boneIndex, int *startFrame, int *endFrame )
+{
+	if ( G2_SetupModelPointers( ghlInfo ) &&
+		boneIndex >= 0 && boneIndex < (int)ghlInfo->mBlist.size() )
+	{
+		return G2_Get_Bone_Anim_Range_Index( ghlInfo->mBlist, boneIndex, startFrame, endFrame );
+	}
+	return qfalse;
+}
+
+qboolean G2API_PauseBoneAnimIndex( CGhoul2Info *ghlInfo, const int boneIndex, const int AcurrentTime )
+{
+	if ( G2_SetupModelPointers( ghlInfo ) &&
+		boneIndex >= 0 && boneIndex < (int)ghlInfo->mBlist.size() )
+	{
+		return G2_Pause_Bone_Anim_Index( ghlInfo->mBlist, boneIndex,
+			G2API_GetTime( AcurrentTime ), ghlInfo->aHeader->numFrames );
+	}
+	return qfalse;
+}
+
+qboolean G2API_GetBoneAnimIndex( CGhoul2Info *ghlInfo, const int iBoneIndex, const int AcurrentTime,
+	float *currentFrame, int *startFrame, int *endFrame, int *flags, float *animSpeed, int * )
+{
+	qboolean ret = qfalse;
+
+	if ( G2_SetupModelPointers( ghlInfo ) &&
+		iBoneIndex >= 0 && iBoneIndex < (int)ghlInfo->mBlist.size() &&
+		( ghlInfo->mBlist[iBoneIndex].flags & ( BONE_ANIM_OVERRIDE_LOOP | BONE_ANIM_OVERRIDE ) ) )
+	{
+		int sf, ef;
+
+		ret = G2_Get_Bone_Anim_Index( ghlInfo->mBlist, iBoneIndex, G2API_GetTime( AcurrentTime ),
+			currentFrame, &sf, &ef, flags, animSpeed, NULL, ghlInfo->aHeader->numFrames );
+
+		if ( startFrame )
+			*startFrame = sf;
+		if ( endFrame )
+			*endFrame = ef;
+	}
+
+	// The caller reads these whether or not it succeeded, so a failure has to
+	// leave a whole answer behind rather than whatever was on its stack.
+	if ( !ret )
+	{
+		if ( startFrame )	*startFrame = 0;
+		if ( endFrame )		*endFrame = 1;
+		if ( flags )		*flags = 0;
+		if ( currentFrame )	*currentFrame = 0.0f;
+		if ( animSpeed )	*animSpeed = 1.0f;
+	}
+
+	return ret;
+}
+
+char *G2API_GetAnimFileInternalNameIndex( qhandle_t modelIndex )
+{
+	static char noName[1] = "";
+	model_t *mod_a = R_GetModelByHandle( modelIndex );
+
+	if ( mod_a && mod_a->data.gla )
+		return mod_a->data.gla->name;
+
+	return noName;
+}
+
+// Detaching is only ever clearing the caller's bolt handle - there is nothing
+// on this side to undo.
+void G2API_DetachEnt( int *boltInfo )
+{
+	if ( boltInfo )
+		*boltInfo = 0;
+}
+
+void G2API_AnimateG2Models( CGhoul2Info_v &ghoul2, int AcurrentTime, CRagDollUpdateParams *params )
+{
+	const int currentTime = G2API_GetTime( AcurrentTime );
+
+	for ( int model = 0; model < (int)ghoul2.size(); model++ )
+	{
+		if ( ghoul2[model].mModel )
+		{
+			G2_Animate_Bone_List( ghoul2, currentTime, model, params );
+		}
+	}
+}
+
 qhandle_t G2API_PrecacheGhoul2Model( const char *fileName )
 {
 	if ( G2_ShouldRegisterServer() )
