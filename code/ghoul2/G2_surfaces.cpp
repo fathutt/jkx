@@ -20,7 +20,12 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 ===========================================================================
 */
 
-#include "tr_local.h"
+// Engine headers only: these sources left the renderer in phase 2.3 and no
+// longer know what a model_t, a shader_t or a tess looks like. What they need
+// from the renderer they ask for - see ghoul2/g2_local.h.
+#include "qcommon/qcommon.h"
+#include "rd-common/tr_types.h"
+#include "game/ghoul2_shared.h"
 #include "rd-common/tr_types.h"
 #include "ghoul2/G2.h"
 #include "ghoul2/g2_local.h"
@@ -208,26 +213,27 @@ qboolean G2_SetSurfaceOnOff (CGhoul2Info *ghlInfo, surfaceInfo_v &slist, const c
 
 void G2_SetSurfaceOnOffFromSkin (CGhoul2Info *ghlInfo, qhandle_t renderSkin)
 {
+	const int count = R_GetSkinSurfaceCount( renderSkin );
 	int j;
-	const skin_t *skin = R_GetSkinByHandle( renderSkin );
 
 	ghlInfo->mSlist.clear();	//remove any overrides we had before.
 	ghlInfo->mMeshFrameNum = 0;
 
-	for ( j = 0 ; j < skin->numSurfaces ; j++ )
+	for ( j = 0 ; j < count ; j++ )
 	{
+		const char *name = R_GetSkinSurfaceName( renderSkin, j );
+
 		// the names have both been lowercased
-		//FIXME: why is this using the shader name and not the surface name?
-		if ( !strcmp( ((shader_t *)skin->surfaces[j]->shader)->name, "*off") ) {
-			G2_SetSurfaceOnOff(ghlInfo, ghlInfo->mSlist, skin->surfaces[j]->name, G2SURFACEFLAG_OFF);
+		if ( R_IsSkinSurfaceOff( renderSkin, j ) ) {
+			G2_SetSurfaceOnOff(ghlInfo, ghlInfo->mSlist, name, G2SURFACEFLAG_OFF);
 		}
 		else
 		{
 			int	flags;
-			int surfaceNum = G2_IsSurfaceLegal((void *)ghlInfo->currentModel, skin->surfaces[j]->name, &flags);
+			int surfaceNum = G2_IsSurfaceLegal((void *)ghlInfo->currentModel, name, &flags);
 			if ( (surfaceNum != -1) && (!(flags&G2SURFACEFLAG_OFF)) )	//only turn on if it's not an "_off" surface
 			{
-				G2_SetSurfaceOnOff(ghlInfo, ghlInfo->mSlist, skin->surfaces[j]->name, 0);
+				G2_SetSurfaceOnOff(ghlInfo, ghlInfo->mSlist, name, 0);
 			}
 		}
 	}
@@ -375,9 +381,9 @@ qboolean G2_SetRootSurface(CGhoul2Info_v &ghoul2, const int modelIndex, const ch
 		// firstly, generate a list of active / on surfaces below the root point
 
 		// gimme some space to put this list into
-		activeSurfaces = (int *)R_Z_Malloc(mdxm->numSurfaces * 4, TAG_GHOUL2, qtrue);
+		activeSurfaces = (int *)Z_Malloc(mdxm->numSurfaces * 4, TAG_GHOUL2, qtrue);
 		memset(activeSurfaces, 0, (mdxm->numSurfaces * 4));
-		activeBones = (int *)R_Z_Malloc(mdxa->numBones * 4, TAG_GHOUL2, qtrue);
+		activeBones = (int *)Z_Malloc(mdxa->numBones * 4, TAG_GHOUL2, qtrue);
 		memset(activeBones, 0, (mdxa->numBones * 4));
 
 		G2_FindRecursiveSurface(mod_m, surf, ghoul2[modelIndex].mSlist, activeSurfaces);
@@ -420,8 +426,8 @@ qboolean G2_SetRootSurface(CGhoul2Info_v &ghoul2, const int modelIndex, const ch
 		//No support for this, for now.
 
 		// remember to free what we used
-		R_Z_Free(activeSurfaces);
-		R_Z_Free(activeBones);
+		Z_Free(activeSurfaces);
+		Z_Free(activeBones);
 
 		return (qtrue);
 	}
@@ -458,9 +464,9 @@ qboolean G2_SetRootSurface(CGhoul2Info_v &ghoul2, const int modelIndex, const ch
 			// firstly, generate a list of active / on surfaces below the root point
 
 			// gimme some space to put this list into
-			activeSurfaces = (int *)R_Z_Malloc(mod_m->mdxm->numSurfaces * 4, TAG_GHOUL2, qtrue);
+			activeSurfaces = (int *)Z_Malloc(mod_m->mdxm->numSurfaces * 4, TAG_GHOUL2, qtrue);
 			memset(activeSurfaces, 0, (mod_m->mdxm->numSurfaces * 4));
-			activeBones = (int *)R_Z_Malloc(mod_a->mdxa->numBones * 4, TAG_GHOUL2, qtrue);
+			activeBones = (int *)Z_Malloc(mod_a->mdxa->numBones * 4, TAG_GHOUL2, qtrue);
 			memset(activeBones, 0, (mod_a->mdxa->numBones * 4));
 
 			G2_FindRecursiveSurface(mod_m, surf, ghoul2[modelIndex].mSlist, activeSurfaces);
@@ -502,8 +508,8 @@ qboolean G2_SetRootSurface(CGhoul2Info_v &ghoul2, const int modelIndex, const ch
 			}
 
 			// remember to free what we used
-			R_Z_Free(activeSurfaces);
-			R_Z_Free(activeBones);
+			Z_Free(activeSurfaces);
+			Z_Free(activeBones);
 
 			return (qtrue);
 		}

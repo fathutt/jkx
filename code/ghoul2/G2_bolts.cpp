@@ -20,7 +20,12 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 ===========================================================================
 */
 
-#include "tr_local.h"
+// Engine headers only: these sources left the renderer in phase 2.3 and no
+// longer know what a model_t, a shader_t or a tess looks like. What they need
+// from the renderer they ask for - see ghoul2/g2_local.h.
+#include "qcommon/qcommon.h"
+#include "rd-common/tr_types.h"
+#include "game/ghoul2_shared.h"
 #include "ghoul2/G2.h"
 #include "ghoul2/g2_local.h"
 

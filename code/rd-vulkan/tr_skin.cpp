@@ -411,6 +411,49 @@ skin_t	*R_GetSkinByHandle( qhandle_t hSkin ) {
 
 /*
 ===============
+What Ghoul2 asks the skin registry
+
+One place in Ghoul2 walks a skin to find the surfaces whose shader is the "*off"
+marker, and it used to do that by reaching through skin_t and shader_t. Those are
+the renderer's, and they were the last two of its types Ghoul2 could see. Three
+questions instead, answered here. See ghoul2/g2_local.h.
+===============
+*/
+
+int R_GetSkinSurfaceCount( qhandle_t hSkin ) {
+	const skin_t *skin = R_GetSkinByHandle( hSkin );
+
+	return skin ? skin->numSurfaces : 0;
+}
+
+const char *R_GetSkinSurfaceName( qhandle_t hSkin, int index ) {
+	const skin_t *skin = R_GetSkinByHandle( hSkin );
+
+	if ( !skin || index < 0 || index >= skin->numSurfaces ) {
+		return "";
+	}
+
+	return skin->surfaces[index]->name;
+}
+
+// The marker a skin uses to say "this surface is not drawn". It is the shader's
+// name and not the surface's, which the comment at the only caller has been
+// asking about since 2003; the answer is that it is the skin file's spelling and
+// changing it would change what existing skins mean.
+qboolean R_IsSkinSurfaceOff( qhandle_t hSkin, int index ) {
+	const skin_t *skin = R_GetSkinByHandle( hSkin );
+
+	if ( !skin || index < 0 || index >= skin->numSurfaces ) {
+		return qfalse;
+	}
+
+	const shader_t *shader = (const shader_t *)skin->surfaces[index]->shader;
+
+	return ( shader && !strcmp( shader->name, "*off" ) ) ? qtrue : qfalse;
+}
+
+/*
+===============
 R_SkinList_f
 ===============
 */

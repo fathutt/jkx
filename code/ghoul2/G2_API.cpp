@@ -20,7 +20,12 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 ===========================================================================
 */
 
-#include "tr_local.h"
+// Engine headers only: these sources left the renderer in phase 2.3 and no
+// longer know what a model_t, a shader_t or a tess looks like. What they need
+// from the renderer they ask for - see ghoul2/g2_local.h.
+#include "qcommon/qcommon.h"
+#include "rd-common/tr_types.h"
+#include "game/ghoul2_shared.h"
 #include "ghoul2/G2.h"
 #include "ghoul2/g2_local.h"
 #include "ghoul2/ghoul2_gore.h"
@@ -106,9 +111,9 @@ void G2_DEBUG_ShovePtrInTracker(CGhoul2Info_v *g2)
 
 	CGhoul2Info_v &g2v = *g2;
 
-	if (g2v[0].currentModel && g2v[0].currentModel->name && g2v[0].currentModel->name[0])
+	if (g2v[0].currentModel && R_GetModelName( g2v[0].currentModel )[0])
 	{
-		CL_RefPrintf( PRINT_ALL, "%s could not be fit into g2 debug instance tracker.\n", g2v[0].currentModel->name);
+		CL_RefPrintf( PRINT_ALL, "%s could not be fit into g2 debug instance tracker.\n", R_GetModelName( g2v[0].currentModel ));
 	}
 	else
 	{
@@ -137,9 +142,9 @@ void G2_DEBUG_RemovePtrFromTracker(CGhoul2Info_v *g2)
 
 	CGhoul2Info_v &g2v = *g2;
 
-	if (g2v[0].currentModel && g2v[0].currentModel->name && g2v[0].currentModel->name[0])
+	if (g2v[0].currentModel && R_GetModelName( g2v[0].currentModel )[0])
 	{
-		CL_RefPrintf( PRINT_ALL, "%s not in g2 debug instance tracker.\n", g2v[0].currentModel->name);
+		CL_RefPrintf( PRINT_ALL, "%s not in g2 debug instance tracker.\n", R_GetModelName( g2v[0].currentModel ));
 	}
 	else
 	{
@@ -559,7 +564,7 @@ void RestoreGhoul2InfoArray()
 		size_t read =
 #endif
 			singleton->Deserialize ((const char *)data, size);
-		R_Z_Free((void *)data);
+		Z_Free((void *)data);
 #ifdef _DEBUG
 		assert (read == size);
 #endif
@@ -569,7 +574,7 @@ void RestoreGhoul2InfoArray()
 void SaveGhoul2InfoArray()
 {
 	size_t size = singleton->GetSerializedSize();
-	void *data = R_Z_Malloc(size, TAG_GHOUL2);
+	void *data = Z_Malloc(size, TAG_GHOUL2);
 #ifdef _DEBUG
 	size_t written =
 #endif
@@ -1869,7 +1874,7 @@ void G2API_CollisionDetectCache(CollisionRecord_t *collRecMap, CGhoul2Info_v &gh
 				/*
 				if ((g2.mFlags & GHOUL2_ZONETRANSALLOC) && g2.mTransformedVertsArray)
 				{ //clear it out, yo.
-					R_Z_Free(g2.mTransformedVertsArray);
+					Z_Free(g2.mTransformedVertsArray);
 					g2.mTransformedVertsArray = 0;
 				}
 				*/
@@ -1878,7 +1883,7 @@ void G2API_CollisionDetectCache(CollisionRecord_t *collRecMap, CGhoul2Info_v &gh
 					//if we have a pointer, but not a ghoul2_zonetransalloc flag, then that means
 					//it is a miniheap pointer. Just stomp over it.
 					int iSize = R_GetGhoul2MeshHeader( g2.currentModel )->numSurfaces * 4;
-					g2.mTransformedVertsArray = (intptr_t *)R_Z_Malloc(iSize, TAG_GHOUL2, qtrue);
+					g2.mTransformedVertsArray = (intptr_t *)Z_Malloc(iSize, TAG_GHOUL2, qtrue);
 				}
 
 				g2.mFlags |= GHOUL2_ZONETRANSALLOC;
@@ -1903,7 +1908,7 @@ void G2API_CollisionDetectCache(CollisionRecord_t *collRecMap, CGhoul2Info_v &gh
 				CGhoul2Info &g2 = ghoul2[i];
 				int iSize = g2.currentModel->mdxm->numSurfaces * 4;
 
-				int *zoneMem = (int *)R_Z_Malloc(iSize, TAG_GHOUL2, qtrue);
+				int *zoneMem = (int *)Z_Malloc(iSize, TAG_GHOUL2, qtrue);
 				memcpy(zoneMem, g2.mTransformedVertsArray, iSize);
 				g2.mTransformedVertsArray = zoneMem;
 				g2.mFlags |= GHOUL2_ZONETRANSALLOC;
@@ -2177,9 +2182,9 @@ qboolean G2API_SetNewOrigin(CGhoul2Info *ghlInfo, const int boltIndex)
 		{
             char modelName[MAX_QPATH];
 			if (ghlInfo->currentModel &&
-				ghlInfo->currentModel->name[0])
+				R_GetModelName( ghlInfo->currentModel )[0])
 			{
-				strcpy(modelName, ghlInfo->currentModel->name);
+				strcpy(modelName, R_GetModelName( ghlInfo->currentModel ));
 			}
 			else
 			{
@@ -2273,7 +2278,7 @@ void G2API_AddSkinGore(CGhoul2Info_v &ghoul2,SSkinGoreData &gore)
 	int lod;
 	ResetGoreTag();
 	const int lodbias=Com_Clamp ( 0, 2,G2_DecideTraceLod(ghoul2[0], Cvar_VariableIntegerValue( "r_lodbias" )));
-	const int maxLod =Com_Clamp (0,ghoul2[0].currentModel->numLods,3);	//limit to the number of lods the main model has
+	const int maxLod =Com_Clamp (0,R_GetModelLodCount( ghoul2[0].currentModel ),3);	//limit to the number of lods the main model has
 	for(lod=lodbias;lod<maxLod;lod++)
 	{
 		// now having done that, time to build the model

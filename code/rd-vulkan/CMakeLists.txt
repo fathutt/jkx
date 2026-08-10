@@ -54,13 +54,9 @@ set(SPRDVulkanIncludeDirectories
 set(SPRDVulkanDefines ${SharedDefines} "RENDERER" "_JK2EXE" "VK_NO_PROTOTYPES")
 
 set(SPRDVulkanFiles
-	"${SPDir}/rd-vulkan/G2_API.cpp"
-	"${SPDir}/rd-vulkan/G2_bolts.cpp"
-	"${SPDir}/rd-vulkan/G2_bones.cpp"
 	"${SPDir}/rd-vulkan/G2_gore_r2.cpp"
 	"${SPDir}/rd-vulkan/G2_gore_r2.h"
 	"${SPDir}/rd-vulkan/G2_misc.cpp"
-	"${SPDir}/rd-vulkan/G2_surfaces.cpp"
 	"${SPDir}/rd-vulkan/rg_graph.cpp"
 	"${SPDir}/rd-vulkan/rg_graph.h"
 	"${SPDir}/rd-vulkan/tr_allocator.h"

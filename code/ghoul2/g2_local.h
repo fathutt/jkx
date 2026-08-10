@@ -222,3 +222,26 @@ mdxmHeader_t	*R_GetGhoul2MeshHeader( const model_s *mod );
 mdxaHeader_t	*R_GetGhoul2AnimHeader( const model_s *mod );
 const char		*R_GetModelName( const model_s *mod );
 int				R_GetModelLodCount( const model_s *mod );
+
+// Registering a model by name is the registry's job too, and Ghoul2 does it -
+// an instance is created from a file name.
+qhandle_t		RE_RegisterModel( const char *name );
+qhandle_t		RE_RegisterServerModel( const char *name );
+
+// And the skin registry, for the one place that walks a skin looking for the
+// surfaces its shader marks as not drawn.
+int				R_GetSkinSurfaceCount( qhandle_t hSkin );
+const char		*R_GetSkinSurfaceName( qhandle_t hSkin, int index );
+qboolean		R_IsSkinSurfaceOff( qhandle_t hSkin, int index );
+
+// A matrix helper that belongs to Ghoul2 and is still defined beside the
+// drawing half; it moves with these sources.
+void			Multiply_3x4Matrix( mdxaBone_t *out, mdxaBone_t *in2, mdxaBone_t *in );
+
+// The client's print, which takes a level. Ghoul2 uses PRINT_WARNING and
+// PRINT_DEVELOPER and would lose both by printing through Com_Printf.
+void QDECL		CL_RefPrintf( int printLevel, const char *fmt, ... ) __attribute__ ((format (printf, 2, 3)));
+
+// The arena Ghoul2 transforms vertices in, which the client owns.
+class CMiniHeap;
+CMiniHeap		*GetG2VertSpaceServer( void );

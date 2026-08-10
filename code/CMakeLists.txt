@@ -344,7 +344,25 @@ if(BuildSPEngine OR BuildJK2SPEngine)
 	# Ghoul2 files
 	set(SPEngineGhoul2Files
 		"${SPDir}/ghoul2/G2.h"
+		"${SPDir}/ghoul2/g2_local.h"
 		"${SPDir}/ghoul2/ghoul2_gore.h"
+		)
+
+	# Phase 2.3: the skeleton, bolt, bone and surface halves of Ghoul2 live in
+	# the engine rather than inside the renderer. They are animation and
+	# collision logic; the only reason they were ever in a renderer is that
+	# Ghoul2 arrived as one piece. G2_misc.cpp is still over there, held by gore,
+	# which genuinely is drawing.
+	#
+	# Attached to the target below rather than to SPEngineFiles, because they ask
+	# the model registry four questions and the answers come from the renderer
+	# linked in beside them. The JK2 engine still loads its renderer at runtime
+	# and gets its Ghoul2 from there, exactly as it did.
+	set(SPEngineGhoul2Sources
+		"${SPDir}/ghoul2/G2_API.cpp"
+		"${SPDir}/ghoul2/G2_bolts.cpp"
+		"${SPDir}/ghoul2/G2_bones.cpp"
+		"${SPDir}/ghoul2/G2_surfaces.cpp"
 		)
 	source_group("ghoul2" FILES ${SPEngineGhoul2Files})
 	set(SPEngineFiles ${SPEngineFiles} ${SPEngineGhoul2Files})
@@ -478,6 +496,8 @@ if(BuildSPEngine OR BuildJK2SPEngine)
 		if(BuildSPRdVulkan AND JKX_MONOLITH)
 			target_link_libraries(${SPEngine} ${SPRDVulkanRenderer})
 			target_compile_definitions(${SPEngine} PRIVATE JKX_MONOLITH_RENDERER=1)
+			target_sources(${SPEngine} PRIVATE ${SPEngineGhoul2Sources})
+			source_group("ghoul2" FILES ${SPEngineGhoul2Sources})
 		endif()
 	endif(BuildSPEngine)
 	if(BuildJK2SPEngine)

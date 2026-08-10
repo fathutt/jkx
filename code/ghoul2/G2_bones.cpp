@@ -20,7 +20,12 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 ===========================================================================
 */
 
-#include "tr_local.h"
+// Engine headers only: these sources left the renderer in phase 2.3 and no
+// longer know what a model_t, a shader_t or a tess looks like. What they need
+// from the renderer they ask for - see ghoul2/g2_local.h.
+#include "qcommon/qcommon.h"
+#include "rd-common/tr_types.h"
+#include "game/ghoul2_shared.h"
 #include "qcommon/matcomp.h"
 
 #include "ghoul2/G2.h"
@@ -36,7 +41,8 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 //#define RAG_TRACE_DEBUG_LINES
 
-#include "client/client.h" //while this is all "shared" code, there are some places where we want to make cgame callbacks (for ragdoll) only if the cgvm exists
+#include "client/client.h"
+#include "server/server.h"	// the ragdoll trace, which is the engine's
 //rww - RAGDOLL_END
 
 //=====================================================================================================================
@@ -2751,7 +2757,7 @@ void Rag_Trace( trace_t *results, const vec3_t start, const vec3_t mins, const v
 	{
 		results->entityNum = ENTITYNUM_NONE;
 		//SV_Trace(results, start, mins, maxs, end, passEntityNum, contentmask, eG2TraceType, useLod);
-		R_EngineBoxTrace( results, start, end, mins, maxs, contentmask );
+		SV_Trace( results, start, mins, maxs, end, ENTITYNUM_NONE, contentmask, G2_NOCOLLIDE, 0 );
 		results->entityNum = results->fraction != 1.0 ? ENTITYNUM_WORLD : ENTITYNUM_NONE;
 	}
 
