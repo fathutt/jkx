@@ -68,11 +68,20 @@ stage_policy() {
 # An invalid workflow file fails with no log to read, so it is worth catching
 # here. Skipped rather than failed when actionlint is not installed: this script
 # should not need the network.
+#
+# The skip is loud on purpose. It read as "(not checked)" once and got skimmed
+# past, and CI then went red on two shellcheck findings in workflow shell that
+# nothing local had looked at - which is the exact failure this stage exists to
+# prevent. If it says SKIPPED, the workflows are unchecked and CI is the first
+# thing that will look at them.
 stage_workflows() {
     local lint
     lint="$(command -v actionlint || true)"
     if [ -z "$lint" ]; then
-        echo "  (actionlint not installed, workflows not checked)"
+        echo "  SKIPPED: actionlint is not installed, so nothing here has read"
+        echo "           the workflow files. CI will, and it can go red on shell"
+        echo "           inside them. Install it with:"
+        echo "             curl -sSfL https://github.com/rhysd/actionlint/releases/download/v1.7.7/actionlint_1.7.7_linux_amd64.tar.gz | tar xz actionlint"
         return 0
     fi
     ( cd "$ROOT" && "$lint" -no-color )

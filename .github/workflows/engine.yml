@@ -244,10 +244,14 @@ jobs:
               done < <(find build -name '*.pdb')
           fi
 
-          git -C jkx rev-parse HEAD > "$tree/jkx-build.txt"
-          date -u +"%Y-%m-%dT%H:%M:%SZ" >> "$tree/jkx-build.txt"
-          echo "package: ${{ matrix.name }}" >> "$tree/jkx-build.txt"
-          echo "trace: ${{ inputs.trace && 'on' || 'off' }}" >> "$tree/jkx-build.txt"
+          # One redirect rather than four: the file is opened once, and there
+          # is no window in which a half-written stamp exists.
+          {
+              git -C jkx rev-parse HEAD
+              date -u +"%Y-%m-%dT%H:%M:%SZ"
+              echo "package: ${{ matrix.name }}"
+              echo "trace: ${{ inputs.trace && 'on' || 'off' }}"
+          } > "$tree/jkx-build.txt"
 
           echo "packaged:"
           find "$tree" -maxdepth 2 -type f | sort

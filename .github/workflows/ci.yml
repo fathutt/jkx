@@ -62,10 +62,14 @@ jobs:
           base="${{ github.event.pull_request.base.sha }}"
           if [ -z "$base" ]; then echo "push build, skipping diff format check"; exit 0; fi
           git fetch --no-tags --depth=1 origin "$base"
-          changed=$(git diff --name-only --diff-filter=ACMR "$base"...HEAD \
-                    -- '*.c' '*.cpp' '*.h' '*.hpp' | grep -v '^lib/' || true)
-          [ -z "$changed" ] && exit 0
-          clang-format-18 --dry-run --Werror $changed
+          # Through xargs rather than as an unquoted expansion: a bare $changed
+          # is a list that shellcheck cannot tell from a string someone forgot
+          # to quote, and it is right to ask - a path with a space in it would
+          # split into two files that do not exist.
+          git diff -z --name-only --diff-filter=ACMR "$base"...HEAD \
+              -- '*.c' '*.cpp' '*.h' '*.hpp' \
+            | grep -zv '^lib/' \
+            | xargs -0 --no-run-if-empty clang-format-18 --dry-run --Werror
 
   # ---------------------------------------------------------------------------
   build:
