@@ -353,6 +353,27 @@ if(MSVC)
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /arch:SSE2")
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
 
+	# Release keeps its symbols. Without this there is no .pdb, and the crash
+	# handler in rd-vulkan/vk_crash.cpp - which already asks dbghelp for a
+	# function and a line - can only find the nearest exported symbol. The
+	# renderer is linked into the engine now and exports exactly one thing, so
+	# every frame in every report came out as "GetRefAPI+0x...", which is a
+	# number, not an answer:
+	#
+	#     0  0x00007ff6bbe0f699  jkx_ja.x86_64+0x9f699  GetRefAPI+0x4fc9
+	#
+	# /Zi only emits debug information; it does not change what is generated or
+	# how it is optimised. /DEBUG makes the linker write the .pdb, and it turns
+	# off /OPT:REF and /OPT:ICF by default, which would change the binary - so
+	# both are asked for back explicitly. The result is the same code with a
+	# file beside it that turns an address into a line.
+	set(CMAKE_C_FLAGS_RELEASE   "${CMAKE_C_FLAGS_RELEASE} /Zi")
+	set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /Zi")
+	foreach(kind EXE SHARED MODULE)
+		set(CMAKE_${kind}_LINKER_FLAGS_RELEASE
+			"${CMAKE_${kind}_LINKER_FLAGS_RELEASE} /DEBUG /OPT:REF /OPT:ICF")
+	endforeach()
+
 	# We don't try to control symbol visibility under MSVC.
 	set(OPENJK_VISIBILITY_FLAGS "")
 elseif (("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU") OR ("${CMAKE_C_COMPILER_ID}" MATCHES "Clang"))

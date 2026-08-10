@@ -200,6 +200,11 @@ jobs:
             build/*.exe
             build/${{ matrix.config }}/*.exe
             build/${{ matrix.config }}/*.dll
+            # The .pdb is what makes a crash report readable. It has to sit
+            # beside the binary at run time - dbghelp looks there and nowhere
+            # else - so it ships in the same artifact rather than a separate
+            # one nobody would think to download.
+            build/${{ matrix.config }}/*.pdb
             build/**/*.so
             build/**/*.dll
             build/base/**
