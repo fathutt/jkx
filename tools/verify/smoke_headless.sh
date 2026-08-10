@@ -122,6 +122,15 @@ if grep -qE 'Segmentation fault|signal SIGSEGV|SIGABRT' "$RUN/run.log"; then
     report "the engine died on a signal"
 fi
 
+# Checked from the log rather than from the exit code, because UndefinedBehavior
+# Sanitizer prints and carries on by default: a build that reports on every frame
+# still exits zero. This is what makes running the sanitizer build worth
+# anything - building it and never running it checks nothing.
+if grep -qE 'runtime error:|AddressSanitizer|UndefinedBehaviorSanitizer|LeakSanitizer' "$RUN/run.log"; then
+    report "a sanitizer had something to say:"
+    grep -E 'runtime error:|ERROR: (Address|Leak)Sanitizer' "$RUN/run.log" | head -10
+fi
+
 if [ "$VALIDATION" = "1" ]; then
     if grep -qE 'VUID-|Validation Error|Validation Warning' "$RUN/run.log"; then
         report "the validation layer had something to say:"

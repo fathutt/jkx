@@ -75,9 +75,24 @@ typedef struct
 
 } zoneTail_t;
 
+// Where the tail sits, measured from the header. It goes immediately after the
+// caller's block, so its address depends on a size the caller picked - and its
+// one member is an int, which wants four-byte alignment. Any odd allocation put
+// it on an odd address: undefined behaviour that x86 happens to tolerate and a
+// fault on some other targets, and the first thing UBSan says when the engine
+// starts. Rounding the offset up costs at most three bytes per allocation.
+//
+// The rounding used to be there, applied to the total size a line above the
+// malloc, where it padded the end of the block and did nothing at all for the
+// address the tail landed on. It is commented out in Z_Malloc to this day.
+static inline size_t ZoneTailOffset( int iSize )
+{
+	return sizeof( zoneHeader_t ) + ( ( (size_t)iSize + 3 ) & ~(size_t)3 );
+}
+
 static inline zoneTail_t *ZoneTailFromHeader(zoneHeader_t *pHeader)
 {
-	return (zoneTail_t*) ( (char*)pHeader + sizeof(*pHeader) + pHeader->iSize );
+	return (zoneTail_t*) ( (char*)pHeader + ZoneTailOffset( pHeader->iSize ) );
 }
 
 #ifdef DETAILED_ZONE_DEBUG_CODE
@@ -173,6 +188,18 @@ int Z_Validate(void)
 
 // static mem blocks to reduce a lot of small zone overhead
 //
+// Packed, because Z_Free and Z_Validate walk these with the same arithmetic they
+// use on a real allocation - header, then the block, then the tail - and a
+// compiler-inserted gap would put the tail somewhere the arithmetic does not
+// look. That means the padding has to be written out by hand instead:
+//
+//   - mem is four bytes for a two byte string, because ZoneTailOffset rounds the
+//     block up to a multiple of four and the tail has to be where it says.
+//   - alignas on the objects themselves, because packing takes the struct's own
+//     alignment down to one, and then the zoneHeader_t inside it - which is cast
+//     to and read as a real header - lands wherever the linker felt like putting
+//     it. That is what UBSan reports on the first cvar the engine frees.
+//
 #pragma pack(push)
 #pragma pack(1)
 typedef struct
@@ -185,24 +212,24 @@ typedef struct
 typedef struct
 {
 	zoneHeader_t	Header;
-	byte mem[2];
+	byte mem[4];
 	zoneTail_t		Tail;
 } StaticMem_t;
 #pragma pack(pop)
 
-const static StaticZeroMem_t gZeroMalloc  =
+alignas( alignof( zoneHeader_t ) ) const static StaticZeroMem_t gZeroMalloc  =
 	{ {ZONE_MAGIC, TAG_STATIC,0,NULL,NULL},{ZONE_MAGIC}};
 
 #ifdef DEBUG_ZONE_ALLOCS
-#define DEF_STATIC(_char) {ZONE_MAGIC, TAG_STATIC,2,NULL,NULL, "<static>",0,"",0},{_char,'\0'},{ZONE_MAGIC}
+#define DEF_STATIC(_char) {ZONE_MAGIC, TAG_STATIC,2,NULL,NULL, "<static>",0,"",0},{_char,'\0','\0','\0'},{ZONE_MAGIC}
 #else
-#define DEF_STATIC(_char) {ZONE_MAGIC, TAG_STATIC,2,NULL,NULL			        },{_char,'\0'},{ZONE_MAGIC}
+#define DEF_STATIC(_char) {ZONE_MAGIC, TAG_STATIC,2,NULL,NULL			        },{_char,'\0','\0','\0'},{ZONE_MAGIC}
 #endif
 
-const static StaticMem_t gEmptyString =
+alignas( alignof( zoneHeader_t ) ) const static StaticMem_t gEmptyString =
 	{ DEF_STATIC('\0') };
 
-const static StaticMem_t gNumberString[] = {
+alignas( alignof( zoneHeader_t ) ) const static StaticMem_t gNumberString[] = {
 	{ DEF_STATIC('0') },
 	{ DEF_STATIC('1') },
 	{ DEF_STATIC('2') },
@@ -260,10 +287,11 @@ void *Z_Malloc(int iSize, memtag_t eTag, qboolean bZeroit, int /*unusedAlign*/)
 		return &pMemory[1];
 	}
 
-	// Add in tracking info and round to a longword...  (ignore longword aligning now we're not using contiguous blocks)
+	// Header, the caller's block padded so that the tail lands on an aligned
+	// address, and the tail. ZoneTailOffset is the same arithmetic the lookup
+	// uses, so there is one place where the layout is decided.
 	//
-//	int iRealSize = (iSize + sizeof(zoneHeader_t) + sizeof(zoneTail_t) + 3) & 0xfffffffc;
-	int iRealSize = (iSize + sizeof(zoneHeader_t) + sizeof(zoneTail_t));
+	int iRealSize = (int)( ZoneTailOffset( iSize ) + sizeof( zoneTail_t ) );
 
 	// Allocate a chunk...
 	//

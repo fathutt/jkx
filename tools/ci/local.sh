@@ -14,7 +14,12 @@
 #               the configuration nobody looks at until it fails
 #   sanitizers  Debug with asan and ubsan, which is what the CI job builds
 #   tests       the unit tests
-#   smoke       the engine starting on the Vulkan renderer, headless
+#   smoke       the engine drawing frames on the Vulkan renderer, headless,
+#               under the validation layer
+#   smokesan    the same run against the sanitizer build. Building sanitizers
+#               and never running them checks nothing: the first time this was
+#               run it reported two misaligned accesses in the zone allocator,
+#               on the first allocation the engine makes
 #
 # What it cannot cover: MSVC. There is no Windows compiler here, so the Windows
 # jobs remain the one thing that can only fail remotely - which is a reason to
@@ -31,7 +36,7 @@ JOBS="${JOBS:-$(nproc)}"
 
 STAGES=( "$@" )
 if [ "${#STAGES[@]}" -eq 0 ]; then
-    STAGES=( policy release debug sanitizers tests smoke )
+    STAGES=( policy release debug sanitizers tests smoke smokesan )
 fi
 
 failed=()
@@ -93,6 +98,18 @@ stage_tests() {
 
 stage_smoke() {
     bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
+}
+
+# Leak detection is off: the engine frees its zone in one go at exit and reports
+# what it freed, which is a different accounting from the one LeakSanitizer does,
+# and the noise would bury the errors worth reading. The validation layer is off
+# too - one slow thing at a time, and the release run above already ran it.
+stage_smokesan() {
+    JKX_SMOKE_DISPLAY="${JKX_SMOKE_DISPLAY:-:98}" \
+    JKX_SMOKE_NO_VALIDATION=1 \
+    ASAN_OPTIONS=detect_leaks=0 \
+    UBSAN_OPTIONS=print_stacktrace=1 \
+        bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/san"
 }
 
 for stage in "${STAGES[@]}"; do

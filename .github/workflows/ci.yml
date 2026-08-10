@@ -298,3 +298,23 @@ jobs:
           name: smoke-frame
           path: jkx_smoke.tga
           if-no-files-found: ignore
+
+      # Building the sanitizers and never running them checks nothing. The first
+      # time this ran it reported two misaligned accesses in the zone allocator,
+      # on the first allocation the engine makes.
+      - name: Build with sanitizers
+        run: |
+          cmake -B build-san -G Ninja -DCMAKE_BUILD_TYPE=Debug \
+            -DJKX_ENABLE_ASAN=ON -DJKX_ENABLE_UBSAN=ON \
+            -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache \
+            -DBuildSPRdVulkan=ON -DBuildJK2SPEngine=OFF -DBuildJK2SPGame=OFF \
+            -DBuildJK2SPRdVanilla=OFF
+          cmake --build build-san --target jkx_ja.x86_64 rdsp-vulkan_x86_64 --parallel
+
+      - name: The same frames, under the sanitizers
+        env:
+          JKX_SMOKE_DISPLAY: ':98'
+          JKX_SMOKE_NO_VALIDATION: '1'
+          ASAN_OPTIONS: detect_leaks=0
+          UBSAN_OPTIONS: print_stacktrace=1
+        run: bash tools/verify/smoke_headless.sh build-san
