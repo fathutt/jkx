@@ -154,20 +154,25 @@ else
     echo "  (no validation layer installed, Vulkan usage not checked)"
 fi
 
-# Two screenshots: the menu, and the console over it. The console frame earns
-# its place already - it runs the whole console draw path, which is how a null
-# dereference in it was found the first time this ran - but it does not yet
-# check any text, because the fixture has no font and every string draws
-# nothing. When the distance field font lands the fixture gets an atlas, which
-# it can read directly, and then this frame is a real text check.
-for name in jkx_smoke jkx_console; do
+# Two screenshots: the menu, and the console over it. The console frame is the
+# text check - the fixture ships a distance field atlas, so the console draws a
+# page of real glyphs, and a page of antialiased text has hundreds of distinct
+# greys in it where an empty panel has a handful.
+#
+# It has already earned its place twice over: a null dereference in the console
+# draw path, and a fragment shader that sampled a descriptor set nobody had
+# written, which on this software rasteriser is a segfault inside the JIT
+# several frames after anything to do with fonts.
+for pair in "jkx_smoke 2" "jkx_console 200"; do
+    set -- $pair
+    name="$1"
+    want="$2"
     SHOT="$RUN/home/base/screenshots/$name.tga"
     if [ -f "$SHOT" ]; then
         # A frame that drew nothing presents and writes a file just the same.
-        # What separates it from a working one is whether the picture has more
-        # than one colour in it.
-        if ! python3 "$HERE/tga_is_a_picture.py" "$SHOT"; then
-            report "$name.tga is a flat colour, so nothing was drawn"
+        # What separates it from a working one is what is in the picture.
+        if ! python3 "$HERE/tga_is_a_picture.py" "$SHOT" "$want"; then
+            report "$name.tga did not draw what it should have"
         fi
         if [ -n "${JKX_SMOKE_KEEP_SHOT:-}" ]; then
             cp "$SHOT" "${JKX_SMOKE_KEEP_SHOT%.tga}_$name.tga"

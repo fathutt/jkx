@@ -155,22 +155,6 @@ static float Con_Advance( unsigned char ch )
 
 /*
 ================
-Con_LineWidthPixels
-
-The drawn width of one row of the buffer, ignoring trailing blanks.
-================
-*/
-static float Con_LineWidthPixels( const conChar_t *line, int count )
-{
-	float width = 0.0f;
-	for ( int i = 0 ; i < count ; i++ ) {
-		width += Con_Advance( (unsigned char)line[i].f.character );
-	}
-	return width;
-}
-
-/*
-================
 Con_RowToString
 
 One row of cells as a string, with the colour changes put back as ^n codes so
@@ -382,6 +366,17 @@ void Con_Initialize(void)
 	con.display = con.current;
 	con.xadjust = 1.0f;
 	con.yadjust = 1.0f;
+
+	// Both of these have to be sane before the first CL_ConsolePrint, which
+	// happens long before Con_CheckResize ever runs: the console is where the
+	// messages about starting up go. Left at zero, every line wraps after one
+	// character, and the whole of the startup log ends up one letter per row -
+	// which is exactly what the first version of this did, and which is
+	// invisible on screen because by the time anyone looks the recent lines
+	// have been printed with a real width.
+	con.textWidth = (float)( con.linewidth * con.charWidth );
+	con.fontScale = 1.0f;
+	con.advanceFont = -1;
 	for(i=0; i<CON_TEXTSIZE; i++)
 	{
 		con.text[i] = CON_BLANK;
@@ -467,7 +462,8 @@ static void Con_Resize(int rowwidth)
 
 				for (j = CON_TIMESTAMP_LEN; j < con.rowwidth - 1 && i < lineLen; j++, i++) {
 					const float advance = Con_Advance( (unsigned char)line[i].f.character );
-					if ( used + advance > con.textWidth && j > CON_TIMESTAMP_LEN ) {
+					if ( con.textWidth > 0.0f && used + advance > con.textWidth
+							&& j > CON_TIMESTAMP_LEN ) {
 						break;
 					}
 					used += advance;
@@ -717,7 +713,8 @@ void CL_ConsolePrint( const char *txt) {
 			// sees; the second is what keeps this inside the buffer, and with
 			// a narrow font it is reached first surprisingly often.
 			const float advance = Con_Advance( (unsigned char)c );
-			const qboolean tooWide = (qboolean)( con.xPixels + advance > con.textWidth );
+			const qboolean tooWide = (qboolean)( con.textWidth > 0.0f
+				&& con.xPixels + advance > con.textWidth );
 			const qboolean tooMany = (qboolean)( con.x == con.rowwidth - CON_TIMESTAMP_LEN - 1 );
 
 			if ( ( tooWide && con.x > 0 ) || tooMany ) {
@@ -806,7 +803,11 @@ void Con_DrawInput (void) {
 		}
 		Q_strncpyz( left, text, cursor + 1 );
 
-		const char caret[2] = { (char)( kg.key_overstrikeMode ? 11 : 10 ), '\0' };
+		// The old cursor was glyph 10 or 11 of the character grid - a block and
+		// an overstrike block, which existed in that texture and exist in no
+		// font. In a font, 10 is a line feed, and drawing it moved the pen down
+		// a row instead of drawing anything.
+		const char *caret = kg.key_overstrikeMode ? "_" : "|";
 		re.Font_DrawString( (int)( vx + re.Font_StrLenPixels( left, font, con.fontScale ) ),
 			(int)vy, caret, con.color, font, -1, con.fontScale );
 	}
@@ -837,7 +838,6 @@ Draws the last few lines of output transparently over the game top
 void Con_DrawNotify (void)
 {
 	int		v;
-	int		lineLimit = con.linewidth;
 	conChar_t		*text;
 	int		i;
 	int		time;
@@ -857,8 +857,11 @@ void Con_DrawNotify (void)
 		if (time > con_notifytime->value*1000)
 			continue;
 		text = con.text + (i % con.totallines)*con.rowwidth;
+		int lineLimit = con.rowwidth;
 		if (con_timestamps->integer == 0 || con_timestamps->integer == 2) {
-			// don't show timestamps in the notify lines
+			// don't show timestamps in the notify lines. This used to subtract
+			// from a limit declared outside the loop, so by the fourth row it
+			// was negative and the rest of the overlay drew nothing.
 			text += CON_TIMESTAMP_LEN;
 			lineLimit -= CON_TIMESTAMP_LEN;
 		}

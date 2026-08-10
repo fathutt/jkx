@@ -146,8 +146,10 @@ list(APPEND SPRDVulkanFiles ${SPRDVulkanGhoul2Files})
 set(SPRDVulkanRdCommonFiles
 	"${SPDir}/rd-common/mdx_format.h"
 	"${SPDir}/rd-common/tr_common.h"
-	"${SPDir}/rd-common/tr_font.cpp"
+	# tr_font.cpp is rd-vanilla's now. This renderer draws text from distance
+	# fields; see tr_font_sdf.cpp and tools/fontgen.
 	"${SPDir}/rd-common/tr_font.h"
+	"${SPDir}/rd-vulkan/tr_font_sdf.cpp"
 	"${SPDir}/rd-common/tr_image_load.cpp"
 	"${SPDir}/rd-common/tr_image_jpg.cpp"
 	"${SPDir}/rd-common/tr_image_tga.cpp"

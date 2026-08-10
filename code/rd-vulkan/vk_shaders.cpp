@@ -194,6 +194,9 @@ void vk_create_shader_modules( void )
     VK_SET_OBJECT_NAME(vk.shaders.color_vs, "single-color vertex module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
     VK_SET_OBJECT_NAME(vk.shaders.color_fs, "single-color fragment module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
 
+    vk.shaders.msdf_fs = SHADER_MODULE(msdf_frag_spv);
+    VK_SET_OBJECT_NAME(vk.shaders.msdf_fs, "distance field text fragment module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
+
     vk.shaders.dot_vs = SHADER_MODULE(dot_vert_spv);
     vk.shaders.dot_fs = SHADER_MODULE(dot_frag_spv);
     VK_SET_OBJECT_NAME(vk.shaders.dot_vs, "dot vertex module", VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT);
@@ -301,6 +304,7 @@ void vk_destroy_shader_modules( void )
     vkDestroyShaderModule(vk.device, vk.shaders.frag.gen0_ident, NULL);
 
     vkDestroyShaderModule(vk.device, vk.shaders.frag.gen0_df, NULL);
+    vkDestroyShaderModule(vk.device, vk.shaders.msdf_fs, NULL);
 
     vkDestroyShaderModule(vk.device, vk.shaders.color_fs, NULL);
     vkDestroyShaderModule(vk.device, vk.shaders.color_vs, NULL);

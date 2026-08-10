@@ -334,6 +334,7 @@ static void vk_push_vertex_input_binding_attribute( const Vk_Pipeline_Def *def )
 
         case TYPE_SINGLE_TEXTURE:
         case TYPE_SINGLE_TEXTURE_DF:
+        case TYPE_SINGLE_TEXTURE_MSDF:
             vk_push_bind( 0, sizeof( vec4_t ) );					// xyz array
             vk_push_bind( 1, sizeof( color4ub_t ) );				// color array
             vk_push_bind( 2, sizeof( vec2_t ) );					// st0 array
@@ -783,6 +784,15 @@ VkPipeline vk_create_pipeline( const Vk_Pipeline_Def *def, renderPass_t renderPa
             fs_module = &vk.shaders.frag.gen0_ident;
             break;
 
+        // The plain single-texture vertex shader: position, colour and one set
+        // of texture coordinates is all a glyph quad has, and the fragment
+        // shader wants exactly those. What is different is entirely on the
+        // fragment side.
+        case TYPE_SINGLE_TEXTURE_MSDF:
+            vs_module = &vk.shaders.vert.gen[0][0][0][0][0][0][0];
+            fs_module = &vk.shaders.msdf_fs;
+            break;
+
         case TYPE_SINGLE_TEXTURE:
             vs_module = &vk.shaders.vert.gen[vbo][fastlight][light][0][0][0][0];
             fs_module = &vk.shaders.frag.gen[fastlight][light][0][0][0];
@@ -901,6 +911,7 @@ VkPipeline vk_create_pipeline( const Vk_Pipeline_Def *def, renderPass_t renderPa
             case TYPE_DOT:
             case TYPE_SINGLE_TEXTURE_DF:
             case TYPE_SINGLE_TEXTURE_IDENTITY:
+            case TYPE_SINGLE_TEXTURE_MSDF:
             case TYPE_COLOR_WHITE:
             case TYPE_COLOR_GREEN:
             case TYPE_COLOR_RED:

@@ -5,6 +5,14 @@ A frame that drew nothing at all still gets presented and still writes a file,
 so "the screenshot exists" says almost nothing. Counting how many distinct
 colours are in it separates a frame that drew from a frame that cleared.
 
+With a threshold given, it separates rather more. Antialiased text is mostly
+partial coverage - a page of it is hundreds of greys - so a console frame that
+clears the requested number has drawn glyphs and not just a background panel.
+That is what makes the second screenshot in the smoke test a check on the font
+path rather than a check that a rectangle was filled.
+
+    tga_is_a_picture.py <file.tga> [minimum distinct colours]
+
 Deliberately no image library: this reads the one format the engine writes -
 uncompressed 24-bit bottom-up TGA - and nothing else, so the smoke test does not
 need a package installed to say whether the renderer drew.
@@ -51,9 +59,11 @@ def read_tga(path):
 
 
 def main(argv):
-    if len(argv) != 2:
-        print("usage: %s <file.tga>" % argv[0], file=sys.stderr)
+    if len(argv) not in (2, 3):
+        print("usage: %s <file.tga> [minimum distinct colours]" % argv[0], file=sys.stderr)
         return 2
+
+    want = int(argv[2]) if len(argv) == 3 else MIN_DISTINCT_COLOURS
 
     try:
         width, height, pixels = read_tga(argv[1])
@@ -64,12 +74,13 @@ def main(argv):
     colours = set()
     for i in range(0, len(pixels), 3):
         colours.add(pixels[i:i + 3])
-        if len(colours) >= MIN_DISTINCT_COLOURS:
+        if len(colours) >= want:
             print("%dx%d, at least %d colours" % (width, height, len(colours)))
             return 0
 
     print(
-        "%dx%d, %d colour(s): nothing was drawn" % (width, height, len(colours)),
+        "%dx%d, %d colour(s), wanted %d: not enough was drawn"
+        % (width, height, len(colours), want),
         file=sys.stderr,
     )
     return 1

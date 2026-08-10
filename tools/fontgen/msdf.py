@@ -612,6 +612,47 @@ def build(args):
     }
 
 
+# --- what the engine actually reads --------------------------------------
+#
+# The JSON above is for reading and for preview.py. The engine gets this
+# instead, because a renderer that has to carry a JSON parser to load a font
+# has acquired a dependency for the sake of a file format nobody types.
+#
+# Glyphs are sorted by code point so a lookup is a binary search, which matters:
+# every character of every string drawn does one.
+
+JKXFONT_MAGIC = b'JKXF'
+JKXFONT_VERSION = 1
+JKXFONT_HEADER = '<4sIHHhhhhfI'      # magic, version, atlas w/h, metrics, range, count
+JKXFONT_GLYPH = '<I4H2h2hf'          # cp, x,y,w,h, xoff,baseline, gw,gh, advance
+
+
+def write_jkxfont(path, meta):
+    glyphs = sorted(meta['glyphs'], key=lambda g: g['cp'])
+
+    out = bytearray()
+    out += struct.pack(JKXFONT_HEADER,
+                       JKXFONT_MAGIC, JKXFONT_VERSION,
+                       meta['atlasWidth'], meta['atlasHeight'],
+                       int(meta['pointSize']), int(round(meta['lineHeight'])),
+                       int(round(meta['ascender'])), int(round(meta['descender'])),
+                       float(meta['range'] * meta.get('upscale', 1)),
+                       len(glyphs))
+
+    for g in glyphs:
+        out += struct.pack(JKXFONT_GLYPH,
+                           g['cp'],
+                           g['x'], g['y'], g['w'], g['h'],
+                           int(g['xoff']), int(round(g['baseline'])),
+                           int(round(g['gw'])), int(round(g['gh'])),
+                           float(g['advance']))
+
+    with open(path, 'wb') as f:
+        f.write(bytes(out))
+
+    print("%s: %d bytes" % (path, len(out)))
+
+
 def pack_and_write(glyphs, meta, args):
     """Shelf-pack the glyph fields into one atlas and write it out.
 
@@ -678,6 +719,9 @@ def pack_and_write(glyphs, meta, args):
         json.dump(meta, f, indent=1)
         f.write('\n')
 
+    if args.out_font:
+        write_jkxfont(args.out_font, meta)
+
     drawn = sum(1 for g in glyphs if g['field'] is not None)
     print("%s: %d glyphs (%d drawn), atlas %dx%d, %s + %s"
           % (meta['font'], len(meta['glyphs']), drawn, aw, ah_pot,
@@ -700,7 +744,8 @@ def main(argv):
     p.add_argument('--charset', default='0x20-0x7e,0xa0-0xff,0x400-0x45f',
                    help='comma separated code points and ranges')
     p.add_argument('--out-image', required=True)
-    p.add_argument('--out-meta', required=True)
+    p.add_argument('--out-meta', required=True, help='JSON, for reading and for preview.py')
+    p.add_argument('--out-font', help='.jkxfont, which is what the engine loads')
     args = p.parse_args(argv[1:])
 
     if not args.font and not args.fontdat:

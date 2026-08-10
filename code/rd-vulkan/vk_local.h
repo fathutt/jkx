@@ -298,6 +298,11 @@ typedef enum {
 	TYPE_SINGLE_TEXTURE_DF,
 	TYPE_SINGLE_TEXTURE_IDENTITY,
 
+	// Text. The texture is a signed distance field rather than a picture of
+	// letters, so the fragment shader recovers the outline from it instead of
+	// sampling coverage - which is what lets one atlas serve every point size.
+	TYPE_SINGLE_TEXTURE_MSDF,
+
 	TYPE_GENERIC_BEGIN,
 	TYPE_SINGLE_TEXTURE = TYPE_GENERIC_BEGIN,
 	TYPE_SINGLE_TEXTURE_ENV,
@@ -878,6 +883,8 @@ typedef struct {
 
 		VkShaderModule color_vs;
 		VkShaderModule color_fs;
+
+		VkShaderModule msdf_fs;
 
 		VkShaderModule bloom_fs;
 		VkShaderModule blur_fs;
