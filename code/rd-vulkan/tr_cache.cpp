@@ -340,8 +340,11 @@ void CModelCacheManager::AllocateShaders( const char *psFileName )
 		char *psShaderName		=		 ((char*)file->pDiskImage + shader.nameOffset);
 		int  *piShaderPokePtr	= (int *)((char*)file->pDiskImage + shader.pokeOffset);
 
+		// Same NULL case as the two model loaders that fill this cache: tr is
+		// wiped from Hunk_Clear until RE_BeginRegistration, and this replay can
+		// be driven from inside that window. See the note in R_LoadMDXM.
 		shader_t *sh = R_FindShader(psShaderName, lightmapsNone, stylesDefault, qtrue);
-		if ( sh->defaultShader )
+		if ( !sh || sh->defaultShader )
 			*piShaderPokePtr = 0;
 		else
 			*piShaderPokePtr = sh->index;

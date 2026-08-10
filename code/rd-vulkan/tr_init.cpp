@@ -1229,9 +1229,28 @@ RE_Shutdown
 // Called by the engine between a savegame load and the Ghoul2 instances that
 // belong to it, so that nothing left in tr points at models that are about to
 // be replaced.
+//
+// The caller is Hunk_Clear, and the line above this call frees TAG_HUNKALLOC -
+// which in this tree is where R_Hunk_Alloc puts things, so every shader_t ever
+// generated stops existing at that moment. Wiping tr is therefore not optional:
+// it is how the dangling pointers get dropped.
+//
+// The shader hash table is not in tr. It is a file-static in tr_shader.cpp, so
+// the wipe left it holding a pointer to every one of those freed shaders, and
+// R_FindShader would hand one back as if it were live. R_InitShaders in its
+// server mode does exactly one thing - clear that table - and this is what that
+// mode is for.
+//
+// What is deliberately not rebuilt here is the shaders themselves. tr is empty
+// until RE_BeginRegistration runs R_Init again, and rebuilding them would need
+// the images, which are equally gone. So between here and there R_FindShader
+// cannot resolve anything, and its callers have to expect that; see R_LoadMDXM,
+// which is reached in exactly that window because the server spawns entities -
+// and the game registers their models - before the client begins registration.
 void R_ClearStuffToStopGhoul2CrashingThings( void )
 {
 	Com_Memset( &tr, 0, sizeof( tr ) );
+	R_InitShaders( qtrue );
 }
 
 void RE_Shutdown( qboolean destroyWindow, qboolean restarting ) {

@@ -1121,8 +1121,12 @@ static qboolean R_LoadMD3 ( model_t *mod, int lod, void *buffer, const char *mod
 		{
 			shader_t       *sh;
 
+			// NULL is possible and means the same thing as defaultShader here:
+			// tr is wiped between Hunk_Clear and RE_BeginRegistration, and the
+			// server registers the map's models inside that window. See the
+			// note at the matching line in R_LoadMDXM.
 			sh = R_FindShader(md3Shader->name, lightmapsNone, stylesDefault, qtrue);
-			if(sh->defaultShader)
+			if(!sh || sh->defaultShader)
 			{
 				*shaderIndex = 0;
 			}

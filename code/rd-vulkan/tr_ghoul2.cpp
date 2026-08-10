@@ -4278,7 +4278,22 @@ qboolean R_LoadMDXM( model_t *mod, void *buffer, const char *mod_name, qboolean 
 		// get the shader name
 		sh = R_FindShader( surfInfo->shader, lightmapsNone, stylesDefault, qtrue );
 		// insert it in the surface list
-		if ( sh->defaultShader )
+		//
+		// sh can be NULL, and this is where the first run on real hardware
+		// crashed: read of address 0x78, which is offsetof(shader_t,
+		// defaultShader) exactly. R_FindShader returns tr.defaultShader for an
+		// empty name - and a .glm has plenty of those, every bolt and tag
+		// surface carries no shader of its own - and tr.defaultShader is NULL
+		// for as long as tr is wiped, which is from Hunk_Clear until
+		// RE_BeginRegistration. The server spawns the map's entities inside
+		// that window and the game registers their models, so this line runs
+		// with no renderer behind it on every single map load.
+		//
+		// Index 0 is the right answer anyway. It is what the defaultShader
+		// branch already stores, and StoreShaderRequest below hands the name to
+		// the model cache, which is the machinery that resolves these properly
+		// once there is something to resolve them against.
+		if ( !sh || sh->defaultShader )
 		{
 			surfInfo->shaderIndex = 0;
 		}
