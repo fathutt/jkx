@@ -138,9 +138,14 @@ qboolean ShaderHashTableExists( void )
 	return qfalse;
 }
 
+// Both of these live in the hunk, and both are reached through a file-static
+// that the wipe of tr cannot see. Dropping one without the other leaves
+// FindShaderInShaderText parsing freed memory from s_shaderText once the hash
+// table misses, which is a slower way to reach the same crash.
 void KillTheShaderHashTable( void )
 {
 	memset(shaderTextHashTable, 0, sizeof(shaderTextHashTable));
+	s_shaderText = NULL;
 }
 
 /*

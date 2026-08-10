@@ -1249,8 +1249,17 @@ RE_Shutdown
 // and the game registers their models - before the client begins registration.
 void R_ClearStuffToStopGhoul2CrashingThings( void )
 {
+	extern void KillTheShaderHashTable( void );
+
 	Com_Memset( &tr, 0, sizeof( tr ) );
+
+	// Three things point into the hunk from outside tr, so the wipe cannot
+	// reach them and each one has to be told separately: the shader hash table,
+	// the shader text, and the index into that text. The first two crashes on
+	// real hardware were the first and the second of those, in that order -
+	// clearing one just moved the fault along to the next.
 	R_InitShaders( qtrue );
+	KillTheShaderHashTable();
 }
 
 void RE_Shutdown( qboolean destroyWindow, qboolean restarting ) {
