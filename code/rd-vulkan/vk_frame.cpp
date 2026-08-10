@@ -1293,6 +1293,49 @@ void vk_refraction_extract( void ) {
 			&region);
 	}
 
+	// Build the mip chain, each level a filtered halving of the one above. The
+	// transitions here are per level and not per image, because level i-1 has to
+	// become a transfer source while level i is still a transfer destination.
+	{
+		uint32_t level;
+		int32_t	 w = gls.captureWidth / REFRACTION_EXTRACT_SCALE;
+		int32_t	 h = gls.captureHeight / REFRACTION_EXTRACT_SCALE;
+
+		for ( level = 1; level < vk.refraction_extract_mips; level++ )
+		{
+			const int32_t	nw = MAX( w >> 1, 1 );
+			const int32_t	nh = MAX( h >> 1, 1 );
+			VkImageBlit		mip;
+
+			vk_record_mip_layout_transition( vk.cmd->command_buffer, dstImage, level - 1,
+				VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL );
+
+			mip.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+			mip.srcSubresource.mipLevel = level - 1;
+			mip.srcSubresource.baseArrayLayer = 0;
+			mip.srcSubresource.layerCount = 1;
+			mip.srcOffsets[0] = { 0, 0, 0 };
+			mip.srcOffsets[1] = { w, h, 1 };
+			mip.dstSubresource = mip.srcSubresource;
+			mip.dstSubresource.mipLevel = level;
+			mip.dstOffsets[0] = { 0, 0, 0 };
+			mip.dstOffsets[1] = { nw, nh, 1 };
+
+			vkCmdBlitImage( vk.cmd->command_buffer,
+				dstImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+				dstImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+				1, &mip, VK_FILTER_LINEAR );
+
+			// Done with it as a source; put it back so the whole-image
+			// transition below finds every level in the same layout.
+			vk_record_mip_layout_transition( vk.cmd->command_buffer, dstImage, level - 1,
+				VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL );
+
+			w = nw;
+			h = nh;
+		}
+	}
+
 	// restore previous layouts
 	vk_record_image_layout_transition( vk.cmd->command_buffer, dstImage, VK_IMAGE_ASPECT_COLOR_BIT,
 		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,

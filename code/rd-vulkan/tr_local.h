@@ -2110,6 +2110,16 @@ extern cvar_t	*r_roundImagesDown;
 extern cvar_t	*r_nomip;				// apply picmip only on worldspawn textures
 #ifdef USE_VK_PBR
 extern cvar_t	*r_normalMapping;
+extern cvar_t	*r_refraction;
+extern cvar_t	*r_refractionScale;
+extern cvar_t	*r_refractionChromatic;
+
+// The four refraction knobs the client writes to through the export table. They
+// are read when a refracting surface is drawn; see tr_sp_exports.cpp.
+extern float	tr_distortionAlpha;
+extern float	tr_distortionStretch;
+extern qboolean	tr_distortionPrePost;
+extern qboolean	tr_distortionNegate;
 extern cvar_t	*r_specularMapping;
 extern cvar_t	*r_baseNormalX;
 extern cvar_t	*r_baseNormalY;

@@ -222,6 +222,9 @@ cvar_t	*r_roundImagesDown;
 cvar_t	*r_nomip;
 #ifdef USE_VK_PBR
 cvar_t  *r_normalMapping;
+cvar_t	*r_refraction;
+cvar_t	*r_refractionScale;
+cvar_t	*r_refractionChromatic;
 cvar_t  *r_specularMapping;
 cvar_t  *r_baseNormalX;
 cvar_t  *r_baseNormalY;
@@ -970,6 +973,12 @@ void R_Register( void )
 	r_roundImagesDown					= ri.Cvar_Get("r_roundImagesDown",					"1",						CVAR_ARCHIVE_ND | CVAR_LATCH, "");
 	r_nomip								= ri.Cvar_Get("r_nomip",							"0",						CVAR_ARCHIVE | CVAR_LATCH, "Apply picmip only on worldspawn textures");
 	ri.Cvar_CheckRange(r_nomip, 0, 1, qtrue);
+	r_refraction						= ri.Cvar_Get("r_refraction",						"1",						CVAR_ARCHIVE | CVAR_LATCH, "Screen-space refraction for distorting surfaces" );
+	ri.Cvar_CheckRange(r_refraction, 0, 1, qtrue);
+	r_refractionScale					= ri.Cvar_Get("r_refractionScale",					"1",						CVAR_ARCHIVE, "How far a refracting surface bends what is behind it" );
+	ri.Cvar_CheckRange(r_refractionScale, 0, 4, qfalse);
+	r_refractionChromatic				= ri.Cvar_Get("r_refractionChromatic",				"0.04",						CVAR_ARCHIVE, "How far apart the colour channels refract; 0 turns the split off" );
+	ri.Cvar_CheckRange(r_refractionChromatic, 0, 0.5, qfalse);
 #ifdef USE_VK_PBR
 	r_normalMapping						= ri.Cvar_Get("r_normalMapping",					"1",						CVAR_ARCHIVE | CVAR_LATCH, "Disable/enable normal mapping" );
 	r_specularMapping					= ri.Cvar_Get("r_specularMapping",					"1",						CVAR_ARCHIVE | CVAR_LATCH, "Disable/enable specular mapping" );	

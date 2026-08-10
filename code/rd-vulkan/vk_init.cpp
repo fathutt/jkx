@@ -563,8 +563,11 @@ void vk_initialize( void )
 
 	vk_set_render_scale();
 
-	vk.fboActive = qtrue;		
-	vk.refractionActive = qtrue;
+	vk.fboActive = qtrue;
+
+	// Latched: turning it off frees the extract attachment, and the internal
+	// distortion shader is built differently without it.
+	vk.refractionActive = r_refraction->integer ? qtrue : qfalse;
 
 	vk.vboWorldActive = qtrue;
 	vk.vboGhoul2Active = qtrue;

@@ -537,6 +537,50 @@ void vk_record_buffer_memory_barrier( VkCommandBuffer cb, VkBuffer buffer, VkDev
 	vkCmdPipelineBarrier2( cb, &dependency );
 }
 #endif
+/*
+=================
+vk_record_mip_layout_transition
+
+One mip level of a colour image between the two transfer layouts. Building a mip
+chain needs exactly this and nothing more: the level being read has to be a
+transfer source while the level being written is still a transfer destination,
+which the whole-image transition next door cannot express.
+=================
+*/
+void vk_record_mip_layout_transition( VkCommandBuffer cmdBuf, VkImage image, uint32_t level,
+	VkImageLayout old_layout, VkImageLayout new_layout )
+{
+	VkImageMemoryBarrier2	barrier;
+	VkDependencyInfo		dependency;
+
+	Com_Memset( &barrier, 0, sizeof( barrier ) );
+
+	barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
+	barrier.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+	barrier.dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+	barrier.srcAccessMask = ( old_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL )
+		? VK_ACCESS_2_TRANSFER_WRITE_BIT : VK_ACCESS_2_TRANSFER_READ_BIT;
+	barrier.dstAccessMask = ( new_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL )
+		? VK_ACCESS_2_TRANSFER_WRITE_BIT : VK_ACCESS_2_TRANSFER_READ_BIT;
+	barrier.oldLayout = old_layout;
+	barrier.newLayout = new_layout;
+	barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	barrier.image = image;
+	barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	barrier.subresourceRange.baseMipLevel = level;
+	barrier.subresourceRange.levelCount = 1;
+	barrier.subresourceRange.baseArrayLayer = 0;
+	barrier.subresourceRange.layerCount = 1;
+
+	Com_Memset( &dependency, 0, sizeof( dependency ) );
+	dependency.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+	dependency.imageMemoryBarrierCount = 1;
+	dependency.pImageMemoryBarriers = &barrier;
+
+	vkCmdPipelineBarrier2( cmdBuf, &dependency );
+}
+
 void vk_record_image_layout_transition( VkCommandBuffer cmdBuf, VkImage image, 
 	VkImageAspectFlags image_aspect_flags, 
 	VkImageLayout old_layout, VkImageLayout new_layout, uint32_t src_stage_override, uint32_t dst_stage_override )

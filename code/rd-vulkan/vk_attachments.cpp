@@ -36,6 +36,7 @@ typedef struct vk_attach_desc_s {
     VkAccessFlags           access_flags;
     VkImageLayout           image_layout;
     VkFormat                image_format;
+    uint32_t                mip_levels;
 } vk_attach_desc_t;
 
 static vk_attach_desc_t attachments[MAX_ATTACHMENTS_IN_POOL + 1]; // +1 for SSAA
@@ -105,7 +106,7 @@ static void vk_alloc_attachment_memory( void )
             view_desc.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
             view_desc.subresourceRange.aspectMask = attachments[i].aspect_flags;
             view_desc.subresourceRange.baseMipLevel = 0;
-            view_desc.subresourceRange.levelCount = 1;
+            view_desc.subresourceRange.levelCount = attachments[i].mip_levels;
             view_desc.subresourceRange.baseArrayLayer = MAX( ( layer - 1 ), 0 );
             view_desc.subresourceRange.layerCount = ( viewType == VK_IMAGE_VIEW_TYPE_CUBE ) ? 6 : 1;
 
@@ -164,7 +165,8 @@ static void vk_get_image_memory_requirements( VkImage image, VkMemoryRequirement
 }
 
 static void vk_add_attachment_desc( VkImage desc, VkImageView *image_view, VkImageUsageFlags usage, VkMemoryRequirements *reqs, 
-    VkFormat image_format, VkImageAspectFlags aspect_flags, VkImageLayout image_layout, VkImageViewType view_type )
+    VkFormat image_format, VkImageAspectFlags aspect_flags, VkImageLayout image_layout, VkImageViewType view_type,
+    uint32_t mip_levels )
 {
     if (num_attachments >= ARRAY_LEN(attachments)) {
         ri.Error(ERR_FATAL, "Attachments array overflow: max attachments: %d while %d given", (int)ARRAY_LEN(vk.image_memory), num_attachments);
@@ -178,14 +180,18 @@ static void vk_add_attachment_desc( VkImage desc, VkImageView *image_view, VkIma
         attachments[num_attachments].aspect_flags = aspect_flags;
         attachments[num_attachments].image_layout = image_layout;
         attachments[num_attachments].image_format = image_format;
+        attachments[num_attachments].mip_levels = mip_levels;
         attachments[num_attachments].memory_offset = 0;
         num_attachments++;
     }
 }
 
+// mip_levels above one is for the one attachment that is sampled with a level of
+// detail rather than as a flat picture: the refraction extract, where roughness
+// picks how blurred the transmitted image is.
 static void create_color_attachment( uint32_t width, uint32_t height, VkSampleCountFlagBits samples, VkFormat format,
     VkImageUsageFlags usage, VkImage *image, VkImageView *image_view, VkImageLayout image_layout, qboolean multisample, 
-    VkImageCreateFlags flags )
+    VkImageCreateFlags flags, uint32_t mip_levels = 1 )
 {
     VkImageCreateInfo desc;
     VkMemoryRequirements memory_requirements;
@@ -203,7 +209,7 @@ static void create_color_attachment( uint32_t width, uint32_t height, VkSampleCo
     desc.extent.width = width;
     desc.extent.height = height;
     desc.extent.depth = 1;
-    desc.mipLevels = 1;
+    desc.mipLevels = mip_levels;
     desc.arrayLayers = ( flags & VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT ) ? 6 : 1;
     desc.samples = samples;
     desc.tiling = VK_IMAGE_TILING_OPTIMAL;
@@ -221,7 +227,7 @@ static void create_color_attachment( uint32_t width, uint32_t height, VkSampleCo
     if ( flags & VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT )
         view_type = VK_IMAGE_VIEW_TYPE_CUBE;
 
-    vk_add_attachment_desc( *image, image_view, usage, &memory_requirements, format, VK_IMAGE_ASPECT_COLOR_BIT, image_layout, view_type );
+    vk_add_attachment_desc( *image, image_view, usage, &memory_requirements, format, VK_IMAGE_ASPECT_COLOR_BIT, image_layout, view_type, mip_levels );
 }
 
 static void create_depth_attachment( uint32_t width, uint32_t height, VkSampleCountFlagBits samples, 
@@ -263,7 +269,7 @@ static void create_depth_attachment( uint32_t width, uint32_t height, VkSampleCo
     vk_get_image_memory_requirements(*image, &memory_requirements);
 
 
-    vk_add_attachment_desc( *image, image_view, desc.usage, &memory_requirements, vk.depth_format, image_aspect_flags, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_VIEW_TYPE_2D );
+    vk_add_attachment_desc( *image, image_view, desc.usage, &memory_requirements, vk.depth_format, image_aspect_flags, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_VIEW_TYPE_2D, 1 );
 }
 
 void vk_create_attachments( void )
@@ -351,11 +357,23 @@ void vk_create_attachments( void )
 		{
             uint32_t width = gls.captureWidth / REFRACTION_EXTRACT_SCALE;
             uint32_t height = gls.captureHeight / REFRACTION_EXTRACT_SCALE;
+            uint32_t size = MAX( width, height );
 
-            usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+            // A mip chain, so a rough surface can transmit a blurred image
+            // instead of a sharp one. It stops well short of 1x1 - the levels
+            // past this are a colour average of the whole screen and nothing
+            // asks for that - and each level is a filtered blit from the one
+            // above, which is why the image is also a transfer source.
+            vk.refraction_extract_mips = 1;
+            while ( ( size >> vk.refraction_extract_mips ) >= 1 && vk.refraction_extract_mips < REFRACTION_EXTRACT_MIPS )
+                vk.refraction_extract_mips++;
+
+            usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT |
+                VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 
             create_color_attachment( width, height, VK_SAMPLE_COUNT_1_BIT, vk.capture_format,
-                usage, &vk.refraction_extract_image, &vk.refraction_extract_image_view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, qfalse, 0 );     
+                usage, &vk.refraction_extract_image, &vk.refraction_extract_image_view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, qfalse, 0,
+                vk.refraction_extract_mips );
         }
 
         // MSAA

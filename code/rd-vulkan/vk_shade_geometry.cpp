@@ -552,11 +552,27 @@ void vk_update_attachment_descriptors( void ) {
 		vkUpdateDescriptorSets( vk.device, 1, &desc, 0, NULL );
 		
 		// refraction
+		//
+		// Its own sampler, not the blit one above: this is the only attachment
+		// sampled with a level of detail, and the blit sampler is pinned to the
+		// top level, which would quietly make every roughness look mirror-sharp.
 		if ( vk.refractionActive )
 		{
+			Vk_Sampler_Def rd;
+
+			Com_Memset( &rd, 0, sizeof( rd ) );
+			rd.gl_mag_filter = GL_LINEAR;
+			rd.gl_min_filter = GL_LINEAR_MIPMAP_LINEAR;
+			rd.address_mode = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+			rd.max_lod_1_0 = qfalse;
+			rd.noAnisotropy = qtrue;
+
+			info.sampler = vk_find_sampler( &rd );
 			info.imageView = vk.refraction_extract_image_view;
 			desc.dstSet = vk.refraction_extract_descriptor;
 			vkUpdateDescriptorSets( vk.device, 1, &desc, 0, NULL );
+
+			info.sampler = vk_find_sampler( &sd );
 		}
 
 		// screenmap
@@ -2693,6 +2709,12 @@ void RB_StageIteratorGeneric( void )
 				def.shader_type = TYPE_REFRACTION;
 				def.face_culling = CT_TWO_SIDED;
 				tess_flags |= TESS_NNN;
+
+				// The client's inverse blend. It was written for the alternate
+				// saber trail, and it is the one thing in the old distortion
+				// that is a blend mode rather than a number, so it stays one.
+				if ( tr_distortionNegate )
+					def.state_bits = GLS_SRCBLEND_ZERO | GLS_DSTBLEND_ONE_MINUS_SRC_COLOR;
 			}
 			
 			if ( backEnd.currentEntity->e.renderfx & RF_FORCE_ENT_ALPHA ) {
@@ -2726,6 +2748,29 @@ void RB_StageIteratorGeneric( void )
 
 			if ( !tess.vbo_model )
 				vk_compute_tex_coords( &pStage->bundle[0], &uniform.refraction.tcMod, &uniform.refraction.tcGen ); 
+
+			// How far the ray is bent, in the units the surface is modelled in.
+			// The base is what the shader used to arrive at on its own, so a
+			// scale of one is the effect the renderer was already trying to
+			// draw; the client's stretch multiplies it, and zero from the client
+			// means it has no opinion.
+			const float stretch = ( tr_distortionStretch != 0.0f ) ? tr_distortionStretch : 1.0f;
+
+			uniform_global.refraction[0] = REFRACTION_BASE_THICKNESS * r_refractionScale->value * stretch;
+			uniform_global.refraction[1] = tr_distortionAlpha;
+			uniform_global.refraction[3] = r_refractionChromatic->value;
+
+			// How blurred a rough surface may transmit. Only a surface that has
+			// a physical map has a roughness worth reading - without one the map
+			// is white, which reads as fully rough and would blur every pane of
+			// glass in the game to nothing. Zero here is the shader's own switch
+			// for "sample the sharp level and do not touch the physical map".
+			// This is the PBR half of the two rendering modes; the non-PBR half
+			// refracts sharply on purpose.
+			if ( pStage->vk_pbr_flags & ( PBR_HAS_PHYSICALMAP | PBR_HAS_SPECULARMAP ) )
+				uniform_global.refraction[2] = (float)( vk.refraction_extract_mips - 1 );
+			else
+				uniform_global.refraction[2] = 0.0f;
 		}
 
 		VectorCopy4( pStage->normalScale, uniform_global.normalScale );

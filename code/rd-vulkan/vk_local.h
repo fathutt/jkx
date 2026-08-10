@@ -107,6 +107,17 @@ typedef unsigned int uvec4_t[4];
 #define USE_VK_STATS
 
 #define	REFRACTION_EXTRACT_SCALE		2
+
+// How far a refracting surface bends what is behind it, before r_refractionScale
+// and the client's own multiplier, in the units the surface is modelled in.
+// This is the figure the old shader arrived at internally; keeping it means a
+// scale of one draws the effect the renderer was already aiming for.
+#define	REFRACTION_BASE_THICKNESS		10.0f
+
+// How many levels the extract's mip chain gets. Five halvings from a half-size
+// screen is blurred enough for any roughness; the levels past that average
+// whole regions of the screen into one colour.
+#define	REFRACTION_EXTRACT_MIPS			5
 #define NUM_COMMAND_BUFFERS				2
 #define VK_NUM_BLUR_PASSES				4
 
@@ -602,6 +613,7 @@ typedef struct {
 	
 	VkImage			refraction_extract_image;
 	VkImageView		refraction_extract_image_view;
+	uint32_t		refraction_extract_mips;
 	VkDescriptorSet	refraction_extract_descriptor;
 
 	VkImage			bloom_image[1 + VK_NUM_BLUR_PASSES * 2];
@@ -1072,6 +1084,8 @@ void		vk_end_command_buffer( VkCommandBuffer command_buffer, const char *locatio
 void		vk_create_command_pool( void );
 void		vk_create_command_buffer( void );
 void		vk_submit_image_barrier( VkCommandBuffer cb, const VkImageMemoryBarrier2 *barrier );
+void vk_record_mip_layout_transition( VkCommandBuffer cmdBuf, VkImage image, uint32_t level,
+	VkImageLayout old_layout, VkImageLayout new_layout );
 void vk_record_image_layout_transition( VkCommandBuffer cmdBuf, VkImage image, 
 	VkImageAspectFlags image_aspect_flags, 
 	VkImageLayout old_layout, VkImageLayout new_layout, uint32_t src_stage_override, uint32_t dst_stage_override );

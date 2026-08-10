@@ -1,31 +1,96 @@
 #version 450
 #extension GL_GOOGLE_include_directive : enable
 
+// The uniform blocks the refraction path uses are declared behind this, the
+// same switch the vertex half sets.
+#define IS_REFRACTION_GLSL
 #include "global.h"
 
+// The screen as it was before this surface was drawn. It is a copy of the
+// colour attachment taken between the main pass and this one, at half
+// resolution, and with a mip chain when the blur below is wanted.
 layout(set = VK_DESC_TEXTURE0, binding = 0) uniform sampler2D texture0;
+
+// Roughness, for the blur. Only read when the surface actually has a physical
+// map: without one this texture is white, which would read as fully rough and
+// blur everything to nothing. The renderer says so by sending a zero blur.
+layout(set = VK_DESC_PBR_PHYSICAL, binding = 0) uniform sampler2D physical_texture;
+
+layout(set = VK_DESC_UNIFORM, binding = VK_DESC_UNIFORM_GLOBAL_BINDING) uniform Global {
+	vkUniformGlobal_t u_global;
+};
 
 layout(location = 0) in vec4 frag_color0;
 layout(location = 1) in vec4 var_RefractPosR;
 layout(location = 2) in vec4 var_RefractPosG;
 layout(location = 3) in vec4 var_RefractPosB;
+layout(location = 4) in vec4 var_ScreenPos;
+layout(location = 5) in vec2 var_TexCoord;
 
 layout(location = 0) out vec4 out_color;
 
 layout (constant_id = 2) const float depth_fragment = 0.85;
 
+// Matches gen_frag: below zero is the metallic-roughness workflow, where
+// roughness is the green channel; at or above zero it is specular-gloss, where
+// gloss is the alpha and roughness is its opposite.
+layout (constant_id = 11) const int physical_texture_set = 0;
+
+vec2 ToScreen( vec4 clipPos )
+{
+	return ( clipPos.xy / clipPos.w ) * 0.5 + 0.5;
+}
+
+// One at the middle of the screen, falling to zero at the edge. A refracted
+// sample that leaves the screen has nothing behind it to show, and clamping it
+// would drag a single edge pixel across the whole surface, so the sample slides
+// back towards where it would have been with no refraction instead.
+float EdgeFade( vec2 uv )
+{
+	vec2 d = min( uv, vec2( 1.0 ) - uv );			// distance to the nearest edge
+	vec2 f = clamp( d / 0.08, vec2( 0.0 ), vec2( 1.0 ) );
+
+	return f.x * f.y;
+}
+
 void main()
 {
-	vec2 texR = (var_RefractPosR.xy / var_RefractPosR.w) * 0.5 + 0.5;
-	vec2 texG = (var_RefractPosG.xy / var_RefractPosG.w) * 0.5 + 0.5;
-	vec2 texB = (var_RefractPosB.xy / var_RefractPosB.w) * 0.5 + 0.5;
+	vec2 baseUV = ToScreen( var_ScreenPos );
+
+	vec2 uvR = ToScreen( var_RefractPosR );
+	vec2 uvG = ToScreen( var_RefractPosG );
+	vec2 uvB = ToScreen( var_RefractPosB );
+
+	// The fade is taken from the green channel and applied to all three, so the
+	// channels stay together at the edge rather than separating as they fade.
+	float fade = EdgeFade( uvG );
+
+	uvR = mix( baseUV, uvR, fade );
+	uvG = mix( baseUV, uvG, fade );
+	uvB = mix( baseUV, uvB, fade );
+
+	// A rough surface scatters what it transmits. The renderer sends the highest
+	// mip this may reach; zero means the extract has no mip chain, or the
+	// surface has no roughness to read, and the sample stays sharp.
+	float lod = 0.0;
+	float maxLod = u_global.refraction.z;
+
+	if ( maxLod > 0.0 )
+	{
+		vec4 physical = texture( physical_texture, var_TexCoord );
+		float roughness = ( physical_texture_set < 0 )
+			? mix( 0.01, 1.0, physical.y * u_global.specularScale.w )
+			: mix( 1.0, 0.01, physical.a * ( 1.0 - u_global.specularScale.w ) );
+
+		lod = roughness * maxLod;
+	}
 
 	vec4 color;
-	color.r	= texture(texture0, texR).r;
-	color.g = texture(texture0, texG).g;
-	color.b = texture(texture0, texB).b;
+	color.r = textureLod( texture0, uvR, lod ).r;
+	color.g = textureLod( texture0, uvG, lod ).g;
+	color.b = textureLod( texture0, uvB, lod ).b;
 	color.a = frag_color0.a;
 	color.rgb *= frag_color0.rgb;
 
-	out_color = clamp(color, 0.0, 1.0);
+	out_color = clamp( color, 0.0, 1.0 );
 }

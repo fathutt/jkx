@@ -10,25 +10,18 @@ Foundation.
 ===========================================================================
 */
 
-// The single-player export surface.
+// The single-player export surface: the entry points that exist in both
+// renderers with different shapes, and the storage behind the ones the client
+// writes to through the table.
 //
-// Two different things live here, and they are different on purpose.
-//
-// ADAPTERS. Single-player and multiplayer both have the entry point, with
-// different shapes. Adapting is honest and the loss, if any, is named in the
-// comment above each one.
-//
-// NOT PORTED YET. Single-player has the entry point and this renderer does not
-// implement it at all, because it grew up as a multiplayer renderer and these
-// are features multiplayer does not have: the goggles overlay and the heat-haze
-// distortion. They are stubs that warn once and return something harmless.
-//
-// A stub is not a port. The point of putting them all in one file, each with
-// the same shape, is that the list is countable: `grep -c JKX_UNPORTED` here is
-// how much of single-player the Vulkan renderer still does not do, and that
-// number has to reach zero before this renderer can replace rd-vanilla.
-// docs/Phase2-BringUp.md carries the same list with what each one needs.
-//
+// This file used to hold something else as well - twenty-five stubs, one per
+// single-player feature this renderer did not have, each warning once and
+// returning something harmless. `grep -c JKX_UNPORTED` counted them, and the
+// count is now zero: the screen wipe, the goggles, the scissor, the save-game
+// thumbnail, the scripted fog, the model bounds and the Ghoul2 index API are
+// all real, and the refraction knobs point at the refraction pass. What is left
+// here is adaptation, and every place that loses something in the adapting says
+// so above itself.
 
 #include "tr_local.h"
 
@@ -45,19 +38,6 @@ extern void		C_SetAllowScreenDissolve( qboolean allow );
 extern bool		R_GetWindGusting( void );
 extern bool		R_GetWindVector( vec3_t windVector );
 extern bool		R_IsShaking( void );
-
-// Warn once and carry on. Returning a harmless value rather than calling
-// ri.Error keeps the engine running through a missing feature, which is what
-// makes it possible to see the next one - and every one of these prints, so
-// nothing here is silent.
-#define JKX_UNPORTED( what ) \
-	do { \
-		static qboolean warned = qfalse; \
-		if ( !warned ) { \
-			warned = qtrue; \
-			ri.Printf( PRINT_WARNING, "rd-vulkan: " what " is not ported from rd-vanilla yet\n" ); \
-		} \
-	} while ( 0 )
 
 // ---------------------------------------------------------------------------
 // Adapters
@@ -116,37 +96,54 @@ bool RE_SP_IsShaking( vec3_t pos )
 }
 
 // ---------------------------------------------------------------------------
-// Not ported yet
+// The refraction knobs
 // ---------------------------------------------------------------------------
+//
+// The client does not call these to read a value; it takes the address and
+// writes through it, which is why the export is a getter and the storage has to
+// outlive the call. cgi_R_SetRefractProp is the only thing that writes them,
+// nothing in the shipping game calls it, and the comment beside it in the game
+// code says what it is for: "primarily for mod authors".
+//
+// They were written for a screen-wide stencil-and-stretch fill that this
+// renderer does not have. What it has instead is a per-surface refraction pass,
+// so the two that describe the effect carry over and the two that describe how
+// the old one was staged do not:
+//
+//   alpha    how much of the refracted image replaces the surface. Carries over
+//            exactly.
+//   stretch  was an override for the old effect's automatic wobble. Here it
+//            scales how far the ray is bent, which is the same knob in spirit:
+//            zero still means "the renderer decides".
+//   prePost  chose whether the screen was captured before or after the post
+//            phase. In this renderer the extract always happens between the
+//            main pass and bloom, so the answer is always "before" and there is
+//            nothing to switch. Kept so writes to it stay harmless.
+//   negate   the inverse blend. Carries over as a pipeline state.
+//
+float		tr_distortionAlpha = 1.0f;		// opaque
+float		tr_distortionStretch = 0.0f;	// no override
+qboolean	tr_distortionPrePost = qfalse;
+qboolean	tr_distortionNegate = qfalse;
 
-// The distortion cvars the client reads straight out of the renderer. Static
-// storage rather than NULL: the client dereferences these without checking.
 float *get_tr_distortionAlpha( void )
 {
-	JKX_UNPORTED( "tr_distortionAlpha" );
-	static float alpha = 1.0f;
-	return &alpha;
+	return &tr_distortionAlpha;
 }
 
 float *get_tr_distortionStretch( void )
 {
-	JKX_UNPORTED( "tr_distortionStretch" );
-	static float stretch = 0.0f;
-	return &stretch;
+	return &tr_distortionStretch;
 }
 
 qboolean *get_tr_distortionPrePost( void )
 {
-	JKX_UNPORTED( "tr_distortionPrePost" );
-	static qboolean prePost = qfalse;
-	return &prePost;
+	return &tr_distortionPrePost;
 }
 
 qboolean *get_tr_distortionNegate( void )
 {
-	JKX_UNPORTED( "tr_distortionNegate" );
-	static qboolean negate = qfalse;
-	return &negate;
+	return &tr_distortionNegate;
 }
 
 // Single-player's second string reader advances the caller's pointer instead of

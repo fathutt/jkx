@@ -219,6 +219,10 @@ STRUCT (
         PAD3                ( pad0 )
 		VEC4				( specularScale )
 		VEC4				( normalScale )
+		// refraction: x how far the ray is pushed, y how much of the refracted
+		// image replaces the surface, z the highest mip the blur may reach
+		// (zero means no blur), w how far apart the colour channels refract.
+		VEC4				( refraction )
     , vkUniformGlobal_t )
 
     #undef TCMOD_T

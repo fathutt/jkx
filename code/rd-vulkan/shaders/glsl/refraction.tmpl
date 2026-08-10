@@ -57,14 +57,20 @@ layout(location = 0) out vec4 frag_color;
 layout(location = 1) out vec4 var_RefractPosR;
 layout(location = 2) out vec4 var_RefractPosG;
 layout(location = 3) out vec4 var_RefractPosB;
+// Where this fragment would have sampled with no refraction at all: the edge
+// fade in the fragment shader slides back to it rather than clamping, and a
+// clamp would smear one edge pixel across the whole surface.
+layout(location = 4) out vec4 var_ScreenPos;
+layout(location = 5) out vec2 var_TexCoord;
 
 out gl_PerVertex {
 	vec4 gl_Position;
 };
 
-const float etaR = 1.0 / 1.35;
-const float etaG = 1.0 / 1.20;
-const float etaB = 1.0 / 1.05;
+// Glass, near enough. The channels are split around this by the chromatic
+// parameter rather than by three fixed constants, so that the split can be
+// turned off - three hard-coded indices cannot be.
+const float ETA_BASE = 1.0 / 1.20;
 
 #define SHADER_VERT
 #include "common/utils.glsl"
@@ -119,27 +125,40 @@ void main() {
 		vec2 var_DiffuseTex = ModTexCoords( tex, position, u_tcMod.matrix, u_tcMod.offTurb );
 	#endif
 
-	vec3 ws_Position	= mat3(u_entity.modelMatrix) * position;
-	vec3 ws_Normal		= normalize(mat3(u_entity.modelMatrix) * normal);
-	vec3 ws_ViewDir		= (vec3(0.0) + vec3(0.0) * -gl_Position.x) + vec3(0.0) * gl_Position.y;
-	//vec3 ws_ViewDir	= (u_ViewForward.xyz + u_ViewLeft.xyz * gl_Position.x) + u_ViewUp.xyz * gl_Position.y;
+	//
+	// Screen-space refraction.
+	//
+	// Everything below stays in the space mvp expects - object space for an
+	// entity, world space for the world - because the entity uniform already
+	// carries the camera into that space. The previous version went out to world
+	// space and back through an inverse of the model matrix per vertex, and built
+	// its view direction out of three vectors that were all zero, so the offset
+	// came out along the normal and did not depend on where the camera was.
+	//
+	vec3 viewDir	= normalize( position - u_entity.localViewOrigin.xyz );
+	vec3 N			= normalize( normal );
 
-	float distance = 10.0 * clamp(1.0 - (distance(tex, var_DiffuseTex)), 0.0, 1.0);
+	// How far along the refracted ray the exit point sits. This is the surface's
+	// apparent thickness, and it is what decides how strong the effect looks.
+	float thickness	= u_global.refraction.x;
 
-	mat3 inverseModel = inverse(mat3(u_entity.modelMatrix));
+	// Chromatic aberration: the three channels bend by slightly different
+	// amounts. Zero puts them back on top of each other.
+	float chroma	= u_global.refraction.w;
 
-	vec3 refraction_vec = normalize(refract(ws_ViewDir, ws_Normal, etaR));
-	vec3 new_pos = (distance * refraction_vec) + ws_Position;
-	var_RefractPosR = vec4(inverseModel * new_pos, 1.0);
-	var_RefractPosR = mvp * var_RefractPosR;
-	
-	refraction_vec = normalize(refract(ws_ViewDir, ws_Normal, etaG));
-	new_pos = (distance * refraction_vec) + ws_Position;
-	var_RefractPosG = vec4(inverseModel * new_pos, 1.0);
-	var_RefractPosG = mvp * var_RefractPosG;
-	
-	refraction_vec = normalize(refract(ws_ViewDir, ws_Normal, etaB));
-	new_pos = (distance * refraction_vec) + ws_Position;
-	var_RefractPosB = vec4(inverseModel * new_pos, 1.0);
-	var_RefractPosB = mvp * var_RefractPosB;
+	vec3 exitR = position + refract( viewDir, N, ETA_BASE * ( 1.0 - chroma ) ) * thickness;
+	vec3 exitG = position + refract( viewDir, N, ETA_BASE                    ) * thickness;
+	vec3 exitB = position + refract( viewDir, N, ETA_BASE * ( 1.0 + chroma ) ) * thickness;
+
+	var_RefractPosR = mvp * vec4( exitR, 1.0 );
+	var_RefractPosG = mvp * vec4( exitG, 1.0 );
+	var_RefractPosB = mvp * vec4( exitB, 1.0 );
+
+	var_ScreenPos = gl_Position;
+	var_TexCoord = var_DiffuseTex;
+
+	// How much of the refracted image reaches the screen is a property of the
+	// surface, not of the pixel, so it rides in on the vertex colour and the
+	// fragment shader needs no uniform of its own for it.
+	frag_color.a *= u_global.refraction.y;
 }
