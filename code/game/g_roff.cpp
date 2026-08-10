@@ -519,7 +519,7 @@ static qboolean G_InitRoff( char *file, unsigned char *data )
 		move_rotate_t *mem	= (move_rotate_t *)roffs[num_roffs].data;
 
 		roffs[num_roffs].mFrameTime = 100; // old school ones have a hard-coded frame time
-		roffs[num_roffs].mLerp = 10;
+		roffs[num_roffs].mLerp = 10.0f;
 		roffs[num_roffs].mNumNoteTracks = 0;
 		roffs[num_roffs].mNoteTrackIndexes = NULL;
 
@@ -563,7 +563,7 @@ static qboolean G_InitRoff( char *file, unsigned char *data )
 		if ( mem )
 		{
 			roffs[num_roffs].mFrameTime			= LittleLong(hdr->mFrameRate);
-			roffs[num_roffs].mLerp				= 1000 / LittleLong(hdr->mFrameRate);
+			roffs[num_roffs].mLerp				= 1000.0f / (float)LittleLong(hdr->mFrameRate);
 			roffs[num_roffs].mNumNoteTracks		= LittleLong(hdr->mNumNotes);
 
 			if (roffs[num_roffs].mFrameTime < 50)

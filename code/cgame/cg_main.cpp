@@ -309,6 +309,7 @@ vmCvar_t	cg_stereoSeparation;
 vmCvar_t 	cg_developer;
 vmCvar_t 	cg_timescale;
 vmCvar_t	cg_skippingcin;
+vmCvar_t	cg_smoothLookTime;
 
 vmCvar_t	cg_pano;
 vmCvar_t	cg_panoNumShots;
@@ -438,6 +439,9 @@ static cvarTable_t cvarTable[] = {
 	{ &cg_developer, "developer", "", 0 },
 	{ &cg_timescale, "timescale", "1", 0 },
 	{ &cg_skippingcin, "skippingCinematic", "0", CVAR_ROM},
+	// The time constant, in milliseconds, for a head or a pair of legs chasing
+	// where it should be pointing. Bigger is lazier. See CG_SmoothFactor.
+	{ &cg_smoothLookTime, "cg_smoothLookTime", "50", CVAR_ARCHIVE },
 	{ &cg_missionInfoFlashTime, "cg_missionInfoFlashTime", "10000", 0  },
 	{ &cg_hudFiles, "cg_hudFiles", "ui/jahud.txt", CVAR_ARCHIVE},
 

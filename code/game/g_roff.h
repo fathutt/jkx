@@ -88,7 +88,12 @@ typedef struct roff_list_s
 	int		frames;			// number of roff entries
 	void	*data;			// delta move and rotate vector list
 	int		mFrameTime;		// frame rate
-	int		mLerp;			// Lerp rate (FPS)
+	// Frames per second, and the reason it is not an int: it is a rate, it
+	// multiplies a per-frame delta into a per-second velocity, and 1000/60 as
+	// an integer is 16 where the answer is 16.67 - a ROFF whose frame time does
+	// not divide 1000 played about four percent slow and clicked at every
+	// snapshot as the interpolation caught up.
+	float	mLerp;			// Lerp rate (FPS)
 	int		mNumNoteTracks;
 	char	**mNoteTrackIndexes;
 

@@ -2106,7 +2106,12 @@ static void R_MovePatchSurfacesToHunk( world_t &worldData ) {
 		memcpy( hunkgrid->widthLodError, grid->widthLodError, grid->width * 4 );
 
 		hunkgrid->heightLodError = (float *)R_Hunk_Alloc( grid->height * 4, h_low );
-		memcpy( grid->heightLodError, grid->heightLodError, grid->height * 4 );
+		// hunkgrid, not grid: the line above allocates the copy's array and this
+		// one has to fill it. Copying grid onto itself left the copy's height
+		// error whatever the hunk happened to hold, and the grid it was read
+		// from is freed two lines later - so curved surfaces subdivided by
+		// whatever was in that memory, in one direction only.
+		memcpy( hunkgrid->heightLodError, grid->heightLodError, grid->height * 4 );
 
 		R_FreeSurfaceGridMesh( grid );
 

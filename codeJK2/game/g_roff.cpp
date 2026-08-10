@@ -298,7 +298,7 @@ qboolean G_InitRoff( char *file, unsigned char *data )
 		move_rotate_t *mem	= (move_rotate_t *)roffs[num_roffs].data;
 
 		roffs[num_roffs].mFrameTime = 100; // old school ones have a hard-coded frame time
-		roffs[num_roffs].mLerp = 10;
+		roffs[num_roffs].mLerp = 10.0f;
 
 		if ( mem )
 		{
@@ -343,7 +343,7 @@ qboolean G_InitRoff( char *file, unsigned char *data )
 		if ( mem )
 		{
 			roffs[num_roffs].mFrameTime			= LittleLong(hdr->mFrameRate);
-			roffs[num_roffs].mLerp				= 1000 / LittleLong(hdr->mFrameRate);
+			roffs[num_roffs].mLerp				= 1000.0f / (float)LittleLong(hdr->mFrameRate);
 			roffs[num_roffs].mNumNoteTracks		= LittleLong(hdr->mNumNotes);
 
 			 // Step past the header to get to the goods
@@ -508,7 +508,9 @@ void G_Roff( gentity_t *ent )
 		move_rotate2_t	*data	= &((move_rotate2_t *)roff->data)[ ent->roff_ctr ];
 		VectorCopy( data->origin_delta, org );
 		VectorCopy( data->rotate_delta, ang );
-		if (data->mStartNote != -1 || data->mNumNotes)
+		// && and not ||: with no note track mStartNote is -1, and a frame with
+		// notes recorded but no start index would index [-1].
+		if ( data->mStartNote != -1 && data->mNumNotes )
 		{
 			G_RoffNotetrackCallback(ent, roffs[roff_id - 1].mNoteTrackIndexes[data->mStartNote]);
 		}

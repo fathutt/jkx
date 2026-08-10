@@ -365,6 +365,10 @@ public:
 	bool			mUnsquash;
 	float			mSmoothFactor;
 
+	// When this cache was last smoothed, so the factor above can be corrected
+	// for how long the frame actually took.
+	int				mSmoothTime;
+
 	// GPU Data
 	mat3x4_t boneMatrices[72];
 	uint32_t uboOffset;
@@ -382,6 +386,7 @@ public:
 		mSmoothingActive=false;
 		mUnsquash=false;
 		mSmoothFactor=0.0f;
+		mSmoothTime=0;
 
 		int numBones=header->numBones;
 		mBones.resize(numBones);
@@ -2156,8 +2161,30 @@ void G2_TransformGhoulBones(boneInfo_v &rootBoneList,mdxaBone_t &rootMatrix, CGh
 			}
 #endif
 
-//			ghoul2.mBoneCache->mSmoothFactor=(val + 1.0f-pow(1.0f-val,50.0f/dif))/2.0f;  // meaningless formula
-			ghoul2.mBoneCache->mSmoothFactor=val;  // meaningless formula
+			// The blend keeps `val` of the previous frame's bone matrix and does
+			// it once per drawn frame, so what the cvar meant depended entirely
+			// on the frame rate: a light touch at 30 fps and a heavy drag at
+			// 250, and animation that lagged further behind the faster the
+			// machine was. Correct it to the same retention per unit of time.
+			//
+			// Retention compounds, so over dif milliseconds it is val raised to
+			// the number of reference frames that fit in dif. The reference is
+			// one 60 Hz frame, which is what the value was tuned against. The
+			// clamp is the one the author's own commented-out version used:
+			// below 16 ms there is nothing to correct, and past 100 ms the frame
+			// is slow enough that more smoothing would just be lag.
+			{
+				int dif = time - ghoul2.mBoneCache->mSmoothTime;
+
+				if ( dif < 16 )
+					dif = 16;
+				else if ( dif > 100 )
+					dif = 100;
+
+				val = powf( val, (float)dif / 16.0f );
+			}
+
+			ghoul2.mBoneCache->mSmoothFactor=val;
 			ghoul2.mBoneCache->mSmoothingActive=true;
 
 			if (r_Ghoul2UnSqashAfterSmooth->integer)
@@ -2170,6 +2197,10 @@ void G2_TransformGhoulBones(boneInfo_v &rootBoneList,mdxaBone_t &rootMatrix, CGh
 	{
 		ghoul2.mBoneCache->mSmoothFactor=1.0f;
 	}
+
+	// Stamped whether or not smoothing ran, so that the frame after it is turned
+	// back on measures one frame and not the whole gap.
+	ghoul2.mBoneCache->mSmoothTime = time;
 
 	ghoul2.mBoneCache->mCurrentTouch++;
 

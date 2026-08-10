@@ -1886,7 +1886,10 @@ static void CGCam_Roff( void )
 		// since we just hit a new frame, clear our CUT flag
 		client_camera.info_state &= ~CAMERA_CUT;
 
-		if (data->mStartNote != -1 || data->mNumNotes)
+		// && and not ||: with no note track mStartNote is -1, and a frame that
+		// has notes recorded but no start index would index [-1]. The server
+		// side of the same file gets this right.
+		if ( data->mStartNote != -1 && data->mNumNotes )
 		{
 			CG_RoffNotetrackCallback(roffs[roff_id - 1].mNoteTrackIndexes[data->mStartNote]);
 		}
