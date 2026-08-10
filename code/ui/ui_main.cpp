@@ -2654,19 +2654,40 @@ void _UI_Init( qboolean inGameLoad )
 	// cache redundant calulations
 	trap_GetGlconfig( &uiInfo.uiDC.glconfig );
 
-	// for 640x480 virtualized screen
-	uiInfo.uiDC.yscale = uiInfo.uiDC.glconfig.vidHeight * (1.0/480.0);
-	uiInfo.uiDC.xscale = uiInfo.uiDC.glconfig.vidWidth * (1.0/640.0);
-	if ( uiInfo.uiDC.glconfig.vidWidth * 480 > uiInfo.uiDC.glconfig.vidHeight * 640 )
-	{
-		// wide screen
-		uiInfo.uiDC.bias = 0.5 * ( uiInfo.uiDC.glconfig.vidWidth - ( uiInfo.uiDC.glconfig.vidHeight * (640.0/480.0) ) );
+	// Virtual 640x480 to pixels.
+	//
+	// The renderer draws the interface into SPACE2D_FRAME: 640x480 fitted into
+	// the window and centred, with margins, never stretched. Almost everything
+	// in the menus works in those virtual units and never sees a pixel. The
+	// exceptions are the two places that build a refdef for a 3D model sitting
+	// inside a menu, and the saber display, and those need real pixels.
+	//
+	// They used to be computed against the whole window - vidWidth/640 - which
+	// is a different rectangle from the one the menu is drawn in. On anything
+	// wider than 4:3 that put the model's viewport outside its own frame, by
+	// exactly the width of one margin. The offset was even computed, right
+	// here, and called bias; nothing ever added it.
+	//
+	// So: the same fit the renderer does, expressed in pixels, plus where that
+	// rectangle starts.
+	const float frameAspect = (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT;
+	const float vidW = (float)uiInfo.uiDC.glconfig.vidWidth;
+	const float vidH = (float)uiInfo.uiDC.glconfig.vidHeight;
+	const float windowAspect = ( vidH > 0.0f ) ? vidW / vidH : frameAspect;
+
+	float frameW, frameH;
+	if ( windowAspect > frameAspect ) {		// window is wider: margins at the sides
+		frameH = vidH;
+		frameW = vidH * frameAspect;
+	} else {								// window is taller: margins top and bottom
+		frameW = vidW;
+		frameH = vidW / frameAspect;
 	}
-	else
-	{
-		// no wide screen
-		uiInfo.uiDC.bias = 0;
-	}
+
+	uiInfo.uiDC.xscale = frameW / (float)SCREEN_WIDTH;
+	uiInfo.uiDC.yscale = frameH / (float)SCREEN_HEIGHT;
+	uiInfo.uiDC.bias   = ( vidW - frameW ) * 0.5f;
+	uiInfo.uiDC.biasY  = ( vidH - frameH ) * 0.5f;
 
 	Init_Display(&uiInfo.uiDC);
 

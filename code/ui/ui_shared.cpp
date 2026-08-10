@@ -7152,8 +7152,11 @@ void Item_Model_Paint(itemDef_t *item)
 	w = item->window.rect.w-2;
 	h = item->window.rect.h-2;
 
-	refdef.x = x * DC->xscale;
-	refdef.y = y * DC->yscale;
+	// bias/biasY are where the fitted frame starts in the window; without them
+	// the viewport is placed as though the interface covered the whole window,
+	// and on a wide screen the model leaves its own frame.
+	refdef.x = DC->bias + x * DC->xscale;
+	refdef.y = DC->biasY + y * DC->yscale;
 	refdef.width = w * DC->xscale;
 	refdef.height = h * DC->yscale;
 
@@ -7295,8 +7298,11 @@ void Item_Model_Paint(itemDef_t *item)
 	w = item->window.rect.w-2;
 	h = item->window.rect.h-2;
 
-	refdef.x = x * DC->xscale;
-	refdef.y = y * DC->yscale;
+	// bias/biasY are where the fitted frame starts in the window; without them
+	// the viewport is placed as though the interface covered the whole window,
+	// and on a wide screen the model leaves its own frame.
+	refdef.x = DC->bias + x * DC->xscale;
+	refdef.y = DC->biasY + y * DC->yscale;
 	refdef.width = w * DC->xscale;
 	refdef.height = h * DC->yscale;
 

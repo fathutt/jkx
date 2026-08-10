@@ -228,9 +228,13 @@ typedef struct {
 	//Utility functions that don't immediately redirect to ghoul2 functions
 	int			(*g2hilev_SetAnim)(CGhoul2Info *ghlInfo, const char *boneName, int animNum, const qboolean freeze);
 
+	// Virtual 640x480 to pixels, for the few things that need pixels rather
+	// than virtual units - the refdef of a 3D model inside a menu, mostly.
+	// These describe the fitted frame, not the window: see UI_Init.
 	float		yscale;
 	float		xscale;
-	float		bias;
+	float		bias;			// left edge of the frame, in pixels
+	float		biasY;			// top edge of the frame, in pixels
 	int			realTime;
 	int			frameTime;
 	qboolean	cursorShow;
