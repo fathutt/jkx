@@ -173,10 +173,18 @@ MP нет; у `CollisionDetect` тип трейса у SP — `EG2_Collision`, �
    чекаут, а `BuildSPRdVulkan` включён по умолчанию и собирается в обычном
    CI-билде.
 2. Запустить. Движок SP собирается и умеет грузить `rdsp-vulkan`.
-3. Выкинуть MP-API, который SP не зовёт вовсе (`G2API_OverrideServerWithClientData`,
-   `HasGhoul2ModelOnIndex`, `RemoveGhoul2Models`, `DoesBoneExist`,
-   `SkinlessModel`, `GetNumGoreMarks`, `GetModelName`, `CopySpecificG2Model`,
-   `DuplicateGhoul2Instance`, `SetRootSurface`) — теперь это просто мёртвый код.
+3. ~~Выкинуть MP-API, который SP не зовёт вовсе~~ — сделано, 532 строки. Список
+   оказался не таким, как выглядел: `G2API_SetRootSurface` **живой**, его зовёт
+   `g_combat.cpp` при отстреле конечностей, и в SP у него та же форма. Зато
+   мёртвого нашлось больше — 21 функция без единого вызова и без объявления
+   хоть где-нибудь, включая всю оптимизацию listen-сервера (`g2ClientAttachments`,
+   `AttachInstanceToEntNum`, `ClearAttachedInstance`, `CleanEntAttachments`,
+   `OverrideServerWithClientData`, `CopyBoneCache`): она копирует посчитанный
+   скелет с клиентской инстанции ghoul2 на серверную, а в SP клиент и сервер не
+   держат по своей инстанции. Жила под `_G2_LISTEN_SERVER_OPT`, который нигде не
+   определён, и включить его было нельзя — под ним вызов
+   `G2API_OverrideServerWithClientData(CGhoul2Info *)`, а определена только
+   векторная форма.
 4. Закрыть оставшиеся заглушки из `tr_sp_exports.cpp` — см. 2b.
 5. И только после этого 2.2 (монолит) и 2.3 (вынос Ghoul2 в движок).
 

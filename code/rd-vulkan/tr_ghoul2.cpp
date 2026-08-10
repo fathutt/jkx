@@ -533,13 +533,6 @@ void RemoveBoneCache(CBoneCache *boneCache)
 	delete boneCache;
 }
 
-#ifdef _G2_LISTEN_SERVER_OPT
-void CopyBoneCache(CBoneCache *to, CBoneCache *from)
-{
-	memcpy(to, from, sizeof(CBoneCache));
-}
-#endif
-
 const mdxaBone_t &EvalBoneCache(int index,CBoneCache *boneCache)
 {
 	assert(boneCache);
@@ -3455,10 +3448,6 @@ void R_AddGhoulSurfaces( trRefEntity_t *ent, int entityNum ) {
 #endif
 }
 
-#ifdef _G2_LISTEN_SERVER_OPT
-qboolean G2API_OverrideServerWithClientData(CGhoul2Info *serverInstance);
-#endif
-
 bool G2_NeedsRecalc(CGhoul2Info *ghlInfo,int frameNum)
 {
 	G2_SetupModelPointers(ghlInfo);
@@ -3467,13 +3456,6 @@ bool G2_NeedsRecalc(CGhoul2Info *ghlInfo,int frameNum)
 		!ghlInfo->mBoneCache||
 		ghlInfo->mBoneCache->mod!=ghlInfo->currentModel)
 	{
-#ifdef _G2_LISTEN_SERVER_OPT
-		if (ghlInfo->entityNum != ENTITYNUM_NONE &&
-			G2API_OverrideServerWithClientData(ghlInfo))
-		{ //if we can manage this, then we don't have to reconstruct
-			return false;
-		}
-#endif
 		ghlInfo->mSkelFrameNum=frameNum;
 		return true;
 	}
@@ -3526,11 +3508,7 @@ void G2_ConstructGhoulSkeleton( CGhoul2Info_v &ghoul2,const int frameNum,bool ch
 				G2_GetBoltMatrixLow(ghoul2[boltMod],boltNum,scale,bolt);
 				G2_TransformGhoulBones(ghoul2[i].mBlist,bolt,ghoul2[i],frameNum,checkForNewOrigin);
 			}
-#ifdef _G2_LISTEN_SERVER_OPT
-			else if (ghoul2[i].entityNum == ENTITYNUM_NONE || ghoul2[i].mSkelFrameNum != frameNum)
-#else
 			else
-#endif
 			{
 				G2_TransformGhoulBones(ghoul2[i].mBlist,rootMatrix,ghoul2[i],frameNum,checkForNewOrigin);
 			}
