@@ -42,13 +42,13 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 //=====================================================================================================================
 // Bone List handling routines - so entities can override bone info on a bone by bone level, and also interrogate this info
 
-// Given a bone name, see if that bone is already in our bone list - note the model_t pointer that gets passed in here MUST point at the
-// gla file, not the glm file type.
-int G2_Find_Bone(const model_t *mod, boneInfo_v &blist, const char *boneName)
+// Given a bone name, see if that bone is already in our bone list - note the model
+// pointer that gets passed in here MUST point at the gla file, not the glm.
+int G2_Find_Bone(const model_s *mod, boneInfo_v &blist, const char *boneName)
 {
 	mdxaSkel_t			*skel;
 	mdxaSkelOffsets_t	*offsets;
-	mdxaHeader_t *mdxa = mod->data.gla;
+	mdxaHeader_t *mdxa = R_GetGhoul2AnimHeader( mod );
    	offsets = (mdxaSkelOffsets_t *)((byte *)mdxa + sizeof(mdxaHeader_t));
 	skel = (mdxaSkel_t *)((byte *)mdxa + sizeof(mdxaHeader_t) + offsets->offsets[0]);
 
@@ -76,13 +76,13 @@ int G2_Find_Bone(const model_t *mod, boneInfo_v &blist, const char *boneName)
 }
 
 // we need to add a bone to the list - find a free one and see if we can find a corresponding bone in the gla file
-int G2_Add_Bone (const model_t *mod, boneInfo_v &blist, const char *boneName)
+int G2_Add_Bone (const model_s *mod, boneInfo_v &blist, const char *boneName)
 {
 	int x;
 	mdxaSkel_t			*skel;
 	mdxaSkelOffsets_t	*offsets;
 	boneInfo_t			tempBone;
-	mdxaHeader_t *mdxa = mod->data.gla;
+	mdxaHeader_t *mdxa = R_GetGhoul2AnimHeader( mod );
 
 	//rww - RAGDOLL_BEGIN
 	memset(&tempBone, 0, sizeof(tempBone));
@@ -231,7 +231,7 @@ qboolean G2_Stop_Bone_Index( boneInfo_v &blist, int index, int flags)
 }
 
 // generate a matrix for a given bone given some new angles for it.
-void G2_Generate_Matrix(const model_t *mod, boneInfo_v &blist, int index, const float *angles, int flags,
+void G2_Generate_Matrix(const model_s *mod, boneInfo_v &blist, int index, const float *angles, int flags,
 						const Eorientations up, const Eorientations left, const Eorientations forward)
 {
 	mdxaSkel_t		*skel;
@@ -324,7 +324,7 @@ void G2_Generate_Matrix(const model_t *mod, boneInfo_v &blist, int index, const 
 		Create_Matrix(newAngles, boneOverride);
 
 		// figure out where the bone hirearchy info is
-		mdxaHeader_t *mdxa = mod->data.gla;
+		mdxaHeader_t *mdxa = R_GetGhoul2AnimHeader( mod );
 		offsets = (mdxaSkelOffsets_t *)((byte *)mdxa + sizeof(mdxaHeader_t));
 		skel = (mdxaSkel_t *)((byte *)mdxa + sizeof(mdxaHeader_t) + offsets->offsets[blist[index].boneNumber]);
 
@@ -497,9 +497,9 @@ qboolean G2_Set_Bone_Angles(CGhoul2Info *ghlInfo, boneInfo_v &blist, const char 
 							const int flags, const Eorientations up, const Eorientations left, const Eorientations forward,
 							qhandle_t *modelList, const int modelIndex, const int blendTime, const int currentTime)
 {
-	model_t		*mod_a;
+	const model_s	*mod_a;
 
-	mod_a = (model_t *)ghlInfo->animModel;
+	mod_a = ghlInfo->animModel;
 
 	int			index = G2_Find_Bone(mod_a, blist, boneName);
 
@@ -584,7 +584,7 @@ qboolean G2_Set_Bone_Angles_Matrix_Index(boneInfo_v &blist, const int index,
 qboolean G2_Set_Bone_Angles_Matrix(const char *fileName, boneInfo_v &blist, const char *boneName, const mdxaBone_t &matrix,
 								   const int flags, qhandle_t *modelList, const int modelIndex, const int blendTime, const int currentTime)
 {
-		model_t		*mod_m;
+		const model_s	*mod_m;
 	if (!fileName[0])
 	{
 		mod_m = R_GetModelByHandle(modelList[modelIndex]);
@@ -593,7 +593,7 @@ qboolean G2_Set_Bone_Angles_Matrix(const char *fileName, boneInfo_v &blist, cons
 	{
 		mod_m = R_GetModelByHandle(RE_RegisterModel(fileName));
 	}
-	model_t		*mod_a = R_GetModelByHandle(mod_m->data.glm->header->animIndex);
+	const model_s	*mod_a = R_GetModelByHandle( R_GetGhoul2MeshHeader( mod_m )->animIndex );
 	int			index = G2_Find_Bone(mod_a, blist, boneName);
 
 	if (index != -1)
@@ -840,7 +840,7 @@ qboolean G2_Set_Bone_Anim(CGhoul2Info *ghlInfo,
 						  const float setFrame,
 						  const int blendTime)
 {
-	model_t		*mod_a = (model_t *)ghlInfo->animModel;
+	const model_s	*mod_a = ghlInfo->animModel;
 
 	int			index = G2_Find_Bone(mod_a, blist, boneName);
 	if (index == -1)
@@ -865,7 +865,7 @@ qboolean G2_Set_Bone_Anim(CGhoul2Info *ghlInfo,
 
 qboolean G2_Get_Bone_Anim_Range(CGhoul2Info *ghlInfo, boneInfo_v &blist, const char *boneName, int *startFrame, int *endFrame)
 {
-	model_t		*mod_a = (model_t *)ghlInfo->animModel;
+	const model_s	*mod_a = ghlInfo->animModel;
 	int			index = G2_Find_Bone(mod_a, blist, boneName);
 
 	// did we find it?
@@ -974,7 +974,7 @@ qboolean G2_Get_Bone_Anim_Index( boneInfo_v &blist, const int index, const int c
 qboolean G2_Get_Bone_Anim(CGhoul2Info *ghlInfo, boneInfo_v &blist, const char *boneName, const int currentTime,
 						  float *currentFrame, int *startFrame, int *endFrame, int *flags, float *retAnimSpeed, qhandle_t *modelList, int modelIndex)
 {
-	model_t		*mod_a = (model_t *)ghlInfo->animModel;
+	const model_s	*mod_a = ghlInfo->animModel;
 
 	int			index = G2_Find_Bone(mod_a, blist, boneName);
 
@@ -1004,7 +1004,7 @@ qboolean G2_Get_Bone_Anim(CGhoul2Info *ghlInfo, boneInfo_v &blist, const char *b
 // given a model, bonelist and bonename, lets pause an anim if it's playing.
 qboolean G2_Pause_Bone_Anim(CGhoul2Info *ghlInfo, boneInfo_v &blist, const char *boneName, const int currentTime)
 {
-	model_t		*mod_a = (model_t *)ghlInfo->animModel;
+	const model_s	*mod_a = ghlInfo->animModel;
 
 	int			index = G2_Find_Bone(mod_a, blist, boneName);
 
@@ -1039,8 +1039,8 @@ qboolean G2_Pause_Bone_Anim(CGhoul2Info *ghlInfo, boneInfo_v &blist, const char 
 
 qboolean	G2_IsPaused(const char *fileName, boneInfo_v &blist, const char *boneName)
 {
-  	model_t		*mod_m = R_GetModelByHandle(RE_RegisterModel(fileName));
-	model_t		*mod_a = R_GetModelByHandle(mod_m->data.glm->header->animIndex);
+  	const model_s	*mod_m = R_GetModelByHandle(RE_RegisterModel(fileName));
+	const model_s	*mod_a = R_GetModelByHandle( R_GetGhoul2MeshHeader( mod_m )->animIndex );
 	int			index = G2_Find_Bone(mod_a, blist, boneName);
 
 	// did we find it?
@@ -1077,8 +1077,8 @@ qboolean G2_Stop_Bone_Anim_Index(boneInfo_v &blist, const int index)
 // given a model, bonelist and bonename, lets stop an anim if it's playing.
 qboolean G2_Stop_Bone_Anim(const char *fileName, boneInfo_v &blist, const char *boneName)
 {
-  	model_t		*mod_m = R_GetModelByHandle(RE_RegisterModel(fileName));
-	model_t		*mod_a = R_GetModelByHandle(mod_m->data.glm->header->animIndex);
+  	const model_s	*mod_m = R_GetModelByHandle(RE_RegisterModel(fileName));
+	const model_s	*mod_a = R_GetModelByHandle( R_GetGhoul2MeshHeader( mod_m )->animIndex );
 	int			index = G2_Find_Bone(mod_a, blist, boneName);
 
 	// did we find it?
@@ -1113,8 +1113,8 @@ qboolean G2_Stop_Bone_Angles_Index(boneInfo_v &blist, const int index)
 // given a model, bonelist and bonename, lets stop an anim if it's playing.
 qboolean G2_Stop_Bone_Angles(const char *fileName, boneInfo_v &blist, const char *boneName)
 {
-  	model_t		*mod_m = R_GetModelByHandle(RE_RegisterModel(fileName));
-	model_t		*mod_a = R_GetModelByHandle(mod_m->data.glm->header->animIndex);
+  	const model_s	*mod_m = R_GetModelByHandle(RE_RegisterModel(fileName));
+	const model_s	*mod_a = R_GetModelByHandle( R_GetGhoul2MeshHeader( mod_m )->animIndex );
 	int			index = G2_Find_Bone(mod_a, blist, boneName);
 
 	// did we find it?
@@ -4250,14 +4250,14 @@ void G2_InitIK(CGhoul2Info_v &ghoul2V, sharedRagDollUpdateParams_t *parms, int t
 
 qboolean G2_SetBoneIKState(CGhoul2Info_v &ghoul2, int time, const char *boneName, int ikState, sharedSetBoneIKStateParams_t *params)
 {
-	model_t		*mod_a;
+	const model_s	*mod_a;
 	int g2index = 0;
 	int curTime = time;
 	CGhoul2Info &g2 = ghoul2[g2index];
 	const mdxaHeader_t *rmod_a = G2_GetModA(g2);
 
 	boneInfo_v &blist = g2.mBlist;
-	mod_a = (model_t *)g2.animModel;
+	mod_a = g2.animModel;
 
 	if (!boneName)
 	{ //null bonename param means it's time to init the ik stuff on this instance
@@ -4404,13 +4404,13 @@ qboolean G2_SetBoneIKState(CGhoul2Info_v &ghoul2, int time, const char *boneName
 qboolean G2_IKMove(CGhoul2Info_v &ghoul2, int time, sharedIKMoveParams_t *params)
 {
 #if 0
-	model_t		*mod_a;
+	const model_s	*mod_a;
 	int g2index = 0;
 	int curTime = time;
 	CGhoul2Info &g2 = ghoul2[g2index];
 
 	boneInfo_v &blist = g2.mBlist;
-	mod_a = (model_t *)g2.animModel;
+	mod_a = g2.animModel;
 
 	if (!mod_a)
 	{
@@ -4491,8 +4491,8 @@ void G2_RemoveRedundantBoneOverrides(boneInfo_v &blist, int *activeBones)
 // this parameter was not there; the behaviour is rd-vanilla's.
 int	G2_Get_Bone_Index(CGhoul2Info *ghoul2, const char *boneName, qboolean bAddIfNotFound)
 {
-  	model_t		*mod_m = R_GetModelByHandle(RE_RegisterModel(ghoul2->mFileName));
-	model_t		*mod_a = R_GetModelByHandle(mod_m->data.glm->header->animIndex);
+  	const model_s	*mod_m = R_GetModelByHandle(RE_RegisterModel(ghoul2->mFileName));
+	const model_s	*mod_a = R_GetModelByHandle( R_GetGhoul2MeshHeader( mod_m )->animIndex );
 
 	if (bAddIfNotFound)
 	{

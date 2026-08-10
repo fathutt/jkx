@@ -124,8 +124,6 @@ int G2_Add_Bolt_Surf_Num(CGhoul2Info *ghlInfo, boltInfo_v &bltlist, surfaceInfo_
 int G2_Add_Bolt(CGhoul2Info *ghlInfo, boltInfo_v &bltlist, surfaceInfo_v &slist, const char *boneName)
 {
 	assert(ghlInfo && ghlInfo->mValid);
-	model_t		*mod_m = (model_t *)ghlInfo->currentModel;
-	model_t		*mod_a = (model_t *)ghlInfo->animModel;
 	int					x, surfNum = -1;
 	mdxaSkel_t			*skel;
 	mdxaSkelOffsets_t	*offsets;
@@ -133,7 +131,7 @@ int G2_Add_Bolt(CGhoul2Info *ghlInfo, boltInfo_v &bltlist, surfaceInfo_v &slist,
 	int					flags;
 
 	// first up, we'll search for that which this bolt names in all the surfaces
-	surfNum = G2_IsSurfaceLegal((void*)mod_m, boneName, &flags);
+	surfNum = G2_IsSurfaceLegal((void*)ghlInfo->currentModel, boneName, &flags);
 
 	// did we find it as a surface?
 	if (surfNum != -1)
@@ -175,7 +173,7 @@ int G2_Add_Bolt(CGhoul2Info *ghlInfo, boltInfo_v &bltlist, surfaceInfo_v &slist,
 
 	// no, check to see if it's a bone then
 
-	mdxaHeader_t *mdxa = mod_a->data.gla;
+	mdxaHeader_t *mdxa = R_GetGhoul2AnimHeader( ghlInfo->animModel );
    	offsets = (mdxaSkelOffsets_t *)((byte *)mdxa + sizeof(mdxaHeader_t));
 
  	// walk the entire list of bones in the gla file for this model and see if any match the name of the bone we want to find

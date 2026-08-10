@@ -167,6 +167,47 @@ model_t	*R_GetModelByHandle( qhandle_t index ) {
 	return mod;
 }
 
+/*
+===============================================================================
+
+What Ghoul2 asks the model registry.
+
+Ghoul2 used to reach through model_t for these, which is why its sources cannot
+leave the renderer: model_t also holds brush models, vertex-animated meshes and
+image handles, none of which Ghoul2 has any business seeing. Four questions
+instead, answered here, where model_t belongs. See ghoul2/g2_local.h.
+
+The header accessors answer NULL when the model is not what was asked for, which
+is what the hand-written null checks at every call site used to work out for
+themselves.
+
+===============================================================================
+*/
+
+mdxmHeader_t *R_GetGhoul2MeshHeader( const model_s *mod ) {
+	if ( !mod || mod->type != MOD_MDXM || !mod->data.glm ) {
+		return NULL;
+	}
+
+	return mod->data.glm->header;
+}
+
+mdxaHeader_t *R_GetGhoul2AnimHeader( const model_s *mod ) {
+	if ( !mod || mod->type != MOD_MDXA ) {
+		return NULL;
+	}
+
+	return mod->data.gla;
+}
+
+const char *R_GetModelName( const model_s *mod ) {
+	return mod ? mod->name : "";
+}
+
+int R_GetModelLodCount( const model_s *mod ) {
+	return mod ? mod->numLods : 0;
+}
+
 //===============================================================================
 
 /*

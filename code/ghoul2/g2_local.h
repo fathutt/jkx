@@ -194,3 +194,31 @@ void		G2_TraceModels( CGhoul2Info_v &ghoul2, vec3_t rayStart, vec3_t rayEnd, Col
 void		G2_TransformModel( CGhoul2Info_v &ghoul2, const int frameNum, vec3_t scale, IHeapAllocator *G2VertSpace, int useLod );
 void		G2_TraceModels( CGhoul2Info_v &ghoul2, vec3_t rayStart, vec3_t rayEnd, CollisionRecord_t *collRecMap, int entNum, int eG2TraceType, int useLod, float fRadius );
 #endif
+
+// ---------------------------------------------------------------------------
+// What Ghoul2 asks the model registry
+// ---------------------------------------------------------------------------
+//
+// Phase 2.3 moves these sources out of the renderer, and the one thing standing
+// in the way is model_t: Ghoul2 reaches through it for the two headers it works
+// on, plus a name and a level-of-detail count. model_t is the renderer's - it
+// also holds brush models, vertex-animated meshes and image handles, none of
+// which Ghoul2 has any business seeing.
+//
+// So the reach becomes four questions. The model registry answers them; Ghoul2
+// holds an opaque model_s * and stops knowing what is inside it.
+//
+// Both header accessors answer NULL when the model is not what was asked for -
+// not loaded, or loaded and not a Ghoul2 mesh - which is also what the pile of
+// hand-written null checks at the call sites used to work out for themselves.
+
+struct model_s;
+
+// Ghoul2 resolves handles too - a mesh names its animation file by index - so
+// the lookup comes with them. The pointer is opaque on this side.
+model_s			*R_GetModelByHandle( qhandle_t index );
+
+mdxmHeader_t	*R_GetGhoul2MeshHeader( const model_s *mod );
+mdxaHeader_t	*R_GetGhoul2AnimHeader( const model_s *mod );
+const char		*R_GetModelName( const model_s *mod );
+int				R_GetModelLodCount( const model_s *mod );

@@ -696,10 +696,10 @@ qboolean G2API_GetBoneAnimIndex( CGhoul2Info *ghlInfo, const int iBoneIndex, con
 char *G2API_GetAnimFileInternalNameIndex( qhandle_t modelIndex )
 {
 	static char noName[1] = "";
-	model_t *mod_a = R_GetModelByHandle( modelIndex );
+	mdxaHeader_t *mdxa = R_GetGhoul2AnimHeader( R_GetModelByHandle( modelIndex ) );
 
-	if ( mod_a && mod_a->data.gla )
-		return mod_a->data.gla->name;
+	if ( mdxa )
+		return mdxa->name;
 
 	return noName;
 }
@@ -1775,8 +1775,7 @@ void G2API_SetGhoul2ModelIndexes(CGhoul2Info_v &ghoul2, qhandle_t *modelList, qh
 
 char *G2API_GetAnimFileNameIndex(qhandle_t modelIndex)
 {
-	model_t		*mod_m = R_GetModelByHandle(modelIndex);
-	return mod_m->data.glm->header->animName;
+	return R_GetGhoul2MeshHeader( R_GetModelByHandle(modelIndex) )->animName;
 }
 
 /************************************************************************************************
@@ -1878,7 +1877,7 @@ void G2API_CollisionDetectCache(CollisionRecord_t *collRecMap, CGhoul2Info_v &gh
 				{ //reworked so we only alloc once!
 					//if we have a pointer, but not a ghoul2_zonetransalloc flag, then that means
 					//it is a miniheap pointer. Just stomp over it.
-					int iSize = g2.currentModel->data.glm->header->numSurfaces * 4;
+					int iSize = R_GetGhoul2MeshHeader( g2.currentModel )->numSurfaces * 4;
 					g2.mTransformedVertsArray = (intptr_t *)R_Z_Malloc(iSize, TAG_GHOUL2, qtrue);
 				}
 
@@ -2110,19 +2109,19 @@ char *G2API_GetSurfaceName(CGhoul2Info *ghlInfo, int surfNumber)
 
 	if (G2_SetupModelPointers(ghlInfo))
 	{
-		model_t	*mod = (model_t *)ghlInfo->currentModel;
+		const model_s	*mod = ghlInfo->currentModel;
 		mdxmSurface_t		*surf = 0;
 		mdxmSurfHierarchy_t	*surfInfo = 0;
 		mdxmHeader_t *mdxm;
 
 #ifndef FINAL_BUILD
-		if (!mod || !mod->data.glm || !mod->data.glm->header)
+		if ( !R_GetGhoul2MeshHeader( mod ) )
 		{
 			Com_Error(ERR_DROP, "G2API_GetSurfaceName: Bad model on instance %s.", ghlInfo->mFileName);
 		}
 #endif
 
-		mdxm = mod->data.glm->header;
+		mdxm = R_GetGhoul2MeshHeader( mod );
 
 		//ok, I guess it's semi-valid for the user to be passing in surface > numSurfs because they don't know how many surfs a model
 		//may have.. but how did they get that surf index to begin with? Oh well.
@@ -2164,8 +2163,8 @@ char *G2API_GetGLAName(CGhoul2Info *ghlInfo)
 {
 	if (G2_SetupModelPointers(ghlInfo))
 	{
-		assert(ghlInfo->currentModel && ghlInfo->currentModel->data.glm);
-		return ghlInfo->currentModel->data.glm->header->animName;
+		assert( R_GetGhoul2MeshHeader( ghlInfo->currentModel ) );
+		return R_GetGhoul2MeshHeader( ghlInfo->currentModel )->animName;
 	}
 	return NULL;
 }
@@ -2310,10 +2309,9 @@ qboolean G2_TestModelPointers(CGhoul2Info *ghlInfo) // returns true if the model
 		ghlInfo->currentModel = R_GetModelByHandle(ghlInfo->mModel);
 		if (ghlInfo->currentModel)
 		{
-			if (ghlInfo->currentModel->data.glm &&
-				ghlInfo->currentModel->data.glm->header)
+			mdxmHeader_t *mdxm = R_GetGhoul2MeshHeader( ghlInfo->currentModel );
+			if ( mdxm )
 			{
-				mdxmHeader_t *mdxm = ghlInfo->currentModel->data.glm->header;
 				if (ghlInfo->currentModelSize)
 				{
 					if (ghlInfo->currentModelSize!=mdxm->ofsEnd)
@@ -2325,7 +2323,7 @@ qboolean G2_TestModelPointers(CGhoul2Info *ghlInfo) // returns true if the model
 				ghlInfo->animModel = R_GetModelByHandle(mdxm->animIndex);
 				if (ghlInfo->animModel)
 				{
-					ghlInfo->aHeader =ghlInfo->animModel->data.gla;
+					ghlInfo->aHeader = R_GetGhoul2AnimHeader( ghlInfo->animModel );
 					if (ghlInfo->aHeader)
 					{
 						if (ghlInfo->currentAnimModelSize)
@@ -2407,10 +2405,9 @@ bool G2_SetupModelPointers(CGhoul2Info *ghlInfo) // returns true if the model is
 		if (ghlInfo->currentModel)
 		{
 			G2ERROR(ghlInfo->currentModel->mdxm,va("Model has no mdxm (glm) %s",ghlInfo->mFileName));
-			if (ghlInfo->currentModel->data.glm &&
-				ghlInfo->currentModel->data.glm->header)
+			mdxmHeader_t *mdxm = R_GetGhoul2MeshHeader( ghlInfo->currentModel );
+			if ( mdxm )
 			{
-				mdxmHeader_t *mdxm = ghlInfo->currentModel->data.glm->header;
 				if (ghlInfo->currentModelSize)
 				{
 					if (ghlInfo->currentModelSize!=mdxm->ofsEnd)
@@ -2425,7 +2422,7 @@ bool G2_SetupModelPointers(CGhoul2Info *ghlInfo) // returns true if the model is
 				G2ERROR(ghlInfo->animModel,va("NULL Model (gla) %s",ghlInfo->mFileName));
 				if (ghlInfo->animModel)
 				{
-					ghlInfo->aHeader =ghlInfo->animModel->data.gla;
+					ghlInfo->aHeader = R_GetGhoul2AnimHeader( ghlInfo->animModel );
 					G2ERROR(ghlInfo->aHeader,va("Model has no mdxa (gla) %s",ghlInfo->mFileName));
 					if (ghlInfo->aHeader)
 					{

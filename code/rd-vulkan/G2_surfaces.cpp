@@ -31,14 +31,14 @@ public:
 	int				surfaceNum;
 	int				*boneUsedList;
 	surfaceInfo_v	&rootSList;
-	model_t			*currentModel;
+	const model_s	*currentModel;
 	boneInfo_v		&boneList;
 
 	CConstructBoneList(
 	int				initsurfaceNum,
 	int				*initboneUsedList,
 	surfaceInfo_v	&initrootSList,
-	model_t			*initcurrentModel,
+	const model_s	*initcurrentModel,
 	boneInfo_v		&initboneList):
 
 	surfaceNum(initsurfaceNum),
@@ -74,8 +74,7 @@ int G2_IsSurfaceLegal(void *mod, const char *surfaceName, int *flags)
 {
 	// damn include file dependancies
 	mdxmSurfHierarchy_t	*surf;
-	model_t *mod_m = (model_t *)mod;
-	mdxmHeader_t *mdxm = mod_m->data.glm->header;
+	mdxmHeader_t *mdxm = R_GetGhoul2MeshHeader( (const model_s *)mod );
 	surf = (mdxmSurfHierarchy_t *) ( (byte *)mdxm + mdxm->ofsSurfHierarchy );
 
 	for ( int i = 0 ; i < mdxm->numSurfaces ; i++)
@@ -109,12 +108,13 @@ mdxmSurface_t *G2_FindSurface(CGhoul2Info *ghlInfo, surfaceInfo_v &slist, const 
 {
 	int						i = 0;
 	// find the model we want
-	model_t				*mod = (model_t *)ghlInfo->currentModel;
-	mdxmHierarchyOffsets_t *surfIndexes = (mdxmHierarchyOffsets_t *)((byte *)mod->data.glm->header + sizeof(mdxmHeader_t));
+	const model_s		*mod = ghlInfo->currentModel;
+	mdxmHeader_t		*mdxm = R_GetGhoul2MeshHeader( mod );
+	mdxmHierarchyOffsets_t *surfIndexes = (mdxmHierarchyOffsets_t *)((byte *)mdxm + sizeof(mdxmHeader_t));
 	mdxmSurfHierarchy_t	*surfInfo;
 
 	// did we find a ghoul 2 model or not?
-	if (!mod->data.glm || !mod->data.glm->header)
+	if ( !mdxm )
 	{
 		assert(0);
 		if (surfIndex)
@@ -159,11 +159,10 @@ qboolean G2_SetSurfaceOnOff (CGhoul2Info *ghlInfo, surfaceInfo_v &slist, const c
 	int					surfIndex = -1;
 	surfaceInfo_t		temp_slist_entry;
 	mdxmSurface_t		*surf;
-	// find the model we want
-	model_t				*mod = (model_t *)ghlInfo->currentModel;
+	const model_s		*mod = ghlInfo->currentModel;
 
 	// did we find a ghoul 2 model or not?
-	if (!mod->data.glm || !mod->data.glm->header)
+	if ( !R_GetGhoul2MeshHeader( mod ) )
 	{
 		assert(0);
 		return qfalse;
@@ -237,10 +236,9 @@ void G2_SetSurfaceOnOffFromSkin (CGhoul2Info *ghlInfo, qhandle_t renderSkin)
 // return a named surfaces off flags - should tell you if this surface is on or off.
 int G2_IsSurfaceOff (CGhoul2Info *ghlInfo, surfaceInfo_v &slist, const char *surfaceName)
 {
-	model_t				*mod = (model_t *)ghlInfo->currentModel;
 	int					surfIndex = -1;
 	mdxmSurface_t		*surf = 0;
-	mdxmHeader_t *mdxm = mod->data.glm->header;
+	mdxmHeader_t *mdxm = R_GetGhoul2MeshHeader( ghlInfo->currentModel );
 
 	// did we find a ghoul 2 model or not?
 	if (!mdxm)
@@ -273,11 +271,11 @@ int G2_IsSurfaceOff (CGhoul2Info *ghlInfo, surfaceInfo_v &slist, const char *sur
 	return 0;
 }
 
-void G2_FindRecursiveSurface(model_t *currentModel, int surfaceNum, surfaceInfo_v &rootList, int *activeSurfaces)
+void G2_FindRecursiveSurface(const model_s *currentModel, int surfaceNum, surfaceInfo_v &rootList, int *activeSurfaces)
 {
 	int						i;
  	mdxmSurface_t			*surface = (mdxmSurface_t *)G2_FindSurface((void *)currentModel, surfaceNum, 0);
-	mdxmHierarchyOffsets_t	*surfIndexes = (mdxmHierarchyOffsets_t *)((byte *)currentModel->data.glm->header + sizeof(mdxmHeader_t));
+	mdxmHierarchyOffsets_t	*surfIndexes = (mdxmHierarchyOffsets_t *)((byte *)R_GetGhoul2MeshHeader( currentModel ) + sizeof(mdxmHeader_t));
 	mdxmSurfHierarchy_t		*surfInfo = (mdxmSurfHierarchy_t *)((byte *)surfIndexes + surfIndexes->offsets[surface->thisSurfaceIndex]);
 
 	// see if we have an override surface in the surface list
@@ -350,10 +348,9 @@ qboolean G2_SetRootSurface(CGhoul2Info_v &ghoul2, const int modelIndex, const ch
 
 	assert(ghoul2[modelIndex].currentModel && ghoul2[modelIndex].animModel);
 
-	model_t				*mod_m = (model_t *)ghoul2[modelIndex].currentModel;
-	model_t				*mod_a = (model_t *)ghoul2[modelIndex].animModel;
-	mdxmHeader_t *mdxm = mod_m->data.glm->header;
-	mdxaHeader_t *mdxa = mod_a->data.gla;
+	const model_s		*mod_m = ghoul2[modelIndex].currentModel;
+	mdxmHeader_t *mdxm = R_GetGhoul2MeshHeader( mod_m );
+	mdxaHeader_t *mdxa = R_GetGhoul2AnimHeader( ghoul2[modelIndex].animModel );
 
 	// did we find a ghoul 2 model or not?
 	if (!mdxm)
@@ -362,7 +359,7 @@ qboolean G2_SetRootSurface(CGhoul2Info_v &ghoul2, const int modelIndex, const ch
 	}
 
 	// first find if we already have this surface in the list
-	surf = G2_IsSurfaceLegal(mod_m, surfaceName, &flags);
+	surf = G2_IsSurfaceLegal((void *)mod_m, surfaceName, &flags);
 	if (surf != -1)
 	{
 		// first see if this ghoul2 model already has this as a root surface
@@ -445,7 +442,7 @@ qboolean G2_SetRootSurface(CGhoul2Info_v &ghoul2, const int modelIndex, const ch
 		}
 
  		// first find if we already have this surface in the list
-		surf = G2_IsSurfaceLegal(mod_m, surfaceName, &flags);
+		surf = G2_IsSurfaceLegal((void *)mod_m, surfaceName, &flags);
 		if (surf != -1)
 		{
 			// first see if this ghoul2 model already has this as a root surface
@@ -596,9 +593,9 @@ qboolean G2_RemoveSurface(surfaceInfo_v &slist, const int index)
 
 int G2_GetParentSurface(CGhoul2Info *ghlInfo, const int index)
 {
-	model_t					*mod = (model_t *)ghlInfo->currentModel;
+	const model_s			*mod = ghlInfo->currentModel;
 	mdxmSurface_t			*surf = 0;
-	mdxmHierarchyOffsets_t	*surfIndexes = (mdxmHierarchyOffsets_t *)((byte *)mod->data.glm->header + sizeof(mdxmHeader_t));
+	mdxmHierarchyOffsets_t	*surfIndexes = (mdxmHierarchyOffsets_t *)((byte *)R_GetGhoul2MeshHeader( mod ) + sizeof(mdxmHeader_t));
 	mdxmSurfHierarchy_t		*surfInfo = 0;
 
 	// walk each surface and see if this index is listed in it's children
@@ -611,19 +608,20 @@ int G2_GetParentSurface(CGhoul2Info *ghlInfo, const int index)
 
 int G2_GetSurfaceIndex(CGhoul2Info *ghlInfo, const char *surfaceName)
 {
-	model_t		*mod = (model_t *)ghlInfo->currentModel;
 	int			flags;
 
-	return G2_IsSurfaceLegal(mod, surfaceName, &flags);
+	return G2_IsSurfaceLegal( (void *)ghlInfo->currentModel, surfaceName, &flags );
 }
 
 int G2_IsSurfaceRendered(CGhoul2Info *ghlInfo, const char *surfaceName, surfaceInfo_v &slist)
 {
 	int						flags = 0;//, surfFlags = 0;
 	int						surfIndex = 0;
-	assert(ghlInfo->currentModel);
-	assert(ghlInfo->currentModel->data.glm && ghlInfo->currentModel->data.glm->header);
-	if (!ghlInfo->currentModel->data.glm || !ghlInfo->currentModel->data.glm->header)
+	const mdxmHeader_t		*mdxm = R_GetGhoul2MeshHeader( ghlInfo->currentModel );
+
+	assert( ghlInfo->currentModel );
+	assert( mdxm );
+	if ( !mdxm )
 	{
 		return -1;
 	}
@@ -631,10 +629,10 @@ int G2_IsSurfaceRendered(CGhoul2Info *ghlInfo, const char *surfaceName, surfaceI
 	// now travel up the skeleton to see if any of it's ancestors have a 'no descendants' turned on
 
 	// find the original surface in the surface list
-	int surfNum = G2_IsSurfaceLegal((model_t *)ghlInfo->currentModel, surfaceName, &flags);
+	int surfNum = G2_IsSurfaceLegal( (void *)ghlInfo->currentModel, surfaceName, &flags );
 	if ( surfNum != -1 )
 	{//must be legal
-		const mdxmHierarchyOffsets_t	*surfIndexes = (mdxmHierarchyOffsets_t *)((byte *)ghlInfo->currentModel->data.glm->header + sizeof(mdxmHeader_t));
+		const mdxmHierarchyOffsets_t	*surfIndexes = (mdxmHierarchyOffsets_t *)((byte *)mdxm + sizeof(mdxmHeader_t));
 		const mdxmSurfHierarchy_t *surfInfo = (mdxmSurfHierarchy_t *)((byte *)surfIndexes + surfIndexes->offsets[surfNum]);
 		surfNum = surfInfo->parentIndex;
 		// walk the surface hierarchy up until we hit the root
@@ -648,7 +646,7 @@ int G2_IsSurfaceRendered(CGhoul2Info *ghlInfo, const char *surfaceName, surfaceI
 
 			// find the original surface in the surface list
 			//G2 was bug, above comment was accurate, but we don't want the original flags, we want the parent flags
-			G2_IsSurfaceLegal((model_t *)ghlInfo->currentModel, parentSurfInfo->name, &parentFlags);
+			G2_IsSurfaceLegal( (void *)ghlInfo->currentModel, parentSurfInfo->name, &parentFlags );
 
 			// now see if we already have overriden this surface in the slist
 			parentSurf = G2_FindSurface(ghlInfo, slist, parentSurfInfo->name, &surfIndex);
