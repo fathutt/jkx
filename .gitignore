@@ -15,3 +15,7 @@ code/rd-vulkan/shader_slots.inl
 # Python bytecode from the tooling in tools/
 __pycache__/
 *.pyc
+
+# Delivery archives and patches, which are made here and are not sources.
+*.tar.gz
+*.patch
