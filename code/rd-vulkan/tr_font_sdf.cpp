@@ -360,7 +360,37 @@ static qboolean SDF_Load( sdfFont_t *font, const char *name )
 
 /*
 =================
+SDF_Fallback
+
+Something to draw with when the font that was asked for is not there.
+
+Returning nothing instead is the worse failure, and it is the one the first
+version of this had: RE_RegisterFont returned 0, GetFont returned NULL, and
+every string drawn with that handle drew nothing at all. A menu with no text in
+it looks like a broken menu, not like a missing file, and there is nothing in
+the frame to say which.
+
+ergoec is the body font and the one the interface falls back to elsewhere, so
+it is the fallback here too; failing that, whatever loaded first.
+=================
+*/
+static int SDF_Fallback( void )
+{
+	for ( int i = 0 ; i < numSdfFonts ; i++ ) {
+		if ( !Q_stricmp( sdfFonts[i].name, "ergoec" ) ) {
+			return i + 1;
+		}
+	}
+	return numSdfFonts > 0 ? 1 : 0;
+}
+
+/*
+=================
 RE_RegisterFont
+
+The names are Raven's - ergoec, arialnb, anewhope, ocr_a - and they stay,
+because the .menu files ask for fonts by name and those files are the game's.
+What they resolve to is a weight of Libre Franklin; see tools/fontgen.
 =================
 */
 int RE_RegisterFont( const char *psName )
@@ -381,16 +411,41 @@ int RE_RegisterFont( const char *psName )
 
 	if ( numSdfFonts >= MAX_SDF_FONTS ) {
 		CL_RefPrintf( PRINT_WARNING, "RE_RegisterFont: too many fonts, %s not loaded\n", name );
-		return 0;
+		return SDF_Fallback();
 	}
 
 	sdfFont_t *font = &sdfFonts[numSdfFonts];
 	Com_Memset( font, 0, sizeof( *font ) );
 
 	if ( !SDF_Load( font, name ) ) {
-		CL_RefPrintf( PRINT_ALL, "RE_RegisterFont: could not load %s\n", name );
 		Com_Memset( font, 0, sizeof( *font ) );
-		return 0;
+
+		const int fallback = SDF_Fallback();
+
+		// aurabesh is worth naming, because it is the one font that cannot be
+		// generated from a TrueType face - it is an invented alphabet, not a
+		// typeface - and drawing it in Latin turns alien signage into readable
+		// English. That is still better than drawing nothing, but only just,
+		// and the way out is one command.
+		if ( !Q_stricmp( name, "aurabesh" ) ) {
+			CL_RefPrintf( PRINT_WARNING,
+				"font aurabesh is missing, so alien text will be drawn in a Latin face. "
+				"Generate it from the game's own files: tools/fontgen/msdf.py "
+				"--fontdat <base>/fonts/aurabesh.fontdat --fontdat-image "
+				"<base>/fonts/aurabesh.tga --out-image assets/fonts/aurabesh.png "
+				"--out-meta /tmp/a.json --out-font assets/fonts/aurabesh.jkxfont\n" );
+		} else if ( fallback ) {
+			CL_RefPrintf( PRINT_WARNING, "font %s is missing, drawing it in %s instead\n",
+				name, sdfFonts[fallback - 1].name );
+		} else {
+			CL_RefPrintf( PRINT_ERROR,
+				"font %s is missing and there is no other font loaded, so nothing "
+				"will have any text in it. base/fonts should hold a .jkxfont and a "
+				".png per font; the build copies them out of assets/fonts, and "
+				"tools/fontgen/build_fonts.py makes them.\n", name );
+		}
+
+		return fallback;
 	}
 
 	numSdfFonts++;

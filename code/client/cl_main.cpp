@@ -1005,6 +1005,13 @@ void QDECL CL_RefPrintf( int print_level, const char *fmt, ...) {
 		Com_Printf (S_COLOR_YELLOW "%s", msg);		// yellow
 	} else if ( print_level == PRINT_DEVELOPER ) {
 		Com_DPrintf (S_COLOR_RED "%s", msg);		// red
+	} else if ( print_level == PRINT_ERROR ) {
+		// This branch did not exist, so PRINT_ERROR - which is in the enum and
+		// is what a renderer reaches for when something is badly wrong but not
+		// fatal - printed nothing at all. Found by writing a message for "there
+		// is no font loaded, so nothing will have any text in it" and then not
+		// being able to find it in the log.
+		Com_Printf (S_COLOR_RED "%s", msg);
 	}
 }
 
