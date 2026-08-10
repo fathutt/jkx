@@ -54,6 +54,150 @@ cvar_t		*con_timestamps;
 static const conChar_t CON_WRAP = { { ColorIndex(COLOR_GREY), '\\' } };
 static const conChar_t CON_BLANK = { { ColorIndex(COLOR_WHITE), CON_BLANK_CHAR } };
 
+/*
+===============================================================================
+
+PROPORTIONAL METRICS
+
+The console used to be drawn out of a 16x16 grid of characters in a texture,
+one quad per cell, at a fixed pitch. That is why every measurement in here was
+a column: a line was 78 characters because 78 cells fitted, and the width of a
+character was a constant.
+
+It is drawn with the font system now, and the font is proportional. An i is not
+a W. So the two things that used to be arithmetic on con.charWidth - where a
+line wraps, and where the cursor sits - are sums of advances instead.
+
+===============================================================================
+*/
+
+// The font system speaks in 640x480 virtual pixels. The console's own layout
+// is in real ones, because that is what it has always been and what con_scale
+// scales. These convert.
+static float Con_ToVirtualX( float x ) { return x * con.xadjust; }
+static float Con_ToVirtualY( float y ) { return y * con.yadjust; }
+
+/*
+================
+Con_UpdateFontMetrics
+
+The scale that makes the font as tall as a console row, and the width a line of
+text has to live in. Both change with the resolution and with con_scale, so
+this runs from Con_CheckResize.
+================
+*/
+// The console prints long before the renderer exists - it is where the messages
+// about starting the renderer go. Until it does, there is nothing to ask how
+// wide a letter is, and the fixed width the console used to be built on is the
+// answer. Nothing measured in that state is cached, so the first real
+// measurement replaces it rather than living on as a guess.
+static qboolean Con_FontReady( void )
+{
+	return (qboolean)( cls.rendererStarted && re.Font_HeightPixels != NULL
+		&& re.Font_StrLenPixels != NULL );
+}
+
+static void Con_UpdateFontMetrics( void )
+{
+	const int font = cls.consoleFont;
+
+	if ( !Con_FontReady() ) {
+		con.fontScale = 1.0f;
+		con.lineHeight = (float)con.charHeight;
+		con.textWidth = Con_ToVirtualX( (float)( con.linewidth * con.charWidth ) );
+		con.advanceFont = -1;
+		return;
+	}
+
+	const float rowHeight = Con_ToVirtualY( (float)con.charHeight );
+	const int unscaled = re.Font_HeightPixels( font, 1.0f );
+
+	con.fontScale = ( unscaled > 0 ) ? rowHeight / (float)unscaled : 1.0f;
+	con.lineHeight = (float)con.charHeight;
+
+	// Two characters of indent on the left, one of margin on the right: the
+	// same room the grid left, so the console keeps its shape.
+	con.textWidth = Con_ToVirtualX( (float)( cls.glconfig.vidWidth - 3 * con.charWidth ) );
+
+	if ( con.advanceFont != font || con.advanceScale != con.fontScale ) {
+		con.advanceFont = font;
+		con.advanceScale = con.fontScale;
+		memset( con.advance, 0, sizeof( con.advance ) );
+	}
+}
+
+/*
+================
+Con_Advance
+
+How far the pen moves for one character, in virtual pixels.
+================
+*/
+static float Con_Advance( unsigned char ch )
+{
+	if ( !Con_FontReady() ) {
+		return Con_ToVirtualX( (float)con.charWidth );
+	}
+
+	if ( con.advance[ch] == 0.0f ) {
+		const char s[2] = { (char)ch, '\0' };
+		float width = (float)re.Font_StrLenPixels( s, con.advanceFont, con.advanceScale );
+
+		// A glyph the font has nothing for still has to move the pen, or a run
+		// of them would pile up in one place and never wrap.
+		if ( width <= 0.0f ) {
+			width = Con_ToVirtualX( (float)con.charWidth );
+		}
+		con.advance[ch] = width;
+	}
+	return con.advance[ch];
+}
+
+/*
+================
+Con_LineWidthPixels
+
+The drawn width of one row of the buffer, ignoring trailing blanks.
+================
+*/
+static float Con_LineWidthPixels( const conChar_t *line, int count )
+{
+	float width = 0.0f;
+	for ( int i = 0 ; i < count ; i++ ) {
+		width += Con_Advance( (unsigned char)line[i].f.character );
+	}
+	return width;
+}
+
+/*
+================
+Con_RowToString
+
+One row of cells as a string, with the colour changes put back as ^n codes so
+the whole row goes to the font in one call. Trailing blanks are dropped: they
+would cost advances and draw nothing.
+================
+*/
+static void Con_RowToString( const conChar_t *text, int count, char *out, int outSize )
+{
+	int len = 0;
+	int colour = -1;
+
+	while ( count > 0 && text[count - 1].f.character == CON_BLANK_CHAR ) {
+		count--;
+	}
+
+	for ( int i = 0 ; i < count && len < outSize - 3 ; i++ ) {
+		if ( text[i].f.color != colour ) {
+			colour = text[i].f.color;
+			out[len++] = '^';
+			out[len++] = (char)( '0' + ( colour & 7 ) );
+		}
+		out[len++] = text[i].f.character;
+	}
+	out[len] = '\0';
+}
+
 vec4_t	console_color = {0.509f, 0.609f, 0.847f, 1.0f};
 
 /*
@@ -308,16 +452,27 @@ static void Con_Resize(int rowwidth)
 
 			oi++;
 
-			// Print stored line to a new text buffer
+			// Print stored line to a new text buffer, re-wrapping it. The old
+			// wrap points came from the old width and are gone; where the
+			// text breaks now is decided the same way it is decided when it
+			// is printed, by adding up advances.
 			for (i = 0; ; ni++) {
+				float used = 0.0f;
+
 				newline = (ni % con.totallines) * con.rowwidth;
 
 				// Print timestamp at the begining of each line
 				for (j = 0; j < CON_TIMESTAMP_LEN; j++)
 					con.text[newline + j] = timestamp[j];
 
-				for (j = CON_TIMESTAMP_LEN; j < con.rowwidth - 1 && i < lineLen; j++, i++)
+				for (j = CON_TIMESTAMP_LEN; j < con.rowwidth - 1 && i < lineLen; j++, i++) {
+					const float advance = Con_Advance( (unsigned char)line[i].f.character );
+					if ( used + advance > con.textWidth && j > CON_TIMESTAMP_LEN ) {
+						break;
+					}
+					used += advance;
 					con.text[newline + j] = line[i];
+				}
 
 				if (i == lineLen) {
 					// Erase remaining chars in case newline wrapped
@@ -385,10 +540,37 @@ void Con_CheckResize (void)
 	con.linewidth = width;
 	con.xadjust = ((float)SCREEN_WIDTH) / cls.glconfig.vidWidth;
 	con.yadjust = ((float)SCREEN_HEIGHT) / cls.glconfig.vidHeight;
-	g_consoleField.widthInChars = width - 1; // Command prompt
+
+	const float wasTextWidth = con.textWidth;
+	Con_UpdateFontMetrics();
+
+	// The input field still scrolls by characters, because field_t counts
+	// them. Sizing it by the widest glyph rather than an average one means it
+	// scrolls a little early on ordinary text and never runs off the edge on a
+	// line of W's - which is the failure worth avoiding of the two.
+	{
+		float widest = 1.0f;
+		for ( int ch = 33 ; ch < 127 ; ch++ ) {
+			const float advance = Con_Advance( (unsigned char)ch );
+			if ( advance > widest ) {
+				widest = advance;
+			}
+		}
+		int fits = (int)( con.textWidth / widest );
+		if ( fits < CON_MIN_WIDTH ) {
+			fits = CON_MIN_WIDTH;
+		}
+		g_consoleField.widthInChars = fits - 1;	// Command prompt
+	}
 
 	if (con.rowwidth != rowwidth)
 	{
+		Con_Resize(rowwidth);
+	}
+	else if (con.initialized && fabsf(con.textWidth - wasTextWidth) > 0.5f)
+	{
+		// Same number of cells, different number of pixels: the buffer is
+		// still the right shape but every wrap point in it is now wrong.
 		Con_Resize(rowwidth);
 	}
 }
@@ -471,6 +653,7 @@ void Con_Linefeed (void)
 		con.times[con.current % NUM_CON_TIMES] = cls.realtime;
 
 	con.x = 0;
+	con.xPixels = 0.0f;
 
 	if (con.display == con.current)
 		con.display++;
@@ -523,11 +706,21 @@ void CL_ConsolePrint( const char *txt) {
 			break;
 		case '\r':
 			con.x = 0;
+			con.xPixels = 0.0f;
 			break;
 		default:	// display character and advance
+			{
 			y = con.current % con.totallines;
 
-			if (con.x == con.rowwidth - CON_TIMESTAMP_LEN - 1) {
+			// Wrap on whichever comes first: the line is as wide as it may be
+			// drawn, or the row is out of cells. The first is what the reader
+			// sees; the second is what keeps this inside the buffer, and with
+			// a narrow font it is reached first surprisingly often.
+			const float advance = Con_Advance( (unsigned char)c );
+			const qboolean tooWide = (qboolean)( con.xPixels + advance > con.textWidth );
+			const qboolean tooMany = (qboolean)( con.x == con.rowwidth - CON_TIMESTAMP_LEN - 1 );
+
+			if ( ( tooWide && con.x > 0 ) || tooMany ) {
 				con.text[y * con.rowwidth + CON_TIMESTAMP_LEN + con.x] = CON_WRAP;
 				Con_Linefeed();
 				y = con.current % con.totallines;
@@ -535,7 +728,9 @@ void CL_ConsolePrint( const char *txt) {
 
 			con.text[y * con.rowwidth + CON_TIMESTAMP_LEN + con.x].f = { color, c };
 			con.x++;
+			con.xPixels += advance;
 			break;
+			}
 		}
 	}
 
@@ -570,23 +765,65 @@ void Con_DrawInput (void) {
 		return;
 	}
 
-	y = con.vislines - ( con.charHeight * (re.Language_IsAsian() ? 1.5 : 2) );
+	y = con.vislines - con.charHeight * 2;
 
-	re.SetColor( con.color );
+	const float vy = Con_ToVirtualY( (float)y );
+	const int font = cls.consoleFont;
 
-	Field_Draw( &g_consoleField, 2 * con.charWidth, y, qtrue, qtrue );
+	// The prompt.
+	char prompt[2] = { CONSOLE_PROMPT_CHAR, '\0' };
+	re.Font_DrawString( (int)Con_ToVirtualX( (float)con.charWidth ), (int)vy, prompt,
+		con.color, font, -1, con.fontScale );
 
-	SCR_DrawSmallChar( con.charWidth, y, CONSOLE_PROMPT_CHAR );
+	// What has been typed, from wherever the field has scrolled to.
+	int drawLen = g_consoleField.widthInChars - 1;
+	const int len = (int)strlen( g_consoleField.buffer );
+	int prestep = ( len <= drawLen ) ? 0 : g_consoleField.scroll;
 
-	re.SetColor( g_color_table[ColorIndex(COLOR_GREY)] );
+	if ( prestep + drawLen > len ) {
+		drawLen = len - prestep;
+	}
+	if ( drawLen < 0 ) {
+		drawLen = 0;
+	}
 
-	if ( g_consoleField.scroll > 0 )
-		SCR_DrawSmallChar( 0, y, CON_SCROLL_L_CHAR );
+	char text[MAX_EDIT_LINE];
+	Q_strncpyz( text, g_consoleField.buffer + prestep, drawLen + 1 );
 
-	int len = Q_PrintStrlen( g_consoleField.buffer );
-	int pos = Q_PrintStrLenTo( g_consoleField.buffer, g_consoleField.scroll, NULL );
-	if ( pos + g_consoleField.widthInChars < len )
-		SCR_DrawSmallChar( cls.glconfig.vidWidth - con.charWidth, y, CON_SCROLL_R_CHAR );
+	const float vx = Con_ToVirtualX( (float)( 2 * con.charWidth ) );
+	re.Font_DrawString( (int)vx, (int)vy, text, con.color, font, -1, con.fontScale );
+
+	// And the cursor, at the width of everything left of it rather than at a
+	// multiple of a character width - there is no such multiple now.
+	if ( ( (int)( cls.realtime >> 8 ) & 1 ) == 0 ) {
+		char left[MAX_EDIT_LINE];
+		int cursor = g_consoleField.cursor - prestep;
+		if ( cursor < 0 ) {
+			cursor = 0;
+		}
+		if ( cursor > drawLen ) {
+			cursor = drawLen;
+		}
+		Q_strncpyz( left, text, cursor + 1 );
+
+		const char caret[2] = { (char)( kg.key_overstrikeMode ? 11 : 10 ), '\0' };
+		re.Font_DrawString( (int)( vx + re.Font_StrLenPixels( left, font, con.fontScale ) ),
+			(int)vy, caret, con.color, font, -1, con.fontScale );
+	}
+
+	// Arrows saying the field has more to either side than is shown.
+	const char scrollChar[2] = { CON_SCROLL_L_CHAR, '\0' };
+	const float *grey = g_color_table[ColorIndex(COLOR_GREY)];
+
+	if ( g_consoleField.scroll > 0 ) {
+		re.Font_DrawString( 0, (int)vy, scrollChar, grey, font, -1, con.fontScale );
+	}
+
+	const int pos = Q_PrintStrLenTo( g_consoleField.buffer, g_consoleField.scroll, NULL );
+	if ( pos + g_consoleField.widthInChars < Q_PrintStrlen( g_consoleField.buffer ) ) {
+		re.Font_DrawString( (int)Con_ToVirtualX( (float)( cls.glconfig.vidWidth - con.charWidth ) ),
+			(int)vy, scrollChar, grey, font, -1, con.fontScale );
+	}
 }
 
 
@@ -599,26 +836,14 @@ Draws the last few lines of output transparently over the game top
 */
 void Con_DrawNotify (void)
 {
-	int		x, v;
+	int		v;
 	int		lineLimit = con.linewidth;
 	conChar_t		*text;
 	int		i;
 	int		time;
-	int		currentColor;
 
-	currentColor = 7;
-	re.SetColor( g_color_table[currentColor] );
-
-	int iFontIndex = cls.consoleFont;
-	float fFontScale = 1.0f;
-	int iPixelHeightToAdvance = 0;
-	if (re.Language_IsAsian())
-	{
-		fFontScale = con.charWidth * 10.0f /
-			re.Font_StrLenPixels("aaaaaaaaaa", iFontIndex, 1.0f);
-		fFontScale *= con.yadjust;
-		iPixelHeightToAdvance = 2+(1.3/con.yadjust) * re.Font_HeightPixels(iFontIndex, fFontScale);
-	}
+	const int font = cls.consoleFont;
+	const float vx = Con_ToVirtualX( (float)con.charWidth );
 
 	v = 0;
 	for (i= con.current-NUM_CON_TIMES+1 ; i<=con.current ; i++)
@@ -638,47 +863,16 @@ void Con_DrawNotify (void)
 			lineLimit -= CON_TIMESTAMP_LEN;
 		}
 
-		// asian language needs to use the new font system to print glyphs...
-		//
-		// (ignore colours since we're going to print the whole thing as one string)
-		//
-		if (re.Language_IsAsian())
-		{
-			// concat the text to be printed...
-			//
-			char sTemp[4096];	// ott
-			sTemp[0] = '\0';
-			for (x = 0 ; x < lineLimit ; x++)
-			{
-				if ( text[x].f.color != currentColor ) {
-					currentColor = text[x].f.color;
-					strcat(sTemp,va("^%i", currentColor ));
-				}
-				strcat(sTemp,va("%c",text[x].f.character));
-			}
-			//
-			// and print...
-			//
-			re.Font_DrawString(con.xadjust * (con.xadjust + con.charWidth), con.yadjust * v, sTemp,
-				g_color_table[currentColor], iFontIndex, -1, fFontScale);
+		// One call for the row. The colour changes ride along as ^n codes,
+		// which is what the font system reads anyway, so the run of quads it
+		// builds is the same run the per-cell loop used to build one at a time.
+		char line[MAX_STRING_CHARS];
+		Con_RowToString( text, lineLimit, line, sizeof( line ) );
 
-			v +=  iPixelHeightToAdvance;
-		}
-		else
-		{
-			for (x = 0 ; x < lineLimit ; x++) {
-				if ( text[x].f.character == ' ' ) {
-					continue;
-				}
-				if ( text[x].f.color != currentColor ) {
-					currentColor = text[x].f.color;
-					re.SetColor( g_color_table[currentColor] );
-				}
-				SCR_DrawSmallChar( (x+1)*con.charWidth, v, text[x].f.character );
-			}
+		re.Font_DrawString( (int)vx, (int)Con_ToVirtualY( (float)v ), line,
+			g_color_table[ColorIndex(COLOR_WHITE)], font, -1, con.fontScale );
 
-			v += con.charHeight;
-		}
+		v += con.charHeight;
 	}
 
 	re.SetColor( NULL );
@@ -693,13 +887,11 @@ Draws the console with the solid background
 */
 void Con_DrawSolidConsole( float frac )
 {
-	int				i, x, y;
+	int				i, y;
 	int				rows;
 	conChar_t		*text;
 	int				row;
 	int				lines;
-//	qhandle_t		conShader;
-	int				currentColor;
 
 	lines = cls.glconfig.vidHeight * frac;
 	if (lines <= 0)
@@ -733,11 +925,12 @@ void Con_DrawSolidConsole( float frac )
 	re.SetColor( console_color );
 	re.DrawStretchPic( 0, y, SCREEN_WIDTH, 2, 0, 0, 0, 0, cls.whiteShader );
 
-	i = strlen( JK_VERSION );
-
-	for (x=0 ; x<i ; x++) {
-		SCR_DrawSmallChar( cls.glconfig.vidWidth - ( i - x + 1 ) * con.charWidth,
-			(lines-(con.charHeight+con.charHeight/2)), JK_VERSION[x] );
+	{
+		const float versionWidth = re.Font_StrLenPixels( JK_VERSION, cls.consoleFont, con.fontScale );
+		re.Font_DrawString(
+			(int)( Con_ToVirtualX( (float)( cls.glconfig.vidWidth - con.charWidth ) ) - versionWidth ),
+			(int)Con_ToVirtualY( (float)( lines - ( con.charHeight + con.charHeight / 2 ) ) ),
+			JK_VERSION, console_color, cls.consoleFont, -1, con.fontScale );
 	}
 
 	// draw the input prompt, user text, and cursor if desired
@@ -753,9 +946,23 @@ void Con_DrawSolidConsole( float frac )
 	if (con.display != con.current)
 	{
 	// draw arrows to show the buffer is backscrolled
-		re.SetColor( console_color );
-		for (x=0 ; x<con.linewidth ; x+=4)
-			SCR_DrawSmallChar( (x+1)*con.charWidth, y, '^' );
+		char arrows[MAX_STRING_CHARS];
+		int n = 0;
+		for ( float used = 0.0f ; used < con.textWidth && n < (int)sizeof( arrows ) - 5 ; ) {
+			arrows[n++] = '^';
+			arrows[n++] = '^';		// the font system eats one of a pair
+			used += Con_Advance( '^' );
+			for ( int k = 0 ; k < 3 && used < con.textWidth ; k++ ) {
+				arrows[n++] = ' ';
+				used += Con_Advance( ' ' );
+			}
+		}
+		arrows[n] = '\0';
+
+		re.Font_DrawString( (int)Con_ToVirtualX( (float)con.charWidth ),
+			(int)Con_ToVirtualY( (float)y ), arrows, console_color,
+			cls.consoleFont, -1, con.fontScale );
+
 		y -= con.charHeight;
 		rows--;
 	}
@@ -766,21 +973,10 @@ void Con_DrawSolidConsole( float frac )
 		row--;
 	}
 
-	currentColor = 7;
-	re.SetColor( g_color_table[currentColor] );
+	const int font = cls.consoleFont;
+	const float vx = Con_ToVirtualX( (float)con.charWidth );
 
-	int iFontIndex = cls.consoleFont;
-	float fFontScale = 1.0f;
-	int iPixelHeightToAdvance = con.charHeight;
-	if (re.Language_IsAsian())
-	{
-		fFontScale = con.charWidth * 10.0f /
-			re.Font_StrLenPixels("aaaaaaaaaa", iFontIndex, 1.0f);
-		fFontScale *= con.yadjust;
-		iPixelHeightToAdvance = 2+(1.3/con.yadjust) * re.Font_HeightPixels(iFontIndex, fFontScale);
-	}
-
-	for (i=0 ; i<rows ; i++, y -= iPixelHeightToAdvance, row--)
+	for (i=0 ; i<rows ; i++, y -= con.charHeight, row--)
 	{
 		if (row < 0)
 			break;
@@ -790,47 +986,20 @@ void Con_DrawSolidConsole( float frac )
 		}
 
 		text = con.text + (row % con.totallines)*con.rowwidth;
-		if (!con_timestamps->integer)
+		int count = con.rowwidth;
+		if (!con_timestamps->integer) {
 			text += CON_TIMESTAMP_LEN;
-
-		// asian language needs to use the new font system to print glyphs...
-		//
-		// (ignore colours since we're going to print the whole thing as one string)
-		//
-		if (re.Language_IsAsian())
-		{
-			// concat the text to be printed...
-			//
-			char sTemp[4096];	// ott
-			sTemp[0] = '\0';
-			for (x = 0 ; x < con.linewidth + 1 ; x++)
-			{
-				if ( text[x].f.color != currentColor ) {
-					currentColor = text[x].f.color;
-					strcat(sTemp,va("^%i", currentColor ));
-				}
-				strcat(sTemp,va("%c",text[x].f.character));
-			}
-			//
-			// and print...
-			//
-			re.Font_DrawString(con.xadjust*(con.xadjust + con.charWidth), con.yadjust * y, sTemp, g_color_table[currentColor],
-				iFontIndex, -1, fFontScale);
+			count -= CON_TIMESTAMP_LEN;
 		}
-		else
-		{
-			for (x = 0; x < con.linewidth + 1 ; x++) {
-				if ( text[x].f.character == ' ' ) {
-					continue;
-				}
 
-				if ( text[x].f.color != currentColor ) {
-					currentColor = text[x].f.color;
-					re.SetColor( g_color_table[currentColor] );
-				}
-				SCR_DrawSmallChar( (x+1)*con.charWidth, y, text[x].f.character );
-			}
-		}
+		// One call for the row. The colour changes ride along as ^n codes,
+		// which is what the font system reads anyway, so it builds the same run
+		// of quads the per-cell loop used to build one at a time.
+		char line[MAX_STRING_CHARS];
+		Con_RowToString( text, count, line, sizeof( line ) );
+
+		re.Font_DrawString( (int)vx, (int)Con_ToVirtualY( (float)y ), line,
+			g_color_table[ColorIndex(COLOR_WHITE)], font, -1, con.fontScale );
 	}
 
 	re.SetColor( NULL );

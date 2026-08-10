@@ -137,55 +137,6 @@ void SCR_DrawBigChar( int x, int y, int ch ) {
 }
 
 /*
-** SCR_DrawSmallChar
-** small chars are drawn at native screen resolution
-*/
-void SCR_DrawSmallChar( int x, int y, int ch ) {
-	int row, col;
-	float frow, fcol;
-	float size;
-
-	ch &= 255;
-
-	if ( ch == ' ' ) {
-		return;
-	}
-
-	if ( y < -con.charHeight ) {
-		return;
-	}
-
-	row = ch>>4;
-	col = ch&15;
-/*
-	frow = row*0.0625;
-	fcol = col*0.0625;
-	size = 0.0625;
-
-	re.DrawStretchPic( x, y, con.charWidth, con.charHeight,
-					   fcol, frow,
-					   fcol + size, frow + size,
-					   cls.charSetShader );
-*/
-
-	float size2;
-
-	frow = row*0.0625;
-	fcol = col*0.0625;
-	size = 0.03125;
-	size2 = 0.0625;
-
-	re.DrawStretchPic( x * con.xadjust, y * con.yadjust,
-						con.charWidth * con.xadjust, con.charHeight * con.yadjust,
-		fcol, frow,
-		fcol + size, frow + size2,
-		cls.charSetShader );
-
-}
-
-
-
-/*
 ==================
 SCR_DrawBigString[Color]
 
@@ -251,43 +202,6 @@ void SCR_DrawBigString( int x, int y, const char *s, float alpha, qboolean noCol
 
 void SCR_DrawBigStringColor( int x, int y, const char *s, vec4_t color, qboolean noColorEscape ) {
 	SCR_DrawBigStringExt( x, y, s, color, qtrue, noColorEscape );
-}
-
-/*
-==================
-SCR_DrawSmallString[Color]
-
-Draws a multi-colored string with a drop shadow, optionally forcing
-to a fixed color.
-==================
-*/
-void SCR_DrawSmallStringExt( int x, int y, const char *string, float *setColor, qboolean forceColor,
-		qboolean noColorEscape ) {
-	vec4_t		color;
-	const char	*s;
-	int			xx;
-
-	// draw the colored text
-	s = string;
-	xx = x;
-	re.SetColor( setColor );
-	while ( *s ) {
-		if ( Q_IsColorString( s ) ) {
-			if ( !forceColor ) {
-				memcpy( color, g_color_table[ColorIndex(*(s+1))], sizeof( color ) );
-				color[3] = setColor[3];
-				re.SetColor( color );
-			}
-			if ( !noColorEscape ) {
-				s += 2;
-				continue;
-			}
-		}
-		SCR_DrawSmallChar( xx, y, *s );
-		xx += con.charWidth;
-		s++;
-	}
-	re.SetColor( NULL );
 }
 
 /*

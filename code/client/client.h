@@ -244,6 +244,28 @@ typedef struct {
 	int		charWidth;		// Scaled console character width
 	int		charHeight;		// Scaled console character height
 
+	// The console is set in a proportional font, so a column is not a unit of
+	// anything: where a line wraps is decided by adding up advances, not by
+	// counting characters. charWidth survives as the indent and the cursor
+	// block, which are the two places a fixed step is still wanted.
+	//
+	// The buffer stays a grid. It is what the scrollback, the resize reflow
+	// and condump all walk, and a rope of variable length lines would buy
+	// nothing visible; rowwidth is now the point at which a line is physically
+	// out of cells rather than the point at which it looks too wide.
+	float	fontScale;		// what the font system is asked to draw at
+	float	lineHeight;		// virtual pixels between rows
+	float	textWidth;		// virtual pixels a line of text may occupy
+	float	xPixels;		// virtual pixels used so far by the current line
+
+	// Advance per byte, in virtual pixels, filled in as characters are first
+	// printed. Every console line is measured a character at a time, and
+	// asking the renderer 78 times per line for something that cannot change
+	// until the font or the scale does is not worth the call.
+	float	advance[256];
+	int		advanceFont;
+	float	advanceScale;
+
 	float	xadjust;		// for wide aspect screens
 	float	yadjust;
 
@@ -391,9 +413,7 @@ void	SCR_DrawNamedPic( float x, float y, float width, float height, const char *
 
 void	SCR_DrawBigString( int x, int y, const char *s, float alpha, qboolean noColorEscape );			// draws a string with embedded color control characters with fade
 void	SCR_DrawBigStringColor( int x, int y, const char *s, vec4_t color, qboolean noColorEscape );	// ignores embedded color control characters
-void	SCR_DrawSmallStringExt( int x, int y, const char *string, float *setColor, qboolean forceColor, qboolean noColorEscape );
 void	SCR_DrawBigChar( int x, int y, int ch );
-void	SCR_DrawSmallChar( int x, int y, int ch );
 
 #ifdef JK2_MODE
 void	SCR_PrecacheScreenshot();

@@ -94,7 +94,9 @@ set +e
       +set fs_basepath "$RUN" +set fs_homepath "$RUN/home" \
       +set cl_renderer rdsp-vulkan \
       +set s_initsound 0 \
-      +wait 60 +screenshot_tga jkx_smoke +wait 10 +quit ) > "$RUN/run.log" 2>&1
+      +wait 60 +screenshot_tga jkx_smoke \
+      +toggleconsole +wait 30 +screenshot_tga jkx_console \
+      +wait 10 +quit ) > "$RUN/run.log" 2>&1
 status=$?
 set -e
 
@@ -126,6 +128,7 @@ require 'VK_RENDERER:'
 require 'selected presentation mode'
 require 'Common Initialization Complete'
 require 'Wrote screenshots/jkx_smoke.tga'
+require 'Wrote screenshots/jkx_console.tga'
 
 if grep -qE 'Segmentation fault|signal SIGSEGV|SIGABRT' "$RUN/run.log"; then
     report "the engine died on a signal"
@@ -151,21 +154,29 @@ else
     echo "  (no validation layer installed, Vulkan usage not checked)"
 fi
 
-SHOT="$RUN/home/base/screenshots/jkx_smoke.tga"
-if [ -f "$SHOT" ]; then
-    # A frame that drew nothing presents and writes a file just the same. What
-    # separates it from a working one is whether the picture has more than one
-    # colour in it.
-    if ! python3 "$HERE/tga_is_a_picture.py" "$SHOT"; then
-        report "the screenshot is a flat colour, so nothing was drawn"
+# Two screenshots: the menu, and the console over it. The console frame earns
+# its place already - it runs the whole console draw path, which is how a null
+# dereference in it was found the first time this ran - but it does not yet
+# check any text, because the fixture has no font and every string draws
+# nothing. When the distance field font lands the fixture gets an atlas, which
+# it can read directly, and then this frame is a real text check.
+for name in jkx_smoke jkx_console; do
+    SHOT="$RUN/home/base/screenshots/$name.tga"
+    if [ -f "$SHOT" ]; then
+        # A frame that drew nothing presents and writes a file just the same.
+        # What separates it from a working one is whether the picture has more
+        # than one colour in it.
+        if ! python3 "$HERE/tga_is_a_picture.py" "$SHOT"; then
+            report "$name.tga is a flat colour, so nothing was drawn"
+        fi
+        if [ -n "${JKX_SMOKE_KEEP_SHOT:-}" ]; then
+            cp "$SHOT" "${JKX_SMOKE_KEEP_SHOT%.tga}_$name.tga"
+            echo "  screenshot: ${JKX_SMOKE_KEEP_SHOT%.tga}_$name.tga"
+        fi
+    else
+        report "no $name.tga was written"
     fi
-    if [ -n "${JKX_SMOKE_KEEP_SHOT:-}" ]; then
-        cp "$SHOT" "$JKX_SMOKE_KEEP_SHOT"
-        echo "  screenshot: $JKX_SMOKE_KEEP_SHOT"
-    fi
-else
-    report "no screenshot was written"
-fi
+done
 
 if [ "$fail" -ne 0 ]; then
     echo
