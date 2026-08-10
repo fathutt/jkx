@@ -38,9 +38,12 @@ ARCH="$(uname -m)"
 ENGINE="$BUILD/jkx_ja.$ARCH"
 RENDERER="$BUILD/code/rd-vulkan/rdsp-vulkan_$ARCH.so"
 
-for f in "$ENGINE" "$RENDERER"; do
-    [ -f "$f" ] || { echo "not built: $f" >&2; exit 2; }
-done
+[ -f "$ENGINE" ] || { echo "not built: $ENGINE" >&2; exit 2; }
+
+# The renderer is inside the engine in a monolith build and a file beside it
+# otherwise. Either is fine here; what matters is that one of them turns up in
+# the log below.
+[ -f "$RENDERER" ] || RENDERER=""
 
 RUN="$(mktemp -d)"
 DISPLAY_NUM="${JKX_SMOKE_DISPLAY:-:99}"
@@ -54,7 +57,7 @@ trap cleanup EXIT
 mkdir -p "$RUN/home" "$RUN/xdg"
 cp -r "$HERE/fixtures/base" "$RUN/base"
 cp "$ENGINE" "$RUN/"
-cp "$RENDERER" "$RUN/"
+[ -n "$RENDERER" ] && cp "$RENDERER" "$RUN/"
 
 if [ -n "$PAK" ]; then
     [ -f "$PAK" ] || { echo "no such shader pak: $PAK" >&2; exit 2; }
@@ -111,7 +114,13 @@ require() {
     fi
 }
 
-require 'Trying to load "rdsp-vulkan_'
+# Either the module was loaded or it is inside the engine; both are the renderer
+# coming up, and which one depends on how this was built.
+if ! grep -q -- 'Trying to load "rdsp-vulkan_' "$RUN/run.log" &&
+   ! grep -q -- 'renderer: rdsp-vulkan, built in' "$RUN/run.log"; then
+    report "the log does not say the Vulkan renderer came up"
+fi
+
 require 'selected physical device'
 require 'VK_RENDERER:'
 require 'selected presentation mode'

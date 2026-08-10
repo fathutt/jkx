@@ -370,7 +370,7 @@ void vk_create_window( void ) {
 		windowDesc_t windowDesc = { GRAPHICS_API_VULKAN };
 
 		glConfig.deviceSupportsGamma = qfalse;
-		window = ri.WIN_Init(&windowDesc, &glConfig);
+		vidWindow = ri.WIN_Init(&windowDesc, &glConfig);
 
 		if (r_ignorehwgamma->integer)
 			glConfig.deviceSupportsGamma = qfalse;

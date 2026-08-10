@@ -22,8 +22,14 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 */
 
 // tr_subs.cpp - common function replacements for modular renderer
+//
+// Everything here exists because the renderer used to be a module: a second
+// binary with its own copy of names the engine already has. Inside one binary
+// most of it is a duplicate definition and the linker says so, which is how the
+// list below got shorter.
 #include "tr_local.h"
 
+#if !defined(JKX_MONOLITH_RENDERER)
 void QDECL Com_Printf( const char *msg, ... )
 {
 	va_list         argptr;
@@ -35,6 +41,7 @@ void QDECL Com_Printf( const char *msg, ... )
 
 	ri.Printf(PRINT_ALL, "%s", text);
 }
+#endif
 
 void QDECL Com_OPrintf( const char *msg, ... )
 {
@@ -48,6 +55,7 @@ void QDECL Com_OPrintf( const char *msg, ... )
 	R_OPrintf("%s", text);
 }
 
+#if !defined(JKX_MONOLITH_RENDERER)
 void QDECL Com_Error( int level, const char *error, ... )
 {
 	va_list         argptr;
@@ -59,6 +67,7 @@ void QDECL Com_Error( int level, const char *error, ... )
 
 	ri.Error(level, "%s", text);
 }
+#endif
 
 // HUNK
 
@@ -105,9 +114,11 @@ int R_Z_MemSize( memtag_t eTag ) {
 	return ri.Z_MemSize( eTag );
 }
 
+#if !defined(JKX_MONOLITH_RENDERER)
 void Z_MorphMallocTag( void *pvBuffer, memtag_t eDesiredTag ) {
 	ri.Z_MorphMallocTag( pvBuffer, eDesiredTag );
 }
+#endif
 
 
 // rd-common allocates through these. rd-vanilla defines them the same way; the
@@ -122,6 +133,9 @@ void R_Free( void *ptr ) {
 
 // The font loader reads this to decide whether to touch every glyph while
 // building a script. rd-common declares it and expects the renderer module to
-// define and register it, exactly as rd-vanilla does - see R_Register.
+// define and register it, exactly as rd-vanilla does - see R_Register. Inside
+// the engine it is the engine's, which has had one all along.
+#if !defined(JKX_MONOLITH_RENDERER)
 cvar_t	*com_buildScript;
+#endif
 

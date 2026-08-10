@@ -471,6 +471,14 @@ if(BuildSPEngine OR BuildJK2SPEngine)
 	endfunction(add_sp_project)
 	if(BuildSPEngine)
 		add_sp_project(${SPEngine} "SP Client" ${SPDir} ${JKAInstallDir} ${JKASPClientComponent})
+
+		# Phase 2.2: the renderer is part of the engine, not a module beside it.
+		# GetRefAPI is then an ordinary function call and the client says so at
+		# compile time rather than looking for a file at runtime.
+		if(BuildSPRdVulkan AND JKX_MONOLITH)
+			target_link_libraries(${SPEngine} ${SPRDVulkanRenderer})
+			target_compile_definitions(${SPEngine} PRIVATE JKX_MONOLITH_RENDERER=1)
+		endif()
 	endif(BuildSPEngine)
 	if(BuildJK2SPEngine)
 		set(SPEngineDefines ${SPEngineDefines} "JK2_MODE")

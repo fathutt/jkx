@@ -1735,7 +1735,7 @@ typedef struct trGlobals_s {
 	qboolean				registered;			// cleared at shutdown, set at beginRegistration
 	qboolean				inited;				// cleared at shutdown, set at vk_create_window
 
-	window_t				window;
+	window_t	vidWindow;
 
 	int						visCount;			// incremented every time a new vis cluster is entered
 	int						frameCount;			// incremented every frame
@@ -1907,7 +1907,7 @@ extern trGlobals_t		tr;
 extern glconfig_t		glConfig;		// outside of TR since it shouldn't be cleared during ref re-init
 extern glconfigExt_t	glConfigExt;
 extern glstate_t		glState;		// outside of TR since it shouldn't be cleared during ref re-init
-extern window_t			window;
+extern window_t	vidWindow;
 extern glRefConfig_t	glRefConfig;
 
 // Vulkan

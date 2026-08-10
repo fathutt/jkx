@@ -215,7 +215,25 @@ if(NOT JKX_SHADER_GENERATED_DIR)
 endif()
 list(APPEND SPRDVulkanIncludeDirectories "${JKX_SHADER_GENERATED_DIR}")
 
-add_library(${SPRDVulkanRenderer} SHARED ${SPRDVulkanFiles})
+# Phase 2.2: one binary. The renderer is a static library linked into the engine
+# rather than a module loaded at runtime, which removes the whole class of defect
+# that lives on a DLL boundary - two heaps, two copies of a struct layout, and an
+# unload path that has to put everything back exactly as it found it.
+#
+# JKX_MONOLITH is an option and not a hard-coded choice only because rd-vanilla
+# is still around as a reference this phase, and comparing the two renderers at
+# runtime needs a loadable module. It goes when rd-vanilla does.
+option(JKX_MONOLITH "Link the Vulkan renderer into the engine instead of loading it" ON)
+
+if(JKX_MONOLITH)
+	add_library(${SPRDVulkanRenderer} STATIC ${SPRDVulkanFiles})
+	# The renderer has to know too: inside the engine it must stop defining the
+	# engine's own symbols, which it could only get away with behind a module
+	# boundary.
+	list(APPEND SPRDVulkanDefines "JKX_MONOLITH_RENDERER=1")
+else()
+	add_library(${SPRDVulkanRenderer} SHARED ${SPRDVulkanFiles})
+endif()
 
 if(NOT MSVC)
 	# remove "lib" prefix for .so/.dylib files
@@ -242,7 +260,13 @@ endif()
 
 target_compile_features(${SPRDVulkanRenderer} PRIVATE cxx_std_20)
 target_link_libraries(${SPRDVulkanRenderer} ${SPRDVulkanLibraries} Vulkan::Headers)
-jkx_no_undefined_symbols(${SPRDVulkanRenderer})
+
+# --no-undefined only means anything for something that links: a static library
+# is an archive and has nothing to resolve against. Inside the engine the same
+# check happens when the engine links.
+if(NOT JKX_MONOLITH)
+	jkx_no_undefined_symbols(${SPRDVulkanRenderer})
+endif()
 
 if(WIN32)
 	# vk_crash.cpp walks the stack and resolves the frames through dbghelp. It
@@ -265,13 +289,21 @@ if(MSVC)
 	# and the difference between a build a compiler cache can reuse and one it
 	# cannot.
 	target_compile_options(${SPRDVulkanRenderer} PRIVATE /Z7)
-	target_link_options(${SPRDVulkanRenderer} PRIVATE /DEBUG /OPT:REF /OPT:ICF)
+	# An archive is not linked, so link options on it do nothing. Inside the
+	# engine the engine's own link options apply, and /Z7 above means the symbols
+	# are in the objects and travel into it.
+	if(NOT JKX_MONOLITH)
+		target_link_options(${SPRDVulkanRenderer} PRIVATE /DEBUG /OPT:REF /OPT:ICF)
+	endif()
 endif()
 
-if(WIN32)
-	install(TARGETS ${SPRDVulkanRenderer}
-		RUNTIME DESTINATION ${JKAInstallDir} COMPONENT ${JKASPClientComponent})
-else()
-	install(TARGETS ${SPRDVulkanRenderer}
-		LIBRARY DESTINATION ${JKAInstallDir} COMPONENT ${JKASPClientComponent})
+# Nothing to install when it is inside the engine.
+if(NOT JKX_MONOLITH)
+	if(WIN32)
+		install(TARGETS ${SPRDVulkanRenderer}
+			RUNTIME DESTINATION ${JKAInstallDir} COMPONENT ${JKASPClientComponent})
+	else()
+		install(TARGETS ${SPRDVulkanRenderer}
+			LIBRARY DESTINATION ${JKAInstallDir} COMPONENT ${JKASPClientComponent})
+	endif()
 endif()

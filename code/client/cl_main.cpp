@@ -1081,35 +1081,61 @@ static CMiniHeap *GetG2VertSpaceServer( void ) {
 #define DEFAULT_RENDER_LIBRARY	"rdsp-vanilla"
 #endif
 
+#if defined(JKX_MONOLITH_RENDERER)
+// The renderer this build has inside it. Named so that cl_renderer keeps meaning
+// what it always meant, and so that asking for the built-in one by name is the
+// same thing as asking for nothing.
+#define BUILTIN_RENDERER_NAME	"rdsp-vulkan"
+
+extern "C" refexport_t *GetRefAPI( int apiVersion, refimport_t *rimp );
+#endif
+
 void CL_InitRef( void ) {
 	refexport_t	*ret;
 	static refimport_t rit;
 	char		dllName[MAX_OSPATH];
-	GetRefAPI_t	GetRefAPI;
+	GetRefAPI_t	getRefAPI = NULL;
 
 	Com_Printf( "----- Initializing Renderer ----\n" );
-    cl_renderer = Cvar_Get( "cl_renderer", DEFAULT_RENDER_LIBRARY, CVAR_ARCHIVE|CVAR_LATCH );
+#if defined(JKX_MONOLITH_RENDERER)
+	cl_renderer = Cvar_Get( "cl_renderer", BUILTIN_RENDERER_NAME, CVAR_ARCHIVE|CVAR_LATCH );
+#else
+	cl_renderer = Cvar_Get( "cl_renderer", DEFAULT_RENDER_LIBRARY, CVAR_ARCHIVE|CVAR_LATCH );
+#endif
 
-	Com_sprintf( dllName, sizeof( dllName ), "%s_" ARCH_STRING DLL_EXT, cl_renderer->string );
-
-	if( !(rendererLib = Sys_LoadDll( dllName, qfalse )) && strcmp( cl_renderer->string, cl_renderer->resetString ) )
-	{
-		Com_Printf( "failed: trying to load fallback renderer\n" );
-		Cvar_ForceReset( "cl_renderer" );
-
-		Com_sprintf( dllName, sizeof( dllName ), DEFAULT_RENDER_LIBRARY "_" ARCH_STRING DLL_EXT );
-		rendererLib = Sys_LoadDll( dllName, qfalse );
+#if defined(JKX_MONOLITH_RENDERER)
+	// The renderer is linked in. No file to find, no symbol to look up, no
+	// second heap, and no unload path that has to put the world back exactly as
+	// it found it. Any other name still goes through the loader, because
+	// rd-vanilla is still here to compare against this phase.
+	if ( !Q_stricmp( cl_renderer->string, BUILTIN_RENDERER_NAME ) ) {
+		Com_Printf( "renderer: %s, built in\n", BUILTIN_RENDERER_NAME );
+		getRefAPI = GetRefAPI;
 	}
+#endif
 
-	if ( !rendererLib ) {
-		Com_Error( ERR_FATAL, "Failed to load renderer\n" );
+	if ( !getRefAPI ) {
+		Com_sprintf( dllName, sizeof( dllName ), "%s_" ARCH_STRING DLL_EXT, cl_renderer->string );
+
+		if( !(rendererLib = Sys_LoadDll( dllName, qfalse )) && strcmp( cl_renderer->string, cl_renderer->resetString ) )
+		{
+			Com_Printf( "failed: trying to load fallback renderer\n" );
+			Cvar_ForceReset( "cl_renderer" );
+
+			Com_sprintf( dllName, sizeof( dllName ), DEFAULT_RENDER_LIBRARY "_" ARCH_STRING DLL_EXT );
+			rendererLib = Sys_LoadDll( dllName, qfalse );
+		}
+
+		if ( !rendererLib ) {
+			Com_Error( ERR_FATAL, "Failed to load renderer\n" );
+		}
+
+		getRefAPI = (GetRefAPI_t)Sys_LoadFunction( rendererLib, "GetRefAPI" );
+		if ( !getRefAPI )
+			Com_Error( ERR_FATAL, "Can't load symbol GetRefAPI: '%s'", Sys_LibraryError() );
 	}
 
 	memset( &rit, 0, sizeof( rit ) );
-
-	GetRefAPI = (GetRefAPI_t)Sys_LoadFunction( rendererLib, "GetRefAPI" );
-	if ( !GetRefAPI )
-		Com_Error( ERR_FATAL, "Can't load symbol GetRefAPI: '%s'", Sys_LibraryError() );
 
 #define RIT(y)	rit.y = y
 	RIT(CIN_PlayCinematic);
@@ -1194,7 +1220,7 @@ void CL_InitRef( void ) {
 
 	rit.saved_game = &ojk::SavedGame::get_instance();
 
-	ret = GetRefAPI( REF_API_VERSION, &rit );
+	ret = getRefAPI( REF_API_VERSION, &rit );
 
 	if ( !ret ) {
 		Com_Error (ERR_FATAL, "Couldn't initialize refresh" );
