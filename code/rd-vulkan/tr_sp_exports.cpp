@@ -20,9 +20,8 @@ Foundation.
 //
 // NOT PORTED YET. Single-player has the entry point and this renderer does not
 // implement it at all, because it grew up as a multiplayer renderer and these
-// are features multiplayer does not have: the screen dissolve, the goggles
-// overlay, the heat-haze distortion. They are stubs that warn once and return
-// something harmless.
+// are features multiplayer does not have: the goggles overlay and the heat-haze
+// distortion. They are stubs that warn once and return something harmless.
 //
 // A stub is not a port. The point of putting them all in one file, each with
 // the same shape, is that the list is countable: `grep -c JKX_UNPORTED` here is
@@ -40,6 +39,7 @@ Foundation.
 // Defined in tr_init.cpp beside the rest of the level-load hooks, and not in a
 // header on either side.
 extern void		C_LevelLoadBegin( const char *psMapName, ForceReload_e eForceReload );
+extern void		C_SetAllowScreenDissolve( qboolean allow );
 
 // The weather system's own header declares only the part multiplayer uses.
 extern bool		R_GetWindGusting( void );
@@ -63,12 +63,12 @@ extern bool		R_IsShaking( void );
 // Adapters
 // ---------------------------------------------------------------------------
 
-// Multiplayer dropped the screen dissolve, so its level-load hook has nothing
-// to say about one. The flag is dropped here rather than silently ignored
-// somewhere deeper; it starts being used again when the dissolve is ported.
+// Multiplayer's level-load hook has no screen wipe to say anything about, so it
+// takes one argument fewer. The flag is handed to the renderer separately and
+// read at the end of the load, which is where the wipe starts.
 void RE_SP_RegisterMedia_LevelLoadBegin( const char *psMapName, ForceReload_e eForceReload, qboolean bAllowScreenDissolve )
 {
-	(void)bAllowScreenDissolve;
+	C_SetAllowScreenDissolve( bAllowScreenDissolve );
 	C_LevelLoadBegin( psMapName, eForceReload );
 }
 
@@ -122,21 +122,6 @@ bool RE_SP_IsShaking( vec3_t pos )
 void RE_LAGoggles( void )
 {
 	JKX_UNPORTED( "LAGoggles" );
-}
-
-qboolean RE_InitDissolve( qboolean bForceCircularExtroWipe )
-{
-	JKX_UNPORTED( "InitDissolve" );
-	(void)bForceCircularExtroWipe;
-	return qfalse;
-}
-
-// qfalse means "the dissolve is finished", which is what the caller does with a
-// dissolve that never started.
-qboolean RE_ProcessDissolve( void )
-{
-	JKX_UNPORTED( "ProcessDissolve" );
-	return qfalse;
 }
 
 // The distortion cvars the client reads straight out of the renderer. Static

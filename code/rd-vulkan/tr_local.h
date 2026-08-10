@@ -2658,6 +2658,13 @@ typedef struct rotatePicCommand_s {
 	float		a;
 } rotatePicCommand_t;
 
+// Single-player only: one frame of the screen wipe. The percentage is worked out
+// on the front end so the back end does not have to know about the clock.
+typedef struct dissolveCommand_s {
+	int			commandId;
+	int			percentage;
+} dissolveCommand_t;
+
 // Single-player only. Coordinates are the 640x480 virtual screen, like every
 // other 2D coordinate the client hands the renderer; a negative x means "the
 // whole screen again".
@@ -2686,6 +2693,7 @@ typedef enum {
 	RC_SET_COLOR,
 	RC_STRETCH_PIC,
 	RC_SCISSOR,
+	RC_DISSOLVE,
 	RC_ROTATE_PIC,
 	RC_ROTATE_PIC2,
 	RC_DRAW_SURFS,
@@ -2817,6 +2825,12 @@ void RE_SetColor( const float *rgba );
 void RE_StretchPic( float x, float y, float w, float h,
 					  float s1, float t1, float s2, float t2, qhandle_t hShader );
 void RE_Scissor( float x, float y, float w, float h );
+
+// The single-player screen wipe, in tr_dissolve.cpp.
+qboolean RE_InitDissolve( qboolean bForceCircularExtroWipe );
+qboolean RE_ProcessDissolve( void );
+void R_DissolveShutdown( void );
+const void *RB_Dissolve( const void *data );
 void RE_RotatePic( float x, float y, float w, float h,
 					  float s1, float t1, float s2, float t2,float a, qhandle_t hShader );
 void RE_RotatePic2( float x, float y, float w, float h,

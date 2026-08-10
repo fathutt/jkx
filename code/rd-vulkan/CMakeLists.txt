@@ -72,6 +72,7 @@ set(SPRDVulkanFiles
 	"${SPDir}/rd-vulkan/tr_cmds.cpp"
 	"${SPDir}/rd-vulkan/tr_curve.cpp"
 	"${SPDir}/rd-vulkan/tr_decals.cpp"
+	"${SPDir}/rd-vulkan/tr_dissolve.cpp"
 	"${SPDir}/rd-vulkan/tr_ghoul2.cpp"
 	"${SPDir}/rd-vulkan/tr_image.cpp"
 	"${SPDir}/rd-vulkan/tr_init.cpp"

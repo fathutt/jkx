@@ -1219,6 +1219,10 @@ void RE_Shutdown( qboolean destroyWindow, qboolean restarting ) {
 	R_ShutdownWorldEffects();
 	R_ShutdownFonts();
 
+	// The wipe holds pointers to images and pipelines, both of which are about
+	// to stop existing.
+	R_DissolveShutdown();
+
 	// contains vulkan resources/state, reinitialized on a map change.
 	//if (tr.registered) {
 
@@ -1347,10 +1351,28 @@ int C_GetLevel( void )
 	return tr.currentLevel;
 }
 
+// Whether the load that is finishing may close with a screen wipe. It arrives at
+// the start of the load and is wanted at the end of it, which is the only reason
+// it is a variable rather than an argument.
+static qboolean	gbAllowScreenDissolve = qtrue;
+
+void C_SetAllowScreenDissolve( qboolean allow )
+{
+	gbAllowScreenDissolve = allow;
+}
+
 void C_LevelLoadEnd( void )
 {
 	CModelCache->LevelLoadEnd( qfalse );
 	ri.SND_RegisterAudio_LevelLoadEnd( qfalse );
+
+	// Before the music restarts, not after: starting the wipe is cheap, loading
+	// the music is not, and the wipe's own clock does not start until the first
+	// frame that draws it.
+	if ( gbAllowScreenDissolve ) {
+		RE_InitDissolve( qfalse );
+	}
+
 	ri.S_RestartMusic();
 }
 

@@ -1517,6 +1517,9 @@ void RB_ExecuteRenderCommands( const void *data ) {
 		case RC_SCISSOR:
 			data = RB_Scissor( data );
 			break;
+		case RC_DISSOLVE:
+			data = RB_Dissolve( data );
+			break;
 		case RC_ROTATE_PIC:
 			data = RB_RotatePic( data );
 			break;

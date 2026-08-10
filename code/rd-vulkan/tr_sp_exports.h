@@ -28,8 +28,6 @@ bool			RE_SP_IsShaking( vec3_t pos );
 
 // Not ported yet
 void			RE_LAGoggles( void );
-qboolean		RE_InitDissolve( qboolean bForceCircularExtroWipe );
-qboolean		RE_ProcessDissolve( void );
 float *			get_tr_distortionAlpha( void );
 float *			get_tr_distortionStretch( void );
 qboolean *		get_tr_distortionPrePost( void );

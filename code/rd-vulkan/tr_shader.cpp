@@ -5054,6 +5054,12 @@ static void FixRenderCommandList( int newShader ) {
 				curCmd = (const void*)(sc_cmd + 1);
 				break;
 			}
+			case RC_DISSOLVE:
+			{
+				const dissolveCommand_t* dv_cmd = (const dissolveCommand_t*)curCmd;
+				curCmd = (const void*)(dv_cmd + 1);
+				break;
+			}
 			case RC_ROTATE_PIC:
 			{
 				const rotatePicCommand_t* sp_cmd = (const rotatePicCommand_t*)curCmd;
