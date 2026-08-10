@@ -1539,10 +1539,13 @@ Q_EXPORT refexport_t* QDECL GetRefAPI( int apiVersion, refimport_t *rimp ) {
 	// for use with save-games mainly...
 	re.GetScreenShot                          = RE_GetScreenShot;
 
-#ifdef JK2_MODE
+	// Filled for both games. The entries are declared unconditionally, the
+	// functions are compiled unconditionally, and only Jedi Outcast's save code
+	// calls them - so the #ifdef that used to be here bought a pair of null
+	// pointers in one build and nothing else. It was the only place in this
+	// renderer that knew which game it was drawing.
 	re.SaveJPGToBuffer                        = RE_SaveJPGToBuffer;
-	re.LoadJPGFromBuffer                      = RE_LoadJPGFromBuffer;
-#endif
+	re.LoadJPGFromBuffer                      = LoadJPGFromBuffer;
 
 	// this is so you can get access to raw pixels from a graphics format (TGA/JPG/BMP etc),
 	//	currently only the save game uses it (to make raw shots for the autosaves)

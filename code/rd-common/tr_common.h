@@ -68,10 +68,9 @@ void LoadJPG( const char *filename, byte **pic, int *width, int *height );
 // Load raw image data from PNG image.
 void LoadPNG( const char *filename, byte **data, int *width, int *height );
 
-#ifdef JK2_MODE
-//Load raw image data from JPEG input.
+// Load raw image data from JPEG input. Compiled for both games - the definition
+// never was conditional - and now declared for both too.
 void LoadJPGFromBuffer( byte *inputBuffer, size_t len, byte **pic, int *width, int *height );
-#endif
 
 /*
 ================================================================================

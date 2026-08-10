@@ -226,7 +226,9 @@ void LoadJPG( const char *filename, unsigned char **pic, int *width, int *height
 	/* And we're done! */
 }
 
-#ifdef JK2_MODE
+// Compiled for both games. Only Jedi Outcast's save code calls it, and building
+// it in one game and not the other made the renderer interface a different shape
+// per game - which is how two builds of one engine become two engines.
 void LoadJPGFromBuffer( byte *inputBuffer, size_t len, unsigned char **pic, int *width, int *height ) {
 	/* This struct contains the JPEG decompression parameters and pointers to
 	 * working space (which is allocated as needed by the JPEG library).
@@ -376,7 +378,6 @@ void LoadJPGFromBuffer( byte *inputBuffer, size_t len, unsigned char **pic, int 
 
 	/* And we're done! */
 }
-#endif
 
 /* Expanded data destination object for stdio output */
 

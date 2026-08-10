@@ -218,10 +218,12 @@ typedef struct {
 	// for use with save-games mainly...
 	void	(*GetScreenShot)(byte *data, int w, int h);
 
-#ifdef JK2_MODE
+	// Present for both games. Only Jedi Outcast's save code calls them, but the
+	// shape of the interface between the engine and the renderer has no business
+	// depending on which game is being built: that is what makes two builds into
+	// two engines. Sixteen bytes.
 	size_t	(*SaveJPGToBuffer)(byte *buffer, size_t bufSize, int quality, int image_width, int image_height, byte *image_buffer, int padding, bool flip_vertical );
 	void	(*LoadJPGFromBuffer)( byte *inputBuffer, size_t len, byte **pic, int *width, int *height );
-#endif
 
 	// this is so you can get access to raw pixels from a graphics format (TGA/JPG/BMP etc),
 	//	currently only the save game uses it (to make raw shots for the autosaves)
