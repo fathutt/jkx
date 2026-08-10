@@ -574,6 +574,20 @@ void UI_SaberDrawBlade( itemDef_t *item, char *saberName, int saberModel, saberT
 		bolt = DC->g2_AddBolt( &item->ghoul2[saberModel], "*flash" );
 		if ( bolt == -1 )
 		{//no tag_flash either?!!
+			// Bolt 0 is the root bone, not an emitter. The blade then comes out
+			// of the middle of the hilt, along whichever way the model itself
+			// points - which is what a blade at ninety degrees to its own hilt
+			// looks like. That was worth saying out loud: the fallback used to
+			// be silent, so the symptom arrived with no cause attached.
+			static char lastComplaint[MAX_QPATH] = { 0 };
+
+			if ( Q_stricmp( lastComplaint, saberName ) )
+			{
+				Q_strncpyz( lastComplaint, saberName, sizeof( lastComplaint ) );
+				ui.Printf( S_COLOR_YELLOW "saber %s: neither %s nor *flash is a bolt on model %d, "
+					"so the blade is drawn from the root bone and will not line up with the hilt\n",
+					saberName, tagName, saberModel );
+			}
 			bolt = 0;
 		}
 	}
