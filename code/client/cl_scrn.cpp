@@ -429,7 +429,14 @@ void SCR_DrawScreenField( stereoFrame_t stereoFrame ) {
 
 	// Bars first, so the interface draws over them and the scene, when there is
 	// one, is not covered by them.
-	if ( uiFullscreen || cls.state < CA_ACTIVE ) {
+	//
+	// CA_CINEMATIC is tested by name rather than by being less than CA_ACTIVE,
+	// because it is the last value in connstate_t and therefore greater than
+	// it. A video is a picture in the fitted frame like any menu, so without
+	// this the margins beside it were never filled - and what showed through
+	// was the renderer's clear colour, which is 0.75 grey. Grey bars beside
+	// every video, from a comparison that reads as though it covers this case.
+	if ( uiFullscreen || cls.state < CA_ACTIVE || cls.state == CA_CINEMATIC ) {
 		SCR_FillFrameMargins();
 	}
 
