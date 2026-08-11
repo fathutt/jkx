@@ -776,7 +776,13 @@ int G2API_InitGhoul2Model(CGhoul2Info_v &ghoul2, const char *fileName, int model
 		ghoul2.push_back(CGhoul2Info());
 	}
 
-	strcpy(ghoul2[model].mFileName, fileName);
+	// Bounded. mFileName is MAX_QPATH and the caller builds the string from a
+	// model directory name - g_client.cpp:1774 pastes it into
+	// "models/players/%s/model.glm", so a name over 38 characters used to run
+	// off the end of the field and into the rest of the CGhoul2Info.
+	// Single-player upstream uses Q_strncpyz here; multiplayer's strcpy is what
+	// came across.
+	Q_strncpyz(ghoul2[model].mFileName, fileName, sizeof(ghoul2[model].mFileName));
 	ghoul2[model].mModelindex = model;
 	if (!G2_TestModelPointers(&ghoul2[model]))
 	{
@@ -1047,7 +1053,16 @@ qboolean G2API_SetBoneAnimIndex(CGhoul2Info *ghlInfo, const int index, const int
 	{
 		// ensure we flush the cache
 		ghlInfo->mSkelFrameNum = 0;
- 		return G2_Set_Bone_Anim_Index(ghlInfo->mBlist, index, startFrame, endFrame, flags, animSpeed, currentTime, setFrame, blendTime, ghlInfo->aHeader->numFrames);
+		// Through G2API_GetTime, which is not a formality: it ignores its
+		// argument and answers with the engine's own Ghoul2 clock. Every
+		// reader of these stamps - the bone cache in tr_ghoul2.cpp,
+		// G2API_GetBoneAnim, G2API_GetBoltMatrix - asks the same way, so a
+		// write that skips it stores a stamp in whichever clock the caller
+		// happened to hold. Single-player's gamecode holds three: level.time
+		// on the server, cg.time in cgame, and uiInfo.uiDC.realTime in the
+		// menus. Multiplayer's version of this line passes the argument
+		// straight through; single-player's does not.
+ 		return G2_Set_Bone_Anim_Index(ghlInfo->mBlist, index, startFrame, endFrame, flags, animSpeed, G2API_GetTime(currentTime), setFrame, blendTime, ghlInfo->aHeader->numFrames);
 	}
 	return qfalse;
 }
@@ -1102,7 +1117,16 @@ qboolean G2API_SetBoneAnim(CGhoul2Info *ghlInfo, const char *boneName, const int
 
 		// ensure we flush the cache
 		ghlInfo->mSkelFrameNum = 0;
-		return G2_Set_Bone_Anim(ghlInfo, ghlInfo->mBlist, boneName, startFrame, endFrame, flags, animSpeed, currentTime, setFrame, blendTime);
+		// Through G2API_GetTime, which is not a formality: it ignores its
+		// argument and answers with the engine's own Ghoul2 clock. Every
+		// reader of these stamps - the bone cache in tr_ghoul2.cpp,
+		// G2API_GetBoneAnim, G2API_GetBoltMatrix - asks the same way, so a
+		// write that skips it stores a stamp in whichever clock the caller
+		// happened to hold. Single-player's gamecode holds three: level.time
+		// on the server, cg.time in cgame, and uiInfo.uiDC.realTime in the
+		// menus. Multiplayer's version of this line passes the argument
+		// straight through; single-player's does not.
+		return G2_Set_Bone_Anim(ghlInfo, ghlInfo->mBlist, boneName, startFrame, endFrame, flags, animSpeed, G2API_GetTime(currentTime), setFrame, blendTime);
 	}
 	return qfalse;
 }
@@ -1197,7 +1221,16 @@ qboolean G2API_PauseBoneAnim(CGhoul2Info *ghlInfo, const char *boneName, const i
 {
 	if (G2_SetupModelPointers(ghlInfo))
 	{
- 		return G2_Pause_Bone_Anim(ghlInfo, ghlInfo->mBlist, boneName, currentTime);
+		// Through G2API_GetTime, which is not a formality: it ignores its
+		// argument and answers with the engine's own Ghoul2 clock. Every
+		// reader of these stamps - the bone cache in tr_ghoul2.cpp,
+		// G2API_GetBoneAnim, G2API_GetBoltMatrix - asks the same way, so a
+		// write that skips it stores a stamp in whichever clock the caller
+		// happened to hold. Single-player's gamecode holds three: level.time
+		// on the server, cg.time in cgame, and uiInfo.uiDC.realTime in the
+		// menus. Multiplayer's version of this line passes the argument
+		// straight through; single-player's does not.
+ 		return G2_Pause_Bone_Anim(ghlInfo, ghlInfo->mBlist, boneName, G2API_GetTime(currentTime));
 	}
 	return qfalse;
 }
@@ -1261,7 +1294,16 @@ qboolean G2API_SetBoneAnglesIndex(CGhoul2Info *ghlInfo, const int index, const v
 	{
 		// ensure we flush the cache
 		ghlInfo->mSkelFrameNum = 0;
-		return G2_Set_Bone_Angles_Index( ghlInfo->animModel, ghlInfo->mBlist, index, angles, flags, yaw, pitch, roll, modelList, ghlInfo->mModelindex, blendTime, currentTime);
+		// Through G2API_GetTime, which is not a formality: it ignores its
+		// argument and answers with the engine's own Ghoul2 clock. Every
+		// reader of these stamps - the bone cache in tr_ghoul2.cpp,
+		// G2API_GetBoneAnim, G2API_GetBoltMatrix - asks the same way, so a
+		// write that skips it stores a stamp in whichever clock the caller
+		// happened to hold. Single-player's gamecode holds three: level.time
+		// on the server, cg.time in cgame, and uiInfo.uiDC.realTime in the
+		// menus. Multiplayer's version of this line passes the argument
+		// straight through; single-player's does not.
+		return G2_Set_Bone_Angles_Index( ghlInfo->animModel, ghlInfo->mBlist, index, angles, flags, yaw, pitch, roll, modelList, ghlInfo->mModelindex, blendTime, G2API_GetTime(currentTime));
 	}
 	return qfalse;
 }
@@ -1281,7 +1323,16 @@ qboolean G2API_SetBoneAngles(CGhoul2Info *ghlInfo, const char *boneName, const v
 
 		// ensure we flush the cache
 		ghlInfo->mSkelFrameNum = 0;
-		return G2_Set_Bone_Angles(ghlInfo, ghlInfo->mBlist, boneName, angles, flags, up, left, forward, modelList, ghlInfo->mModelindex, blendTime, currentTime);
+		// Through G2API_GetTime, which is not a formality: it ignores its
+		// argument and answers with the engine's own Ghoul2 clock. Every
+		// reader of these stamps - the bone cache in tr_ghoul2.cpp,
+		// G2API_GetBoneAnim, G2API_GetBoltMatrix - asks the same way, so a
+		// write that skips it stores a stamp in whichever clock the caller
+		// happened to hold. Single-player's gamecode holds three: level.time
+		// on the server, cg.time in cgame, and uiInfo.uiDC.realTime in the
+		// menus. Multiplayer's version of this line passes the argument
+		// straight through; single-player's does not.
+		return G2_Set_Bone_Angles(ghlInfo, ghlInfo->mBlist, boneName, angles, flags, up, left, forward, modelList, ghlInfo->mModelindex, blendTime, G2API_GetTime(currentTime));
 	}
 	return qfalse;
 }
@@ -1956,8 +2007,16 @@ void G2API_CollisionDetect(CollisionRecord_t *collRecMap, CGhoul2Info_v &ghoul2,
 	{
 		vec3_t	transRayStart, transRayEnd;
 
+		// The same clock the renderer poses the skeleton on, and for the same
+		// reason as everywhere else in this file: the caller here is
+		// SV_G2Trace on the server, holding sv.time, while what the player is
+		// looking at was posed at cl.serverTime. Tracing a shot against a pose
+		// the player never saw is a miss they cannot explain. Multiplayer
+		// passes the argument through; single-player normalises it.
+		const int tframeNum = G2API_GetTime(frameNumber);
+
 		// make sure we have transformed the whole skeletons for each model
-		G2_ConstructGhoulSkeleton(ghoul2, frameNumber, true, scale);
+		G2_ConstructGhoulSkeleton(ghoul2, tframeNum, true, scale);
 
 		// pre generate the world matrix - used to transform the incoming ray
 		G2_GenerateWorldMatrix(angles, position);
@@ -1966,9 +2025,9 @@ void G2API_CollisionDetect(CollisionRecord_t *collRecMap, CGhoul2Info_v &ghoul2,
 
 		// now having done that, time to build the model
 #ifdef _G2_GORE
-		G2_TransformModel(ghoul2, frameNumber, scale, G2VertSpace, useLod, false);
+		G2_TransformModel(ghoul2, tframeNum, scale, G2VertSpace, useLod, false);
 #else
-		G2_TransformModel(ghoul2, frameNumber, scale, G2VertSpace, useLod);
+		G2_TransformModel(ghoul2, tframeNum, scale, G2VertSpace, useLod);
 #endif
 
 		// model is built. Lets check to see if any triangles are actually hit.
@@ -2064,7 +2123,12 @@ void G2API_GiveMeVectorFromMatrix(mdxaBone_t *boltMatrix, Eorientations flags, v
 
 void G2API_CopyGhoul2Instance(CGhoul2Info_v &g2From, CGhoul2Info_v &g2To, int modelIndex)
 {
-	assert(modelIndex==-1); // copy individual bolted parts is not used in jk2 and I didn't want to deal with it
+	// Was assert(modelIndex==-1) - "copy individual bolted parts is not used in
+	// jk2 and I didn't want to deal with it". Single-player upstream commented
+	// it out, with the reason: modelIndex is unused in the body and single-player
+	// legitimately passes something else. It does - g_combat.cpp:2003 passes 0
+	// on every dismemberment - so a Debug build aborted the first time the
+	// player cut a limb off.
 							// if ya want it, we will add it back correctly
 
 	//G2ERROR(ghoul2From.IsValid(),"Invalid ghlInfo");
@@ -2175,24 +2239,20 @@ qboolean G2API_SetNewOrigin(CGhoul2Info *ghlInfo, const int boltIndex)
 {
 	if (G2_SetupModelPointers(ghlInfo))
 	{
-		if (boltIndex < 0)
+		// Range checked and ignored, not fatal. Multiplayer dropped the game
+		// here - "Bad boltindex (%i) trying to SetNewOrigin (naughty naughty!)"
+		// - and did not check the upper bound at all. Single-player checks both
+		// and quietly declines, which is what its own caller needs:
+		// G_Dismember passes G2API_AddBolt(...) straight through, and that
+		// returns -1 for a model with no such bone, so every severed limb from
+		// a model missing its rotate bone used to end the game. The upper bound
+		// matters too - mNewOrigin is read back by G2_GetBoltMatrixLow, which
+		// only guards against an empty bolt list.
+		if (boltIndex >= 0 && boltIndex < (int)ghlInfo->mBltlist.size())
 		{
-            char modelName[MAX_QPATH];
-			if (ghlInfo->currentModel &&
-				R_GetModelName( ghlInfo->currentModel )[0])
-			{
-				strcpy(modelName, R_GetModelName( ghlInfo->currentModel ));
-			}
-			else
-			{
-				strcpy(modelName, "None?!");
-			}
-
-			Com_Error(ERR_DROP, "Bad boltindex (%i) trying to SetNewOrigin (naughty naughty!)\nModel %s\n", boltIndex, modelName);
+			ghlInfo->mNewOrigin = boltIndex;
+			ghlInfo->mFlags |= GHOUL2_NEWORIGIN;
 		}
-
-		ghlInfo->mNewOrigin = boltIndex;
-		ghlInfo->mFlags |= GHOUL2_NEWORIGIN;
 		return qtrue;
 	}
 	return qfalse;
@@ -2326,7 +2386,15 @@ qboolean G2_TestModelPointers(CGhoul2Info *ghlInfo) // returns true if the model
 					}
 				}
 				ghlInfo->currentModelSize=mdxm->ofsEnd;
-				ghlInfo->animModel = R_GetModelByHandle(mdxm->animIndex);
+				// Plus the offset, which is how single-player switches a
+				// character onto a cinematic skeleton: G2API_SetAnimIndex
+				// stores it, cg_players.cpp reads it back as "this is a
+				// cinematic anim", and bg_panimate.cpp sets it from the
+				// animation table. Multiplayer has no such feature and its
+				// version of this line has no offset in it, so with the
+				// multiplayer body transplanted here the offset was stored,
+				// read, and never applied to anything.
+				ghlInfo->animModel = R_GetModelByHandle(mdxm->animIndex + ghlInfo->animModelIndexOffset);
 				if (ghlInfo->animModel)
 				{
 					ghlInfo->aHeader = R_GetGhoul2AnimHeader( ghlInfo->animModel );
@@ -2424,7 +2492,15 @@ bool G2_SetupModelPointers(CGhoul2Info *ghlInfo) // returns true if the model is
 				ghlInfo->currentModelSize=mdxm->ofsEnd;
 				G2ERROR(ghlInfo->currentModelSize,va("Zero sized Model? (glm) %s",ghlInfo->mFileName));
 
-				ghlInfo->animModel = R_GetModelByHandle(mdxm->animIndex);
+				// Plus the offset, which is how single-player switches a
+				// character onto a cinematic skeleton: G2API_SetAnimIndex
+				// stores it, cg_players.cpp reads it back as "this is a
+				// cinematic anim", and bg_panimate.cpp sets it from the
+				// animation table. Multiplayer has no such feature and its
+				// version of this line has no offset in it, so with the
+				// multiplayer body transplanted here the offset was stored,
+				// read, and never applied to anything.
+				ghlInfo->animModel = R_GetModelByHandle(mdxm->animIndex + ghlInfo->animModelIndexOffset);
 				G2ERROR(ghlInfo->animModel,va("NULL Model (gla) %s",ghlInfo->mFileName));
 				if (ghlInfo->animModel)
 				{
