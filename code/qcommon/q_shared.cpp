@@ -125,43 +125,66 @@ PARSING
 
 static	char	com_token[MAX_TOKEN_CHARS];
 //JLFCALLOUT MPNOTUSED
-int parseDataCount = -1;
+int parseDataCount = 0;   // slot 0 is the floor; see COM_ParseInit
 const int MAX_PARSE_DATA = 5;
 parseData_t parseData[MAX_PARSE_DATA];
+
+// The session stack has a floor, and slot zero is always on it.
+//
+// It used to start empty, at -1, and every parser was then obliged to open a
+// session before touching COM_ParseExt. Dozens do not - they parse whatever
+// buffer they were handed and rely on whichever session someone else left open.
+// That worked only because four functions never closed theirs, so there was
+// always one lying around; and it stopped working the moment a map load opened
+// a fifth, because five is all there are.
+//
+// Both halves of that are fixed by giving the stack a permanent bottom entry.
+// A parser with no session of its own lands on slot zero - its line numbers are
+// meaningless, which was already true - and one that opens a session nests
+// above it and can close it without leaving anyone parsing on nothing. That is
+// what makes closing the four leaks safe, which is what the rest of this change
+// then does.
+static void COM_ResetParseSlot( int slot )
+{
+	parseData[slot].com_lines = 1;
+	parseData[slot].com_tokenline = 0;
+	parseData[slot].fileName[0] = '\0';
+
+	// Cleared so a nested session cannot inherit the buffer of the one below
+	// it. PC_ParseExt reads these, and a stale pointer here would be a parse
+	// of freed memory rather than an error.
+	parseData[slot].bufferStart = NULL;
+	parseData[slot].bufferCurrent = NULL;
+}
 
 void COM_ParseInit( void )
 {
 	memset(parseData, 0, sizeof(parseData));
-	parseDataCount = -1;
+	parseDataCount = 0;
+	COM_ResetParseSlot( 0 );
 }
 
 void COM_BeginParseSession( void )
 {
-	parseDataCount++;
-
-	// Not under _DEBUG. The two lines below index parseData with this, so
-	// running past the end is a write outside the array - which a release build
-	// did silently while a debug build stopped with a message. The condition
-	// that gets you here is four sessions left open by callers that return
-	// without ending them, and it is a map load, not an exotic case.
-	if ( parseDataCount >= MAX_PARSE_DATA )
+	// Not under _DEBUG. The line below indexes parseData with this, so running
+	// past the end is a write outside the array - which a release build did
+	// silently while a debug build stopped with a message.
+	if ( parseDataCount + 1 >= MAX_PARSE_DATA )
 	{
 		Com_Error (ERR_FATAL, "COM_BeginParseSession: cannot nest more than %d parsing sessions.\n", MAX_PARSE_DATA);
 		return;
 	}
 
-	parseData[parseDataCount].com_lines = 1;
-	parseData[parseDataCount].com_tokenline = 0;
+	parseDataCount++;
+	COM_ResetParseSlot( parseDataCount );
 }
 
 void COM_EndParseSession( void )
 {
-	// Clamped, not just asserted. -1 is the empty state; below it the next
-	// COM_BeginParseSession writes to parseData[0] again, which is harmless, but
-	// COM_GetCurrentParseLine and COM_ParseExt both index with this and both
-	// treat a negative as fatal. A stray end should not be able to take the
-	// engine down two parses later.
-	if ( parseDataCount >= 0 )
+	// Never pops the floor. A caller that ends a session it did not start is a
+	// bug, but the consequence used to be that the next parse anywhere in the
+	// engine was fatal - which is a long way from where the mistake was made.
+	if ( parseDataCount > 0 )
 	{
 		parseDataCount--;
 	}
@@ -178,8 +201,10 @@ void COM_EndParseSession( void )
 // only surfaced when the renderer did.
 int COM_GetCurrentParseLine( void )
 {
+	// Cannot happen: slot zero is the floor of the stack and COM_EndParseSession
+	// will not pop it. Kept as the assertion it now is.
 	if(parseDataCount < 0)
-		Com_Error(ERR_FATAL, "COM_GetCurrentParseLine: parseDataCount < 0 (be sure to call COM_BeginParseSession!)");
+		Com_Error(ERR_FATAL, "COM_GetCurrentParseLine: the parse session stack went below its floor");
 
 	if ( parseData[parseDataCount].com_tokenline )
 		return parseData[parseDataCount].com_tokenline;
@@ -209,7 +234,7 @@ const char *SkipWhitespace( const char *data, qboolean *hasNewLines )
 	int c;
 
 	if(parseDataCount < 0)
-		Com_Error(ERR_FATAL, "SkipWhitespace: parseDataCount < 0");
+		Com_Error(ERR_FATAL, "SkipWhitespace: the parse session stack went below its floor");
 
 	while( (c = *(const unsigned char* /*eurofix*/)data) <= ' ')
 	{
@@ -317,7 +342,7 @@ char *COM_ParseExt( const char **data_p, qboolean allowLineBreaks )
 	}
 
 	if(parseDataCount < 0)
-		Com_Error(ERR_FATAL, "COM_ParseExt: parseDataCount < 0 (be sure to call COM_BeginParseSession!)");
+		Com_Error(ERR_FATAL, "COM_ParseExt: the parse session stack went below its floor");
 
 	while ( 1 )
 	{
@@ -551,7 +576,7 @@ void SkipRestOfLine ( const char **data ) {
 	int		c;
 
 	if(parseDataCount < 0)
-		Com_Error(ERR_FATAL, "SkipRestOfLine: parseDataCount < 0");
+		Com_Error(ERR_FATAL, "SkipRestOfLine: the parse session stack went below its floor");
 
 	p = *data;
 

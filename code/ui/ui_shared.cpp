@@ -5914,10 +5914,16 @@ void PC_ParseWarning(const char *message)
 	ui.Printf(S_COLOR_YELLOW "WARNING: %s Line #%d of File '%s'\n", message,parseData[parseDataCount].com_lines,parseData[parseDataCount].fileName);
 }
 
+// These used to test parseDataCount < 0 to mean "PC_StartParseSession has not
+// run". The session stack has a floor now, so the counter is never negative and
+// that test says nothing. What they actually depend on is the buffer that
+// PC_StartParseSession puts in the slot, so that is what is checked - and
+// COM_BeginParseSession clears it on the way in, so a session opened by anyone
+// else cannot be mistaken for one of these.
 char *PC_ParseExt(void)
 {
-	if(parseDataCount < 0)
-		Com_Error(ERR_FATAL, "PC_ParseExt: parseDataCount < 0 (be sure to call PC_StartParseSession!)");
+	if(!parseData[parseDataCount].bufferCurrent)
+		Com_Error(ERR_FATAL, "PC_ParseExt: no buffer (be sure to call PC_StartParseSession!)");
 	return (COM_ParseExt(&parseData[parseDataCount].bufferCurrent, qtrue));
 }
 
@@ -5925,8 +5931,8 @@ qboolean PC_ParseString(const char **string)
 {
 	int	hold;
 
-	if(parseDataCount < 0)
-		Com_Error(ERR_FATAL, "PC_ParseString: parseDataCount < 0 (be sure to call PC_StartParseSession!)");
+	if(!parseData[parseDataCount].bufferCurrent)
+		Com_Error(ERR_FATAL, "PC_ParseString: no buffer (be sure to call PC_StartParseSession!)");
 
 	hold = COM_ParseString(&parseData[parseDataCount].bufferCurrent,string);
 
@@ -5940,24 +5946,24 @@ qboolean PC_ParseString(const char **string)
 
 qboolean PC_ParseInt(int *number)
 {
-	if(parseDataCount < 0)
-		Com_Error(ERR_FATAL, "PC_ParseInt: parseDataCount < 0 (be sure to call PC_StartParseSession!)");
+	if(!parseData[parseDataCount].bufferCurrent)
+		Com_Error(ERR_FATAL, "PC_ParseInt: no buffer (be sure to call PC_StartParseSession!)");
 
 	return(COM_ParseInt(&parseData[parseDataCount].bufferCurrent,number));
 }
 
 qboolean PC_ParseFloat(float *number)
 {
-	if(parseDataCount < 0)
-		Com_Error(ERR_FATAL, "PC_ParseFloat: parseDataCount < 0 (be sure to call PC_StartParseSession!)");
+	if(!parseData[parseDataCount].bufferCurrent)
+		Com_Error(ERR_FATAL, "PC_ParseFloat: no buffer (be sure to call PC_StartParseSession!)");
 
 	return(COM_ParseFloat(&parseData[parseDataCount].bufferCurrent,number));
 }
 
 qboolean PC_ParseColor(vec4_t *color)
 {
-	if(parseDataCount < 0)
-		Com_Error(ERR_FATAL, "PC_ParseColor: parseDataCount < 0 (be sure to call PC_StartParseSession!)");
+	if(!parseData[parseDataCount].bufferCurrent)
+		Com_Error(ERR_FATAL, "PC_ParseColor: no buffer (be sure to call PC_StartParseSession!)");
 
 	return(COM_ParseVec4(&parseData[parseDataCount].bufferCurrent, color));
 }

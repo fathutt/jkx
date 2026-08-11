@@ -3304,6 +3304,10 @@ static void ScanAndLoadShaderFiles( void )
 			}
 		}
 
+		// One session per shader file, none of them closed. Six .shader files in
+		// base was the whole budget - which no fixture here has and every retail
+		// install does.
+		COM_EndParseSession();
 
 		if (buffers[i])
 			sum += summand;

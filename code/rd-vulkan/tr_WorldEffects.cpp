@@ -1476,15 +1476,8 @@ qboolean WE_ParseVector( const char **text, int count, float *v ) {
 	return qtrue;
 }
 
-void RE_WorldEffectCommand(const char *command)
+static void RE_WorldEffectCommand_Actual(const char *command)
 {
-	if ( !command )
-	{
-		return;
-	}
-
-	COM_BeginParseSession ("RE_WorldEffectCommand");
-
 	const char	*token;//, *origCommand;
 
 	token = COM_ParseExt(&command, qfalse);
@@ -1865,6 +1858,21 @@ void RE_WorldEffectCommand(const char *command)
 		CL_RefPrintf( PRINT_ALL, "	outsideshake\n" );
 		CL_RefPrintf( PRINT_ALL, "	outsidepain\n" );
 	}
+}
+
+// A wrapper, because the function above leaves by twenty-odd different returns
+// and each one used to leak the session it opened. One of four callers that
+// never gave theirs back; five is all there are.
+void RE_WorldEffectCommand(const char *command)
+{
+	if ( !command )
+	{
+		return;
+	}
+
+	COM_BeginParseSession ("RE_WorldEffectCommand");
+	RE_WorldEffectCommand_Actual( command );
+	COM_EndParseSession();
 }
 
 

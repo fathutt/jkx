@@ -2698,6 +2698,7 @@ static void R_LoadEntities( const lump_t *l, world_t &worldData ) {
 
 	token = COM_ParseExt( &p, qtrue );
 	if (!*token || *token != '{') {
+		COM_EndParseSession();
 		return;
 	}
 
@@ -2768,6 +2769,10 @@ static void R_LoadEntities( const lump_t *l, world_t &worldData ) {
 	}
 	//both default to 1 so no harm if not present.
 	VectorScale( tr.sunAmbient, ambient, tr.sunAmbient);
+
+	// One of five slots, kept for the rest of the run, on every map load. Safe
+	// to give back now that the stack has a floor to fall to.
+	COM_EndParseSession();
 }
 
 /*

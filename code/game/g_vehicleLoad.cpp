@@ -341,6 +341,7 @@ static void G_VehicleStoreParms( const char *p )
 		token = COM_ParseExt( &p, qtrue );
 		if ( token[0] == 0 )
 		{//barf
+			COM_EndParseSession();
 			return;
 		}
 
@@ -377,6 +378,8 @@ static void G_VehicleStoreParms( const char *p )
 			}
 		}
 	}
+
+	COM_EndParseSession();
 }
 
 void G_VehicleLoadParms( void )
