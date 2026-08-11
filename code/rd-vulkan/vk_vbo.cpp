@@ -871,9 +871,23 @@ int get_mdv_stride( void ) {
 	return stride;
 }
 
+// A model registered between RE_Shutdown and R_Init must not build one of
+// these, and that is not tidiness - it is the four objects the validation layer
+// counts at vkDestroyDevice.
+//
+// The buffers live on the device; everything that knows they exist lives in tr
+// and the hunk. R_CreateVBO stores the VBO_t at tr.numVBOs and increments it,
+// R_Init memsets tr, and the count goes back to zero with the buffers still
+// allocated and nothing left holding their handles. One .glm registered in that
+// window leaks a vertex buffer, an index buffer and both of their allocations,
+// once per map load, for the life of the process.
+//
+// Skipping is safe because the window is the server's registration pass. The
+// client registers the same model afterwards, with a renderer behind it, and
+// both loaders reach this point again on that pass. See backlog section 13.
 void R_BuildMDXM( model_t *mod, mdxmHeader_t *mdxm )
 {
-	if ( !vk.vboGhoul2Active )
+	if ( !vk.vboGhoul2Active || !tr.inited )
 		return;
 
 	mdxmVBOModel_t		*vboModel;
@@ -1127,9 +1141,11 @@ void R_BuildMDXM( model_t *mod, mdxmHeader_t *mdxm )
 }
 #endif
 
-void R_BuildMD3( model_t *mod, mdvModel_t *mdvModel ) 
+// Same as R_BuildMDXM above: nothing that outlives the renderer's own
+// bookkeeping may be created while that bookkeeping is about to be wiped.
+void R_BuildMD3( model_t *mod, mdvModel_t *mdvModel )
 {
-	if ( !vk.vboMdvActive )
+	if ( !vk.vboMdvActive || !tr.inited )
 		return;
 
 	mdvVertex_t    *v;
