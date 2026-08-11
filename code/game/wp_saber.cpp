@@ -612,6 +612,20 @@ void WP_SetSaberEntModelSkin( gentity_t *ent, gentity_t *saberent )
 		saberent->s.modelindex = saberModel;
 		newModel = qtrue;
 	}
+	// The model may not have loaded, and both of the branches below index the
+	// list unconditionally. saberent->playerModel is the answer to exactly that
+	// question and was stored three lines ago; it just was not read.
+	//
+	// Today the list always has an entry to index, because G2API_InitGhoul2Model
+	// grows it before it discovers the model is missing - so this reads a member
+	// marked invalid rather than reading past the end. That is luck, not design:
+	// G2API_RemoveGhoul2Model can empty the list, and single-player upstream's
+	// InitGhoul2Model does not grow it on failure at all. See the note there.
+	if ( saberent->playerModel < 0 || !saberent->ghoul2.size() )
+	{
+		return;
+	}
+
 	//set skin, too
 	if ( ent->client->ps.saber[0].skin == NULL )
 	{

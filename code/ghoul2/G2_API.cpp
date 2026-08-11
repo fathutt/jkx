@@ -774,23 +774,23 @@ int G2API_InitGhoul2Model(CGhoul2Info_v &ghoul2, const char *fileName, int model
 	{	//init should not be used to create additional models, only the first one
 		assert(ghoul2.size() < 4); //use G2API_CopySpecificG2Model to add models
 
-		// Ask whether the model loads before growing the list for it. The
-		// multiplayer version pushed first and found out afterwards, which
-		// leaves the caller holding a list that has a member in it and no model
-		// - and the callers do not all ask the same question. Some check the
-		// return value, some check size(), and the two disagreed only in the
-		// failure case, which is the case nobody tests.
+		// Single-player upstream tests the model here and returns -1 without
+		// growing the list when it will not load. That was tried and taken back
+		// out, and the reason is worth keeping.
 		//
-		// The test costs a model registration that is about to happen anyway.
-		CGhoul2Info probe;
-		Q_strncpyz(probe.mFileName, fileName, sizeof(probe.mFileName));
-		probe.mModelindex = 0;
-
-		if (!G2_TestModelPointers(&probe))
-		{
-			return -1;
-		}
-
+		// The gamecode in this tree assumes the entry exists. WP_SaberInitBladeData
+		// calls WP_SetSaberEntModelSkin and then indexes ghoul2[0] on the next
+		// line; WP_SetSaberEntModelSkin does the same for the skin. Neither
+		// reads the handle it was just given. Not growing the list turns a
+		// failed model into an out-of-bounds read on the very next statement,
+		// and the headless run found it on the first pass - the fixture has no
+		// saber model, so the failure path is the only path it takes.
+		//
+		// Upstream has the same assumption in the same functions; it is not
+		// exercised there because a retail install always has the model. So this
+		// is not "multiplayer's version is wrong", it is a contract the callers
+		// rely on, and moving it belongs with a pass over the callers rather
+		// than with a one-line change here.
 		ghoul2.push_back(CGhoul2Info());
 	}
 
