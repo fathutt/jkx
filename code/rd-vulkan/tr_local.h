@@ -1724,6 +1724,13 @@ typedef struct convolveCubemapCommand_s {
 ** backend functions should never modify any of these fields,
 ** but may read fields that aren't dynamically modified
 ** by the frontend.
+**
+** Everything in here is assumed to die with the hunk: RE_HunkClear zeroes the
+** whole struct on every map load, because that is how the pointers into the
+** freed hunk get dropped. Adding a field that is NOT hunk-allocated - an image
+** pool, a handle to something the GPU owns, a cache with its own tag - means
+** adding it to the carry list in RE_HunkClear as well, or it leaks once per map
+** and hands its indices out twice. See the sequence written down there.
 */
 
 #define NUM_SCRATCH_IMAGES 32
@@ -2227,7 +2234,6 @@ void		R_InitSkins( void );
 skin_t		*R_GetSkinByHandle( qhandle_t hSkin );
 const void	*RB_TakeVideoFrameCmd( const void *data );
 float		R_ClampDenorm( float v );
-void		RE_HunkClearCrap( void );
 
 //
 // tr_shader.c
@@ -2378,7 +2384,7 @@ qboolean R_inPVS( const vec3_t p1, const vec3_t p2, byte *mask );
 // the rest of the renderer.
 int			RE_GetAnimationCFG( const char *psCFGFilename, char *psDest, int iDestSize );
 qboolean	RE_GetLighting( const vec3_t origin, vec3_t ambientLight, vec3_t directedLight, vec3_t lightDir );
-void		R_ClearStuffToStopGhoul2CrashingThings( void );
+void		RE_HunkClear( void );
 
 
 /*

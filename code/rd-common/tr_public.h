@@ -169,7 +169,7 @@ typedef struct {
 
 	// Misc
 	void	(*R_InitWorldEffects)(void);
-	void	(*R_ClearStuffToStopGhoul2CrashingThings)(void);
+	void	(*RE_HunkClear)(void);
 	qboolean (*R_inPVS)(vec3_t p1, vec3_t p2);
 
 	void	(*SVModelInit)(void);

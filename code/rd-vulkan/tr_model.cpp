@@ -1248,15 +1248,12 @@ void R_ModelInit( void )
 	mod->type = MOD_BAD;
 }
 
-extern void KillTheShaderHashTable( void );
-void RE_HunkClearCrap( void )
-{ //get your dirty sticky assets off me, you damn dirty hunk!
-	KillTheShaderHashTable();
-	tr.numModels = 0;
-	CModelCache->DeleteAll();
-	tr.numShaders = 0;
-	tr.numSkins = 0;
-}
+// RE_HunkClearCrap used to live here - "get your dirty sticky assets off me,
+// you damn dirty hunk!" - and nothing called it. It was a second, different
+// answer to the question RE_HunkClear answers, which is worse than no answer:
+// the two disagreed about the model cache and about the skins, and only one of
+// them ran. The sequence is written down in one place now, above RE_HunkClear
+// in tr_init.cpp.
 
 
 /*

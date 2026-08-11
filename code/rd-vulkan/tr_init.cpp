@@ -1226,28 +1226,61 @@ void R_Init( void ) {
 RE_Shutdown
 ===============
 */
-// Called by the engine between a savegame load and the Ghoul2 instances that
-// belong to it, so that nothing left in tr points at models that are about to
-// be replaced.
+// LOADING A MAP: WHO OWNS WHAT, AND IN WHAT ORDER
 //
-// The caller is Hunk_Clear, and the line above this call frees TAG_HUNKALLOC -
-// which in this tree is where R_Hunk_Alloc puts things, so every shader_t ever
-// generated stops existing at that moment. Wiping tr is therefore not optional:
-// it is how the dangling pointers get dropped.
+// Four things happen, in this order, every time a map is loaded. Getting them
+// wrong is how the first four crashes on real hardware happened, so the order
+// is written down here rather than left to be reconstructed from call sites.
 //
-// The shader hash table is not in tr. It is a file-static in tr_shader.cpp, so
-// the wipe left it holding a pointer to every one of those freed shaders, and
-// R_FindShader would hand one back as if it were live. R_InitShaders in its
-// server mode does exactly one thing - clear that table - and this is what that
-// mode is for.
+//   1. RE_Shutdown( 0, 0 )    from SV_SpawnServer.
+//      Releases what the GPU holds: textures, pipelines, fonts, world effects,
+//      the dissolve. tr itself is left alone.
 //
-// What is deliberately not rebuilt here is the shaders themselves. tr is empty
-// until RE_BeginRegistration runs R_Init again, and rebuilding them would need
-// the images, which are equally gone. So between here and there R_FindShader
-// cannot resolve anything, and its callers have to expect that; see R_LoadMDXM,
-// which is reached in exactly that window because the server spawns entities -
-// and the game registers their models - before the client begins registration.
-void R_ClearStuffToStopGhoul2CrashingThings( void )
+//   2. Hunk_Clear             frees TAG_HUNKALLOC and TAG_HUNKMISCMODELS, and
+//      then calls this function. Everything R_Hunk_Alloc ever returned stops
+//      existing at that line: the world, its surfaces and its lightmap list,
+//      every model_t, every shader_t, every skin_t, the shader text, the font
+//      glyphs. This function's only job is that nothing points at any of it
+//      afterwards.
+//
+//   3. re.SVModelInit()       from SV_SpawnServer, immediately after.
+//      Puts the model list back into a valid empty state - it has to be here
+//      and not later, because between this line and step 4 the server loads the
+//      game library and spawns entities, and the game registers their models.
+//      The renderer is otherwise empty for the whole of that window.
+//
+//   4. R_Init()               from RE_BeginRegistration, when the client
+//      finally starts loading. Wipes tr a second time - the memset at the top
+//      of it is not decoration - and rebuilds everything: images, shaders,
+//      skins, fonts, models, decals, world effects.
+//
+// THE RULE. Between 2 and 4 the renderer has no shaders and no images, and
+// callers reached in that window have to expect a miss rather than assume a
+// result - see R_LoadMDXM, which is reached exactly there.
+//
+// AND THE CONSEQUENCE, which looks like a bug and is not one to fix here:
+// anything the game registers in that window is thrown away at step 4. Measured
+// on a map with no entities in it at all, G_ParseAnimFileSet precaches two
+// skeletons and keeps their handles (NPC_stats.cpp asserts on the pair being
+// consecutive); step 4 empties the model list under them and the next thing
+// cgame registers takes handle 1. Multiplayer solved this with a second,
+// server-side model list and a hunk mark to decide which one to use -
+// G2_ShouldRegisterServer, which in this tree is stubbed to qfalse because
+// single-player never had that mechanism. Vanilla single-player behaves exactly
+// this way too, so the handles evidently are not dereferenced; it is written
+// down here so that the next person to find it does not have to prove it twice.
+//
+// WHAT SURVIVES THE HUNK, and therefore must not be dropped by the wipe: the
+// image pool (TAG_IMAGE_T), the Vulkan device state, and the model cache
+// (TAG_MODEL_*), which step 3 clears deliberately. Anything else added to tr
+// that is not hunk-allocated has to be added to the carry list below, or it
+// leaks once per map load.
+//
+// WHAT POINTS INTO THE HUNK FROM OUTSIDE tr, and therefore cannot be reached by
+// wiping tr, has to be told separately. Today that is three things, all in
+// tr_shader.cpp, and each of them was a separate crash: the shader hash table,
+// the shader text, and the index into that text.
+void RE_HunkClear( void )
 {
 	extern void KillTheShaderHashTable( void );
 
@@ -1263,7 +1296,10 @@ void R_ClearStuffToStopGhoul2CrashingThings( void )
 	// table are using. Those indices address descriptor slots.
 	//
 	// Carried across, therefore. Everything else here did live in the hunk and
-	// has to go.
+	// has to go. Only until step 4, which restarts the pool for real after
+	// RE_Shutdown destroyed the textures it described - what this carry buys is
+	// the window, where the game is registering models against a renderer that
+	// otherwise has no idea what it owns.
 	const image_pool_t images = tr.images;
 
 	Com_Memset( &tr, 0, sizeof( tr ) );
@@ -1637,7 +1673,7 @@ Q_EXPORT refexport_t* QDECL GetRefAPI( int apiVersion ) {
 
 	// Misc
 	re.R_InitWorldEffects                     = R_InitWorldEffects;
-	re.R_ClearStuffToStopGhoul2CrashingThings = R_ClearStuffToStopGhoul2CrashingThings;
+	re.RE_HunkClear = RE_HunkClear;
 	re.R_inPVS                                = RE_SP_inPVS;
 
 	re.SVModelInit                            = R_SVModelInit;

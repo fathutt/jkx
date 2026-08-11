@@ -706,29 +706,16 @@ void Com_ShutdownHunkMemory(void)
 
 /*
 ===================
-Hunk_SetMark
+Hunk_SetMark and Hunk_ClearToMark used to be here.
 
-The server calls this after the level and game VM have been loaded
+SetMark was empty. ClearToMark freed TAG_HUNKALLOC and TAG_HUNKMISCMODELS and
+told nobody - no RE_HunkClear, no re.SVModelInit - which is the whole of the
+sequence documented above RE_HunkClear, skipped. Nothing called it, so it never
+fired; the next person to reach for a "clear the hunk" function would have found
+the wrong one and got four crashes back. Removed rather than fixed: there is one
+way to free the hunk and it is Hunk_Clear.
 ===================
 */
-void Hunk_SetMark( void )
-{
-}
-
-
-
-/*
-=================
-Hunk_ClearToMark
-
-The client calls this before starting a vid_restart or snd_restart
-=================
-*/
-void Hunk_ClearToMark( void )
-{
-	Z_TagFree(TAG_HUNKALLOC);
-	Z_TagFree(TAG_HUNKMISCMODELS);
-}
 
 
 
@@ -747,8 +734,8 @@ void Hunk_Clear( void )
 extern void CIN_CloseAllVideos();
 	CIN_CloseAllVideos();
 
-	if(re.R_ClearStuffToStopGhoul2CrashingThings)
-		re.R_ClearStuffToStopGhoul2CrashingThings();
+	if(re.RE_HunkClear)
+		re.RE_HunkClear();
 }
 
 

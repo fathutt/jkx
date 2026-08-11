@@ -694,8 +694,6 @@ void Com_InitZoneMemory(void);
 void Com_InitZoneMemoryVars(void);
 
 void Hunk_Clear( void );
-void Hunk_ClearToMark( void );
-void Hunk_SetMark( void );
 // note the opposite default for 'bZeroIt' in Hunk_Alloc to Z_Malloc, since Hunk_Alloc always used to memset(0)...
 //
 inline void *Hunk_Alloc( int size, qboolean bZeroIt = qtrue);

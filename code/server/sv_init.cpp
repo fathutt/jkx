@@ -364,7 +364,9 @@ void SV_SpawnServer( const char *server, ForceReload_e eForceReload, qboolean bA
 	// to all clients
 	sv.state = SS_GAME;
 
-	Hunk_SetMark();
+	// Hunk_SetMark was here and did nothing; see the note where it used to be
+	// defined. Z_Validate three times over is Raven's, and it is left alone:
+	// it walks the whole zone and is a debug build no-op.
 	Z_Validate();
 	Z_Validate();
 	Z_Validate();

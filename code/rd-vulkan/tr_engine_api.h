@@ -64,7 +64,6 @@ void		*CL_Malloc( int iSize, memtag_t eTag, qboolean bZeroit, int iAlign );
 int			Z_Free( void *memory );
 int			Z_MemSize( memtag_t eTag );
 void		Z_MorphMallocTag( void *pvBuffer, memtag_t eDesiredTag );
-void		Hunk_ClearToMark( void );
 
 // --- console ---------------------------------------------------------------
 
