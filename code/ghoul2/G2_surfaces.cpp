@@ -346,176 +346,47 @@ void G2_RemoveRedundantGeneratedSurfaces(surfaceInfo_v &slist, int *activeSurfac
 	}
 }
 
+// Set which surface the model hangs from, and stop there.
+//
+// Multiplayer does a great deal more here: having set the root it prunes
+// everything below it that is no longer reachable - generated surfaces, bone
+// overrides, bolts, and any model bolted to a bolt that just went away. That is
+// coherent in multiplayer, where the gamecode cannot hold indices across the
+// virtual machine boundary and re-asks for everything by name.
+//
+// Single-player holds them. The only caller is dismemberment: G_Dismember
+// copies the victim's Ghoul2 instance into the limb, copies its cached bone
+// indices with it - craniumBone, hipsBone, rootBone and five more - calls this,
+// and then two lines later animates bone 0 and stops animations on those very
+// indices. Pruning the bone list under it renumbers exactly what it just
+// cached. Single-player's own version of this function sets mSurfaceRoot and
+// returns, which is what this does now.
 qboolean G2_SetRootSurface(CGhoul2Info_v &ghoul2, const int modelIndex, const char *surfaceName)
 {
 	int					surf;
 	int					flags;
-	int					*activeSurfaces, *activeBones;
 
-	assert(ghoul2[modelIndex].currentModel && ghoul2[modelIndex].animModel);
-
-	const model_s		*mod_m = ghoul2[modelIndex].currentModel;
-	mdxmHeader_t *mdxm = R_GetGhoul2MeshHeader( mod_m );
-	mdxaHeader_t *mdxa = R_GetGhoul2AnimHeader( ghoul2[modelIndex].animModel );
-
-	// did we find a ghoul 2 model or not?
-	if (!mdxm)
+	if ( modelIndex < 0 || modelIndex >= ghoul2.size() )
 	{
 		return qfalse;
 	}
 
-	// first find if we already have this surface in the list
+	const model_s		*mod_m = ghoul2[modelIndex].currentModel;
+
+	// did we find a ghoul 2 model or not?
+	if ( !mod_m || !R_GetGhoul2MeshHeader( mod_m ) )
+	{
+		return qfalse;
+	}
+
 	surf = G2_IsSurfaceLegal((void *)mod_m, surfaceName, &flags);
-	if (surf != -1)
+	if (surf == -1)
 	{
-		// first see if this ghoul2 model already has this as a root surface
-		if (ghoul2[modelIndex].mSurfaceRoot == surf)
-		{
-			return qtrue;
-		}
-
-		// set the root surface
-		ghoul2[modelIndex].mSurfaceRoot = surf;
-
-		// ok, now the tricky bits.
-		// firstly, generate a list of active / on surfaces below the root point
-
-		// gimme some space to put this list into
-		activeSurfaces = (int *)Z_Malloc(mdxm->numSurfaces * 4, TAG_GHOUL2, qtrue);
-		memset(activeSurfaces, 0, (mdxm->numSurfaces * 4));
-		activeBones = (int *)Z_Malloc(mdxa->numBones * 4, TAG_GHOUL2, qtrue);
-		memset(activeBones, 0, (mdxa->numBones * 4));
-
-		G2_FindRecursiveSurface(mod_m, surf, ghoul2[modelIndex].mSlist, activeSurfaces);
-
-		// now generate the used bone list
-		CConstructBoneList	CBL(ghoul2[modelIndex].mSurfaceRoot,
-							activeBones,
-							ghoul2[modelIndex].mSlist,
-							mod_m,
-							ghoul2[modelIndex].mBlist);
-
-		G2_ConstructUsedBoneList(CBL);
-
-		// now remove all procedural or override surfaces that refer to surfaces that arent on this list
-		G2_RemoveRedundantGeneratedSurfaces(ghoul2[modelIndex].mSlist, activeSurfaces);
-
-		// now remove all bones that are pointing at bones that aren't active
-		G2_RemoveRedundantBoneOverrides(ghoul2[modelIndex].mBlist, activeBones);
-
-		// then remove all bolts that point at surfaces or bones that *arent* active.
-		G2_RemoveRedundantBolts(ghoul2[modelIndex].mBltlist, ghoul2[modelIndex].mSlist, activeSurfaces, activeBones);
-
-		// then remove all models on this ghoul2 instance that use those bolts that are being removed.
-		for (int i=0; i<ghoul2.size(); i++)
-		{
-			// are we even bolted to anything?
-			if (ghoul2[i].mModelBoltLink != -1)
-			{
-				int	boltMod = (ghoul2[i].mModelBoltLink >> MODEL_SHIFT) & MODEL_AND;
-				int	boltNum = (ghoul2[i].mModelBoltLink >> BOLT_SHIFT) & BOLT_AND;
-				// if either the bolt list is too small, or the bolt we are pointing at references nothing, remove this model
-				if (((int)ghoul2[boltMod].mBltlist.size() <= boltNum) ||
-					((ghoul2[boltMod].mBltlist[boltNum].boneNumber == -1) &&
-					 (ghoul2[boltMod].mBltlist[boltNum].surfaceNumber == -1)))
-				{
-					G2API_RemoveGhoul2Model(ghoul2, i);
-				}
-			}
-		}
-		//No support for this, for now.
-
-		// remember to free what we used
-		Z_Free(activeSurfaces);
-		Z_Free(activeBones);
-
-		return (qtrue);
+		return qfalse;
 	}
-/*
-//g2r	if (entstate->ghoul2)
-	{
-		CGhoul2Info_v &ghoul2 = *((CGhoul2Info_v *)entstate->ghoul2);
-		model_t				*mod_m = R_GetModelByHandle(RE_RegisterModel(ghoul2[modelIndex].mFileName));
-		model_t				*mod_a = R_GetModelByHandle(mod_m->mdxm->animIndex);
-		int					surf;
-		int					flags;
-		int					*activeSurfaces, *activeBones;
 
-		// did we find a ghoul 2 model or not?
-		if (!mod_m->mdxm)
-		{
-			return qfalse;
-		}
-
- 		// first find if we already have this surface in the list
-		surf = G2_IsSurfaceLegal((void *)mod_m, surfaceName, &flags);
-		if (surf != -1)
-		{
-			// first see if this ghoul2 model already has this as a root surface
-			if (ghoul2[modelIndex].mSurfaceRoot == surf)
-			{
-				return qtrue;
-			}
-
-			// set the root surface
-			ghoul2[modelIndex].mSurfaceRoot = surf;
-
-			// ok, now the tricky bits.
-			// firstly, generate a list of active / on surfaces below the root point
-
-			// gimme some space to put this list into
-			activeSurfaces = (int *)Z_Malloc(mod_m->mdxm->numSurfaces * 4, TAG_GHOUL2, qtrue);
-			memset(activeSurfaces, 0, (mod_m->mdxm->numSurfaces * 4));
-			activeBones = (int *)Z_Malloc(mod_a->mdxa->numBones * 4, TAG_GHOUL2, qtrue);
-			memset(activeBones, 0, (mod_a->mdxa->numBones * 4));
-
-			G2_FindRecursiveSurface(mod_m, surf, ghoul2[modelIndex].mSlist, activeSurfaces);
-
-			// now generate the used bone list
-			CConstructBoneList	CBL(ghoul2[modelIndex].mSurfaceRoot,
-								activeBones,
-								ghoul2[modelIndex].mSlist,
-								mod_m,
-								ghoul2[modelIndex].mBlist);
-
-			G2_ConstructUsedBoneList(CBL);
-
-			// now remove all procedural or override surfaces that refer to surfaces that arent on this list
-			G2_RemoveRedundantGeneratedSurfaces(ghoul2[modelIndex].mSlist, activeSurfaces);
-
-			// now remove all bones that are pointing at bones that aren't active
-			G2_RemoveRedundantBoneOverrides(ghoul2[modelIndex].mBlist, activeBones);
-
-			// then remove all bolts that point at surfaces or bones that *arent* active.
-			G2_RemoveRedundantBolts(ghoul2[modelIndex].mBltlist, ghoul2[modelIndex].mSlist, activeSurfaces, activeBones);
-
-			// then remove all models on this ghoul2 instance that use those bolts that are being removed.
-			for (int i=0; i<ghoul2.size(); i++)
-			{
-				// are we even bolted to anything?
-				if (ghoul2[i].mModelBoltLink != -1)
-				{
-					int	boltMod = (ghoul2[i].mModelBoltLink >> MODEL_SHIFT) & MODEL_AND;
-					int	boltNum = (ghoul2[i].mModelBoltLink >> BOLT_SHIFT) & BOLT_AND;
-					// if either the bolt list is too small, or the bolt we are pointing at references nothing, remove this model
-					if ((ghoul2[boltMod].mBltlist.size() <= boltNum) ||
-						((ghoul2[boltMod].mBltlist[boltNum].boneNumber == -1) &&
-						 (ghoul2[boltMod].mBltlist[boltNum].surfaceNumber == -1)))
-					{
-						G2API_RemoveGhoul2Model(entstate, i);
-					}
-				}
-			}
-
-			// remember to free what we used
-			Z_Free(activeSurfaces);
-			Z_Free(activeBones);
-
-			return (qtrue);
-		}
-	}
-	assert(0);*/
-	return qfalse;
+	ghoul2[modelIndex].mSurfaceRoot = surf;
+	return qtrue;
 }
 
 

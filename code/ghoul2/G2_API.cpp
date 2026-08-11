@@ -841,6 +841,20 @@ qboolean G2API_SetLodBias(CGhoul2Info *ghlInfo, int lodBias)
 void G2_SetSurfaceOnOffFromSkin (CGhoul2Info *ghlInfo, qhandle_t renderSkin);
 qboolean G2API_SetSkin(CGhoul2Info *ghlInfo, qhandle_t customSkin, qhandle_t renderSkin)
 {
+#ifdef JK2_MODE
+	// Jedi Outcast remembers the skin and leaves the surfaces alone. Its skins
+	// were not authored to say which parts of a model are on, so deriving that
+	// from them turns every skin change into a surface change - and the branch
+	// below starts by clearing the overrides the gamecode had set. Single-player
+	// upstream has this same split; multiplayer has no JK2 build and so has only
+	// the other half, which is what came across.
+	if (G2_SetupModelPointers(ghlInfo))
+	{
+		ghlInfo->mCustomSkin = customSkin;
+		return qtrue;
+	}
+	return qfalse;
+#else
 	if (G2_SetupModelPointers(ghlInfo))
 	{
 		ghlInfo->mCustomSkin = customSkin;
@@ -852,6 +866,7 @@ qboolean G2API_SetSkin(CGhoul2Info *ghlInfo, qhandle_t customSkin, qhandle_t ren
 		return qtrue;
 	}
 	return qfalse;
+#endif
 }
 
 qboolean G2API_SetShader(CGhoul2Info *ghlInfo, qhandle_t customShader)
@@ -1190,6 +1205,17 @@ qboolean G2API_GetAnimRange(CGhoul2Info *ghlInfo, const char *boneName,	int *sta
 	{
  		qboolean ret=G2_Get_Bone_Anim_Range(ghlInfo, ghlInfo->mBlist, boneName, startFrame, endFrame);
 #ifdef _DEBUG
+		// Only when there was an answer. G2_Get_Bone_Anim_Range leaves both
+		// out-parameters untouched when the bone is absent or is not
+		// anim-overridden, so this block used to read - and clamp, and assert
+		// on - the caller's uninitialised stack. bg_panimate.cpp declares them
+		// as plain locals and asks about "lower_lumbar" every frame a character
+		// is animated, so in a Debug build that is an assertion dialog on
+		// garbage for any character not currently overriding that bone.
+		if ( !ret )
+		{
+			return ret;
+		}
 		assert(*endFrame>0);
 		assert(*endFrame<100000);
 		assert(*startFrame>=0);
@@ -2225,12 +2251,25 @@ int	G2API_GetSurfaceIndex(CGhoul2Info *ghlInfo, const char *surfaceName)
 	return -1;
 }
 
+// The name of the skeleton this instance is actually using.
+//
+// Two strings answer to that and they are not the same one. mdxm->animName is
+// what the mesh's exporter recorded that it wants; aHeader->name is what the
+// .gla it ended up with calls itself. They agree for a model that sits in the
+// same directory as its skeleton and disagree for the common custom-character
+// case of a .gla copied into the model's own folder - and the callers compare
+// the result for exact equality: G_StandardHumanoid asks whether it is
+// "models/players/_humanoid/_humanoid" and decides from that whether the
+// character gets humanoid behaviour and which animation set it loads.
+//
+// Single-player upstream switched to the animation header and left the mesh's
+// line commented out beside it. Multiplayer never did, and multiplayer's is
+// what was here.
 char *G2API_GetGLAName(CGhoul2Info *ghlInfo)
 {
-	if (G2_SetupModelPointers(ghlInfo))
+	if (G2_SetupModelPointers(ghlInfo) && ghlInfo->aHeader)
 	{
-		assert( R_GetGhoul2MeshHeader( ghlInfo->currentModel ) );
-		return R_GetGhoul2MeshHeader( ghlInfo->currentModel )->animName;
+		return (char *)ghlInfo->aHeader->name;
 	}
 	return NULL;
 }
