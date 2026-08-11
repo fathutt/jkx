@@ -1605,8 +1605,6 @@ qboolean G2API_AttachEnt(int *boltInfo, CGhoul2Info *ghlInfoTo, int toBoltIndex,
 
 }
 
-qboolean gG2_GBMNoReconstruct;
-qboolean gG2_GBMUseSPMethod;
 
 #define G2ERROR(exp,m)		((void)0) //rwwFIXMEFIXME: This is because I'm lazy.
 #define G2WARNING(exp,m)     ((void)0)
@@ -1650,24 +1648,15 @@ qboolean G2API_GetBoltMatrix(CGhoul2Info_v &ghoul2, const int modelIndex, const 
 			{
 				mdxaBone_t bolt;
 
-#if 0 //yeah, screw it
-				if (!gG2_GBMNoReconstruct)
-				{ //This should only be used when you know what you're doing.
-					if (G2_NeedsRecalc(ghlInfo,tframeNum))
-					{
-						G2_ConstructGhoulSkeleton(ghoul2,tframeNum,true,scale);
-					}
-				}
-				else
-				{
-					gG2_GBMNoReconstruct = qfalse;
-				}
-#else
+				// The disabled branch that used to be here let a caller skip the
+				// skeleton rebuild for one call by setting a global first -
+				// "this should only be used when you know what you're doing" -
+				// and it was already #if 0'd out with "yeah, screw it". The
+				// global is gone with it.
 				if (G2_NeedsRecalc(ghlInfo,tframeNum))
 				{
 					G2_ConstructGhoulSkeleton(ghoul2,tframeNum,true,scale);
 				}
-#endif
 
 				G2_GetBoltMatrixLow(*ghlInfo,boltIndex,scale,bolt);
 				// scale the bolt position by the scale factor for this model since at this point its still in model space
@@ -1699,26 +1688,22 @@ qboolean G2API_GetBoltMatrix(CGhoul2Info_v &ghoul2, const int modelIndex, const 
 #endif// _DEBUG
 				G2ANIM(ghlInfo,"G2API_GetBoltMatrix");
 
-				if (!gG2_GBMUseSPMethod)
-				{ //this is horribly stupid and I hate it. But lots of game code is written to assume this 90 degree offset thing.
-					float ftemp;
-					ftemp = matrix->matrix[0][0];
-					matrix->matrix[0][0] = -matrix->matrix[0][1];
-					matrix->matrix[0][1] = ftemp;
-
-					ftemp = matrix->matrix[1][0];
-					matrix->matrix[1][0] = -matrix->matrix[1][1];
-					matrix->matrix[1][1] = ftemp;
-
-					ftemp = matrix->matrix[2][0];
-					matrix->matrix[2][0] = -matrix->matrix[2][1];
-					matrix->matrix[2][1] = ftemp;
-				}
-				else
-				{ //reset it
-					gG2_GBMUseSPMethod = qfalse;
-				}
-
+				// Multiplayer turned the first two columns ninety degrees here
+				// - "this is horribly stupid and I hate it, but lots of game
+				// code is written to assume this 90 degree offset thing" - and
+				// let a caller opt out for one call by setting
+				// gG2_GBMUseSPMethod first. The name is the giveaway: the
+				// method it opts into is this one, single-player's, which is
+				// what single-player's own G2API_GetBoltMatrix has always done
+				// - it returns here and rotates nothing.
+				//
+				// Nothing in single-player sets that flag, so every bolt matrix
+				// in the game came back rotated ninety degrees from what the
+				// gamecode was written against. That is every muzzle point,
+				// every effect bolt, every bolted weapon, and the saber blade -
+				// which is where it was noticed, because a hilt drawn by the
+				// ordinary model path lies down correctly while its blade comes
+				// out sideways. See backlog section 12.
 				return qtrue;
 			}
 		}

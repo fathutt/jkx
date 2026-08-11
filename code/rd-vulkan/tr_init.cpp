@@ -1419,10 +1419,11 @@ void RE_SetLightStyle( int style, int color )
 
 static void SetRangedFog( float range ) { tr.rangedFog = range; }
 
-extern qboolean gG2_GBMNoReconstruct;
-extern qboolean gG2_GBMUseSPMethod;
-static void G2API_BoltMatrixReconstruction( qboolean reconstruct ) { gG2_GBMNoReconstruct = (qboolean)!reconstruct; }
-static void G2API_BoltMatrixSPMethod( qboolean spMethod ) { gG2_GBMUseSPMethod = spMethod; }
+// G2API_BoltMatrixReconstruction and G2API_BoltMatrixSPMethod were here, unused
+// and unexported. Both set a global that multiplayer's G2API_GetBoltMatrix read
+// once and cleared; single-player exports neither and calls neither, and the
+// behaviour they selected is now simply what the function does. See the note
+// there.
 
 //extern float tr_distortionAlpha; //opaque
 //extern float tr_distortionStretch; //no stretch override
