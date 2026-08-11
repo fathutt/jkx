@@ -37,8 +37,12 @@ import sys
 VIRTUAL_W = 640.0
 VIRTUAL_H = 480.0
 
-# The fixture's one item: ui/jkx_smoke.menu, itemDef "smokebox".
-DEFAULT_RECT = (64.0, 64.0, 512.0, 352.0)
+# The fixture's menu fills its own 640x480 with a colour it asks for by name, so
+# the default rect is the whole of it, inset. The edge of what it painted is then
+# the edge of the fitted frame, and comparing the two sides of that edge measures
+# the mapping directly. --rect narrows this to a smaller element when there is
+# one worth pinning down separately.
+DEFAULT_RECT = (0.0, 0.0, 640.0, 480.0)
 
 # Bars are drawn with colorBlack through a white shader, so they are 0. The
 # renderer's clear colour is 0.75 grey and a missing bar shows that instead;
@@ -253,23 +257,35 @@ def main(argv):
     colours = content_colours(rows, x0, y0, x1, y1)
 
     # Counting colours would say "something is here" and nothing more, and the
-    # fixture's item is one flat tone. What matters is that it is a different
-    # tone from the frame around it: that is what says it landed inside its own
-    # rectangle rather than somewhere else the arithmetic put it.
+    # rect is one flat tone on purpose. What matters is that it is a different
+    # tone from what is outside the frame: the boundary between the two is the
+    # fitted rectangle itself, measured to the pixel from both sides at once.
+    # Content computed against the window instead of against the frame puts that
+    # boundary somewhere else, and then one of these two samples is wrong.
     inside = mean_colour(rows, x0, y0, x1, y1)
-    around = mean_colour(rows, int(fx) + 3, int(fy) + 3,
-                         int(fx + fw) - 3, int(fy + fh * 0.06))
-    delta = max(abs(a - b) for a, b in zip(inside, around))
 
-    if delta < 16:
-        print("%s: the content rect (%d,%d)-(%d,%d) averages %s and the frame "
-              "around it averages %s - a difference of %d.\n"
-              "  Either nothing drew there, or it drew somewhere else, which is "
-              "what content placed against the window rather than against the "
-              "fitted frame looks like."
-              % (path, x0, y0, x1, y1, inside, around, delta),
-              file=sys.stderr)
-        failed = True
+    if fw < width - 1.5:
+        outside = mean_colour(rows, 0, int(fy) + 3,
+                              max(int(fx) - 3, 1), int(fy + fh) - 3)
+    elif fh < height - 1.5:
+        outside = mean_colour(rows, int(fx) + 3, 0,
+                              int(fx + fw) - 3, max(int(fy) - 3, 1))
+    else:
+        outside = None                  # 4:3: no margin to compare against
+
+    if outside is not None:
+        delta = max(abs(a - b) for a, b in zip(inside, outside))
+        if delta < 16:
+            print("%s: the rect (%d,%d)-(%d,%d) averages %s and outside the "
+                  "frame averages %s - a difference of %d.\n"
+                  "  The boundary between them is supposed to be the fitted "
+                  "frame. If they match, the content is not where the mapping "
+                  "says it is - which is what content placed against the window "
+                  "instead of the frame looks like."
+                  % (path, x0, y0, x1, y1, inside, outside, delta),
+                  file=sys.stderr)
+            failed = True
+
     if len(colours) < min_colours:
         print("%s: the content rect has %d colour(s), wanted %d"
               % (path, len(colours), min_colours), file=sys.stderr)

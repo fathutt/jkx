@@ -188,16 +188,13 @@ done
 # wide screen size (JKX_SMOKE_SCREEN) and it is a real test; run it at 4:3 and
 # there are no margins and it only checks placement.
 #
-# --margins report rather than the default: the bars come out white in this
-# fixture because it has no "white" shader and the default one ignores the
-# colour they are drawn with. That is a real defect and it is written down
-# (Backlog 14); it is not gated here because the fixture cannot currently
-# define "white" without hitting a second one. Placement is gated, and placement
-# is the half that catches content computed against the window instead of
-# against the frame. When 14 is fixed, drop the flag.
+# Both halves gate. The margin half was reported rather than gated for exactly
+# as long as it took to find out why the bars were white, and the answer was
+# that the fixture had no "white" shader and had been leaning on the default one
+# to paint its background - see the note in fixtures/base/shaders/jkx_smoke.shader.
 SHOT="$RUN/home/base/screenshots/jkx_smoke.tga"
 if [ -f "$SHOT" ]; then
-    if ! python3 "$HERE/tga_frame_geometry.py" "$SHOT" --margins report; then
+    if ! python3 "$HERE/tga_frame_geometry.py" "$SHOT"; then
         report "the frame geometry is wrong"
     fi
 fi
