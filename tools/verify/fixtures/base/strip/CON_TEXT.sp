@@ -1,0 +1,5 @@
+VERSION 1
+CONFIG "jkx test fixture"
+ID 1
+REFERENCE CON_TEXT
+COUNT 0

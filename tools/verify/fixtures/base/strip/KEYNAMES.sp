@@ -1,0 +1,5 @@
+VERSION 1
+CONFIG "jkx test fixture"
+ID 2
+REFERENCE KEYNAMES
+COUNT 0

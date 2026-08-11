@@ -188,6 +188,27 @@ static void NORETURN Sys_Exit( int ex ) {
 }
 
 #if !defined(DEDICATED)
+// A modal box on a machine with nobody in front of it is a hang, not a
+// diagnostic. The headless run has an X server - that is the whole point of
+// Xvfb - so SDL puts a real dialog up and waits for a click that never comes,
+// and a fatal error that should have failed the run in two seconds instead
+// burns the timeout and reports nothing. Anything unattended passes
+// +set com_errorDialog 0.
+//
+// Read as a string rather than an integer so that "not set" and "set to zero"
+// are different answers: unset means a person is watching and the box is the
+// right thing to do. Safe before the cvar system is up - Cvar_VariableString
+// returns "" for a name it has never seen.
+static qboolean Sys_WantsErrorDialog( void )
+{
+	const char *value = Cvar_VariableString( "com_errorDialog" );
+
+	if ( value && value[0] && atoi( value ) == 0 )
+		return qfalse;
+
+	return qtrue;
+}
+
 static void Sys_ErrorDialog( const char *error )
 {
 	time_t rawtime;
@@ -209,7 +230,8 @@ static void Sys_ErrorDialog( const char *error )
 		fclose( fp );
 
 		const char *errorMessage = va( "%s\n\nThe crash log was written to %s", error, crashLogPath );
-		if ( SDL_ShowSimpleMessageBox( SDL_MESSAGEBOX_ERROR, "Error", errorMessage, NULL ) < 0 )
+		if ( !Sys_WantsErrorDialog() ||
+			 SDL_ShowSimpleMessageBox( SDL_MESSAGEBOX_ERROR, "Error", errorMessage, NULL ) < 0 )
 		{
 			fprintf( stderr, "%s", errorMessage );
 		}
@@ -222,7 +244,8 @@ static void Sys_ErrorDialog( const char *error )
 
 		const char *errorMessage = va( "%s\nCould not write the crash log file, but we printed it to stderr.\n"
 										"Try running the game using a command line interface.", error );
-		if ( SDL_ShowSimpleMessageBox( SDL_MESSAGEBOX_ERROR, "Error", errorMessage, NULL ) < 0 )
+		if ( !Sys_WantsErrorDialog() ||
+			 SDL_ShowSimpleMessageBox( SDL_MESSAGEBOX_ERROR, "Error", errorMessage, NULL ) < 0 )
 		{
 			// We really have hit rock bottom here :(
 			fprintf( stderr, "%s", errorMessage );

@@ -462,13 +462,19 @@ cStrings::~cStrings(void)
  * return:
  *
  ************************************************************************************************/
+// Every buffer in this file comes from new[], so it goes back through delete[].
+// The six sites that said plain delete were undefined behaviour on all of them,
+// and on glibc it is not the theoretical kind: the string packages are freed at
+// shutdown and the JK2 build died there with "corrupted size vs. prev_size",
+// then hung inside the recursive shutdown the abort handler starts. ASan calls
+// it alloc-dealloc-mismatch and names the line.
 void cStrings::Clear(void)
 {
 	Flags = 0;
 
 	if (Reference)
 	{
-		delete Reference;
+		delete[] Reference;
 		Reference = NULL;
 	}
 }
@@ -491,7 +497,7 @@ void cStrings::SetReference(char *newReference)
 {
 	if (Reference)
 	{
-		delete Reference;
+		delete[] Reference;
 		Reference = NULL;
 	}
 
@@ -600,7 +606,7 @@ void cStringsSingle::Clear(void)
 
 	if (Text)
 	{
-		delete Text;
+		delete[] Text;
 		Text = NULL;
 	}
 }
@@ -612,7 +618,7 @@ void cStringsSingle::SetText(const char *newText)
 
 	if (Text)
 	{
-		delete Text;
+		delete[] Text;
 		Text = NULL;
 	}
 
@@ -782,7 +788,7 @@ cStringPackage::~cStringPackage(void)
 {
 	if (Reference)
 	{
-		delete Reference;
+		delete[] Reference;
 		Reference = NULL;
 	}
 }
@@ -791,7 +797,7 @@ void cStringPackage::SetReference(char *newReference)
 {
 	if (Reference)
 	{
-		delete Reference;
+		delete[] Reference;
 		Reference = NULL;
 	}
 

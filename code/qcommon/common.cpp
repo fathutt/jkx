@@ -1132,6 +1132,12 @@ void Com_Init( char *commandLine ) {
 		com_logfile = Cvar_Get ("logfile", "0", CVAR_TEMP );
 		com_speedslog = Cvar_Get ("speedslog", "0", CVAR_TEMP );
 
+		// Registered here so it turns up in the cvar list; Sys_ErrorDialog reads
+		// it as a string, because it has to work before this line runs. Set it
+		// to 0 for anything unattended: a modal error box with nobody there is
+		// a hang.
+		Cvar_Get ("com_errorDialog", "1", CVAR_ARCHIVE );
+
 		com_timescale = Cvar_Get ("timescale", "1", CVAR_CHEAT );
 		com_fixedtime = Cvar_Get ("fixedtime", "0", CVAR_CHEAT);
 		com_showtrace = Cvar_Get ("com_showtrace", "0", CVAR_CHEAT);

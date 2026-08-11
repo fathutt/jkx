@@ -321,9 +321,9 @@ jobs:
         run: |
           cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache \
-            -DBuildSPRdVulkan=ON -DBuildJK2SPEngine=OFF -DBuildJK2SPGame=OFF \
-            -DBuildJK2SPRdVanilla=OFF
-          cmake --build build --target jkx_ja.x86_64 rdsp-vulkan_x86_64 --parallel
+            -DBuildSPRdVulkan=ON -DBuildJK2SPRdVanilla=OFF
+          cmake --build build --target jkx_ja.x86_64 jagamex86_64 \
+            jkx_jo.x86_64 jospgamex86_64 rdsp-vulkan_x86_64 --parallel
 
       # No GPU and no retail assets, and neither is needed to answer what this
       # asks: does the engine still draw frames on this renderer, and does the
@@ -343,6 +343,17 @@ jobs:
           path: jkx_smoke.tga
           if-no-files-found: ignore
 
+      # The other game: jkx_jo is code/ built with -DJK2_MODE against
+      # codeJK2/game. Half the project had nothing looking at it until this
+      # step existed, and the first run of it found a new[] paired with delete
+      # that corrupted the heap on every JK2 shutdown.
+      - name: The same frames, as Jedi Outcast
+        env:
+          JKX_SMOKE_GAME: jo
+          JKX_SMOKE_DISPLAY: ':96'
+          JKX_SMOKE_NO_VALIDATION: '1'
+        run: bash tools/verify/smoke_headless.sh build
+
       # Building the sanitizers and never running them checks nothing. The first
       # time this ran it reported two misaligned accesses in the zone allocator,
       # on the first allocation the engine makes.
@@ -353,7 +364,8 @@ jobs:
             -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache \
             -DBuildSPRdVulkan=ON -DBuildJK2SPEngine=OFF -DBuildJK2SPGame=OFF \
             -DBuildJK2SPRdVanilla=OFF
-          cmake --build build-san --target jkx_ja.x86_64 rdsp-vulkan_x86_64 --parallel
+          cmake --build build-san --target jkx_ja.x86_64 jagamex86_64 \
+            rdsp-vulkan_x86_64 --parallel
 
       - name: The same frames, under the sanitizers
         env:

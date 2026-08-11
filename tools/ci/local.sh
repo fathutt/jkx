@@ -26,6 +26,12 @@
 #   smokewide   the same at 32:9, where the interface's arithmetic is checked
 #               against the picture: at 4:3 the fitted frame is the whole window
 #               and a wrong mapping looks exactly like a right one
+#   smokejk2    the same run as jkx_jo, which is the same engine built with
+#               -DJK2_MODE against codeJK2/game. Not a duplicate of the run
+#               above: the string packages, the whole of codeJK2/cgame and every
+#               JK2_MODE branch in shared code are only reached here, and the
+#               first time it was run it found a new[]/delete mismatch that
+#               corrupted the heap on every JK2 shutdown
 #   smokesan    the same run against the sanitizer build. Building sanitizers
 #               and never running them checks nothing: the first time this was
 #               run it reported two misaligned accesses in the zone allocator,
@@ -51,7 +57,7 @@ JOBS="${JOBS:-$(nproc)}"
 
 STAGES=( "$@" )
 if [ "${#STAGES[@]}" -eq 0 ]; then
-    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokesan )
+    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesan )
 fi
 
 failed=()
@@ -144,6 +150,19 @@ stage_smoke() {
 stage_smokewide() {
     JKX_SMOKE_DISPLAY="${JKX_SMOKE_WIDE_DISPLAY:-:97}" \
     JKX_SMOKE_SCREEN=2560x720 \
+    JKX_SMOKE_NO_VALIDATION=1 \
+        bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
+}
+
+# The other game. jkx_jo is code/ built with -DJK2_MODE plus codeJK2/game, so
+# this is a second configuration of the same engine rather than a second copy of
+# the test - and half the project had nothing looking at it until this stage
+# existed. It stops short of the real map: JK2 hard-codes "kyle" as the player
+# model and needs a skeleton beside it, which the model generator does not write
+# yet.
+stage_smokejk2() {
+    JKX_SMOKE_GAME=jo \
+    JKX_SMOKE_DISPLAY="${JKX_SMOKE_JK2_DISPLAY:-:96}" \
     JKX_SMOKE_NO_VALIDATION=1 \
         bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
 }

@@ -50,7 +50,19 @@ fi
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ARCH="$(uname -m)"
-ENGINE="$BUILD/jkx_ja.$ARCH"
+
+# Which of the two games. They are the same engine built twice - jkx_jo is
+# code/ with -DJK2_MODE plus codeJK2/game - so the second one is not a copy of
+# this test, it is a second configuration of the same code. Enough of it differs
+# to be worth running: the string packages, the whole of codeJK2/cgame, and
+# every JK2_MODE branch in shared code.
+GAME_ID="${JKX_SMOKE_GAME:-ja}"
+case "$GAME_ID" in
+    ja) ENGINE="$BUILD/jkx_ja.$ARCH"; GAME="$BUILD/code/game/jagame$ARCH.so" ;;
+    jo) ENGINE="$BUILD/jkx_jo.$ARCH"; GAME="$BUILD/codeJK2/game/jospgame$ARCH.so" ;;
+    *)  echo "JKX_SMOKE_GAME must be ja or jo, not $GAME_ID" >&2; exit 2 ;;
+esac
+
 RENDERER="$BUILD/code/rd-vulkan/rdsp-vulkan_$ARCH.so"
 
 [ -f "$ENGINE" ] || { echo "not built: $ENGINE" >&2; exit 2; }
@@ -77,7 +89,6 @@ cp "$ENGINE" "$RUN/"
 # The game library goes beside the engine, not into base/. FS_ExtractedFile
 # looks in the executable's directory first, and a copy in base/ is what a mod
 # is; this is the base game.
-GAME="$BUILD/code/game/jagame$ARCH.so"
 [ -f "$GAME" ] && cp "$GAME" "$RUN/"
 
 if [ -n "$PAK" ]; then
@@ -113,6 +124,18 @@ sleep 2
 # step below turned the console screenshot into a picture of what came after it -
 # a frame with the console shut and the renderer wiped, which duly failed the
 # text check and looked like the font path breaking.
+#
+# The real map is Jedi Academy only for now. JK2 hard-codes "kyle" as the player
+# model and its cgame turns a missing animation set into an error, so the last
+# step needs a model with a real skeleton beside it - an .gla, which
+# make_test_glm.py deliberately avoids by naming "*default". Until there is a
+# generator for one, the JK2 lane stops at the wiped renderer, which is still
+# every line above the server.
+INMAP_STEP=( +wait 20 +map jkx_room +wait 80 +screenshot_tga jkx_inmap )
+if [ "$GAME_ID" != "ja" ]; then
+    INMAP_STEP=()
+fi
+
 set +e
 ( cd "$RUN" && \
   DISPLAY="$DISPLAY_NUM" \
@@ -120,12 +143,12 @@ set +e
   VK_ICD_FILENAMES="${VK_ICD_FILENAMES:-/usr/share/vulkan/icd.d/lvp_icd.json}" \
   timeout 420 "./$(basename "$ENGINE")" \
       +set fs_basepath "$RUN" +set fs_homepath "$RUN/home" \
-      +set s_initsound 0 \
+      +set s_initsound 0 +set com_errorDialog 0 \
       +set cg_hudFiles ui/jkx_hud.txt +set g_char_model jkx \
       +wait 60 +screenshot_tga jkx_smoke \
       +toggleconsole +wait 30 +screenshot_tga jkx_console +wait 20 \
       +toggleconsole +wait 20 +map jkx_smoke +wait 60 +screenshot_tga jkx_wiped \
-      +wait 20 +map jkx_room +wait 80 +screenshot_tga jkx_inmap \
+      "${INMAP_STEP[@]}" \
       +wait 20 +quit ) > "$RUN/run.log" 2>&1
 status=$?
 set -e
@@ -159,7 +182,6 @@ require 'Common Initialization Complete'
 require 'Wrote screenshots/jkx_smoke.tga'
 require 'Wrote screenshots/jkx_console.tga'
 require 'Wrote screenshots/jkx_wiped.tga'
-require 'Wrote screenshots/jkx_inmap.tga'
 
 # The second map is a real one, and this is the half of the run that goes
 # through the server: CM_LoadMap on a BSP that parses, SV_InitGameProgs, entity
@@ -167,7 +189,15 @@ require 'Wrote screenshots/jkx_inmap.tga'
 # drawing a world view with a head-up display over it. Everything above this
 # line is the menu. Eight of the defects found so far were only reachable from
 # here, six of them reads or writes out of bounds.
-require 'Server: jkx_room'
+SHOTS=( "jkx_smoke 2" "jkx_console 200" "jkx_wiped 2" )
+if [ "$GAME_ID" = "ja" ]; then
+    require 'Wrote screenshots/jkx_inmap.tga'
+    require 'Server: jkx_room'
+    # A world view with a head-up display over it has hundreds of distinct
+    # colours; two would mean the renderer presented the clear colour and cgame
+    # drew nothing, which is what every failure on this path has looked like.
+    SHOTS+=( "jkx_inmap 100" )
+fi
 
 # The map has to have been attempted and rejected. If SV_Map_f starts refusing
 # it earlier - which it would if the existence check moved - the run would go on
@@ -209,12 +239,7 @@ fi
 # draw path, and a fragment shader that sampled a descriptor set nobody had
 # written, which on this software rasteriser is a segfault inside the JIT
 # several frames after anything to do with fonts.
-#
-# The in-map frame gets a real threshold. A world view with a head-up display
-# over it has hundreds of distinct colours; two would mean the renderer
-# presented the clear colour and cgame drew nothing, which is what every failure
-# on this path has looked like so far.
-for pair in "jkx_smoke 2" "jkx_console 200" "jkx_wiped 2" "jkx_inmap 100"; do
+for pair in "${SHOTS[@]}"; do
     set -- $pair
     name="$1"
     want="$2"

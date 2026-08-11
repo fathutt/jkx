@@ -1,0 +1,5 @@
+VERSION 1
+CONFIG "jkx test fixture"
+ID 3
+REFERENCE SP_INGAME
+COUNT 0
