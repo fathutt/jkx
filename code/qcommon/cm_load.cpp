@@ -728,6 +728,23 @@ static void CM_LoadMap_Actual( const char *name, qboolean clientload, int *check
 			Com_Error (ERR_DROP, "Couldn't load %s", name);
 			return;
 		}
+
+		// A file shorter than one header was read as one anyway: the copy at
+		// "header = *(dheader_t *)buf" below takes sizeof(dheader_t) bytes out
+		// of an allocation of iBSPLen, and the version check that would have
+		// rejected the file happens after it. Eight bytes past the end of the
+		// heap block, for a map truncated by a bad download or a broken pk3,
+		// and AddressSanitizer says so the moment one is loaded.
+		//
+		// Checked here rather than after the read, because the point is not to
+		// reach the read.
+		if ( iBSPLen < (int)sizeof( dheader_t ) )
+		{
+			FS_FCloseFile( h );
+			Com_Error( ERR_DROP, "CM_LoadMap: %s is %i bytes, shorter than a "
+				"BSP header (%i)", name, iBSPLen, (int)sizeof( dheader_t ) );
+			return;
+		}
 		//rww - only do this when not loading a sub-bsp!
 		if (&cm == &cmg)
 		{

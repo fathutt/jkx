@@ -13,7 +13,7 @@ menuDef
 	// background of zero alpha and the engine correctly draws nothing - which
 	// looked for a while like the menu collapsing, and was really this file
 	// leaning on the default shader to paint the screen for it.
-	style					1
+	style					WINDOW_STYLE_FILLED
 	backcolor				0.2 0.2 0.6 1
 
 	// One picture, off-centre and not filling the screen, so that a frame which
@@ -23,7 +23,7 @@ menuDef
 		name				smokebox
 		rect				64 64 512 352
 		background			"jkx/smoke"
-		style				1
+		style				WINDOW_STYLE_FILLED
 		backcolor			1 0.3 0.1 1
 		forecolor			1 1 1 1
 		visible				1

@@ -15,6 +15,13 @@
 # flat colour. A frame that drew nothing still presents and still writes a file;
 # the only thing that separates it from a working one is the content.
 #
+# Then it loads a map that is not one. SV_Map_f only checks that the file
+# exists, so a 151-byte file gets as far as SV_SpawnServer - which calls
+# Hunk_Clear, which frees TAG_HUNKALLOC and wipes the renderer's tr, and only
+# then reaches CM_LoadMap and fails. What is left is the engine drawing frames
+# against an emptied renderer, which is exactly the window three of the first
+# crashes on real hardware lived in. See fixtures/base/maps/README.md.
+#
 # Where the validation layer is installed it is switched on and any message
 # fails the run. That is not decoration: this is how a set of descriptor sets
 # bound past the end of the pipeline layout was found - twenty-one spec
@@ -85,6 +92,13 @@ sleep 2
 # enough that a software rasteriser running under the validation layer still
 # finishes in under a minute. The engine quits itself, so a non-zero exit is a
 # real failure and not the timeout it used to be.
+#
+# Every screenshot is followed by a wait, and that is not padding. screenshot_tga
+# queues a render command; the file is written when the frame it was queued in
+# completes. Without the wait the next commands run first, and adding the map
+# step below turned the console screenshot into a picture of what came after it -
+# a frame with the console shut and the renderer wiped, which duly failed the
+# text check and looked like the font path breaking.
 set +e
 ( cd "$RUN" && \
   DISPLAY="$DISPLAY_NUM" \
@@ -94,7 +108,8 @@ set +e
       +set fs_basepath "$RUN" +set fs_homepath "$RUN/home" \
       +set s_initsound 0 \
       +wait 60 +screenshot_tga jkx_smoke \
-      +toggleconsole +wait 30 +screenshot_tga jkx_console \
+      +toggleconsole +wait 30 +screenshot_tga jkx_console +wait 20 \
+      +toggleconsole +wait 20 +map jkx_smoke +wait 60 +screenshot_tga jkx_wiped \
       +wait 10 +quit ) > "$RUN/run.log" 2>&1
 status=$?
 set -e
@@ -127,6 +142,14 @@ require 'selected presentation mode'
 require 'Common Initialization Complete'
 require 'Wrote screenshots/jkx_smoke.tga'
 require 'Wrote screenshots/jkx_console.tga'
+require 'Wrote screenshots/jkx_wiped.tga'
+
+# The map has to have been attempted and rejected. If SV_Map_f starts refusing
+# it earlier - which it would if the existence check moved - the run would go on
+# passing while checking nothing, because nothing would have cleared the hunk.
+if ! grep -q -- 'shorter than a BSP header' "$RUN/run.log"; then
+    report "the deliberately broken map was not loaded and rejected, so the hunk was never cleared"
+fi
 
 if grep -qE 'Segmentation fault|signal SIGSEGV|SIGABRT' "$RUN/run.log"; then
     report "the engine died on a signal"
@@ -161,7 +184,7 @@ fi
 # draw path, and a fragment shader that sampled a descriptor set nobody had
 # written, which on this software rasteriser is a segfault inside the JIT
 # several frames after anything to do with fonts.
-for pair in "jkx_smoke 2" "jkx_console 200"; do
+for pair in "jkx_smoke 2" "jkx_console 200" "jkx_wiped 2"; do
     set -- $pair
     name="$1"
     want="$2"
@@ -192,12 +215,14 @@ done
 # as long as it took to find out why the bars were white, and the answer was
 # that the fixture had no "white" shader and had been leaning on the default one
 # to paint its background - see the note in fixtures/base/shaders/jkx_smoke.shader.
-SHOT="$RUN/home/base/screenshots/jkx_smoke.tga"
-if [ -f "$SHOT" ]; then
-    if ! python3 "$HERE/tga_frame_geometry.py" "$SHOT"; then
-        report "the frame geometry is wrong"
+for name in jkx_smoke jkx_wiped; do
+    SHOT="$RUN/home/base/screenshots/$name.tga"
+    if [ -f "$SHOT" ]; then
+        if ! python3 "$HERE/tga_frame_geometry.py" "$SHOT"; then
+            report "the frame geometry is wrong in $name.tga"
+        fi
     fi
-fi
+done
 
 if [ "$fail" -ne 0 ]; then
     echo
