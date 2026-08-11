@@ -1251,13 +1251,30 @@ void R_ClearStuffToStopGhoul2CrashingThings( void )
 {
 	extern void KillTheShaderHashTable( void );
 
+	// The images do not die with the hunk. They are R_Z_Malloc'd under
+	// TAG_IMAGE_T, which Hunk_Clear does not touch, and the hash table that
+	// finds them is a file-static in vk_image.cpp that the wipe cannot reach
+	// either. So they are all still there and still findable; the only thing
+	// the wipe destroyed was tr's list of them.
+	//
+	// Losing that list leaks the entire texture set once per map load, and
+	// costs more than memory: image_t::index is assigned from the pool's count,
+	// so a restarted pool hands out indices that images already in the hash
+	// table are using. Those indices address descriptor slots.
+	//
+	// Carried across, therefore. Everything else here did live in the hunk and
+	// has to go.
+	const image_pool_t images = tr.images;
+
 	Com_Memset( &tr, 0, sizeof( tr ) );
 
-	// Three things point into the hunk from outside tr, so the wipe cannot
-	// reach them and each one has to be told separately: the shader hash table,
-	// the shader text, and the index into that text. The first two crashes on
-	// real hardware were the first and the second of those, in that order -
-	// clearing one just moved the fault along to the next.
+	tr.images = images;
+
+	// Three more point into the hunk from outside tr, so the wipe cannot reach
+	// them either and each has to be told separately: the shader hash table,
+	// the shader text, and the index into that text. Two of the three crashes
+	// on real hardware were the first and the second of these, in that order -
+	// clearing one only moved the fault along to the next.
 	R_InitShaders( qtrue );
 	KillTheShaderHashTable();
 }

@@ -186,16 +186,32 @@ static void R_AddImageToPool(image_t *image)
 {
     if (tr.images.count >= tr.images.capacity)
     {
-        uint32_t new_capacity = tr.images.capacity * 2;
+        // Doubling from zero is zero, and freeing a pool that was never
+        // allocated reads a heap header at NULL minus its size. That is not
+        // hypothetical: it is where the map load landed once the two shader
+        // faults before it were fixed -
+        //
+        //   read of 0xffffffffffffffe0
+        //   openjk_minizip_free+0x26  (code/qcommon/z_memman_pc.cpp:614)
+        //   R_CreateImage+0x113
+        //
+        // - 0xffffffffffffffe0 being -32, the header of a block at address
+        // zero. The pool is empty and unallocated because Hunk_Clear wipes tr
+        // on every map load, and the first image registered after that comes
+        // straight down this path.
+        uint32_t new_capacity = tr.images.capacity ? ( tr.images.capacity * 2 )
+                                                   : IMAGE_POOL_INITIAL_CAPACITY;
 
 		CL_RefPrintf( PRINT_ALL, S_COLOR_YELLOW "Resizing image pool from %u to %u entries\n", tr.images.capacity, new_capacity );
 
         image_t **new_items = (image_t**)R_Z_Malloc(sizeof(image_t*) * new_capacity, TAG_IMAGE_T);
 		Com_Memset(new_items, 0, sizeof(*new_items) * new_capacity);
 
-        Com_Memcpy( new_items, tr.images.items, sizeof(image_t*) * tr.images.count );
-
-        R_Z_Free(tr.images.items);
+        if ( tr.images.items )
+        {
+            Com_Memcpy( new_items, tr.images.items, sizeof(image_t*) * tr.images.count );
+            R_Z_Free(tr.images.items);
+        }
 
         tr.images.items = new_items;
         tr.images.capacity = new_capacity;
