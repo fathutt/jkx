@@ -527,6 +527,30 @@ saberType_t TranslateSaberType( const char *name )
 	return SABER_SINGLE;
 }
 
+// Which way out of the bolt the blade points, and how far the hilt is rolled.
+//
+// Temporary, and here to buy one run instead of six. In the Lightsaber Creation
+// screen the hilt lies down as it should and the blade comes out at ninety
+// degrees to it, through the menu. The bolt is found - the complaint below says
+// so and it does not print - which leaves the axes, and there are only six of
+// them plus one suspicious hard-coded ninety in the roll.
+//
+// So both are cvars. ui_saberAxis 1..6 is Eorientations, ui_saberRoll is the
+// angle in degrees; either at -1 means "as shipped". Set them from the console
+// with the screen open and the picture answers the question. When it has, this
+// goes away and the answer becomes the constant.
+//
+// Backlog section 12.
+static Eorientations UI_SaberBladeAxis( void )
+{
+	const int wanted = (int)DC->getCVarValue( "ui_saberAxis" );
+
+	if ( wanted < POSITIVE_X || wanted > NEGATIVE_Y )
+		return NEGATIVE_X;
+
+	return (Eorientations)wanted;
+}
+
 void UI_SaberDrawBlade( itemDef_t *item, char *saberName, int saberModel, saberType_t saberType, vec3_t origin, float curYaw, int bladeNum )
 {
 	char bladeColorString[MAX_QPATH];
@@ -538,8 +562,10 @@ void UI_SaberDrawBlade( itemDef_t *item, char *saberName, int saberModel, saberT
 	}
 	else
 	{
+		const float roll = DC->getCVarValue( "ui_saberRoll" );
+
 		angles[PITCH] = curYaw;
-		angles[ROLL] = 90;
+		angles[ROLL] = ( roll < 0.0f ) ? 90.0f : roll;
 	}
 
 	if ( saberModel >= item->ghoul2.size() )
@@ -596,7 +622,7 @@ void UI_SaberDrawBlade( itemDef_t *item, char *saberName, int saberModel, saberT
 
 	// work the matrix axis stuff into the original axis and origins used.
 	DC->g2_GiveMeVectorFromMatrix(boltMatrix, ORIGIN, bladeOrigin);
-	DC->g2_GiveMeVectorFromMatrix(boltMatrix, NEGATIVE_X, axis[0]);//front (was NEGATIVE_Y, but the md3->glm exporter screws up this tag somethin' awful)
+	DC->g2_GiveMeVectorFromMatrix(boltMatrix, UI_SaberBladeAxis(), axis[0]);//front (was NEGATIVE_Y, but the md3->glm exporter screws up this tag somethin' awful)
 	DC->g2_GiveMeVectorFromMatrix(boltMatrix, NEGATIVE_Y, axis[1]);//right
 	DC->g2_GiveMeVectorFromMatrix(boltMatrix, POSITIVE_Z, axis[2]);//up
 

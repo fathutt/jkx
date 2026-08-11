@@ -88,6 +88,10 @@ private:
 	FileCache files;
 };
 
+// How many distinct levels have been loaded this run. Defined in tr_init.cpp
+// and deliberately not in tr - see the note where trGlobals_t used to carry it.
+int C_GetLevel( void );
+
 qboolean C_Models_LevelLoadEnd( qboolean deleteUnusedByLevel );
 qboolean C_Images_LevelLoadEnd();
 

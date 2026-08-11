@@ -147,7 +147,7 @@ void* CModelCacheManager::Allocate( int iSize, void *pvDiskBuffer, const char *p
 		pFile = &(*cacheEntry);
 	}
 
-	pFile->iLevelLastUsedOn = tr.currentLevel;
+	pFile->iLevelLastUsedOn = C_GetLevel();
 
 	return pFile->pDiskImage;
 }
@@ -247,9 +247,9 @@ qboolean CModelCacheManager::LevelLoadEnd( qboolean deleteUnusedByLevel )
 		bool bDeleteThis = false;
 
 		if( deleteUnusedByLevel )
-			bDeleteThis = (it->iLevelLastUsedOn != tr.currentLevel);
+			bDeleteThis = (it->iLevelLastUsedOn != C_GetLevel());
 		else
-			bDeleteThis = (it->iLevelLastUsedOn < tr.currentLevel);
+			bDeleteThis = (it->iLevelLastUsedOn < C_GetLevel());
 
 		if( bDeleteThis )
 		{

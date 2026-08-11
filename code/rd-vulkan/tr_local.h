@@ -1844,7 +1844,11 @@ typedef struct trGlobals_s {
 
 	world_t					bspModels[MAX_SUB_BSP];
 	int						numBSPModels;
-	int						currentLevel;
+	// currentLevel used to be here and could not be: everything in tr is wiped
+	// on every map load, so the counter that ages media by level was always
+	// zero, and the model cache and the sound cache - which both compare
+	// against it - never evicted anything. It lives in tr_init.cpp now. See
+	// C_GetLevel and the note above RE_HunkClear.
 
 	int						numVBOs;
 	VBO_t					*vbos[4069];

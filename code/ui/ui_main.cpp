@@ -400,6 +400,10 @@ vmCvar_t	ui_saber;
 vmCvar_t	ui_saber2;
 vmCvar_t	ui_saber_color;
 vmCvar_t	ui_saber2_color;
+// Temporary, for backlog section 12: which way out of the bolt the blade
+// points and how far the hilt is rolled. -1 on either means as shipped.
+vmCvar_t	ui_saberAxis;
+vmCvar_t	ui_saberRoll;
 vmCvar_t	ui_char_color_red;
 vmCvar_t	ui_char_color_green;
 vmCvar_t	ui_char_color_blue;
@@ -460,6 +464,8 @@ static cvarTable_t cvarTable[] =
 	{ &ui_saber2,				"ui_saber2",			"", NULL, 0},
 	{ &ui_saber_color,			"ui_saber_color",		"", NULL, 0},
 	{ &ui_saber2_color,			"ui_saber2_color",		"", NULL, 0},
+	{ &ui_saberAxis,			"ui_saberAxis",			"-1", NULL, CVAR_TEMP},
+	{ &ui_saberRoll,			"ui_saberRoll",			"-1", NULL, CVAR_TEMP},
 
 	{ &ui_char_color_red,		"ui_char_color_red",	"", NULL, 0},
 	{ &ui_char_color_green,		"ui_char_color_green",	"", NULL, 0},

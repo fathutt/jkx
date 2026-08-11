@@ -712,7 +712,7 @@ volk → VMA → персистентный pipeline cache → sync2 → debug_u
 | 2.4 | SP World Effects API поверх GPU-погоды: `IsOutside`, `IsOutsideCausingPain`, `IsShaking`, `GetWindVector`, `GetChanceOfSaberFizz`. Нужен point-in-brush тест, которого в рантайме нет | 2–3 нед | не начато |
 | 2.5 | Портировать `tr_draw.cpp`-эквивалент, SP-типы поверхностей (`Cone`/`Cylinder`/`Electricity`/`SaberGlow`/`Lathe`/`Clouds`), дезинтеграцию | 2 нед | сделано |
 | 2.6 | Ghoul2 gore | 1,5–2,5 нед | сделано |
-| 2.7 | Image manager: SP и MP имеют разные; свести к MP-версии с PBR-расширениями | 1,5 нед | не начато |
+| 2.7 | Image manager: SP и MP имеют разные; свести к MP-версии с PBR-расширениями | 1,5 нед | частично: счётчик уровней починен (Backlog §18), выгрузка изображений ждёт фазы 5 |
 | 2.8 | Cvar-совместимость: набор Quake3e ≠ ванильный JKA, SP-меню ждёт ванильных имён | 1 нед | частично |
 | 2.9 | JK2: `OldToNewRemapTable[72]` (ремап костей JK2→JKA), проверка ассетов | 1 нед | не проверено |
 | 2.10 | Bring-up и отладка по обеим кампаниям | 3–5 нед | **идёт сейчас** |

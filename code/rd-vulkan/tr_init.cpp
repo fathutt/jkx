@@ -1448,6 +1448,16 @@ extern qboolean R_InitializeWireframeAutomap( void ); //tr_world.cpp
 
 extern qhandle_t RE_RegisterServerSkin( const char *name );
 
+// How many distinct levels have been loaded this run.
+//
+// Not in tr, and that is the whole point: tr is wiped twice per map load, so a
+// counter kept there reads zero every time it is asked. Both caches that age
+// media by level - the model cache here and the sound cache in snd_dma.cpp,
+// through re.RegisterMedia_GetLevel - compare an asset's last-used level
+// against this one, and against a permanent zero nothing is ever older, so
+// nothing was ever evicted.
+static int	s_currentLevel = 0;
+
 void C_LevelLoadBegin(const char *psMapName, ForceReload_e eForceReload)
 {
 	static char sPrevMapName[MAX_QPATH]={0};
@@ -1464,13 +1474,13 @@ void C_LevelLoadBegin(const char *psMapName, ForceReload_e eForceReload)
 	if (Q_stricmp( psMapName,sPrevMapName ))
 	{
 		Q_strncpyz( sPrevMapName, psMapName, sizeof(sPrevMapName) );
-		tr.currentLevel++;
+		s_currentLevel++;
 	}
 }
 
 int C_GetLevel( void )
 {
-	return tr.currentLevel;
+	return s_currentLevel;
 }
 
 // Whether the load that is finishing may close with a screen wipe. It arrives at

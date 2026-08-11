@@ -131,8 +131,18 @@ sleep 2
 # make_test_glm.py deliberately avoids by naming "*default". Until there is a
 # generator for one, the JK2 lane stops at the wiped renderer, which is still
 # every line above the server.
-INMAP_STEP=( +wait 20 +map jkx_room +wait 80 +screenshot_tga jkx_inmap )
-if [ "$GAME_ID" != "ja" ]; then
+#
+# Two maps, not one, and they have to have different names. Media is aged by a
+# level counter that only moves when the map name changes, and both caches that
+# use it - models here, sounds in snd_dma.cpp - evict at the end of every load.
+# Loading the same map twice never moves the counter and never evicts, so the
+# eviction pass would run on this bench without ever deleting anything. The
+# second map is generated rather than committed: it is the same room.
+INMAP_STEP=( +wait 20 +map jkx_room +wait 80 +screenshot_tga jkx_inmap
+             +wait 20 +map jkx_room2 +wait 60 )
+if [ "$GAME_ID" = "ja" ]; then
+    python3 "$HERE/make_test_bsp.py" "$RUN/base/maps/jkx_room2.bsp" >/dev/null
+else
     INMAP_STEP=()
 fi
 
@@ -193,6 +203,7 @@ SHOTS=( "jkx_smoke 2" "jkx_console 200" "jkx_wiped 2" )
 if [ "$GAME_ID" = "ja" ]; then
     require 'Wrote screenshots/jkx_inmap.tga'
     require 'Server: jkx_room'
+    require 'Server: jkx_room2'
     # A world view with a head-up display over it has hundreds of distinct
     # colours; two would mean the renderer presented the clear colour and cgame
     # drew nothing, which is what every failure on this path has looked like.
