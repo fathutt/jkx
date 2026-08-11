@@ -181,6 +181,27 @@ for pair in "jkx_smoke 2" "jkx_console 200"; do
     fi
 done
 
+# Where the picture is, not just whether there is one. The menu frame is 640x480
+# fitted into the window and centred, so from the screenshot's own size the
+# margins and the position of the fixture's one item are both fixed exactly -
+# and both are things this project has got wrong without noticing. Run this at a
+# wide screen size (JKX_SMOKE_SCREEN) and it is a real test; run it at 4:3 and
+# there are no margins and it only checks placement.
+#
+# --margins report rather than the default: the bars come out white in this
+# fixture because it has no "white" shader and the default one ignores the
+# colour they are drawn with. That is a real defect and it is written down
+# (Backlog 14); it is not gated here because the fixture cannot currently
+# define "white" without hitting a second one. Placement is gated, and placement
+# is the half that catches content computed against the window instead of
+# against the frame. When 14 is fixed, drop the flag.
+SHOT="$RUN/home/base/screenshots/jkx_smoke.tga"
+if [ -f "$SHOT" ]; then
+    if ! python3 "$HERE/tga_frame_geometry.py" "$SHOT" --margins report; then
+        report "the frame geometry is wrong"
+    fi
+fi
+
 if [ "$fail" -ne 0 ]; then
     echo
     echo "--- last 40 lines ---"

@@ -23,6 +23,9 @@
 #               was built from
 #   smoke       the engine drawing frames on the Vulkan renderer, headless,
 #               under the validation layer
+#   smokewide   the same at 32:9, where the interface's arithmetic is checked
+#               against the picture: at 4:3 the fitted frame is the whole window
+#               and a wrong mapping looks exactly like a right one
 #   smokesan    the same run against the sanitizer build. Building sanitizers
 #               and never running them checks nothing: the first time this was
 #               run it reported two misaligned accesses in the zone allocator,
@@ -48,7 +51,7 @@ JOBS="${JOBS:-$(nproc)}"
 
 STAGES=( "$@" )
 if [ "${#STAGES[@]}" -eq 0 ]; then
-    STAGES=( policy release debug windows sanitizers tests smoke smokesan )
+    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokesan )
 fi
 
 failed=()
@@ -126,6 +129,21 @@ stage_tests() {
 
 stage_smoke() {
     bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
+}
+
+# The same run at 32:9, which is where the interface's arithmetic is worth
+# checking: at 4:3 the fitted frame is the window and every wrong mapping agrees
+# with every right one. A whole class of defect - a splash stretched instead of
+# fitted, a model placed against the window inside a menu placed against the
+# frame - is only a different picture on a wide screen.
+#
+# Validation is off here because the run above already did that pass, and the
+# display number differs so the two do not share an X server.
+stage_smokewide() {
+    JKX_SMOKE_DISPLAY="${JKX_SMOKE_WIDE_DISPLAY:-:97}" \
+    JKX_SMOKE_SCREEN=2560x720 \
+    JKX_SMOKE_NO_VALIDATION=1 \
+        bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
 }
 
 # Leak detection is off: the engine frees its zone in one go at exit and reports
