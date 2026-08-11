@@ -138,12 +138,17 @@ void COM_ParseInit( void )
 void COM_BeginParseSession( void )
 {
 	parseDataCount++;
-#ifdef _DEBUG
+
+	// Not under _DEBUG. The two lines below index parseData with this, so
+	// running past the end is a write outside the array - which a release build
+	// did silently while a debug build stopped with a message. The condition
+	// that gets you here is four sessions left open by callers that return
+	// without ending them, and it is a map load, not an exotic case.
 	if ( parseDataCount >= MAX_PARSE_DATA )
 	{
 		Com_Error (ERR_FATAL, "COM_BeginParseSession: cannot nest more than %d parsing sessions.\n", MAX_PARSE_DATA);
+		return;
 	}
-#endif
 
 	parseData[parseDataCount].com_lines = 1;
 	parseData[parseDataCount].com_tokenline = 0;
@@ -151,9 +156,20 @@ void COM_BeginParseSession( void )
 
 void COM_EndParseSession( void )
 {
-	parseDataCount--;
+	// Clamped, not just asserted. -1 is the empty state; below it the next
+	// COM_BeginParseSession writes to parseData[0] again, which is harmless, but
+	// COM_GetCurrentParseLine and COM_ParseExt both index with this and both
+	// treat a negative as fatal. A stray end should not be able to take the
+	// engine down two parses later.
+	if ( parseDataCount >= 0 )
+	{
+		parseDataCount--;
+	}
 #ifdef _DEBUG
-	assert (parseDataCount >= -1 && "COM_EndParseSession: called without a starting COM_BeginParseSession.\n");
+	else
+	{
+		assert (0 && "COM_EndParseSession: called without a starting COM_BeginParseSession.\n");
+	}
 #endif
 }
 
