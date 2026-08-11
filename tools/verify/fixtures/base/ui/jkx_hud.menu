@@ -1,0 +1,47 @@
+// The head-up display, reduced to the two menus cgame looks up by name.
+//
+// cg_draw.cpp asks for "lefthud" and "righthud" through cgi_UI_GetMenuInfo and
+// paints them itself; if they are missing it draws nothing and carries on, so
+// these exist to make that path run rather than to look like anything. Their
+// rectangles are the vanilla ones, which is what makes them useful: the right
+// half is anchored to x=640 in a 640-wide space, and moving it to the screen's
+// real right edge is the last open item of docs/Backlog.md section 1.2.
+{
+menuDef
+{
+	name					"lefthud"
+	fullScreen				0
+	rect					0 380 160 100
+	visible					1
+
+	itemDef
+	{
+		name				healthamount
+		rect				20 20 60 20
+		style				WINDOW_STYLE_FILLED
+		backcolor			0.8 0.2 0.2 1
+		forecolor			1 1 1 1
+		visible				1
+		decoration
+	}
+}
+
+menuDef
+{
+	name					"righthud"
+	fullScreen				0
+	rect					480 380 160 100
+	visible					1
+
+	itemDef
+	{
+		name				ammoamount
+		rect				80 20 60 20
+		style				WINDOW_STYLE_FILLED
+		backcolor			0.2 0.4 0.8 1
+		forecolor			1 1 1 1
+		visible				1
+		decoration
+	}
+}
+}

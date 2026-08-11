@@ -3033,8 +3033,11 @@ qhandle_t RE_RegisterShader( const char *name )
 {
 	shader_t	*sh;
 
-	if (strlen(name) >= MAX_QPATH) {
-		vk_debug("Shader name exceeds MAX_QPATH\n");
+	// Same as RE_RegisterShaderNoMip below: a null name is a caller with
+	// nothing to register, not a program error, and strlen may not be handed
+	// one.
+	if (!name || strlen(name) >= MAX_QPATH) {
+		vk_debug("Shader name is empty or exceeds MAX_QPATH\n");
 		return 0;
 	}
 
@@ -3063,8 +3066,13 @@ qhandle_t RE_RegisterShaderNoMip( const char *name )
 {
 	shader_t *sh;
 
-	if (strlen(name) >= MAX_QPATH) {
-		vk_debug("Shader name exceeds MAX_QPATH\n");
+	// A caller with nothing to register passes nothing, and strlen is declared
+	// never to take a null - UndefinedBehaviorSanitizer says so on the first map
+	// load, where the interface asks for a shader an item has not named. Handle
+	// zero is what the length check already returns for a name it will not
+	// accept, so there is an answer for this case already.
+	if (!name || strlen(name) >= MAX_QPATH) {
+		vk_debug("Shader name is empty or exceeds MAX_QPATH\n");
 		return 0;
 	}
 

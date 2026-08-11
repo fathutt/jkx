@@ -1,0 +1,10 @@
+// cg_hudFiles points here (cg_main.cpp), and without it cgame stops with
+// "default menu file not found: ui/hud.txt" - a message naming a file the code
+// never opens, which is its own small trap. What it actually wants is whatever
+// cg_hudFiles names, and this fixture points it at itself.
+{
+	loadmenu
+	{
+		"ui/jkx_hud.menu"
+	}
+}

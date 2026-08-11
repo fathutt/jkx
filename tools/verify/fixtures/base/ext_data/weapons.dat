@@ -1,0 +1,11 @@
+// Deliberately empty of weapons.
+//
+// WP_LoadWeaponParms fills every weapon's damage from the compiled-in
+// defaultDamage tables before it parses anything, and WP_ParseParms only looks
+// for "{" blocks - so a file with none in it leaves those defaults standing.
+// What the engine actually needs from this path is that the file exist at all:
+// without it G_InitGame stops at Com_Error(ERR_FATAL).
+//
+// docs/Backlog.md section 10: an engine that cannot start without a data file
+// from the retail game, in order to use values it already has compiled in,
+// should be carrying that file itself.

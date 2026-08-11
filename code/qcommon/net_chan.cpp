@@ -454,9 +454,10 @@ qboolean	NET_GetLoopPacket (netsrc_t sock, netadr_t *net_from, msg_t *net_messag
 		i = 0;
 	}
 
-	//Get length of packet.
-	byteAlias_t *ba = (byteAlias_t *)&loop->loopData[i];
-	const int length = ba->i;
+	// Get length of packet. Copied, not aliased - see the matching write below,
+	// which put it at whatever offset the previous packet happened to end at.
+	int length;
+	memcpy( &length, &loop->loopData[i], sizeof( length ) );
 	i += 4;
 
 	//See if entire packet is at end of buffer or part is at the beginning.
@@ -508,9 +509,16 @@ void NET_SendLoopPacket (netsrc_t sock, int length, const void *data, netadr_t t
 		i = 0;
 	}
 
-	//Write length of packet.
-	byteAlias_t *ba = (byteAlias_t *)&loop->loopData[i];
-	ba->i = length;
+	// Write length of packet.
+	//
+	// Copied rather than aliased. i is wherever the previous packet ended, so
+	// it is only aligned by luck, and casting the byte at it to a type that
+	// wants four-byte alignment is undefined even where the hardware tolerates
+	// it. UndefinedBehaviorSanitizer says so on the first map load:
+	//
+	//   net_chan.cpp:513: member access within misaligned address for type
+	//   'union byteAlias_t', which requires 4 byte alignment
+	memcpy( &loop->loopData[i], &length, sizeof( length ) );
 	i += 4;
 
 	//See if the whole packet will fit on the end of the buffer or if we

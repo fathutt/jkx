@@ -533,6 +533,43 @@ static int Zone_FreeBlock(zoneHeader_t *pMemory)
 qboolean Z_IsFromZone(const void *pvAddress, memtag_t eTag)
 {
 	const zoneHeader_t *pMemory = ((const zoneHeader_t *)pvAddress) - 1;
+
+	// The question this answers is "is this pointer mine", so it is asked about
+	// pointers that are not. WP_SaberFreeStrings asks it about saber.model,
+	// which for the compiled-in default saber is a string literal in the game
+	// library's read-only data - and reading a header off the front of that is
+	// a read of another global entirely. AddressSanitizer reports it as
+	// global-buffer-overflow on the first map that spawns a player start,
+	// which is every map:
+	//
+	//   Z_IsFromZone            code/qcommon/z_memman_pc.cpp
+	//   WP_SaberFreeStrings     code/game/wp_saberLoad.cpp:169
+	//   SP_info_player_start    code/game/g_client.cpp:101
+	//   G_SpawnEntitiesFromString
+	//
+	// So the list is walked before the header is touched. It is the only way to
+	// know the header exists, and this is a query on a handful of strings per
+	// entity rather than anything in a frame.
+	if ( pvAddress == NULL ) {
+		return qfalse;
+	}
+
+	{
+		const zoneHeader_t *pBlock;
+		qboolean bFound = qfalse;
+
+		for ( pBlock = TheZone.Header.pNext; pBlock; pBlock = pBlock->pNext ) {
+			if ( pBlock == pMemory ) {
+				bFound = qtrue;
+				break;
+			}
+		}
+
+		if ( !bFound ) {
+			return qfalse;
+		}
+	}
+
 #if 1	//debugging double free
 	if (pMemory->iMagic == INT_ID('F','R','E','E'))
 	{
