@@ -433,9 +433,15 @@ void main() {
 		vec3  Fd = CalcDiffuse( diffuse.rgb, NE, NL, LH, roughness );
 		vec3  Fs = vec3( 0.0 );
 
+		// Hoisted out of the branches below so the debug views can reach them.
+		// They are computed in three mutually exclusive places and were local to
+		// each.
+		float NH = 0.0;
+		float VH = 0.0;
+
 		#if defined(USE_LIGHT_VECTOR)
-			float NH = clamp( dot( N, H ), 0.0, 1.0 );
-			float VH = clamp( dot( E, H ), 0.0, 1.0 );
+			NH = clamp( dot( N, H ), 0.0, 1.0 );
+			VH = clamp( dot( E, H ), 0.0, 1.0 );
 			Fs = CalcSpecular( specular.rgb, NH, NL, NE, LH, VH, roughness );
 		#endif
 
@@ -448,8 +454,8 @@ void main() {
 		#if defined(USE_LIGHTMAP) || defined(USE_LIGHT_VERTEX)
 			if ( deluxe_specular_scale != 0.0 )
 			{
-				float NH = clamp( dot( N, H ), 0.0, 1.0 );
-				float VH = clamp( dot( E, H ), 0.0, 1.0 );
+				NH = clamp( dot( N, H ), 0.0, 1.0 );
+				VH = clamp( dot( E, H ), 0.0, 1.0 );
 				Fs = CalcSpecular( specular.rgb, NH, NL, NE, LH, VH, roughness ) * deluxe_specular_scale;
 			}
 		#endif
@@ -461,8 +467,8 @@ void main() {
 				&& deluxe_mapping > -1
 			#endif
 				){
-					float NH = clamp(dot(N, H), 0.0, 1.0);
-					float VH = clamp(dot(E, H), 0.0, 1.0);
+					NH = clamp(dot(N, H), 0.0, 1.0);
+					VH = clamp(dot(E, H), 0.0, 1.0);
 					Fs = CalcSpecular( specular.rgb, NH, NL, NE, LH, VH, roughness) * deluxe_specular_scale;
 				}
 		#endif
@@ -482,6 +488,38 @@ void main() {
 			out_color.rgb += CalcIBLContribution( roughness, N, E, NE, specular.rgb * AO );
 
 		out_color.a = diffuse.a;
+
+		// One term of the lighting instead of their sum. The order matches
+		// debugViewNames[] in tr_init.cpp; "debugview" prints it.
+		if ( Var_RenderMode > 0 ) {
+			switch ( Var_RenderMode ) {
+				case  1: out_color.rgb = diffuse.rgb; break;
+				case  2: out_color.rgb = specular.rgb; break;
+				case  3: out_color.rgb = vec3( roughness ); break;
+				case  4: out_color.rgb = vec3( AO ); break;
+				case  5: out_color.rgb = var_Normal.rgb * 0.5 + 0.5; break;
+				case  6: out_color.rgb = N * 0.5 + 0.5; break;
+				case  7: out_color.rgb = L; break;
+				case  8: out_color.rgb = E; break;
+				case  9: out_color.rgb = var_Tangent.rgb; break;
+				case 10: out_color.rgb = lightColor; break;
+				case 11: out_color.rgb = ambientColor; break;
+				case 12: out_color.rgb = reflectance; break;
+				case 13: out_color.rgb = vec3( attenuation ); break;
+				case 14: out_color.rgb = H; break;
+				case 15: out_color.rgb = Fd; break;
+				case 16: out_color.rgb = Fs; break;
+				case 17: out_color.rgb = vec3( NE ); break;
+				case 18: out_color.rgb = vec3( NL ); break;
+				case 19: out_color.rgb = vec3( LH ); break;
+				case 20: out_color.rgb = vec3( NH ); break;
+				case 21: out_color.rgb = vec3( VH ); break;
+				case 22: out_color.rgb = ( env_texture_set > -1 )
+					? CalcIBLContribution( roughness, N, E, NE, specular.rgb * AO )
+					: vec3( 0.0 ); break;
+			}
+			out_color.a = 1.0;
+		}
 	#else
 		out_color = base;
 	#endif

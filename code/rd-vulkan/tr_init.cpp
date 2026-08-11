@@ -173,6 +173,7 @@ cvar_t	*r_showImages;
 cvar_t	*r_ambientScale;
 cvar_t	*r_directedScale;
 cvar_t	*r_debugLight;
+cvar_t	*r_debugView;
 cvar_t	*r_debugSort;
 
 cvar_t	*r_marksOnTriangleMeshes;
@@ -750,6 +751,67 @@ void R_ClearRemaps_f( void ) {
 	}
 }
 
+// THE LIGHTING, ONE TERM AT A TIME
+//
+// The physically based shader computes a dozen intermediate quantities and
+// shows none of them; what reaches the screen is their sum, and a sum is the
+// one thing you cannot debug by looking at it. Every question of the form "is
+// this too bright because the ambient is wrong, or because the specular is, or
+// because the normal map is upside down" has the same answer today, which is a
+// guess.
+//
+// It is worth a push constant on every draw because of what a wrong guess costs
+// here: this project is built in one place and run in another, and a round trip
+// is hours. Six screenshots from one run beat six builds.
+//
+// The list is upstream's, from JKSunny's inspector branch, minus the ImGui it
+// was wired to. See docs/Upstream-Survey.md.
+static const char *debugViewNames[] = {
+	"off",
+	"diffuse", "specular", "roughness", "ao",
+	"normals", "normalmap", "lightdir", "viewdir", "tangents",
+	"lightcolor", "ambient", "reflectance", "attenuation",
+	"halfangle", "fd", "fs",
+	"ne", "nl", "lh", "nh", "vh",
+	"ibl"
+};
+
+static void R_DebugView_f( void ) {
+	size_t i;
+
+	if ( Cmd_Argc() < 2 ) {
+		CL_RefPrintf( PRINT_ALL, "usage: debugview <name|number>, currently %s\n",
+			( r_debugView->integer > 0 && r_debugView->integer < (int)ARRAY_LEN( debugViewNames ) )
+				? debugViewNames[ r_debugView->integer ] : "off" );
+
+		for ( i = 0; i < ARRAY_LEN( debugViewNames ); i++ )
+			CL_RefPrintf( PRINT_ALL, "  %2u  %s\n", (unsigned)i, debugViewNames[i] );
+
+		return;
+	}
+
+	// By name as well as by number, and that is not decoration either: a number
+	// has to be looked up in a table that is not in front of whoever is running
+	// the build, and "debugview roughness" survives being relayed through a chat
+	// message intact.
+	for ( i = 0; i < ARRAY_LEN( debugViewNames ); i++ ) {
+		if ( !Q_stricmp( Cmd_Argv( 1 ), debugViewNames[i] ) ) {
+			Cvar_Set( "r_debugView", va( "%u", (unsigned)i ) );
+			CL_RefPrintf( PRINT_ALL, "debugview: %s\n", debugViewNames[i] );
+			return;
+		}
+	}
+
+	i = (size_t)atoi( Cmd_Argv( 1 ) );
+	if ( i >= ARRAY_LEN( debugViewNames ) ) {
+		CL_RefPrintf( PRINT_ALL, "debugview: no such view \"%s\"\n", Cmd_Argv( 1 ) );
+		return;
+	}
+
+	Cvar_Set( "r_debugView", va( "%u", (unsigned)i ) );
+	CL_RefPrintf( PRINT_ALL, "debugview: %s\n", debugViewNames[i] );
+}
+
 typedef struct consoleCommand_s {
 	const char	*cmd;
 	xcommand_t	func;
@@ -771,7 +833,8 @@ static consoleCommand_t	commands[] = {
 	{ "r_cleardecals",		RE_ClearDecals },
 	{ "remapSky",			R_RemapSkyShader_f },
 	{ "clearRemaps",		R_ClearRemaps_f },
-	{ "vkinfo",				vk_info_f }
+	{ "vkinfo",				vk_info_f },
+	{ "debugview",			R_DebugView_f }
 };
 
 static const size_t numCommands = ARRAY_LEN( commands );
@@ -870,6 +933,7 @@ void R_Register( void )
 	r_autoMapDisable					= Cvar_Get( "r_autoMapDisable",					"1",						CVAR_NONE, "" );
 	r_showImages						= Cvar_Get( "r_showImages",						"0",						CVAR_CHEAT, "" );
 	r_debugLight						= Cvar_Get( "r_debuglight",						"0",						CVAR_TEMP, "" );
+	r_debugView							= Cvar_Get( "r_debugView",						"0",						CVAR_TEMP, "show one term of the lighting instead of the frame; \"debugview\" lists them" );
 	r_debugSort							= Cvar_Get( "r_debugSort",						"0",						CVAR_CHEAT, "" );
 	r_dlightStyle						= Cvar_Get( "r_dlightStyle",						"1",						CVAR_TEMP, "" );
 	r_surfaceSprites					= Cvar_Get( "r_surfaceSprites",					"1",						CVAR_ARCHIVE_ND | CVAR_LATCH, "" );

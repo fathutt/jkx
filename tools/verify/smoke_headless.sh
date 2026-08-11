@@ -171,6 +171,16 @@ INMAP_STEP+=( +r_we "windzone ( -64 -64 -64 ) ( 64 64 64 ) ( 0 800 0 )" +wait 5
               +r_we "windat 0 0 0" +wait 5
               +r_we "windat 5000 5000 5000" +wait 5 )
 fi
+#
+# And one of the lighting debug views, which is new and is a tool rather than a
+# feature: the shader can draw a single term of the lighting instead of their
+# sum. The frame it produces is checked for being a picture, because the way
+# this breaks is a black screen - a push constant that never arrives reads as
+# zero, and zero is a valid mode meaning "off", so a broken one looks exactly
+# like a working one unless something looks at the pixels.
+INMAP_STEP+=( +debugview roughness +wait 10 +screenshot_tga jkx_debugview
+              +wait 10 +debugview off +wait 5 )
+
 if [ "${JKX_SMOKE_SAVELOAD:-0}" = "1" ]; then
     # And then stop. The second map below is there to move the media level
     # counter, which the run without the round trip already checks; doing both
@@ -269,6 +279,9 @@ if [ "${JKX_SMOKE_WEATHER:-1}" = "1" ]; then
     require 'windat 0 0 0: speed 800.0 dir 0.00 1.00 0.00'
     require 'windat 5000 5000 5000: speed 0.0'
 fi
+
+require 'debugview: roughness'
+SHOTS+=( "jkx_debugview 2" )
 
 if [ "${JKX_SMOKE_SAVELOAD:-0}" = "1" ]; then
     require 'Wrote screenshots/jkx_loaded.tga'

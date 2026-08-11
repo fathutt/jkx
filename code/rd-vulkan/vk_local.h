@@ -442,8 +442,15 @@ typedef struct VK_Pipeline {
 } VK_Pipeline_t;
 
 // this structure must be in sync with shader uniforms!
+//
+// renderMode is a float rather than an int because the whole block is memcpy'd
+// into a push constant the vertex shader declares as floats; the shader casts it
+// back. It carries r_debugView, which is not a debugging leftover - see the note
+// over R_DebugView_f in tr_init.cpp for why a way to see one term of the
+// lighting at a time is worth a push constant on every draw.
 typedef struct {
 	float	mvp[16];
+	float	renderMode;
 } pushConst;
 
 typedef struct vkUniform_s {

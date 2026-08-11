@@ -4,9 +4,10 @@
 #include "global.h"
 
 
-// 64 bytes
+// 68 bytes. Keep in sync with pushConst in vk_local.h.
 layout(push_constant) uniform Transform {
 	mat4 mvp;
+	float renderMode;
 };
 
 #if defined(USE_FOG) || defined(USE_ENV)
@@ -325,9 +326,14 @@ void main() {
 #ifdef PER_PIXEL_LIGHTING 
 	vec3 viewDir = u_camera.viewOrigin.xyz - position;
 
-	var_LightDir	= vec4(L, 0.0);	
+	var_LightDir	= vec4(L, 0.0);
 	var_Normal		= vec4(normal, 0.0);
 	var_ViewDir		= vec4(viewDir, 0.0);
 	var_Tangent		= vec4(tangent, in_tangent.w);
+
+	// The declaration for this was already here, on both sides, with nothing
+	// ever writing it - the location was reserved by the branch the renderer
+	// came from and the code that fed it stayed behind. This is that code.
+	Var_RenderMode	= int(renderMode);
 #endif
 }

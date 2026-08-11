@@ -184,12 +184,21 @@ void vk_update_mvp( const float *m ) {
 	//pushConst push_constants;
 
 	// Specify push constants.
+	//
+	// sizeof(push_constants) here, not sizeof(the struct): the copy is into the
+	// matrix, and the block has more in it than the matrix now. It was written
+	// the other way and was harmless only for as long as the two were the same
+	// size.
 	if (m)
-		Com_Memcpy(push_constants.mvp, m, sizeof(push_constants));
+		Com_Memcpy(push_constants.mvp, m, sizeof(push_constants.mvp));
 	else
 		get_mvp_transform(push_constants.mvp);
 
-	vkCmdPushConstants(vk.cmd->command_buffer, vk.pipeline_layout, 
+	// Every draw carries it, because a debug view that only applied to some of
+	// the scene would be worse than none.
+	push_constants.renderMode = (float)r_debugView->integer;
+
+	vkCmdPushConstants(vk.cmd->command_buffer, vk.pipeline_layout,
 		VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(push_constants), &push_constants);
 
 #ifdef USE_VK_STATS

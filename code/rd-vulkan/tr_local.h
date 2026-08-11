@@ -2111,6 +2111,7 @@ extern cvar_t	*r_renderScale;
 extern cvar_t	*r_deluxeMapping;
 extern cvar_t	*r_deluxeSpecular;
 #endif
+extern cvar_t	*r_debugView;			// draw one term of the lighting; "debugview" lists them
 #ifdef VK_DLIGHT_GPU
 extern cvar_t	*r_dlightMethod;		// 0 - CPU, 1 - GPU
 #endif
