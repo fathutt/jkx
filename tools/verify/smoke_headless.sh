@@ -22,6 +22,14 @@
 # against an emptied renderer, which is exactly the window three of the first
 # crashes on real hardware lived in. See fixtures/base/maps/README.md.
 #
+# Then it loads a map that is one. Everything above this is the menu; from here
+# the run goes through the server - CM_LoadMap on a BSP that parses,
+# SV_InitGameProgs, entity spawn, a client connecting to a local server, a
+# player model, and cgame drawing a world view with a head-up display over it.
+# Eight defects have been found on this path and six of them were reads or
+# writes out of bounds. The map and the player model are generated: see
+# make_test_bsp.py and make_test_glm.py.
+#
 # Where the validation layer is installed it is switched on and any message
 # fails the run. That is not decoration: this is how a set of descriptor sets
 # bound past the end of the pipeline layout was found - twenty-one spec
@@ -66,6 +74,12 @@ cp -r "$HERE/fixtures/base" "$RUN/base"
 cp "$ENGINE" "$RUN/"
 [ -n "$RENDERER" ] && cp "$RENDERER" "$RUN/"
 
+# The game library goes beside the engine, not into base/. FS_ExtractedFile
+# looks in the executable's directory first, and a copy in base/ is what a mod
+# is; this is the base game.
+GAME="$BUILD/code/game/jagame$ARCH.so"
+[ -f "$GAME" ] && cp "$GAME" "$RUN/"
+
 if [ -n "$PAK" ]; then
     [ -f "$PAK" ] || { echo "no such shader pak: $PAK" >&2; exit 2; }
     cp "$PAK" "$RUN/base/shaders.pak"
@@ -104,13 +118,15 @@ set +e
   DISPLAY="$DISPLAY_NUM" \
   XDG_RUNTIME_DIR="$RUN/xdg" \
   VK_ICD_FILENAMES="${VK_ICD_FILENAMES:-/usr/share/vulkan/icd.d/lvp_icd.json}" \
-  timeout 300 "./$(basename "$ENGINE")" \
+  timeout 420 "./$(basename "$ENGINE")" \
       +set fs_basepath "$RUN" +set fs_homepath "$RUN/home" \
       +set s_initsound 0 \
+      +set cg_hudFiles ui/jkx_hud.txt +set g_char_model jkx \
       +wait 60 +screenshot_tga jkx_smoke \
       +toggleconsole +wait 30 +screenshot_tga jkx_console +wait 20 \
       +toggleconsole +wait 20 +map jkx_smoke +wait 60 +screenshot_tga jkx_wiped \
-      +wait 10 +quit ) > "$RUN/run.log" 2>&1
+      +wait 20 +map jkx_room +wait 80 +screenshot_tga jkx_inmap \
+      +wait 20 +quit ) > "$RUN/run.log" 2>&1
 status=$?
 set -e
 
@@ -143,6 +159,15 @@ require 'Common Initialization Complete'
 require 'Wrote screenshots/jkx_smoke.tga'
 require 'Wrote screenshots/jkx_console.tga'
 require 'Wrote screenshots/jkx_wiped.tga'
+require 'Wrote screenshots/jkx_inmap.tga'
+
+# The second map is a real one, and this is the half of the run that goes
+# through the server: CM_LoadMap on a BSP that parses, SV_InitGameProgs, entity
+# spawn, a client connecting to a local server, a player model, and cgame
+# drawing a world view with a head-up display over it. Everything above this
+# line is the menu. Eight of the defects found so far were only reachable from
+# here, six of them reads or writes out of bounds.
+require 'Server: jkx_room'
 
 # The map has to have been attempted and rejected. If SV_Map_f starts refusing
 # it earlier - which it would if the existence check moved - the run would go on
@@ -184,7 +209,12 @@ fi
 # draw path, and a fragment shader that sampled a descriptor set nobody had
 # written, which on this software rasteriser is a segfault inside the JIT
 # several frames after anything to do with fonts.
-for pair in "jkx_smoke 2" "jkx_console 200" "jkx_wiped 2"; do
+#
+# The in-map frame gets a real threshold. A world view with a head-up display
+# over it has hundreds of distinct colours; two would mean the renderer
+# presented the clear colour and cgame drew nothing, which is what every failure
+# on this path has looked like so far.
+for pair in "jkx_smoke 2" "jkx_console 200" "jkx_wiped 2" "jkx_inmap 100"; do
     set -- $pair
     name="$1"
     want="$2"

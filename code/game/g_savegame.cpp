@@ -395,6 +395,32 @@ static vehicleInfo_t *GetVehicleInfoPtr(int iVehicleIndex)
 ////////////////////////////////
 
 
+// Every field in these two switches is reached through a pointer into a
+// structure being walked by byte offset, so its alignment is whatever that
+// offset happens to give - not the alignment the type wants. Reading or writing
+// through a cast is undefined even where the hardware shrugs, and
+// UndefinedBehaviorSanitizer says so on the first map that autosaves:
+//
+//   g_savegame.cpp:498: store to misaligned address for type 'void *',
+//   which requires 8 byte alignment
+//
+// That was the F_NULL case. The rest of the switch has the same shape and had
+// simply not been reported yet, so all of it goes through these instead. A
+// memcpy of the same size is the same operation without the promise the
+// compiler is entitled to make about alignment; the generated code is a load
+// and a store either way.
+template<typename T> static inline T sg_load( const void *pv )
+{
+	T v;
+	memcpy( &v, pv, sizeof( v ) );
+	return v;
+}
+
+template<typename T> static inline void sg_store( void *pv, T v )
+{
+	memcpy( pv, &v, sizeof( v ) );
+}
+
 static void EnumerateField(const save_field_t *pField, const byte *pbBase)
 {
 	void *pv = (void *)(pbBase + pField->iOffset);
@@ -402,27 +428,27 @@ static void EnumerateField(const save_field_t *pField, const byte *pbBase)
 	switch (pField->eFieldType)
 	{
 	case F_STRING:
-		*(int *)pv = GetStringNum(*(char **)pv);
+		sg_store<int>( pv, GetStringNum( sg_load<char *>( pv ) ) );
 		break;
 
 	case F_GENTITY:
-		*(intptr_t *)pv = GetGEntityNum(*(gentity_t **)pv);
+		sg_store<intptr_t>( pv, GetGEntityNum( sg_load<gentity_t *>( pv ) ) );
 		break;
 
 	case F_GROUP:
-		*(int *)pv = GetGroupNumber(*(AIGroupInfo_t **)pv);
+		sg_store<int>( pv, GetGroupNumber( sg_load<AIGroupInfo_t *>( pv ) ) );
 		break;
 
 	case F_GCLIENT:
-		*(intptr_t *)pv = GetGClientNum(*(gclient_t **)pv, (gentity_t *) pbBase);
+		sg_store<intptr_t>( pv, GetGClientNum( sg_load<gclient_t *>( pv ), (gentity_t *) pbBase ) );
 		break;
 
 	case F_ITEM:
-		*(int *)pv = GetGItemNum(*(gitem_t **)pv);
+		sg_store<int>( pv, GetGItemNum( sg_load<gitem_t *>( pv ) ) );
 		break;
 
 	case F_VEHINFO:
-		*(int *)pv = GetVehicleInfoNum(*(vehicleInfo_t **)pv);
+		sg_store<int>( pv, GetVehicleInfoNum( sg_load<vehicleInfo_t *>( pv ) ) );
 		break;
 
 	case F_BEHAVIORSET:
@@ -431,7 +457,7 @@ static void EnumerateField(const save_field_t *pField, const byte *pbBase)
 			for (int i=0; i<NUM_BSETS; i++)
 			{
 				pv = &p[i];	// since you can't ++ a void ptr
-				*(int *)pv = GetStringNum(*(char **)pv);
+				sg_store<int>( pv, GetStringNum( sg_load<char *>( pv ) ) );
 			}
 		}
 		break;
@@ -490,12 +516,12 @@ static void EnumerateField(const save_field_t *pField, const byte *pbBase)
 		break;
 
 	case F_BOOLPTR:
-		*(qboolean *)pv = (qboolean)(*(int *)pv != 0);
+		sg_store<qboolean>( pv, (qboolean)( sg_load<int>( pv ) != 0 ) );
 		break;
 
 	// These are pointers that are always recreated
 	case F_NULL:
-		*(void **)pv = NULL;
+		sg_store<void *>( pv, NULL );
 		break;
 
 	case F_IGNORE:
@@ -562,27 +588,28 @@ static void EvaluateField(const save_field_t *pField, byte *pbBase, byte *pbOrig
 	switch (pField->eFieldType)
 	{
 	case F_STRING:
-		*(char **)pv = GetStringPtr(*(int *)pv, pbOriginalRefData?*(char**)pvOriginal:NULL);
+		sg_store<char *>( pv, GetStringPtr( sg_load<int>( pv ),
+			pbOriginalRefData ? sg_load<char *>( pvOriginal ) : NULL ) );
 		break;
 
 	case F_GENTITY:
-		*(gentity_t **)pv = GetGEntityPtr(*(intptr_t *)pv);
+		sg_store<gentity_t *>( pv, GetGEntityPtr( sg_load<intptr_t>( pv ) ) );
 		break;
 
 	case F_GROUP:
-		*(AIGroupInfo_t **)pv = GetGroupPtr(*(int *)pv);
+		sg_store<AIGroupInfo_t *>( pv, GetGroupPtr( sg_load<int>( pv ) ) );
 		break;
 
 	case F_GCLIENT:
-		*(gclient_t **)pv = GetGClientPtr(*(intptr_t *)pv);
+		sg_store<gclient_t *>( pv, GetGClientPtr( sg_load<intptr_t>( pv ) ) );
 		break;
 
 	case F_ITEM:
-		*(gitem_t **)pv = GetGItemPtr(*(int *)pv);
+		sg_store<gitem_t *>( pv, GetGItemPtr( sg_load<int>( pv ) ) );
 		break;
 
 	case F_VEHINFO:
-		*(vehicleInfo_t **)pv = GetVehicleInfoPtr(*(int *)pv);
+		sg_store<vehicleInfo_t *>( pv, GetVehicleInfoPtr( sg_load<int>( pv ) ) );
 		break;
 
 	case F_BEHAVIORSET:

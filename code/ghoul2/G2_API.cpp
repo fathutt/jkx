@@ -798,15 +798,27 @@ int G2API_InitGhoul2Model(CGhoul2Info_v &ghoul2, const char *fileName, int model
 	return ghoul2[model].mModelindex;
 }
 
-// The vector is a handle onto a pooled array and its destructor releases the
-// handle; the destructor's own comment says this call is what is meant to do
-// it. Nothing is deleted because nothing here was allocated.
+// The vector is a handle onto a pooled array and clear() releases the handle.
+// Nothing is deleted because nothing here was allocated.
+//
+// This used to call the destructor explicitly, and that is the difference
+// between a Debug build that works and a Release build that crashes on quit.
+// After an explicit destructor call the object is dead, so the compiler is
+// entitled to drop the destructor's last store - and GCC at -O2 does exactly
+// that, dropping the "mItem = 0" in CGhoul2Info_v::Free. Every entity then
+// keeps a handle it no longer owns, the caller carries on using the object, and
+// the static destructor of g_entities runs at process exit, long after the
+// renderer was shut down, and calls into it. Debug builds emit the store, so
+// the whole thing is invisible at -O0.
+//
+// clear() is the same work with the object still alive afterwards, which is
+// what every caller here assumes.
 void G2API_CleanGhoul2Models(CGhoul2Info_v &ghoul2)
 {
 #ifdef _G2_GORE
 	G2API_ClearSkinGore( ghoul2 );
 #endif
-	ghoul2.~CGhoul2Info_v();
+	ghoul2.clear();
 }
 
 
@@ -2233,7 +2245,11 @@ void G2API_LoadSaveCodeDestructGhoul2Info(CGhoul2Info_v &ghoul2)
 #ifdef _G2_GORE
 	G2API_ClearSkinGore ( ghoul2 );
 #endif
-	ghoul2.~CGhoul2Info_v();	// so I can load junk over it then memset to 0 without orphaning
+	// Was an explicit destructor call, with "so I can load junk over it then
+	// memset to 0 without orphaning" for a reason. clear() gets there without
+	// ending the object's lifetime - see the note on G2API_CleanGhoul2Models
+	// for why that difference is not academic.
+	ghoul2.clear();
 }
 
 //#ifdef _SOF2

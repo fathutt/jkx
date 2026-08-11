@@ -149,7 +149,12 @@ def build(surface="body", shader="jkx/smoke"):
 
     lod_end = surface_start + len(surf)
     lod = struct.pack("<i", lod_end)
-    lod += struct.pack("<i", surface_start)         # one offset per surface
+    # G2_FindSurface adds this to the address of the offset array, not to the
+    # start of the LOD - it steps over the mdxmLOD_t first and then adds. Writing
+    # it relative to the LOD put every surface four bytes late, which is not an
+    # error anywhere: the engine read ident as thisSurfaceIndex, thisSurfaceIndex
+    # as ofsHeader, and indexed the hierarchy array by -324.
+    lod += struct.pack("<i", surface_start - lod_header_size)
     lod += surf
 
     ofs_end = ofs_lods + len(lod)
@@ -195,8 +200,21 @@ def check():
         failures.append("hierarchy offset is %d, expected %d"
                         % (hier_offset, 4 * num_surfaces))
 
+    # The LOD's surface offsets, which are relative to the offset array in the
+    # same way. This is the one that was wrong and reported nothing: a surface
+    # four bytes late still parses, it just parses the neighbouring fields.
+    indexes_at = ofs_lods + 4
+    surf_at = indexes_at + struct.unpack_from("<i", data, indexes_at)[0]
+    expected_surf_at = indexes_at + 4 * num_surfaces
+    if surf_at != expected_surf_at:
+        failures.append("LOD surface offset puts surface 0 at %d, expected %d"
+                        % (surf_at, expected_surf_at))
+    surf_ident, this_index = struct.unpack_from("<2i", data, surf_at)
+    if surf_ident != 0 or this_index != 0:
+        failures.append("surface 0 reads ident %d index %d, so the offset is off"
+                        % (surf_ident, this_index))
+
     # And the one that is negative on purpose.
-    surf_at = ofs_lods + 4 + 4 * num_surfaces
     ofs_header = struct.unpack_from("<i", data, surf_at + 8)[0]
     if surf_at + ofs_header != 0:
         failures.append("surface ofsHeader is %d from %d, which is not the file "

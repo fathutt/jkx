@@ -134,9 +134,15 @@ void MSG_WriteBits( msg_t *msg, int value, int bits ) {
 #endif
 			}
 		} else {
-			int	r;
-
-			r = 1 << (bits-1);
+			// A negative width means a signed field of that many bits, so the
+			// range is [-2^(n-1), 2^(n-1)-1] and the width is -bits.
+			//
+			// This used to shift by bits-1, which is negative here - undefined
+			// behaviour, and on x86 the count is taken modulo 32, so writing
+			// eight signed bits produced r = 1 << 23 and a check that passed
+			// for anything short of eight million. The check has been dead for
+			// every signed field in the protocol since Quake III.
+			const int r = 1 << ( -bits - 1 );
 
 			if ( value >  r - 1 || value < -r ) {
 				overflows++;
