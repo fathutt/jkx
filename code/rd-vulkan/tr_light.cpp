@@ -290,10 +290,34 @@ void R_SetupEntityLighting( const trRefdef_t *refdef, trRefEntity_t *ent ) {
 		R_SetupEntityLightingGrid( ent, tr.world );
 	}
 	else {
+		// The two scales apply here as well. They did not, and that was not a
+		// decision: R_SetupEntityLightingGrid ends by applying them and this
+		// branch never goes through it, so a model lit by the light grid obeyed
+		// r_ambientScale and the same model in a menu did not. The menu is where
+		// the character and the saber are looked at most closely, and it was the
+		// one place the numbers were raw.
+		//
+		// With the defaults - 0.6 and 1.0 - this takes the fixed menu ambient
+		// from 150 down to 90, which is the difference between a model that
+		// clips to white and one that does not. It is not the whole of section
+		// 28; the rest is that the shader adds ambient and directed after
+		// multiplying by albedo and never clamps the sum, which is what tone
+		// mapping is for.
+		// r_ambientScale -1 is the grid path's switch for "stop looking at the
+		// light and go fullbright". Honoured here too, for the same reason: two
+		// branches that read the same cvar and disagree about what it means is
+		// worse than either behaviour.
+		float ambientScale = r_ambientScale->value;
+		float directedScale = r_directedScale->value;
+
+		if ( r_fullbright->integer || r_ambientScale->integer == -1 ) {
+			ambientScale = directedScale = 255.0f / 150.0f;
+		}
+
 		ent->ambientLight[0] = ent->ambientLight[1] =
-			ent->ambientLight[2] = tr.identityLight * 150;
+			ent->ambientLight[2] = tr.identityLight * 150 * ambientScale;
 		ent->directedLight[0] = ent->directedLight[1] =
-			ent->directedLight[2] = tr.identityLight * 150;
+			ent->directedLight[2] = tr.identityLight * 150 * directedScale;
 		VectorCopy(tr.sunDirection, ent->lightDir);
 	}
 
