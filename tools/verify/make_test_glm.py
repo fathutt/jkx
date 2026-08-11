@@ -20,7 +20,13 @@ exactly what this is. Without it the file would have to come with a skeleton and
 a compressed bone pool, and be ten times the size for no more coverage.
 
     make_test_glm.py <out.glm> [--shader NAME] [--surface NAME]
+                     [--gla NAME] [--gla-bones N] [--bone I] [--model-name PATH]
     make_test_glm.py --check
+
+--gla names the skeleton this mesh animates against, without the .gla extension;
+the default is still "*default", which needs no file. Pass a real one together
+with make_test_gla.py and the mesh gets real bones - which is what anything
+testing bolts, the bone cache or a bolted weapon needs.
 
 --check writes nothing and verifies the offsets it would write. Every offset in
 this format is relative to something different - the hierarchy's to the start of
@@ -101,7 +107,8 @@ def triangles():
     return struct.pack("<6i", 0, 1, 2, 0, 2, 3)
 
 
-def build(surface="body", shader="jkx/smoke"):
+def build(surface="body", shader="jkx/smoke",
+          gla_name=DEFAULT_GLA_NAME, num_bones=1, bone=0, model_name=None):
     header_size = 4 + 4 + MAX_QPATH * 2 + 4 * 7
     num_surfaces = 1
     num_lods = 1
@@ -133,7 +140,10 @@ def build(surface="body", shader="jkx/smoke"):
     # Texture coordinates follow the vertex block; the engine reads them as an
     # array of mdxmVertexTexCoord_t starting after numVerts vertices.
     ofs_bone_references = ofs_verts + len(verts) + len(sts)
-    bone_references = struct.pack("<i", 0)
+    # Local bone slot 0 of this surface names a bone in the skeleton. With the
+    # fake "*default" skeleton that can only be bone 0; with a real .gla beside
+    # it, this is how the quad gets hung off a named bone.
+    bone_references = struct.pack("<i", bone)
     surface_end = ofs_bone_references + len(bone_references)
 
     surf = struct.pack("<i", 0)                     # ident
@@ -160,10 +170,10 @@ def build(surface="body", shader="jkx/smoke"):
     ofs_end = ofs_lods + len(lod)
 
     header = struct.pack("<2i", MDXM_IDENT, MDXM_VERSION)
-    header += qpath("models/players/jkx/model.glm")
-    header += qpath(DEFAULT_GLA_NAME)
+    header += qpath(model_name or "models/players/jkx/model.glm")
+    header += qpath(gla_name)
     header += struct.pack("<i", 0)                  # animIndex
-    header += struct.pack("<i", 1)                  # numBones
+    header += struct.pack("<i", num_bones)
     header += struct.pack("<2i", num_lods, ofs_lods)
     header += struct.pack("<2i", num_surfaces, ofs_surf_hierarchy)
     header += struct.pack("<i", ofs_end)
@@ -236,6 +246,7 @@ def main(argv):
         return check()
 
     surface, shader, path = "body", "jkx/smoke", None
+    gla_name, num_bones, bone, model_name = DEFAULT_GLA_NAME, 1, 0, None
     i = 0
     while i < len(args):
         if args[i] == "--shader" and i + 1 < len(args):
@@ -243,6 +254,18 @@ def main(argv):
             i += 2
         elif args[i] == "--surface" and i + 1 < len(args):
             surface = args[i + 1]
+            i += 2
+        elif args[i] == "--gla" and i + 1 < len(args):
+            gla_name = args[i + 1]
+            i += 2
+        elif args[i] == "--gla-bones" and i + 1 < len(args):
+            num_bones = int(args[i + 1])
+            i += 2
+        elif args[i] == "--bone" and i + 1 < len(args):
+            bone = int(args[i + 1])
+            i += 2
+        elif args[i] == "--model-name" and i + 1 < len(args):
+            model_name = args[i + 1]
             i += 2
         elif path is None:
             path = args[i]
@@ -256,10 +279,16 @@ def main(argv):
               file=sys.stderr)
         return 2
 
-    data = build(surface, shader)
+    if bone >= num_bones:
+        print("bone %d is outside a %d bone skeleton" % (bone, num_bones),
+              file=sys.stderr)
+        return 2
+
+    data = build(surface, shader, gla_name, num_bones, bone, model_name)
     with open(path, "wb") as f:
         f.write(data)
-    print("%s: %d bytes, surface %s, shader %s" % (path, len(data), surface, shader))
+    print("%s: %d bytes, surface %s, shader %s, animation %s, bone %d"
+          % (path, len(data), surface, shader, gla_name, bone))
     return 0
 
 

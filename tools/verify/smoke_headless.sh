@@ -125,12 +125,10 @@ sleep 2
 # a frame with the console shut and the renderer wiped, which duly failed the
 # text check and looked like the font path breaking.
 #
-# The real map is Jedi Academy only for now. JK2 hard-codes "kyle" as the player
-# model and its cgame turns a missing animation set into an error, so the last
-# step needs a model with a real skeleton beside it - an .gla, which
-# make_test_glm.py deliberately avoids by naming "*default". Until there is a
-# generator for one, the JK2 lane stops at the wiped renderer, which is still
-# every line above the server.
+# Both games get the whole way. JK2 hard-codes "kyle" as the player model and
+# its cgame turns a missing animation set into an error rather than a warning,
+# so this used to be Jedi Academy only; the fixture now ships a generated
+# skeleton and a kyle that hangs off it. See make_test_gla.py.
 #
 # Two maps, not one, and they have to have different names. Media is aged by a
 # level counter that only moves when the map name changes, and both caches that
@@ -140,11 +138,7 @@ sleep 2
 # second map is generated rather than committed: it is the same room.
 INMAP_STEP=( +wait 20 +map jkx_room +wait 80 +screenshot_tga jkx_inmap
              +wait 20 +map jkx_room2 +wait 60 )
-if [ "$GAME_ID" = "ja" ]; then
-    python3 "$HERE/make_test_bsp.py" "$RUN/base/maps/jkx_room2.bsp" >/dev/null
-else
-    INMAP_STEP=()
-fi
+python3 "$HERE/make_test_bsp.py" "$RUN/base/maps/jkx_room2.bsp" >/dev/null
 
 set +e
 ( cd "$RUN" && \
@@ -200,15 +194,13 @@ require 'Wrote screenshots/jkx_wiped.tga'
 # line is the menu. Eight of the defects found so far were only reachable from
 # here, six of them reads or writes out of bounds.
 SHOTS=( "jkx_smoke 2" "jkx_console 200" "jkx_wiped 2" )
-if [ "$GAME_ID" = "ja" ]; then
-    require 'Wrote screenshots/jkx_inmap.tga'
-    require 'Server: jkx_room'
-    require 'Server: jkx_room2'
-    # A world view with a head-up display over it has hundreds of distinct
-    # colours; two would mean the renderer presented the clear colour and cgame
-    # drew nothing, which is what every failure on this path has looked like.
-    SHOTS+=( "jkx_inmap 100" )
-fi
+require 'Wrote screenshots/jkx_inmap.tga'
+require 'Server: jkx_room'
+require 'Server: jkx_room2'
+# A world view with a head-up display over it has hundreds of distinct colours;
+# two would mean the renderer presented the clear colour and cgame drew nothing,
+# which is what every failure on this path has looked like.
+SHOTS+=( "jkx_inmap 100" )
 
 # The map has to have been attempted and rejected. If SV_Map_f starts refusing
 # it earlier - which it would if the existence check moved - the run would go on

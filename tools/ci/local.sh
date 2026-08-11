@@ -31,7 +31,9 @@
 #               above: the string packages, the whole of codeJK2/cgame and every
 #               JK2_MODE branch in shared code are only reached here, and the
 #               first time it was run it found a new[]/delete mismatch that
-#               corrupted the heap on every JK2 shutdown
+#               corrupted the heap on every JK2 shutdown. It reaches the map,
+#               which took a generated skeleton: JK2 hard-codes "kyle" as the
+#               player model and errors on a missing animation set
 #   smokesan    the same run against the sanitizer build. Building sanitizers
 #               and never running them checks nothing: the first time this was
 #               run it reported two misaligned accesses in the zone allocator,
@@ -132,7 +134,8 @@ stage_tests() {
     python3 "$ROOT/tools/fontgen/selftest.py" &&
     python3 "$ROOT/tools/fontgen/build_fonts.py" --check &&
     python3 "$ROOT/tools/verify/make_test_bsp.py" --check &&
-    python3 "$ROOT/tools/verify/make_test_glm.py" --check
+    python3 "$ROOT/tools/verify/make_test_glm.py" --check &&
+    python3 "$ROOT/tools/verify/make_test_gla.py" --check
 }
 
 stage_smoke() {
@@ -157,9 +160,7 @@ stage_smokewide() {
 # The other game. jkx_jo is code/ built with -DJK2_MODE plus codeJK2/game, so
 # this is a second configuration of the same engine rather than a second copy of
 # the test - and half the project had nothing looking at it until this stage
-# existed. It stops short of the real map: JK2 hard-codes "kyle" as the player
-# model and needs a skeleton beside it, which the model generator does not write
-# yet.
+# existed.
 stage_smokejk2() {
     JKX_SMOKE_GAME=jo \
     JKX_SMOKE_DISPLAY="${JKX_SMOKE_JK2_DISPLAY:-:96}" \

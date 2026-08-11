@@ -460,31 +460,37 @@ qboolean G2_Remove_Bone (CGhoul2Info *ghlInfo, boneInfo_v &blist, const char *bo
 
 
 // Given a model handle, and a bone name, we want to set angles specifically for overriding
-qboolean G2_Set_Bone_Angles_Index( boneInfo_v &blist, const int index,
+//
+// Takes the model, and that is the whole fix. This arrived from multiplayer,
+// where the caller is a virtual machine that cannot hold a model pointer across
+// the boundary, so the multiplayer version passes NULL to G2_Generate_Matrix and
+// refuses PREMULT and POSTMULT outright - "we need the model details for these
+// kinds of bone angle overrides".
+//
+// Single-player's gamecode uses POSTMULT here, on the ordinary player spawn
+// path: G_SetG2PlayerModelInfo sets Motion, pelvis and cranium that way, and
+// Motion is what matches up the split upper and lower body animations. So every
+// one of those overrides was being refused. In a Debug build the assert below
+// fired; in Release it was compiled out and the call quietly returned qfalse,
+// which is the same defect without the notification.
+//
+// Single-player's own version of this function takes the CGhoul2Info and hands
+// ghlInfo->animModel to G2_Generate_Matrix, exactly as the by-name variant just
+// below does. That is what it does again.
+qboolean G2_Set_Bone_Angles_Index( const model_s *mod_a, boneInfo_v &blist, const int index,
 							const float *angles, const int flags, const Eorientations yaw,
 							const Eorientations pitch, const Eorientations roll, qhandle_t *modelList,
 							const int modelIndex, const int blendTime, const int currentTime)
 {
-	if ((index >= (int)blist.size()) || (blist[index].boneNumber == -1))
+	if ((index < 0) || (index >= (int)blist.size()) || (blist[index].boneNumber == -1))
 	{
 		// we are attempting to set a bone override that doesn't exist
-		assert(0);
 		return qfalse;
 	}
 
-	if (index != -1)
+	if (blist[index].flags & BONE_ANGLES_RAGDOLL)
 	{
-		if (blist[index].flags & BONE_ANGLES_RAGDOLL)
-		{
-			return qtrue; // don't accept any calls on ragdoll bones
-		}
-	}
-
-	if (flags & (BONE_ANGLES_PREMULT | BONE_ANGLES_POSTMULT))
-	{
-		// you CANNOT call this with an index with these kinds of bone overrides - we need the model details for these kinds of bone angle overrides
-		assert(0);
-		return qfalse;
+		return qtrue; // don't accept any calls on ragdoll bones
 	}
 
 	// yes, so set the angles and flags correctly
@@ -496,7 +502,7 @@ qboolean G2_Set_Bone_Angles_Index( boneInfo_v &blist, const int index,
 	Com_OPrintf("PCJ %2d %6d   (%6.2f,%6.2f,%6.2f) %d %d %d %d\n",index,currentTime,angles[0],angles[1],angles[2],yaw,pitch,roll,flags);
 #endif
 
-	G2_Generate_Matrix(NULL, blist, index, angles, flags, yaw, pitch, roll);
+	G2_Generate_Matrix(mod_a, blist, index, angles, flags, yaw, pitch, roll);
 	return qtrue;
 
 }
@@ -564,7 +570,9 @@ qboolean G2_Set_Bone_Angles_Matrix_Index(boneInfo_v &blist, const int index,
 								   const int modelIndex, const int blendTime, const int currentTime)
 {
 
-	if ((index >= (int)blist.size()) || (blist[index].boneNumber == -1))
+	// index < 0 first: the -1 that G2_Find_Bone returns for "no such bone" is
+	// not caught by the size test, and the next term reads blist[-1].
+	if ((index < 0) || (index >= (int)blist.size()) || (blist[index].boneNumber == -1))
 	{
 		// we are attempting to set a bone override that doesn't exist
 		assert(0);
@@ -679,7 +687,9 @@ qboolean G2_Set_Bone_Anim_Index(
 		}
 	}
 
-	if ((index >= (int)blist.size()) || (blist[index].boneNumber == -1))
+	// index < 0 first: the -1 that G2_Find_Bone returns for "no such bone" is
+	// not caught by the size test, and the next term reads blist[-1].
+	if ((index < 0) || (index >= (int)blist.size()) || (blist[index].boneNumber == -1))
 	{
 		// we are attempting to set a bone override that doesn't exist
 		assert(0);
@@ -1088,7 +1098,9 @@ qboolean	G2_IsPaused(const char *fileName, boneInfo_v &blist, const char *boneNa
 qboolean G2_Stop_Bone_Anim_Index(boneInfo_v &blist, const int index)
 {
 
-	if ((index >= (int)blist.size()) || (blist[index].boneNumber == -1))
+	// index < 0 first: the -1 that G2_Find_Bone returns for "no such bone" is
+	// not caught by the size test, and the next term reads blist[-1].
+	if ((index < 0) || (index >= (int)blist.size()) || (blist[index].boneNumber == -1))
 	{
 		// we are attempting to set a bone override that doesn't exist
 		assert(0);
@@ -1123,7 +1135,9 @@ qboolean G2_Stop_Bone_Anim(const char *fileName, boneInfo_v &blist, const char *
 qboolean G2_Stop_Bone_Angles_Index(boneInfo_v &blist, const int index)
 {
 
-	if ((index >= (int)blist.size()) || (blist[index].boneNumber == -1))
+	// index < 0 first: the -1 that G2_Find_Bone returns for "no such bone" is
+	// not caught by the size test, and the next term reads blist[-1].
+	if ((index < 0) || (index >= (int)blist.size()) || (blist[index].boneNumber == -1))
 	{
 		// we are attempting to set a bone override that doesn't exist
 		assert(0);
