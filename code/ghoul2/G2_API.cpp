@@ -773,6 +773,24 @@ int G2API_InitGhoul2Model(CGhoul2Info_v &ghoul2, const char *fileName, int model
 	if (model == (int)ghoul2.size())
 	{	//init should not be used to create additional models, only the first one
 		assert(ghoul2.size() < 4); //use G2API_CopySpecificG2Model to add models
+
+		// Ask whether the model loads before growing the list for it. The
+		// multiplayer version pushed first and found out afterwards, which
+		// leaves the caller holding a list that has a member in it and no model
+		// - and the callers do not all ask the same question. Some check the
+		// return value, some check size(), and the two disagreed only in the
+		// failure case, which is the case nobody tests.
+		//
+		// The test costs a model registration that is about to happen anyway.
+		CGhoul2Info probe;
+		Q_strncpyz(probe.mFileName, fileName, sizeof(probe.mFileName));
+		probe.mModelindex = 0;
+
+		if (!G2_TestModelPointers(&probe))
+		{
+			return -1;
+		}
+
 		ghoul2.push_back(CGhoul2Info());
 	}
 
