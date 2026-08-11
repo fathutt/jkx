@@ -373,8 +373,20 @@ quake3 set test blah + map test
 ============================================================================
 */
 
-#define	MAX_CONSOLE_LINES	32
+// One entry per "+command" on the command line. The number used to be 32, which
+// is a 1999 number and small enough to reach by accident: the headless bench
+// reaches it with an ordinary run, and what happens at the limit is worse than
+// the limit itself - Com_ParseCommandLine simply returns, so the commands past
+// it are silently dropped. That included the "+quit" at the end of the bench
+// run, and the symptom was a stage that "hung" until its timeout killed it,
+// with nothing anywhere saying why.
+//
+// Ninety-six because these are pointers into the command line the OS already
+// gave us, so the array costs a page at most, and because anything that reaches
+// ninety-six deserves the warning below rather than a bigger array.
+#define	MAX_CONSOLE_LINES	96
 int		com_numConsoleLines;
+int		com_droppedConsoleLines;
 char	*com_consoleLines[MAX_CONSOLE_LINES];
 
 /*
@@ -388,6 +400,7 @@ void Com_ParseCommandLine( char *commandLine ) {
 	int inq = 0;
 	com_consoleLines[0] = commandLine;
 	com_numConsoleLines = 1;
+	com_droppedConsoleLines = 0;
 
 	while ( *commandLine ) {
 		if (*commandLine == '"') {
@@ -397,7 +410,13 @@ void Com_ParseCommandLine( char *commandLine ) {
 		// if commandLine came from a file, we might have real line seperators
 		if ( (*commandLine == '+' && !inq) || *commandLine == '\n'  || *commandLine == '\r' ) {
 			if ( com_numConsoleLines == MAX_CONSOLE_LINES ) {
-				return;
+				// Keep counting rather than returning, so that the warning in
+				// Com_AddStartupCommands can say how many were lost. There is
+				// no console yet at this point in startup, which is why nothing
+				// is printed here.
+				com_droppedConsoleLines++;
+				commandLine++;
+				continue;
 			}
 			com_consoleLines[com_numConsoleLines] = commandLine + 1;
 			com_numConsoleLines++;
@@ -480,6 +499,13 @@ qboolean Com_AddStartupCommands( void ) {
 	qboolean	added;
 
 	added = qfalse;
+
+	if ( com_droppedConsoleLines ) {
+		Com_Printf( S_COLOR_YELLOW "WARNING: the command line holds more than %i "
+			"+commands; the last %i were dropped and will not run\n",
+			MAX_CONSOLE_LINES, com_droppedConsoleLines );
+	}
+
 	// quote every token, so args with semicolons can work
 	for (i=0 ; i < com_numConsoleLines ; i++) {
 		if ( !com_consoleLines[i] || !com_consoleLines[i][0] ) {
