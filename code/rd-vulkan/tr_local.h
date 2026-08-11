@@ -2388,6 +2388,7 @@ qboolean R_inPVS( const vec3_t p1, const vec3_t p2, byte *mask );
 // the rest of the renderer.
 int			RE_GetAnimationCFG( const char *psCFGFilename, char *psDest, int iDestSize );
 qboolean	RE_GetLighting( const vec3_t origin, vec3_t ambientLight, vec3_t directedLight, vec3_t lightDir );
+void		RE_HunkClearBegin( void );
 void		RE_HunkClear( void );
 
 

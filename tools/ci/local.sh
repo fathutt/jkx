@@ -172,12 +172,15 @@ stage_smokejk2() {
         bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
 }
 
-# The savegame round trip, in its own stage and with the validation layer off.
-# Not because the round trip is doubtful - it saves, loads, and draws - but
-# because loading leaks two buffers and two allocations that the layer duly
-# reports, and folding that into the stage above would turn one honest gate into
-# a gate with an exception in it. See backlog section 21; when the leak is
-# fixed, this merges back into stage_smoke.
+# The savegame round trip. Its own stage because the run is long enough without
+# it: the level counter's second map and a save-load round trip in one pass push
+# a software rasteriser past the timeout.
+#
+# Validation is off, and that is still an exception rather than a preference:
+# four device objects survive to vkDestroyDevice on this path. Three separate
+# causes have been found and fixed under it and this one is not yet among them -
+# backlog section 21 names the two creations exactly. Turn this back on when it
+# is closed.
 stage_smokesave() {
     JKX_SMOKE_SAVELOAD=1 \
     JKX_SMOKE_DISPLAY="${JKX_SMOKE_SAVE_DISPLAY:-:95}" \

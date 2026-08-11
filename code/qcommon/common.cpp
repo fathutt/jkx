@@ -728,6 +728,12 @@ The server calls this before shutting down or loading a new map
 */
 void Hunk_Clear( void )
 {
+	// Before the free, not after: the renderer keeps device objects whose only
+	// bookkeeping is hunk-allocated, and once the hunk is gone nothing knows
+	// they exist. See the note above RE_HunkClearBegin.
+	if(re.RE_HunkClearBegin)
+		re.RE_HunkClearBegin();
+
 	Z_TagFree(TAG_HUNKALLOC);
 	Z_TagFree(TAG_HUNKMISCMODELS);
 

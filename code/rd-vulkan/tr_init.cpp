@@ -1189,10 +1189,12 @@ void R_Init( void ) {
 
 	vk_create_window();		// Vulkan
 
-#ifdef USE_VBO
-	vk_release_vbo();
-	vk_release_model_vbo();
-#endif
+	// The VBO release used to be here, and here is too late: RE_Shutdown runs
+	// before Hunk_Clear, and Hunk_Clear takes the VBO_t structures with it -
+	// they are R_Hunk_Alloc'd - along with tr.numVBOs, which is how many there
+	// were. By this line the count is zero and the loop frees nothing, while
+	// the VkBuffers those structures described are still on the device. Moved
+	// into RE_Shutdown, which is the last moment the bookkeeping still exists.
 
 	R_Set2DRatio();
 	R_InitImages();	
@@ -1280,6 +1282,33 @@ RE_Shutdown
 // wiping tr, has to be told separately. Today that is three things, all in
 // tr_shader.cpp, and each of them was a separate crash: the shader hash table,
 // the shader text, and the index into that text.
+// The half that has to run BEFORE the hunk is freed.
+//
+// tr.vbos[] and tr.ibos[] are R_Hunk_Alloc'd structures, and each one holds a
+// VkBuffer and its allocation plus a staging pair. Those are device objects:
+// the hunk describes them, it does not own them. Free the hunk first and the
+// description is gone while the buffers are still on the device, with nothing
+// left that knows they exist - which is what the validation layer was counting
+// at vkDestroyDevice.
+//
+// RE_Shutdown releases them too, and on most paths runs first; this is for the
+// paths where it does not. The first map load out of the menu is one: the
+// client was never in a game, so CL_FlushMemory never ran, and the model VBO
+// the menu built for its character went straight into the freed hunk.
+void RE_HunkClearBegin( void )
+{
+	if ( vk.device == VK_NULL_HANDLE )
+		return;
+
+	// The buffers may still be referenced by the frame that just finished.
+	vk_wait_idle();
+
+#ifdef USE_VBO
+	vk_release_vbo();
+	vk_release_model_vbo();
+#endif
+}
+
 void RE_HunkClear( void )
 {
 	extern void KillTheShaderHashTable( void );
@@ -1350,6 +1379,24 @@ void RE_Shutdown( qboolean destroyWindow, qboolean restarting ) {
 
 	R_ShutdownWorldEffects();
 	R_ShutdownFonts();
+
+	// Before the hunk goes, because the hunk is where the bookkeeping lives and
+	// the device is where the buffers live. tr.vbos[] and tr.ibos[] are
+	// R_Hunk_Alloc'd structures holding a VkBuffer and its allocation apiece,
+	// plus a staging pair; Hunk_Clear frees the structures and RE_HunkClear
+	// wipes the count, and after that nothing knows those buffers exist. The
+	// validation layer counted them: two VkBuffer and two VkDeviceMemory left
+	// undestroyed at vkDestroyDevice, once per model VBO that outlived a level
+	// change. See backlog section 21.
+	//
+	// After the device is idle, because these buffers were referenced by the
+	// command buffer of the frame that just finished, and vkDestroyBuffer on
+	// one of those is its own spec violation.
+#ifdef USE_VBO
+	vk_wait_idle();
+	vk_release_vbo();
+	vk_release_model_vbo();
+#endif
 
 	// The wipe holds pointers to images and pipelines, both of which are about
 	// to stop existing.
@@ -1694,6 +1741,7 @@ Q_EXPORT refexport_t* QDECL GetRefAPI( int apiVersion ) {
 
 	// Misc
 	re.R_InitWorldEffects                     = R_InitWorldEffects;
+	re.RE_HunkClearBegin = RE_HunkClearBegin;
 	re.RE_HunkClear = RE_HunkClear;
 	re.R_inPVS                                = RE_SP_inPVS;
 

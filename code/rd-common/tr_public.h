@@ -169,6 +169,11 @@ typedef struct {
 
 	// Misc
 	void	(*R_InitWorldEffects)(void);
+	// Called by Hunk_Clear, once before it frees and once after. The first is
+	// for releasing what the hunk only describes - device objects whose
+	// bookkeeping is hunk-allocated - and the second for dropping the
+	// pointers. See the note above RE_HunkClear in tr_init.cpp.
+	void	(*RE_HunkClearBegin)(void);
 	void	(*RE_HunkClear)(void);
 	qboolean (*R_inPVS)(vec3_t p1, vec3_t p2);
 

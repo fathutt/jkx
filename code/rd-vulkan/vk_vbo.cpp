@@ -538,8 +538,16 @@ static void vk_release_model_ibo( uint32_t index )
 void vk_release_model_vbo( void ) {
 	uint32_t i;
 
+	// Each to its own count. One loop over tr.numVBOs used to release both and
+	// then zero both counts, so whenever the two differed - and they do, the
+	// Ghoul2 path builds them separately - every index buffer past the last
+	// vertex buffer was left on the device with its bookkeeping thrown away.
+	// The validation layer counted them at vkDestroyDevice.
 	for ( i = 0 ; i < tr.numVBOs; i++ ) {
 		vk_release_model_vbo( i );
+	}
+
+	for ( i = 0 ; i < tr.numIBOs; i++ ) {
 		vk_release_model_ibo( i );
 	}
 
