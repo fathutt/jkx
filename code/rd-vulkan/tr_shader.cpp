@@ -5042,6 +5042,14 @@ static void FixRenderCommandList( int newShader ) {
 	if ( gServerSkinHack )
 		return;
 
+	// Between Hunk_Clear and R_Init there is no back end: its data block lives
+	// in the hunk and RE_HunkClear nulls the pointer. Shaders are registered in
+	// that window - it is where the game's models are loaded - and this used to
+	// walk and write a command list through the freed pointer. See the sequence
+	// written down above RE_HunkClear.
+	if ( !backEndData )
+		return;
+
 	renderCommandList_t *cmdList = &backEndData->commands;
 
 	if ( cmdList ) {

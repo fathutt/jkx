@@ -1306,13 +1306,23 @@ void RE_HunkClear( void )
 
 	tr.images = images;
 
-	// Three more point into the hunk from outside tr, so the wipe cannot reach
+	// Four more point into the hunk from outside tr, so the wipe cannot reach
 	// them either and each has to be told separately: the shader hash table,
-	// the shader text, and the index into that text. Two of the three crashes
-	// on real hardware were the first and the second of these, in that order -
-	// clearing one only moved the fault along to the next.
+	// the shader text, the index into that text, and the back end's own data
+	// block. Two of the first three were crashes on real hardware, in that
+	// order - clearing one only moved the fault along to the next.
 	R_InitShaders( qtrue );
 	KillTheShaderHashTable();
+
+	// backEndData is R_Hunk_Alloc'd in R_Init and is a plain global, so it has
+	// just become a pointer into freed memory. It is not idle in this window
+	// either: registering a shader can call FixRenderCommandList, which writes
+	// a terminator into the command list through this pointer, and the window
+	// is full of shader registration - the server spawns entities and their
+	// models bring their materials with them. Nulled rather than left, so that
+	// anything else reaching for it in here says so instead of writing into
+	// whatever now owns that memory.
+	backEndData = NULL;
 }
 
 void RE_Shutdown( qboolean destroyWindow, qboolean restarting ) {

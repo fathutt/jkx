@@ -178,7 +178,7 @@ set +e
   VK_ICD_FILENAMES="${VK_ICD_FILENAMES:-/usr/share/vulkan/icd.d/lvp_icd.json}" \
   timeout 420 "./$(basename "$ENGINE")" \
       +set fs_basepath "$RUN" +set fs_homepath "$RUN/home" \
-      +set s_initsound 0 +set com_errorDialog 0 \
+      +set s_initsound 0 +set com_errorDialog 0 +set con_notifytime 0 \
       +set cg_hudFiles ui/jkx_hud.txt +set g_char_model jkx \
       +wait 60 +screenshot_tga jkx_smoke \
       +toggleconsole +wait 30 +screenshot_tga jkx_console +wait 20 \
@@ -225,6 +225,7 @@ require 'Wrote screenshots/jkx_wiped.tga'
 # line is the menu. Eight of the defects found so far were only reachable from
 # here, six of them reads or writes out of bounds.
 SHOTS=( "jkx_smoke 2" "jkx_console 200" "jkx_wiped 2" )
+HUD_SHOTS=()
 require 'Wrote screenshots/jkx_inmap.tga'
 require 'Server: jkx_room'
 
@@ -246,7 +247,14 @@ fi
 # A world view with a head-up display over it has hundreds of distinct colours;
 # two would mean the renderer presented the clear colour and cgame drew nothing,
 # which is what every failure on this path has looked like.
-SHOTS+=( "jkx_inmap 100" )
+SHOTS+=( "jkx_inmap 20" )
+# The colour check is Jedi Academy's. JK2's cgame draws its head-up display
+# itself out of gfx/hud/* rather than through the two menus this fixture
+# provides, so those two fills are not in its frame and their absence says
+# nothing.
+if [ "$GAME_ID" = "ja" ]; then
+    HUD_SHOTS=( jkx_inmap )
+fi
 if [ "${JKX_SMOKE_SAVELOAD:-0}" = "1" ]; then
     # The frame after a savegame load. The threshold is 40 rather than the 100
     # the in-map frame gets, and that gap is a recorded defect rather than
@@ -254,7 +262,10 @@ if [ "${JKX_SMOKE_SAVELOAD:-0}" = "1" ]; then
     # reached by walking in draws 242, and a second map load loses none of them.
     # Backlog section 21. Raise this to 100 when that is fixed; it sits here so
     # that a blank frame or a crash still fails.
-    SHOTS+=( "jkx_loaded 40" )
+    SHOTS+=( "jkx_loaded 20" )
+    if [ "$GAME_ID" = "ja" ]; then
+        HUD_SHOTS+=( jkx_loaded )
+    fi
 fi
 
 # The map has to have been attempted and rejected. If SV_Map_f starts refusing
@@ -314,6 +325,29 @@ for pair in "${SHOTS[@]}"; do
         fi
     else
         report "no $name.tga was written"
+    fi
+done
+
+# What the interface painted, not just how varied the frame is.
+#
+# The count above cannot tell who drew what, and that mattered: the in-game
+# frame used to pass on 242 distinct colours, of which nearly two hundred were
+# console notify text fading at the top of the screen. The run now sets
+# con_notifytime 0 - so the frames measure the game rather than the console -
+# and the same frame has 51. A count alone would have gone on passing with the
+# head-up display drawing nothing.
+#
+# These two are the fixture's own head-up display: lefthud is a flat 0.8 0.2 0.2
+# fill and righthud a flat 0.2 0.4 0.8 one, and nothing else in the run is that
+# colour. lefthud gets the smaller floor because its rectangle is anchored at
+# x=0 in a 640-wide space and most of it lands off the fitted frame - which is
+# backlog section 1.2, and this check will notice when that is fixed.
+for name in "${HUD_SHOTS[@]}"; do
+    SHOT="$RUN/home/base/screenshots/$name.tga"
+    if [ -f "$SHOT" ]; then
+        if ! python3 "$HERE/tga_has_colour.py" "$SHOT" 51,102,204:500 204,51,51:20; then
+            report "$name.tga is missing the head-up display"
+        fi
     fi
 done
 
