@@ -4263,9 +4263,23 @@ qboolean R_LoadMDXM( model_t *mod, void *buffer, const char *mod_name, qboolean 
 		LL(surfInfo->parentIndex);
 
 		Q_strlwr(surfInfo->name);	//just in case
-		if ( !strcmp( &surfInfo->name[strlen(surfInfo->name)-4],"_off") )
+
+		// A surface name shorter than "_off" indexed before the start of the
+		// array. UndefinedBehaviorSanitizer, on the first model this project
+		// ever loaded that had one:
+		//
+		//   index 18446744073709551613 out of bounds for type 'char [64]'
+		//
+		// which is -3, from strlen() - 4 on a name of one character. The name
+		// comes out of a model file, so this is a read before an array on
+		// data the engine did not write.
 		{
-			surfInfo->name[strlen(surfInfo->name)-4]=0;	//remove "_off" from name
+			const size_t nameLen = strlen( surfInfo->name );
+
+			if ( nameLen >= 4 && !strcmp( &surfInfo->name[nameLen-4], "_off" ) )
+			{
+				surfInfo->name[nameLen-4] = 0;	//remove "_off" from name
+			}
 		}
 
 		// do all the children indexs

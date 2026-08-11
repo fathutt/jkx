@@ -125,7 +125,8 @@ stage_tests() {
     python3 "$ROOT/tools/verify/selftest.py" &&
     python3 "$ROOT/tools/fontgen/selftest.py" &&
     python3 "$ROOT/tools/fontgen/build_fonts.py" --check &&
-    python3 "$ROOT/tools/verify/make_test_bsp.py" --check
+    python3 "$ROOT/tools/verify/make_test_bsp.py" --check &&
+    python3 "$ROOT/tools/verify/make_test_glm.py" --check
 }
 
 stage_smoke() {
