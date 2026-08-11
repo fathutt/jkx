@@ -352,22 +352,58 @@ public:
 	}
 };
 ratl::vector_vs<CWindZone, MAX_WIND_ZONES>		mWindZones;
+// The subset with bounds: wind that applies at a place rather than
+// everywhere. Pointers into mWindZones, which is fixed storage, so they
+// stay put. Single-player's weather is asked about a point and answers per
+// zone; this is the list that makes that answer possible.
+ratl::vector_vs<CWindZone*, MAX_WIND_ZONES>		mLocalWindZones;
 
-bool R_GetWindVector(vec3_t windVector)
+// Wind where the caller is standing, not wind in general.
+//
+// Multiplayer only ever asks about the world, so the transplanted versions of
+// these took no point and answered from the global zones alone. Single-player's
+// gamecode passes a position to every one of them - through gi.WE_GetWindVector
+// and its neighbours - and single-player maps put wind in boxes: a canyon that
+// howls while the ridge above it is still. Ignoring the point made every such
+// map answer with the global average everywhere.
+bool R_GetWindVector(vec3_t windVector, vec3_t atpoint)
 {
 	VectorCopy(mGlobalWindDirection.v, windVector);
+	if (atpoint && mLocalWindZones.size())
+	{
+		for (int curLocalWindZone=0; curLocalWindZone<mLocalWindZones.size(); curLocalWindZone++)
+		{
+			if (mLocalWindZones[curLocalWindZone]->mRBounds.In(atpoint))
+			{
+				VectorAdd(windVector, mLocalWindZones[curLocalWindZone]->mCurrentVelocity.v, windVector);
+			}
+		}
+		VectorNormalize(windVector);
+	}
 	return true;
 }
 
-bool R_GetWindSpeed(float &windSpeed)
+bool R_GetWindSpeed(float &windSpeed, vec3_t atpoint)
 {
 	windSpeed = mGlobalWindSpeed;
+	if (atpoint && mLocalWindZones.size())
+	{
+		for (int curLocalWindZone=0; curLocalWindZone<mLocalWindZones.size(); curLocalWindZone++)
+		{
+			if (mLocalWindZones[curLocalWindZone]->mRBounds.In(atpoint))
+			{
+				windSpeed += VectorLength(mLocalWindZones[curLocalWindZone]->mCurrentVelocity.v);
+			}
+		}
+	}
 	return true;
 }
 
-bool R_GetWindGusting()
+bool R_GetWindGusting(vec3_t atpoint)
 {
-	return (mGlobalWindSpeed>1000.0f);
+	float windSpeed;
+	R_GetWindSpeed(windSpeed, atpoint);
+	return (windSpeed>1000.0f);
 }
 
 
@@ -723,9 +759,12 @@ bool R_IsOutside(vec3_t pos)
 	return mOutside.PointOutside(pos);
 }
 
-bool R_IsShaking()
+// Shaking where the caller is, not where the camera is. The camera answer was
+// multiplayer's shape and it is wrong for the single-player callers, which ask
+// about an entity - an NPC in a storm shakes because the storm is on the NPC.
+bool R_IsShaking(vec3_t pos)
 {
-	return (mOutside.mOutsideShake && mOutside.PointOutside(backEnd.viewParms.ori.origin));
+	return (mOutside.mOutsideShake && mOutside.PointOutside(pos));
 }
 
 float R_IsOutsideCausingPain(vec3_t pos)
@@ -1339,6 +1378,7 @@ void R_InitWorldEffects(void)
 	}
 	mParticleClouds.clear();
 	mWindZones.clear();
+	mLocalWindZones.clear();
 	mOutside.Reset();
 }
 
@@ -1505,6 +1545,7 @@ static void RE_WorldEffectCommand_Actual(const char *command)
 		}
 		mParticleClouds.clear();
 		mWindZones.clear();
+		mLocalWindZones.clear();
 	}
 
 	// Freeze / UnFreeze - Stops All Particle Motion Updates
@@ -1581,7 +1622,90 @@ static void RE_WorldEffectCommand_Actual(const char *command)
 		nWind.mRDeadTime.mMax				=  4000;
 	}
 
+	// What the weather answers at a point
+	//------------------------------------
+	//
+	// A diagnostic, and the only way to see a per-zone answer without a
+	// debugger. Every one of these is a question the gamecode asks constantly
+	// and nothing ever printed: "r_we windat 100 200 30" says what the wind,
+	// the gusting and the outside test give at that spot, so a map with wind
+	// zones can be checked by walking to a place and typing a coordinate rather
+	// than by arguing about it.
+	else if (Q_stricmp(token, "windat") == 0)
+	{
+		vec3_t	at = { 0.0f, 0.0f, 0.0f };
+		vec3_t	dir;
+		float	speed = 0.0f;
+		int		i;
 
+		for ( i = 0; i < 3; i++ )
+		{
+			const char *value = COM_ParseExt( &command, qfalse );
+			if ( !value[0] )
+				break;
+			at[i] = atof( value );
+		}
+
+		if ( i != 3 )
+		{
+			CL_RefPrintf( PRINT_ALL, "usage: r_we windat <x> <y> <z>\n" );
+			return;
+		}
+
+		R_GetWindSpeed( speed, at );
+		R_GetWindVector( dir, at );
+
+		CL_RefPrintf( PRINT_ALL, "windat %.0f %.0f %.0f: speed %.1f dir %.2f %.2f %.2f "
+			"gusting %d outside %d, %d local zone(s) of %d\n",
+			at[0], at[1], at[2], speed, dir[0], dir[1], dir[2],
+			(int)R_GetWindGusting( at ), (int)R_IsOutside( at ),
+			mLocalWindZones.size(), mWindZones.size() );
+	}
+
+	// Local Wind Zone
+	//-----------------
+	//
+	// This command did not exist here at all - the help text below listed it and
+	// nothing implemented it - so a map could not create a wind zone with bounds
+	// and every wind query answered globally. It is what makes the point that
+	// R_GetWindVector and friends are given mean anything.
+	else if (Q_stricmp(token, "windzone") == 0)
+	{
+		if (mWindZones.full())
+		{
+			return;
+		}
+		CWindZone& nWind = mWindZones.push_back();
+		nWind.Initialize();
+
+		nWind.mGlobal = false;
+
+		// Read Mins
+		if (!WE_ParseVector(&command, 3, nWind.mRBounds.mMins.v))
+		{
+			CL_RefPrintf( PRINT_WARNING, "windzone: could not read the mins vector\n" );
+			mWindZones.pop_back();
+			return;
+		}
+
+		// Read Maxs
+		if (!WE_ParseVector(&command, 3, nWind.mRBounds.mMaxs.v))
+		{
+			CL_RefPrintf( PRINT_WARNING, "windzone: could not read the maxs vector\n" );
+			mWindZones.pop_back();
+			return;
+		}
+
+		// Read Velocity
+		if (!WE_ParseVector(&command, 3, nWind.mCurrentVelocity.v))
+		{
+			nWind.mCurrentVelocity.Clear();
+			nWind.mCurrentVelocity[1] = 800.0f;
+		}
+		nWind.mTargetVelocityTimeRemaining = -1;
+
+		mLocalWindZones.push_back(&nWind);
+	}
 
 	// Create A Rain Storm
 	//---------------------
@@ -1844,7 +1968,8 @@ static void RE_WorldEffectCommand_Actual(const char *command)
 		CL_RefPrintf( PRINT_ALL, "	wind\n" );
 		CL_RefPrintf( PRINT_ALL, "	constantwind (velocity)\n" );
 		CL_RefPrintf( PRINT_ALL, "	gustingwind\n" );
-		//CL_RefPrintf( PRINT_ALL, "	windzone (mins) (maxs) (velocity)\n" );
+		CL_RefPrintf( PRINT_ALL, "	windzone (mins) (maxs) (velocity)\n" );
+		CL_RefPrintf( PRINT_ALL, "	windat <x> <y> <z>\n" );
 		CL_RefPrintf( PRINT_ALL, "	lightrain\n" );
 		CL_RefPrintf( PRINT_ALL, "	rain\n" );
 		CL_RefPrintf( PRINT_ALL, "	acidrain\n" );

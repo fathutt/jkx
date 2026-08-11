@@ -150,6 +150,27 @@ sleep 2
 # function that starts by dereferencing it, so "load" was a guaranteed crash and
 # nothing here would have said so.
 INMAP_STEP=( +wait 20 +map jkx_room +wait 80 +screenshot_tga jkx_inmap )
+#
+# The weather, asked about a place rather than about the world. A wind zone is
+# created with a velocity of 800 along +Y over a box around the origin, and then
+# the wind is read at a point inside it and at a point far outside. Single-player
+# wind is per-zone and the transplanted renderer answered globally for every
+# point; this is the difference, printed.
+#
+# The waits here are short on purpose. Elsewhere in this script a wait is there
+# because a screenshot is queued and the file appears a frame later; these
+# commands only print, and the print has happened by the next frame. Written at
+# twenty frames apiece they cost fifty frames of software rasterising under the
+# validation layer, which is what pushed this stage into its timeout.
+#
+# JKX_SMOKE_WEATHER=0 leaves them out. Not a way to skip a failing check - it is
+# how the run answers "is this the weather", which is a question that came up
+# the first time the stage hung after a wind zone had been created.
+if [ "${JKX_SMOKE_WEATHER:-1}" = "1" ]; then
+INMAP_STEP+=( +r_we "windzone ( -64 -64 -64 ) ( 64 64 64 ) ( 0 800 0 )" +wait 5
+              +r_we "windat 0 0 0" +wait 5
+              +r_we "windat 5000 5000 5000" +wait 5 )
+fi
 if [ "${JKX_SMOKE_SAVELOAD:-0}" = "1" ]; then
     # And then stop. The second map below is there to move the media level
     # counter, which the run without the round trip already checks; doing both
@@ -176,7 +197,7 @@ set +e
   DISPLAY="$DISPLAY_NUM" \
   XDG_RUNTIME_DIR="$RUN/xdg" \
   VK_ICD_FILENAMES="${VK_ICD_FILENAMES:-/usr/share/vulkan/icd.d/lvp_icd.json}" \
-  timeout 420 "./$(basename "$ENGINE")" \
+  timeout -k 10 "${JKX_SMOKE_TIMEOUT:-600}" "./$(basename "$ENGINE")" \
       +set fs_basepath "$RUN" +set fs_homepath "$RUN/home" \
       +set s_initsound 0 +set com_errorDialog 0 +set con_notifytime 0 \
       +set cg_hudFiles ui/jkx_hud.txt +set g_char_model jkx \
@@ -204,6 +225,19 @@ require() {
     fi
 }
 
+forbid() {
+    if grep -q -- "$1" "$RUN/run.log"; then
+        report "present in the log and should not be: $1"
+    fi
+}
+
+# This run drives the engine entirely from +commands, and the engine used to
+# drop them past a fixed limit without a word. What that looked like was this
+# stage timing out: the +quit at the end had been dropped, so the engine sat in
+# the map until the kill. Two hours went into looking for a hang in the weather
+# code, which had only been the thing that pushed the count over the line.
+forbid 'were dropped and will not run'
+
 # There is one renderer and it is inside the engine, so this is a check that it
 # started rather than a check on which one started.
 if ! grep -q -- 'renderer: rd-vulkan, built in' "$RUN/run.log"; then
@@ -228,6 +262,13 @@ SHOTS=( "jkx_smoke 2" "jkx_console 200" "jkx_wiped 2" )
 HUD_SHOTS=()
 require 'Wrote screenshots/jkx_inmap.tga'
 require 'Server: jkx_room'
+
+# Inside the zone the wind is the zone's; outside it there is none. Both are
+# checked, because a query that ignored its argument would pass the first.
+if [ "${JKX_SMOKE_WEATHER:-1}" = "1" ]; then
+    require 'windat 0 0 0: speed 800.0 dir 0.00 1.00 0.00'
+    require 'windat 5000 5000 5000: speed 0.0'
+fi
 
 if [ "${JKX_SMOKE_SAVELOAD:-0}" = "1" ]; then
     require 'Wrote screenshots/jkx_loaded.tga'

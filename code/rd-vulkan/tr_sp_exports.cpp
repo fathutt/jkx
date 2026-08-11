@@ -35,9 +35,9 @@ extern void		C_LevelLoadBegin( const char *psMapName, ForceReload_e eForceReload
 extern void		C_SetAllowScreenDissolve( qboolean allow );
 
 // The weather system's own header declares only the part multiplayer uses.
-extern bool		R_GetWindGusting( void );
-extern bool		R_GetWindVector( vec3_t windVector );
-extern bool		R_IsShaking( void );
+extern bool		R_GetWindGusting( vec3_t atPoint );
+extern bool		R_GetWindVector( vec3_t windVector, vec3_t atPoint );
+extern bool		R_IsShaking( vec3_t pos );
 
 // ---------------------------------------------------------------------------
 // Adapters
@@ -74,25 +74,24 @@ qboolean RE_SP_inPVS( vec3_t p1, vec3_t p2 )
 }
 
 // The weather system asks about a point in single-player and about the world in
-// multiplayer, which is a real difference: single-player's wind and shaking are
-// per-zone. Until the zone lookup is ported these answer for the world, so the
-// answer is right in a single-zone map and coarse in a multi-zone one.
+// multiplayer, and that is a real difference rather than a signature one:
+// single-player's wind and shaking are per-zone. These used to drop the point on
+// the floor and answer globally, which is right in a map with one zone and wrong
+// in every other. The point goes through now; see the local zone list in
+// tr_WorldEffects.cpp.
 bool RE_SP_GetWindGusting( vec3_t atPoint )
 {
-	(void)atPoint;
-	return R_GetWindGusting();
+	return R_GetWindGusting( atPoint );
 }
 
 bool RE_SP_GetWindVector( vec3_t windVector, vec3_t atPoint )
 {
-	(void)atPoint;
-	return R_GetWindVector( windVector );
+	return R_GetWindVector( windVector, atPoint );
 }
 
 bool RE_SP_IsShaking( vec3_t pos )
 {
-	(void)pos;
-	return R_IsShaking();
+	return R_IsShaking( pos );
 }
 
 // ---------------------------------------------------------------------------
