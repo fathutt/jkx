@@ -4236,14 +4236,28 @@ qboolean R_LoadMDXM( model_t *mod, void *buffer, const char *mod_name, qboolean 
 
 	if (bAlreadyFound)
 	{
+		// The surface loop below runs once per file, not once per registration,
+		// and the registration that gets it is the server's: it spawns the
+		// map's entities inside the window where tr is wiped, so every shader it
+		// looked up came back default and every shaderIndex it wrote is zero.
+		// The client then registers the same model, lands here, and returns -
+		// which is why the player and his saber hilt came up untextured, and why
+		// which of them did depended on the command line, that being what
+		// decided the order things were registered in.
+		//
+		// The requests were recorded during that first pass. Replaying them is
+		// what R_LoadMD3 does at the same point, against the same cache; this is
+		// the .glm side of it, which was missing.
+		CModelCache->AllocateShaders( mod_name );
+
 #ifdef USE_VBO_GHOUL2
-		// hotfix, returning here, results in an invalid vbo mesh pointer. 
-		// test using model kyle 
+		// hotfix, returning here, results in an invalid vbo mesh pointer.
+		// test using model kyle
 		if ( !vk.vboGhoul2Active )
 			return qtrue;	// All done. Stop, go no further, do not LittleLong(), do not pass Go...
 #else
 		return qtrue;		// All done. Stop, go no further, do not LittleLong(), do not pass Go...
-#endif	
+#endif
 	}
 
 	bool isAnOldModelFile = false;

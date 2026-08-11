@@ -1319,6 +1319,12 @@ void RE_HunkClear( void )
 	// either. So they are all still there and still findable; the only thing
 	// the wipe destroyed was tr's list of them.
 	//
+	// They do die with RE_Shutdown, which runs first on most paths - CL_MapLoading
+	// takes the client through it - and takes the pool and the hash table
+	// together. This carry is for the path where it does not: the first map load
+	// out of the menu, where the client was never in a game. There the pool is
+	// live and losing it would be the whole texture set.
+	//
 	// Losing that list leaks the entire texture set once per map load, and
 	// costs more than memory: image_t::index is assigned from the pool's count,
 	// so a restarted pool hands out indices that images already in the hash
@@ -1593,11 +1599,11 @@ extern void		G2Time_ReportTimers( void );
 
 // The weather system. Single-player reaches it through the export table; the
 // renderer's own header declares only part of it.
-extern bool		R_GetWindGusting( void );
+extern bool		R_GetWindGusting( vec3_t atPoint );
 extern bool		R_IsOutside( vec3_t pos );
 extern float	R_IsOutsideCausingPain( vec3_t pos );
 extern float	R_GetChanceOfSaberFizz( void );
-extern bool		R_IsShaking( void );
+extern bool		R_IsShaking( vec3_t pos );
 
 #include "tr_sp_exports.h"
 

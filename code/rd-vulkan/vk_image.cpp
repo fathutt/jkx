@@ -180,6 +180,24 @@ static void R_DestroyImagesPool( void )
 	tr.images.items = NULL;
 	tr.images.count = 0;
 	tr.images.capacity = 0;
+
+	// The pool owns the image_t blocks; the hash table only points at them, and
+	// it is a file-static that nothing else clears until R_InitImages. Freeing
+	// one without the other leaves 1024 buckets of freed pointers behind, and
+	// they are not idle: RE_Shutdown( 0, 0 ) runs at the top of every map load
+	// and the server registers the map's models immediately after it, so
+	// R_FindImageFile walks this table with nothing alive in it. That was the
+	// fifth crash on real hardware -
+	//
+	//   read of 0x0000000000000028
+	//   R_FindImageFile+0x50  (vk_image.cpp:1634)
+	//   R_FindShader+0x325
+	//   R_LoadMDXM+0x1f8
+	//
+	// - line 1634 being the imgName compare inside the bucket walk. Whether it
+	// faults or quietly returns a freed image depends on what the heap did with
+	// the block in between, which is why it moved around with the command line.
+	Com_Memset( hashTable, 0, sizeof( hashTable ) );
 }
 
 static void R_AddImageToPool(image_t *image)
@@ -1616,6 +1634,25 @@ image_t *R_FindImageFile( const char *name, imgFlags_t flags, uint32_t type ){
         int			hash;
 
 		if (!name || Cvar_VariableIntegerValue("dedicated"))	// stop ghoul2 horribleness as regards image loading from server
+		{
+			return NULL;
+		}
+
+		// The same horribleness reaches a listen server, which is every
+		// single-player game. Between RE_Shutdown( 0, 0 ) and R_Init there is no
+		// image system at all - the pool has been destroyed, the builtin images
+		// with it, and the descriptor pool reset - and the server spends that
+		// window registering the models of every entity it spawns. Anything
+		// created here would be built against a renderer that is about to wipe
+		// its own record of it: R_Init memsets tr, so the new pool loses these
+		// images while the hash table keeps them, and image_t::index - which
+		// addresses a descriptor slot - starts being handed out twice.
+		//
+		// Declining is what the callers already expect. R_FindShader falls back
+		// to the default shader, the model loaders store shader index 0, and the
+		// model cache re-resolves those the moment the client registers the same
+		// model with a renderer behind it. See R_LoadMDXM.
+		if ( !tr.inited )
 		{
 			return NULL;
 		}
