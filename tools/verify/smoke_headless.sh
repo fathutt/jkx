@@ -75,9 +75,16 @@ RENDERER="$BUILD/code/rd-vulkan/rdsp-vulkan_$ARCH.so"
 RUN="$(mktemp -d)"
 DISPLAY_NUM="${JKX_SMOKE_DISPLAY:-:99}"
 XVFB_PID=""
+# JKX_SMOKE_KEEP_RUN leaves the whole run directory behind - engine, fixtures,
+# log, saves, screenshots. Debugging a failure by re-deriving the command line by
+# hand is how an afternoon goes missing.
 cleanup() {
     [ -n "$XVFB_PID" ] && kill "$XVFB_PID" 2>/dev/null || true
-    rm -rf "$RUN"
+    if [ -n "${JKX_SMOKE_KEEP_RUN:-}" ]; then
+        echo "  run directory kept: $RUN"
+    else
+        rm -rf "$RUN"
+    fi
 }
 trap cleanup EXIT
 
@@ -136,8 +143,32 @@ sleep 2
 # Loading the same map twice never moves the counter and never evicts, so the
 # eviction pass would run on this bench without ever deleting anything. The
 # second map is generated rather than committed: it is the same room.
-INMAP_STEP=( +wait 20 +map jkx_room +wait 80 +screenshot_tga jkx_inmap
-             +wait 20 +map jkx_room2 +wait 60 )
+#
+# Then a savegame round trip. This is the regression harness phase 0 asked for
+# and never got, and it earns its place immediately: until the serialisers were
+# ported, saving wrote no Ghoul2 chunk at all and loading passed nullptr into a
+# function that starts by dereferencing it, so "load" was a guaranteed crash and
+# nothing here would have said so.
+INMAP_STEP=( +wait 20 +map jkx_room +wait 80 +screenshot_tga jkx_inmap )
+if [ "${JKX_SMOKE_SAVELOAD:-0}" = "1" ]; then
+    # And then stop. The second map below is there to move the media level
+    # counter, which the run without the round trip already checks; doing both
+    # in one run pushes a software rasteriser past the timeout for no more
+    # coverage.
+    #
+    # "give health" first, and it is not decoration. SV_SaveGame_f refuses to
+    # save a dead player, and it decides that by reading the health out of the
+    # client's snapshot ring at the current outgoing sequence - a slot that has
+    # not necessarily been written yet on a fixture map with nothing in it. The
+    # refusal prints through SE_GetString, which on a fixture with no string
+    # table prints an empty red line, so the run looked like the save had simply
+    # not happened.
+    INMAP_STEP+=( +give health +wait 20
+                  +save jkx_save +wait 60
+                  +load jkx_save +wait 150 +screenshot_tga jkx_loaded )
+else
+    INMAP_STEP+=( +wait 20 +map jkx_room2 +wait 60 )
+fi
 python3 "$HERE/make_test_bsp.py" "$RUN/base/maps/jkx_room2.bsp" >/dev/null
 
 set +e
@@ -196,11 +227,35 @@ require 'Wrote screenshots/jkx_wiped.tga'
 SHOTS=( "jkx_smoke 2" "jkx_console 200" "jkx_wiped 2" )
 require 'Wrote screenshots/jkx_inmap.tga'
 require 'Server: jkx_room'
-require 'Server: jkx_room2'
+
+if [ "${JKX_SMOKE_SAVELOAD:-0}" = "1" ]; then
+    require 'Wrote screenshots/jkx_loaded.tga'
+
+    # The save has to have been written, and written with something in it. An
+    # empty or missing file would still let the load print nothing and carry on,
+    # which is exactly what happened while the serialiser was multiplayer's.
+    SAVE="$RUN/home/base/saves/jkx_save.sav"
+    if [ ! -s "$SAVE" ]; then
+        report "no savegame was written to $SAVE"
+    elif [ "$(stat -c %s "$SAVE")" -lt 4096 ]; then
+        report "the savegame is $(stat -c %s "$SAVE") bytes, too small to hold a level"
+    fi
+else
+    require 'Server: jkx_room2'
+fi
 # A world view with a head-up display over it has hundreds of distinct colours;
 # two would mean the renderer presented the clear colour and cgame drew nothing,
 # which is what every failure on this path has looked like.
 SHOTS+=( "jkx_inmap 100" )
+if [ "${JKX_SMOKE_SAVELOAD:-0}" = "1" ]; then
+    # The frame after a savegame load. The threshold is 40 rather than the 100
+    # the in-map frame gets, and that gap is a recorded defect rather than
+    # slack: a loaded game draws 51 distinct colours where the same scene
+    # reached by walking in draws 242, and a second map load loses none of them.
+    # Backlog section 21. Raise this to 100 when that is fixed; it sits here so
+    # that a blank frame or a crash still fails.
+    SHOTS+=( "jkx_loaded 40" )
+fi
 
 # The map has to have been attempted and rejected. If SV_Map_f starts refusing
 # it earlier - which it would if the existence check moved - the run would go on

@@ -312,7 +312,15 @@ void SV_SaveGame_f(void)
 	}
 
 
-	if (svs.clients[0].frames[svs.clients[0].netchan.outgoingSequence & PACKET_MASK].ps.stats[STAT_HEALTH] <= 0)
+	// The last snapshot written, not the next one to be written. outgoingSequence
+	// names the slot SV_BuildClientSnapshot is about to fill, so reading it gives
+	// whatever was there PACKET_BACKUP frames ago - and for the first PACKET_BACKUP
+	// frames of a level that is the zeroed slot the client was allocated with.
+	// Health zero reads as dead, so saving in the first moments of a level was
+	// refused with "can't savegame while dead" on a player at full health. The
+	// check below this one, which asks the entity directly, is the one that was
+	// doing the real work.
+	if (svs.clients[0].frames[(svs.clients[0].netchan.outgoingSequence - 1) & PACKET_MASK].ps.stats[STAT_HEALTH] <= 0)
 	{
 #ifdef JK2_MODE
 		Com_Printf (S_COLOR_RED "\nCan't savegame while dead!\n");
@@ -1137,7 +1145,15 @@ qboolean SG_GameAllowedToSaveHere(qboolean inCamera)
 			return qfalse;	//		Com_Printf (S_COLOR_RED "Cannot save on holodeck or brig.\n");
 		}
 
-		if (svs.clients[0].frames[svs.clients[0].netchan.outgoingSequence & PACKET_MASK].ps.stats[STAT_HEALTH] <= 0)
+		// The last snapshot written, not the next one to be written. outgoingSequence
+	// names the slot SV_BuildClientSnapshot is about to fill, so reading it gives
+	// whatever was there PACKET_BACKUP frames ago - and for the first PACKET_BACKUP
+	// frames of a level that is the zeroed slot the client was allocated with.
+	// Health zero reads as dead, so saving in the first moments of a level was
+	// refused with "can't savegame while dead" on a player at full health. The
+	// check below this one, which asks the entity directly, is the one that was
+	// doing the real work.
+	if (svs.clients[0].frames[(svs.clients[0].netchan.outgoingSequence - 1) & PACKET_MASK].ps.stats[STAT_HEALTH] <= 0)
 		{
 			return qfalse;	//		Com_Printf (S_COLOR_RED "\nCan't savegame while dead!\n");
 		}

@@ -31,6 +31,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #include "../client/vmachine.h"
 #include "../client/client.h"
 #include "qcommon/ojk_saved_game.h"
+#include "qcommon/ojk_saved_game_helper.h"
 /*#include "..\renderer\tr_local.h"
 #include "..\renderer\tr_WorldEffects.h"*/
 /*
@@ -679,9 +680,31 @@ static qboolean SV_G2API_RemoveSurface( CGhoul2Info *ghlInfo, const int index )
 	return re.G2API_RemoveSurface( ghlInfo, index );
 }
 
+// The chunk that carries a saved entity's Ghoul2 state.
+//
+// The framing is here rather than in the renderer because the two games do not
+// frame it the same way - Jedi Outcast writes the payload size ahead of it as a
+// GL2S chunk and reads it back the same way, Jedi Academy does not - and the
+// renderer is compiled once and linked into both. This file is compiled per
+// game, so this is where the difference can be spelled without an #ifdef in a
+// place that cannot see it. The read half needs nothing: the gamecode opens the
+// chunk itself before asking the renderer to parse what is in it.
 static void  SV_G2API_SaveGhoul2Models( CGhoul2Info_v &ghoul2 )
 {
-	return re.G2API_SaveGhoul2Models( ghoul2 );
+	ojk::SavedGameHelper saved_game( &ojk::SavedGame::get_instance() );
+
+	saved_game.reset_buffer();
+
+	re.G2API_SaveGhoul2Models( ghoul2 );
+
+#ifdef JK2_MODE
+	saved_game.write_chunk_and_size<int32_t>(
+		INT_ID( 'G', 'L', '2', 'S' ),
+		INT_ID( 'G', 'H', 'L', '2' ) );
+#else
+	saved_game.write_chunk(
+		INT_ID( 'G', 'H', 'L', '2' ) );
+#endif
 }
 
 static qboolean SV_G2API_SetAnimIndex( CGhoul2Info *ghlInfo, const int index )

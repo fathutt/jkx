@@ -2268,13 +2268,12 @@ int G2API_GetBoneIndex(CGhoul2Info *ghlInfo, const char *boneName, qboolean bAdd
 }
 
 // Single-player writes into its own savegame stream rather than handing back a
-// buffer, so it has nothing to return and nothing to size.
+// buffer, so it has nothing to return and nothing to size. It used to say that
+// and then call multiplayer's buffer-returning version anyway, dropping what it
+// got back - see G2_SaveGhoul2Models.
 void G2API_SaveGhoul2Models(CGhoul2Info_v &ghoul2)
 {
-	char	*buffer = NULL;
-	int		size = 0;
-
-	G2_SaveGhoul2Models(ghoul2, &buffer, &size);
+	G2_SaveGhoul2Models(ghoul2);
 }
 
 void G2API_LoadGhoul2Models(CGhoul2Info_v &ghoul2, char *buffer)

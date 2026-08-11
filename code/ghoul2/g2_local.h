@@ -168,7 +168,7 @@ qboolean G2_Pause_Bone_Anim( CGhoul2Info *ghlInfo, boneInfo_v &blist, const char
 qboolean G2_RemoveSurface( surfaceInfo_v &slist, const int index );
 qboolean G2_Remove_Bolt( boltInfo_v &bltlist, int index );
 qboolean G2_Remove_Bone( CGhoul2Info *ghlInfo, boneInfo_v &blist, const char *boneName );
-qboolean G2_SaveGhoul2Models( CGhoul2Info_v &ghoul2, char **buffer, int *size );
+void G2_SaveGhoul2Models( CGhoul2Info_v &ghoul2 );
 qboolean G2_SetRootSurface( CGhoul2Info_v &ghoul2, const int modelIndex, const char *surfaceName );
 qboolean G2_SetSurfaceOnOff( CGhoul2Info *ghlInfo, surfaceInfo_v &slist, const char *surfaceName, const int offFlags );
 qboolean G2_Set_Bone_Angles( CGhoul2Info *ghlInfo, boneInfo_v &blist, const char *boneName, const float *angles, const int flags, const Eorientations up, const Eorientations left, const Eorientations forward, qhandle_t *modelList, const int modelIndex, const int blendTime, const int currentTime );
