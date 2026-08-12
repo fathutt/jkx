@@ -198,7 +198,21 @@ if [ "${JKX_SMOKE_SAVELOAD:-0}" = "1" ]; then
                   +save jkx_save +wait 60
                   +load jkx_save +wait 150 +screenshot_tga jkx_loaded )
 else
-    INMAP_STEP+=( +wait 20 +map jkx_room2 +wait 60 +screenshot_tga jkx_sky +wait 20 )
+    # Then turn around. This is not padding: for as long as this step existed it
+    # only ever looked along +Y, and +Y is the one face out of six where the sky
+    # box's parameterisation and the cube map's agree. A cubemap built with the
+    # wrong table therefore passed every assertion in this file while five of its
+    # six faces were rotated or mirrored, and it took a pixel comparison against
+    # the box path to see it.
+    #
+    # setviewpos needs cheats, which in this engine is a cvar called helpUsObi,
+    # and it subtracts 25 for eye height - so z is 25 to stand where the spawn is.
+    # It takes a yaw and no pitch, so up and down are still not covered here;
+    # tests/sky_projection_test.cpp covers all six, without a renderer.
+    INMAP_STEP+=( +wait 20 +map jkx_room2 +wait 60 +screenshot_tga jkx_sky +wait 20
+                  +setviewpos 0 0 25 0   +wait 30 +screenshot_tga jkx_sky_rt +wait 10
+                  +setviewpos 0 0 25 180 +wait 30 +screenshot_tga jkx_sky_lf +wait 10
+                  +setviewpos 0 0 25 270 +wait 30 +screenshot_tga jkx_sky_ft +wait 10 )
 fi
 
 # The second map carries a sky, and the sky is six faces that can be told apart.
@@ -228,6 +242,20 @@ python3 "$HERE/make_test_sky.py" --mask "$RUN/base/textures/common/dissolve.tga"
 python3 "$HERE/make_test_bsp.py" "$RUN/base/maps/jkx_room2.bsp" \
     --sky textures/jkx/sky >/dev/null
 
+# Extra cvars, as "name=value name=value". This exists for A/B runs: two passes
+# of the same fixture that differ by one setting, compared pixel for pixel. The
+# cubemap sky was landed that way, and the comparison is what showed that five
+# of its six faces were rotated - the fixture's camera looks along +Y, which is
+# the one face the two code paths already agreed about, so every assertion in
+# this file passed on a sky that was wrong everywhere else.
+#
+# Note that a latched cvar only takes here because it is set on the command
+# line before the renderer starts.
+SET_STEP=()
+for pair in ${JKX_SMOKE_SET:-}; do
+    SET_STEP+=( +set "${pair%%=*}" "${pair#*=}" )
+done
+
 set +e
 ( cd "$RUN" && \
   DISPLAY="$DISPLAY_NUM" \
@@ -237,6 +265,8 @@ set +e
       +set fs_basepath "$RUN" +set fs_homepath "$RUN/home" \
       +set s_initsound 0 +set com_errorDialog 0 +set con_notifytime 0 \
       +set cg_hudFiles ui/jkx_hud.txt +set g_char_model jkx \
+      +set helpUsObi 1 \
+      "${SET_STEP[@]}" \
       +wait 60 +screenshot_tga jkx_smoke \
       +toggleconsole +wait 30 +screenshot_tga jkx_console +wait 20 \
       +toggleconsole +wait 20 +map jkx_smoke +wait 60 +screenshot_tga jkx_wiped \
@@ -334,9 +364,44 @@ fi
 if [ -f "$RUN/home/base/screenshots/jkx_sky.tga" ]; then
     if ! python3 "$HERE/tga_colour_where.py" \
         "$RUN/home/base/screenshots/jkx_sky.tga" \
-        "0,153,0@0.3,0.1,0.8,0.6" "0,0,0@0.0,0.1,0.3,0.7"; then
+        "0,153,0@0.3,0.2,0.7,0.8" "0,0,0@0.0,0.3,1.0,0.7"; then
         report "the sky is not the face it should be, or not the way up it should be"
     fi
+fi
+
+# The other three headings. Which image each one shows is sky_texorder at work:
+# the face along +X is "rt", along -X is "lf" and along -Y is "ft", and the two
+# that get swapped by that table are exactly the pair a naive reading gets
+# backwards.
+#
+# The black stripe is asserted too, and it is the orientation half of the check:
+# the base colour alone says which image was sampled, not which way up it went.
+# Each face carries its stripe down one edge, so on screen the stripe is a
+# vertical band and its centre of mass sits at mid height. Turn any face a
+# quarter turn and that band lies down: the stripe runs along the top or bottom
+# edge of the face instead, which either pushes the centroid out of the middle
+# band or takes it off screen entirely. Either way this fails, which is what it
+# is for - the colours passed on a sky whose faces were all quarter-turned.
+#
+# A half turn is not caught here, because two stripes are on screen at once and
+# a half turn swaps them. tests/sky_projection_test.cpp checks the corners
+# against the specification by hand and does catch it.
+sky_view() {
+    local shot="$RUN/home/base/screenshots/$1.tga"; shift
+    local what="$1"; shift
+    if [ ! -f "$shot" ]; then
+        report "no $what screenshot: the camera was not turned"
+        return
+    fi
+    if ! python3 "$HERE/tga_colour_where.py" "$shot" "$@"; then
+        report "the $what sky face is the wrong one, or the wrong way up"
+    fi
+}
+
+if [ -f "$RUN/home/base/screenshots/jkx_sky.tga" ]; then
+    sky_view jkx_sky_rt "+X (rt)" "204,0,0@0.3,0.2,0.7,0.8"   "0,0,0@0.0,0.3,1.0,0.7"
+    sky_view jkx_sky_lf "-X (lf)" "0,51,255@0.3,0.2,0.7,0.8"  "0,0,0@0.0,0.3,1.0,0.7"
+    sky_view jkx_sky_ft "-Y (ft)" "255,204,0@0.3,0.2,0.7,0.8" "0,0,0@0.0,0.3,1.0,0.7"
 fi
 
 if [ "${JKX_SMOKE_SAVELOAD:-0}" = "1" ]; then

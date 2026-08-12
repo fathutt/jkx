@@ -200,6 +200,47 @@ def brushsides():
 SKY_Y = HALF
 SKY_TOP = FLOOR_Z + 2.0 * HALF
 
+# All four walls, not one. A single sky wall means the fixture can only ever
+# look at one of the six faces, and for a long time it looked at the one face
+# where two different parameterisations happen to agree - so a cubemap with five
+# of its six faces rotated passed every assertion in the smoke test. Turning
+# round has to show a different face, and that only works if there is sky behind
+# the camera as well as in front of it.
+#
+# Each entry is the inward normal. "Right", as seen by someone standing at the
+# origin looking at that wall, is forward x up with forward = -normal, and the
+# corners are wound in that frame so every wall faces the room the same way the
+# original single wall did.
+SKY_WALLS = (
+    (0.0, -1.0, 0.0),
+    (0.0, 1.0, 0.0),
+    (-1.0, 0.0, 0.0),
+    (1.0, 0.0, 0.0),
+)
+
+
+def sky_wall_frame(normal):
+    """Where the wall sits and which way is right on it."""
+    nx, ny, nz = normal
+    forward = (-nx, -ny, -nz)
+    # forward x (0,0,1)
+    right = (forward[1] * 1.0 - forward[2] * 0.0,
+             forward[2] * 0.0 - forward[0] * 1.0,
+             0.0)
+    origin = (-nx * HALF, -ny * HALF, 0.0)
+    return origin, right
+
+
+def sky_wall_corners(normal):
+    """The four corners, bottom left first, wound as the room sees them."""
+    (ox, oy, _), (rx, ry, _) = sky_wall_frame(normal)
+    return (
+        (ox - rx * HALF, oy - ry * HALF, FLOOR_Z),
+        (ox + rx * HALF, oy + ry * HALF, FLOOR_Z),
+        (ox + rx * HALF, oy + ry * HALF, SKY_TOP),
+        (ox - rx * HALF, oy - ry * HALF, SKY_TOP),
+    )
+
 
 def drawverts(sky=False):
     """Four corners of the floor.
@@ -221,15 +262,15 @@ def drawverts(sky=False):
         out += bytes([255, 255, 255, 255] * MAXLIGHTMAPS)
 
     if sky:
-        for x, z, s, t in ((-HALF, FLOOR_Z, 0.0, 1.0),
-                           (HALF, FLOOR_Z, 1.0, 1.0),
-                           (HALF, SKY_TOP, 1.0, 0.0),
-                           (-HALF, SKY_TOP, 0.0, 0.0)):
-            out += struct.pack("<3f", x, SKY_Y, z)
-            out += struct.pack("<2f", s, t)
-            out += struct.pack("<8f", *([s, t] * MAXLIGHTMAPS))
-            out += struct.pack("<3f", 0.0, -1.0, 0.0)   # facing the player
-            out += bytes([255, 255, 255, 255] * MAXLIGHTMAPS)
+        for normal in SKY_WALLS:
+            corners = sky_wall_corners(normal)
+            for (x, y, z), (s, t) in zip(corners, ((0.0, 1.0), (1.0, 1.0),
+                                                   (1.0, 0.0), (0.0, 0.0))):
+                out += struct.pack("<3f", x, y, z)
+                out += struct.pack("<2f", s, t)
+                out += struct.pack("<8f", *([s, t] * MAXLIGHTMAPS))
+                out += struct.pack("<3f", *normal)      # facing the room
+                out += bytes([255, 255, 255, 255] * MAXLIGHTMAPS)
 
     return out
 
@@ -247,7 +288,7 @@ def drawindexes(sky=False):
     """
     out = struct.pack("<6i", 0, 1, 2, 0, 2, 3)
     if sky:
-        out += struct.pack("<6i", 0, 1, 2, 0, 2, 3)
+        out += struct.pack("<6i", 0, 1, 2, 0, 2, 3) * len(SKY_WALLS)
     return out
 
 
@@ -273,20 +314,24 @@ def surfaces(sky=False):
     out += struct.pack("<2i", 0, 0)                     # patch width/height
 
     if sky:
-        out += struct.pack("<3i", 2, -1, MST_PLANAR)    # shader 2
-        out += struct.pack("<2i", 4, 4)                 # verts
-        out += struct.pack("<2i", 6, 6)                 # indexes
-        out += bytes([LS_NORMAL] + [LS_NONE] * 3)
-        out += bytes([LS_NORMAL] + [LS_NONE] * 3)
-        out += struct.pack("<4i", *([LIGHTMAP_BY_VERTEX] * MAXLIGHTMAPS))
-        out += struct.pack("<4i", *([0] * MAXLIGHTMAPS))
-        out += struct.pack("<4i", *([0] * MAXLIGHTMAPS))
-        out += struct.pack("<2i", 0, 0)
-        out += struct.pack("<3f", -HALF, SKY_Y, FLOOR_Z)
-        out += struct.pack("<3f", 1.0, 0.0, 0.0)
-        out += struct.pack("<3f", 0.0, 0.0, 1.0)
-        out += struct.pack("<3f", 0.0, -1.0, 0.0)
-        out += struct.pack("<2i", 0, 0)
+        for n, normal in enumerate(SKY_WALLS):
+            corner = sky_wall_corners(normal)[0]
+            _, right = sky_wall_frame(normal)
+
+            out += struct.pack("<3i", 2, -1, MST_PLANAR)        # shader 2
+            out += struct.pack("<2i", 4 + n * 4, 4)             # verts
+            out += struct.pack("<2i", 6 + n * 6, 6)             # indexes
+            out += bytes([LS_NORMAL] + [LS_NONE] * 3)
+            out += bytes([LS_NORMAL] + [LS_NONE] * 3)
+            out += struct.pack("<4i", *([LIGHTMAP_BY_VERTEX] * MAXLIGHTMAPS))
+            out += struct.pack("<4i", *([0] * MAXLIGHTMAPS))
+            out += struct.pack("<4i", *([0] * MAXLIGHTMAPS))
+            out += struct.pack("<2i", 0, 0)
+            out += struct.pack("<3f", *corner)
+            out += struct.pack("<3f", *right)
+            out += struct.pack("<3f", 0.0, 0.0, 1.0)
+            out += struct.pack("<3f", *normal)
+            out += struct.pack("<2i", 0, 0)
 
     return out
 
@@ -316,7 +361,7 @@ def entities():
 
 def build(visible_shader, sky_shader=None):
     sky = bool(sky_shader)
-    count = 2 if sky else 1
+    count = 1 + len(SKY_WALLS) if sky else 1
     lumps = {
         LUMP_ENTITIES: entities(),
         LUMP_SHADERS: shaders(visible_shader, sky_shader),
