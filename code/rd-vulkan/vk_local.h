@@ -303,6 +303,11 @@ typedef enum {
 	// sampling coverage - which is what lets one atlas serve every point size.
 	TYPE_SINGLE_TEXTURE_MSDF,
 
+	// The sky, sampled by direction out of one cubemap rather than by texture
+	// coordinate out of six separate faces. The vertex carries the direction in
+	// the normal slot; see skycube.vert.
+	TYPE_SKYCUBE,
+
 	TYPE_GENERIC_BEGIN,
 	TYPE_SINGLE_TEXTURE = TYPE_GENERIC_BEGIN,
 	TYPE_SINGLE_TEXTURE_ENV,
@@ -892,6 +897,8 @@ typedef struct {
 		VkShaderModule color_fs;
 
 		VkShaderModule msdf_fs;
+	VkShaderModule		skycube_vs;
+	VkShaderModule		skycube_fs;
 
 		VkShaderModule bloom_fs;
 		VkShaderModule blur_fs;

@@ -360,6 +360,106 @@ static void FillSkySide( const int mins[2], const int maxs[2], float skyTexCoord
 	}
 }
 
+static uint32_t	sky_cube_pipeline;
+static qboolean	sky_cube_pipeline_built;
+
+static uint32_t R_SkyCubePipeline( void )
+{
+	Vk_Pipeline_Def def;
+
+	if ( sky_cube_pipeline_built ) {
+		return sky_cube_pipeline;
+	}
+
+	Com_Memset( &def, 0, sizeof( def ) );
+	def.shader_type = TYPE_SKYCUBE;
+	def.face_culling = CT_FRONT_SIDED;
+
+	sky_cube_pipeline = vk_find_pipeline_ext( 0, &def, qtrue );
+	sky_cube_pipeline_built = qtrue;
+
+	return sky_cube_pipeline;
+}
+
+/*
+================
+DrawSkySideCube
+
+The same grid of quads as DrawSkySide, sampled out of one cubemap by direction
+instead of out of one face by texture coordinate.
+
+The direction rides in the normal attribute. s_skyPoints holds exactly that
+already - the box points are generated relative to the camera and only have the
+view origin added on their way into tess.xyz - so this is the same number
+written twice rather than a second calculation that could disagree with the
+first.
+================
+*/
+static void DrawSkySideCube( image_t *cube, const int mins[2], const int maxs[2] )
+{
+	int s, t;
+	int vertexStart = 0;
+	int tHeight, sWidth;
+
+	tHeight = maxs[1] - mins[1] + 1;
+	sWidth = maxs[0] - mins[0] + 1;
+
+	tess.numVertexes = 0;
+	tess.numIndexes = 0;
+
+	for ( t = mins[1] + HALF_SKY_SUBDIVISIONS; t <= maxs[1] + HALF_SKY_SUBDIVISIONS; t++ ) {
+		for ( s = mins[0] + HALF_SKY_SUBDIVISIONS; s <= maxs[0] + HALF_SKY_SUBDIVISIONS; s++ ) {
+			VectorAdd( s_skyPoints[t][s], backEnd.viewParms.ori.origin,
+				tess.xyz[tess.numVertexes] );
+
+			VectorCopy( s_skyPoints[t][s], tess.normal[tess.numVertexes] );
+			tess.normal[tess.numVertexes][3] = 0.0f;
+
+			tess.numVertexes++;
+		}
+	}
+
+	for ( t = 0; t < tHeight - 1; t++ ) {
+		for ( s = 0; s < sWidth - 1; s++ ) {
+			tess.indexes[tess.numIndexes++] = vertexStart + s + t * sWidth;
+			tess.indexes[tess.numIndexes++] = vertexStart + s + ( t + 1 ) * sWidth;
+			tess.indexes[tess.numIndexes++] = vertexStart + s + 1 + t * sWidth;
+
+			tess.indexes[tess.numIndexes++] = vertexStart + s + ( t + 1 ) * sWidth;
+			tess.indexes[tess.numIndexes++] = vertexStart + s + 1 + ( t + 1 ) * sWidth;
+			tess.indexes[tess.numIndexes++] = vertexStart + s + 1 + t * sWidth;
+		}
+	}
+
+	if ( !tess.numIndexes ) {
+		return;
+	}
+
+	vk_select_texture( 0 );
+	vk_bind( cube );
+
+	vk_bind_index();
+	vk_bind_geometry( TESS_XYZ | TESS_NNN );
+
+	{
+		DrawItem item = {};
+		item.pipeline = R_SkyCubePipeline();
+		item.pipeline_layout = vk.pipeline_layout;
+		item.depthRange = r_showsky->integer ? DEPTH_RANGE_ZERO : DEPTH_RANGE_ONE;
+		item.polygonOffset = qfalse;
+		item.identifier = 7;
+
+		RB_AddDrawItemIndexBinding( item );
+		RB_AddDrawItemVertexBinding( item );
+		RB_AddDrawItemUniformBinding( item, backEnd.currentEntity );
+
+		RB_AddDrawItem( backEndData->currentPass, item );
+	}
+
+	tess.numVertexes = 0;
+	tess.numIndexes = 0;
+}
+
 static void DrawSkySide( image_t *image, const int mins[2], const int maxs[2] )
 {
 	tess.numVertexes = 0;
@@ -455,7 +555,11 @@ static void DrawSkyBox( const shader_t *shader )
 			}
 		}
 
-		DrawSkySide(shader->sky->outerbox[sky_texorder[i]], sky_mins_subd, sky_maxs_subd);
+		if ( shader->sky->cube != NULL ) {
+			DrawSkySideCube( shader->sky->cube, sky_mins_subd, sky_maxs_subd );
+		} else {
+			DrawSkySide(shader->sky->outerbox[sky_texorder[i]], sky_mins_subd, sky_maxs_subd);
+		}
 	}
 }
 

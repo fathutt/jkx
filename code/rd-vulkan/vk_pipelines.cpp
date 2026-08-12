@@ -325,6 +325,15 @@ static void vk_push_vertex_input_binding_attribute( const Vk_Pipeline_Def *def )
 			vk_push_attr( 5, 5, VK_FORMAT_R32G32B32A32_SFLOAT );
             break;
 
+        // Position and a direction. No colour and no texture coordinates: the
+        // cube is sampled by the direction, and the sky has no vertex colour.
+        case TYPE_SKYCUBE:
+            vk_push_bind( 0, sizeof( vec4_t ) );					// xyz array
+            vk_push_bind( 5, sizeof( vec4_t ) );					// direction, in the normal slot
+            vk_push_attr( 0, 0, VK_FORMAT_R32G32B32A32_SFLOAT );
+            vk_push_attr( 5, 5, VK_FORMAT_R32G32B32A32_SFLOAT );
+            break;
+
         case TYPE_SINGLE_TEXTURE_IDENTITY:
             vk_push_bind( 0, sizeof( vec4_t ) );					// xyz array
             vk_push_bind( 2, sizeof( vec2_t ) );					// st0 array
@@ -793,6 +802,11 @@ VkPipeline vk_create_pipeline( const Vk_Pipeline_Def *def, renderPass_t renderPa
             fs_module = &vk.shaders.msdf_fs;
             break;
 
+        case TYPE_SKYCUBE:
+            vs_module = &vk.shaders.skycube_vs;
+            fs_module = &vk.shaders.skycube_fs;
+            break;
+
         case TYPE_SINGLE_TEXTURE:
             vs_module = &vk.shaders.vert.gen[vbo][fastlight][light][0][0][0][0];
             fs_module = &vk.shaders.frag.gen[fastlight][light][0][0][0];
@@ -912,6 +926,7 @@ VkPipeline vk_create_pipeline( const Vk_Pipeline_Def *def, renderPass_t renderPa
             case TYPE_SINGLE_TEXTURE_DF:
             case TYPE_SINGLE_TEXTURE_IDENTITY:
             case TYPE_SINGLE_TEXTURE_MSDF:
+            case TYPE_SKYCUBE:
             case TYPE_COLOR_WHITE:
             case TYPE_COLOR_GREEN:
             case TYPE_COLOR_RED:

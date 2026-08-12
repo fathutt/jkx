@@ -108,6 +108,7 @@ const char *vk_shadertype_string( Vk_Shader_Type code ) {
 
         CASE_STR(TYPE_SINGLE_TEXTURE_DF);
         CASE_STR(TYPE_SINGLE_TEXTURE_MSDF);
+        CASE_STR(TYPE_SKYCUBE);
 
         CASE_STR(TYPE_SINGLE_TEXTURE);
         CASE_STR(TYPE_SINGLE_TEXTURE_ENV);
