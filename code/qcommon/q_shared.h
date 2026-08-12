@@ -533,14 +533,14 @@ COLLISION DETECTION
 ==============================================================
 */
 
-#include "../game/surfaceflags.h"			// shared with the q3map utility
+#include "qcommon/surfaceflags.h"			// shared with the q3map utility
 
 /*
 Ghoul2 Insert Start
 */
 
 #if !defined(GHOUL2_SHARED_H_INC)
-	#include "../game/ghoul2_shared.h"	//for CGhoul2Info_v
+	#include "../ghoul2/ghoul2_shared.h"	//for CGhoul2Info_v
 #endif
 
 /*
@@ -625,7 +625,7 @@ typedef struct {
 // sound channels
 // channel 0 never willingly overrides
 // other channels will allways override a playing sound on that channel
-#include "../game/channels.h"
+#include "qcommon/channels.h"
 
 /*
 ========================================================================

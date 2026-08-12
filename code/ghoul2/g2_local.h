@@ -36,7 +36,7 @@ published by the Free Software Foundation.
 
 // Self-sufficient on purpose: the G2_ sources include this before tr_local.h,
 // so it cannot rely on anything having been pulled in first. q_shared.h brings
-// CGhoul2Info_v and IGhoul2InfoArray with it, via code/game/ghoul2_shared.h.
+// CGhoul2Info_v and IGhoul2InfoArray with it, via ghoul2_shared.h beside this file.
 #include "qcommon/q_shared.h"
 #include "qcommon/MiniHeap.h"
 #include "ghoul2/G2.h"

@@ -23,7 +23,10 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 // Filename:	statindex.h
 //
-// accessed from both server and game modules
+// accessed from both server and game modules - which is why it is here and not
+// in the gamecode. The original comment said as much and the file sat in
+// code/game anyway; codeJK2 had a second copy of it, identical but for a
+// copyright line, and that one is gone.
 
 #ifndef STATINDEX_H
 #define STATINDEX_H

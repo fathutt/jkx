@@ -25,7 +25,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #ifndef __TR_TYPES_H
 #define __TR_TYPES_H
 
-#include "../game/ghoul2_shared.h"
+#include "../ghoul2/ghoul2_shared.h"
 
 #define	MAX_DLIGHTS		32			// can't be increased, because bit flags are used on surfaces
 #define	REFENTITYNUM_BITS	11		// can't be increased without changing drawsurf bit packing

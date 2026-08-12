@@ -22,6 +22,14 @@ import re
 import sys
 from pathlib import Path
 
+# code/ghoul2 is deliberately not in this table, and it is the one module the
+# four-layer model has no honest name for. It is included by the engine
+# (q_shared.h, sv_world.cpp) and it includes the renderer (tr_types.h,
+# mdx_format.h), so calling it "engine" makes five violations appear and calling
+# it "render" makes two - neither of them new, both of them real. Naming it
+# properly is its own piece of work; classifying it wrongly to get a green tick
+# is not.
+
 # Layer name -> path prefixes that belong to it. Order matters only for output.
 LAYERS: dict[str, tuple[str, ...]] = {
     "platform": ("shared/sys", "shared/sdl"),

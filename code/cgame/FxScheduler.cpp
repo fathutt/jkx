@@ -28,7 +28,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #endif
 
 #if !defined(GHOUL2_SHARED_H_INC)
-	#include "../game/ghoul2_shared.h"	//for CGhoul2Info_v
+	#include "../ghoul2/ghoul2_shared.h"	//for CGhoul2Info_v
 #endif
 
 #if !defined(G2_H_INC)

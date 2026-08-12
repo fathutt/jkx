@@ -25,6 +25,22 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 //	are different choices to offer in the pulldown box. I know, it's tacky, but ModView wasn't planned as an
 //	editor and this was never an external file. A great combination...   - Ste.
 //
+// Sound channels, engine side.
+//
+// This moved here from code/game because that is not what it is. The engine
+// picks channels, mixes them and attenuates them; the gamecode names one when
+// it starts a sound. q_shared.h has always been the file that included it, and
+// q_shared.h is the bottom of the tree.
+//
+// codeJK2 carried its own copy, and the two had drifted: this list has
+// CHAN_VOICE_GLOBAL fifth and CHAN_MUSIC last, that one had CHAN_MENU1 and
+// CHAN_VOICE_GLOBAL last, so every channel from the sixth onwards was a
+// different number in the two files. Nothing included it - both games reach
+// this list through q_shared.h, and always did - so nothing was ever wrong at
+// run time. It was a copy that disagreed with the one in use and looked
+// authoritative, which is the kind of file that is only ever read once, in the
+// wrong direction. Deleted.
+
 typedef enum //# soundChannel_e
 {
 	CHAN_AUTO,	//## %s !!"W:\game\base\!!sound\*.wav;*.mp3" # Auto-picks an empty channel to play sound on

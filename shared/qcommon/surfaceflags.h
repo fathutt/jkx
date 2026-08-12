@@ -23,6 +23,12 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 
 // This file must be identical in the quake and utils directories
+//
+// It is now in one place instead of three. q_shared.h is the only thing that
+// includes it, the engine reads thirty-eight of its hundred-odd names to decide
+// what a surface is made of and whether to trace through it, and codeJK2's copy
+// - identical but for the capitalisation of "id Software" - was included by
+// nothing at all.
 
 // contents flags are seperate bits
 // a given brush can contribute multiple content bits

@@ -27,7 +27,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 // weapons.h was here for AMMO_MAX alone. That is the number of entries in
 // playerState_t::ammo, which q_shared.h already sizes as MAX_AMMO and which
 // is the bound this loop actually wants - the array, not the weapon list.
-#include "../game/statindex.h"
+#include "qcommon/statindex.h"
 #include "../qcommon/game_version.h"
 
 /*

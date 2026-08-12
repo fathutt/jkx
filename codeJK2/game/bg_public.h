@@ -27,7 +27,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #include "weapons.h"
 #include "g_items.h"
 #include "teams.h"
-#include "statindex.h"
+#include "qcommon/statindex.h"
 // EF_PERMANENT and EF_FORCE_VISIBLE are in g_public.h, which this file must not
 // include: the gamecode defines GAME_INCLUDE before it reaches g_public.h, and
 // pulling it in from here would beat it to that and give the game module the

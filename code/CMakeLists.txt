@@ -251,28 +251,23 @@ if(BuildSPEngine OR BuildJK2SPEngine)
 	set(SPEngineFiles ${SPEngineFiles} ${SPEngineServerFiles})
 
 
-	# Game files
+	# The gamecode headers the engine actually includes.
+	#
+	# This list used to name eighteen of them, which was a picture of the tree in
+	# about 2013: anims.h, b_public.h, bg_public.h, bset.h, bstate.h,
+	# common_headers.h, g_functions.h, g_items.h, g_local.h, g_nav.h, g_shared.h,
+	# statindex.h, teams.h, weapons.h, channels.h, surfaceflags.h. None of them
+	# affected the build - a header in a source list is grouping for the IDE and
+	# nothing else - so nothing ever noticed when the includes went away or the
+	# files moved. What is left is what the engine includes today, and the four
+	# headers are the whole of the engine-to-game interface.
 	set(SPEngineGameFiles
 		"${SPDir}/qcommon/GenericParser2.cpp"
-		"${SPDir}/game/channels.h"
-		"${SPDir}/game/anims.h"
-		"${SPDir}/game/b_public.h"
-		"${SPDir}/game/bg_public.h"
-		"${SPDir}/game/bset.h"
-		"${SPDir}/game/bstate.h"
-		"${SPDir}/game/common_headers.h"
-		"${SPDir}/game/g_functions.h"
-		"${SPDir}/game/g_items.h"
-		"${SPDir}/game/g_local.h"
-		"${SPDir}/game/g_nav.h"
-		"${SPDir}/game/g_public.h"
-		"${SPDir}/game/g_shared.h"
 		"${SPDir}/qcommon/GenericParser2.h"
-		"${SPDir}/game/statindex.h"
-		"${SPDir}/game/teams.h"
-		"${SPDir}/game/weapons.h"
-		"${SPDir}/game/surfaceflags.h"
-		"${SPDir}/game/ghoul2_shared.h"
+		"${SPDir}/game/g_public.h"
+		"${SPDir}/cgame/cg_public.h"
+		"${SPDir}/ui/ui_public.h"
+		"${SPDir}/ui/ui_shared.h"
 		)
 	source_group("game" FILES ${SPEngineGameFiles})
 	set(SPEngineFiles ${SPEngineFiles} ${SPEngineGameFiles})
