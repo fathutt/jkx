@@ -341,7 +341,7 @@ Drawn in the head-up display's space, because that is the one whose coordinates
 reach the edge of the window.
 ================
 */
-static void SCR_FillFrameMargins( void ) {
+void SCR_FillFrameMargins( void ) {
 	const float frame = (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT;
 	const float have = ( cls.glconfig.vidHeight > 0 )
 		? (float)cls.glconfig.vidWidth / (float)cls.glconfig.vidHeight : frame;

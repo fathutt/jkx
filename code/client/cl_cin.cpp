@@ -1724,6 +1724,19 @@ static void CIN_AddTextCrawl()
 	re.AddPolyToScene( cinTable[CL_handle].hCRAWLTEXT, 4, verts );
 	re.RenderScene( &refdef );
 
+	// And black over whatever is outside the frame, here rather than trusting
+	// the caller to do it.
+	//
+	// SCR_DrawScreenField fills the margins after drawing a cinematic, and the
+	// margins beside the crawl stayed grey anyway - so either that branch is not
+	// the one this runs under, or something after it paints over them. Rather
+	// than keep guessing across a round trip that costs hours, the frame that
+	// knows it has just drawn a scene into part of the window covers the rest
+	// itself. Filling twice costs two quads; not filling shows the renderer's
+	// clear colour, which is 0.75 grey, which is what the screenshots keep
+	// coming back with.
+	SCR_FillFrameMargins();
+
 	//time's up
 	if (cls.realtime-CL_iPlaybackStartTime >= TC_STOPTIME)
 	{

@@ -1080,6 +1080,9 @@ void		vk_destroy_sync_primitives( void );
 void		vk_release_geometry_buffers( void );
 void		vk_release_indirect_buffers( void );
 void		vk_wait_idle( void );
+#ifdef USE_UPLOAD_QUEUE
+void		vk_flush_staging_buffer( qboolean final );
+#endif
 void		vk_queue_wait_idle( void );
 void		vk_release_resources( void );
 void		vk_read_pixels( byte *buffer, uint32_t width, uint32_t height );

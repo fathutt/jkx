@@ -521,12 +521,46 @@ static qboolean R_DissolveCaptureScreen( void )
 		dissolve.screen = R_CreateImage( "*dissolveScreen", rgba, width, height,
 			IMGFLAG_CLAMPTOEDGE | IMGFLAG_NOSCALE | IMGFLAG_NO_COMPRESSION, 0, 0 );
 	}
-	else
+
+	if ( dissolve.screen )
 	{
 		vk_bind( dissolve.screen );
 
-		if ( dissolve.screen->width != width || dissolve.screen->height != height )
+		// uploadWidth, not width. They are not the same thing and the
+		// difference was a dead graphics card.
+		//
+		// image_t::width is what the caller asked for; uploadWidth is what the
+		// image system actually built, after it clamps to
+		// glConfig.maxTextureSize - which is 2048 here, and is a limit of the
+		// resample scratch rather than of the hardware. On any window wider than
+		// that, R_CreateImage above made a 1280x360 image and recorded 5120x1440
+		// as its size. This test then compared 5120 against 5120, decided the
+		// image was already the right shape, and uploaded 5120x1440 texels into
+		// it: a copy sixteen times larger than the destination, straight past
+		// the end of the allocation.
+		//
+		// The driver's answer to that is VK_ERROR_DEVICE_LOST, reported at the
+		// next fence wait with nothing to say about where it came from. On a
+		// 5120x1440 monitor it happened at the first screen wipe - which is the
+		// transition out of the introduction crawl, so the campaign died on the
+		// way into its first map, every time. Below 2048 wide nothing is clamped
+		// and none of this happens, which is why it took a 32:9 display to find.
+		if ( dissolve.screen->uploadWidth != width || dissolve.screen->uploadHeight != height )
 		{
+			// Finish the uploads already recorded against the old image before
+			// throwing it away. vk_create_image destroys the existing VkImage,
+			// and the staging command buffer can be holding a copy into it that
+			// has been recorded and not yet submitted - the previous wipe's.
+			//
+			// The validation layer says it plainly once the fixture has a wipe
+			// to run: "vkEndCommandBuffer() was called in VkCommandBuffer which
+			// is invalid because bound VkImage was destroyed". A software
+			// rasteriser survives that. A driver does not have to.
+#ifdef USE_UPLOAD_QUEUE
+			vk_flush_staging_buffer( qfalse );
+#endif
+			vk_wait_idle();
+
 			dissolve.screen->width = dissolve.screen->uploadWidth = width;
 			dissolve.screen->height = dissolve.screen->uploadHeight = height;
 			vk_create_image( dissolve.screen, width, height, 1 );

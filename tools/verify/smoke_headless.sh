@@ -215,6 +215,16 @@ fi
 # sky_texorder = { 0, 2, 1, 3, 4, 5 }, which swaps the second and third. That is
 # measured, not assumed - the first guess was "lf" and the screenshot said green.
 python3 "$HERE/make_test_sky.py" "$RUN/base/textures/jkx" sky >/dev/null
+
+# The screen wipe's mask. Without this file the engine prints "no screen wipe"
+# and the whole dissolve path is skipped - which is how a crash lived there
+# undisturbed: R_DissolveCaptureScreen compared image_t::width, the size that was
+# asked for, against the capture size, when what it had built was
+# uploadWidth - the size after clamping to glConfig.maxTextureSize, which is
+# 2048. Wider than that, the two disagree and it uploads sixteen times more
+# texels than the image holds. The wide lane runs at 2560, so it is the one that
+# reaches it; below 2048 nothing is clamped and nothing goes wrong.
+python3 "$HERE/make_test_sky.py" --mask "$RUN/base/textures/common/dissolve.tga" >/dev/null
 python3 "$HERE/make_test_bsp.py" "$RUN/base/maps/jkx_room2.bsp" \
     --sky textures/jkx/sky >/dev/null
 

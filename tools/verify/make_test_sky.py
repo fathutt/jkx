@@ -21,6 +21,14 @@ uses elsewhere. The marker is white and the stripe is black, which no base
 colour comes near.
 
     make_test_sky.py <dir> <basename>     writes <basename>_{rt,bk,lf,ft,up,dn}.tga
+    make_test_sky.py --mask <path.tga>    writes one greyscale ramp
+
+The mask is not a sky face. It is the screen-wipe mask the renderer looks for at
+textures/common/dissolve, and it lives here because it is the same Targa writer
+and because the wipe is what the sky-less half of the fixture needed: without
+that file the engine prints "no screen wipe" and the whole dissolve path - which
+is where a 5120-wide monitor found a copy sixteen times larger than its
+destination - never runs at all.
 
 The suffix order is ParseSkyParms's. Which face you actually see looking in a
 given direction is NOT that order: DrawSkyBox indexes the images through
@@ -103,9 +111,24 @@ def write_tga(path, rows):
         f.write(bytes(body))
 
 
+def mask_pixels():
+    """A left-to-right ramp: the wipe uses it as an order, not as a picture."""
+    return [[(v, v, v) for v in
+             (int(x * 255 / (SIZE - 1)) for x in range(SIZE))]
+            for _ in range(SIZE)]
+
+
 def main(argv):
+    if len(argv) >= 3 and argv[1] == "--mask":
+        path = argv[2]
+        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+        write_tga(path, mask_pixels())
+        print("%s: dissolve mask" % path)
+        return 0
+
     if len(argv) < 3:
-        print("usage: %s <dir> <basename>" % argv[0], file=sys.stderr)
+        print("usage: %s <dir> <basename> | --mask <path.tga>" % argv[0],
+              file=sys.stderr)
         return 2
 
     directory, base = argv[1], argv[2]
