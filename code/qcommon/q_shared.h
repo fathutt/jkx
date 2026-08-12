@@ -73,26 +73,36 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 // played decides what the gamecode does, not what the engine is made of.
 #define _G2_GORE
 
+// The engine's own name, and where it keeps the player's things.
+//
+// These used to say OpenJK and OpenJO, which was wrong in a way that costs
+// something rather than merely reading oddly: the home path is the directory the
+// configuration, the saved games and the logs live in, so an engine that is not
+// OpenJK writing into OpenJK's directory shares state with it. Two engines that
+// disagree about a config file are a support question nobody can answer.
+//
+// Moving the name moves the directory. Anyone who has played this build before
+// this change will find their settings and saves under the old name and can move
+// the folder across; nothing reads both.
 #if JK2_MODE
-#define PRODUCT_NAME			"openjo_sp"
+#define PRODUCT_NAME			"jkx_jo_sp"
 
-#define CLIENT_WINDOW_TITLE "OpenJO (SP)"
-#define CLIENT_CONSOLE_TITLE "OpenJO Console (SP)"
-#define HOMEPATH_NAME_UNIX "openjo"
-#define HOMEPATH_NAME_WIN "OpenJO"
+#define CLIENT_WINDOW_TITLE "JKX: Jedi Outcast (SP)"
+#define CLIENT_CONSOLE_TITLE "JKX Console (Outcast)"
+#define HOMEPATH_NAME_UNIX "jkxjo"
+#define HOMEPATH_NAME_WIN "JKXJO"
 #define HOMEPATH_NAME_MACOSX HOMEPATH_NAME_WIN
 #else
-#define PRODUCT_NAME			"openjk_sp"
+#define PRODUCT_NAME			"jkx_ja_sp"
 
-#define CLIENT_WINDOW_TITLE "OpenJK (SP)"
-#define CLIENT_CONSOLE_TITLE "OpenJK Console (SP)"
-#define HOMEPATH_NAME_UNIX "openjk"
-#define HOMEPATH_NAME_WIN "OpenJK"
+#define CLIENT_WINDOW_TITLE "JKX: Jedi Academy (SP)"
+#define CLIENT_CONSOLE_TITLE "JKX Console (Academy)"
+#define HOMEPATH_NAME_UNIX "jkx"
+#define HOMEPATH_NAME_WIN "JKX"
 #define HOMEPATH_NAME_MACOSX HOMEPATH_NAME_WIN
 #endif
 
 #define	BASEGAME "base"
-#define OPENJKGAME "OpenJK"
 
 #define Q3CONFIG_NAME PRODUCT_NAME ".cfg"
 

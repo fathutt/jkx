@@ -401,12 +401,21 @@ void *Sys_LoadMachOBundle( const char *name )
 }
 #endif
 
+// Where the game library is looked for. There used to be a fourth entry between
+// base and root - a directory literally called "OpenJK" - and it is gone.
+//
+// It existed so that OpenJK's own game library could sit beside a retail
+// installation without overwriting the one that shipped in base/. This engine
+// builds its own game library under its own name, so there is nothing to avoid
+// colliding with; what the extra path did here was offer to load somebody else's
+// gamecode into our engine, silently, if a copy happened to be installed. Two
+// builds of a game whose interface is a raw C++ ABI is not a combination that
+// fails loudly.
 enum SearchPathFlag
 {
 	SEARCH_PATH_MOD		= 1 << 0,
 	SEARCH_PATH_BASE	= 1 << 1,
-	SEARCH_PATH_OPENJK	= 1 << 2,
-	SEARCH_PATH_ROOT	= 1 << 3
+	SEARCH_PATH_ROOT	= 1 << 2
 };
 
 static void *Sys_LoadDllFromPaths( const char *filename, const char *gamedir, const char **searchPaths,
@@ -441,23 +450,6 @@ static void *Sys_LoadDllFromPaths( const char *filename, const char *gamedir, co
 				continue;
 
 			fn = FS_BuildOSPath( libDir, BASEGAME, filename );
-			libHandle = Sys_LoadLibrary( fn );
-			if ( libHandle )
-				return libHandle;
-
-			Com_Printf( "%s(%s) failed: \"%s\"\n", callerName, fn, Sys_LibraryError() );
-		}
-	}
-
-	if ( searchFlags & SEARCH_PATH_OPENJK )
-	{
-		for ( size_t i = 0; i < numPaths; i++ )
-		{
-			const char *libDir = searchPaths[i];
-			if ( !libDir[0] )
-				continue;
-
-			fn = FS_BuildOSPath( libDir, OPENJKGAME, filename );
 			libHandle = Sys_LoadLibrary( fn );
 			if ( libHandle )
 				return libHandle;
@@ -609,7 +601,7 @@ void *Sys_LoadSPGameDll( const char *name, GetGameAPIProc **GetGameAPI )
 		size_t numPaths = ARRAY_LEN( searchPaths );
 
 		libHandle = Sys_LoadDllFromPaths( filename, gamedir, searchPaths, numPaths,
-											SEARCH_PATH_BASE | SEARCH_PATH_MOD | SEARCH_PATH_OPENJK | SEARCH_PATH_ROOT,
+											SEARCH_PATH_BASE | SEARCH_PATH_MOD | SEARCH_PATH_ROOT,
 											__FUNCTION__ );
 		if ( !libHandle )
 			return NULL;
