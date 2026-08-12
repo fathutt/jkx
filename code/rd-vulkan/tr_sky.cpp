@@ -815,12 +815,30 @@ Other things could be stuck in here, like birds in the sky, etc
 */
 void RB_StageIteratorSky( void )
 {
+	// r_fastsky means "do not draw the sky, leave whatever cleared the
+	// attachment showing". Both spellings of that had one body between them:
+	//
+	//     #ifndef USE_BUFFER_CLEAR
+	//         if ( r_fastsky->integer && vk.clearAttachment )
+	//     #else
+	//         if ( r_fastsky->integer )
+	//             return;
+	//     #endif
+	//         if ( backEnd.isGlowPass )
+	//             return;
+	//
+	// With USE_BUFFER_CLEAR defined - which it is - that reads correctly by
+	// accident. With it undefined the first condition has no statement of its
+	// own and swallows the next one, so r_fastsky stops meaning "skip the sky"
+	// and starts meaning "skip the sky only during a glow pass", and the glow
+	// pass check disappears the rest of the time. A macro nobody turns off is
+	// not a reason to leave a dangling if in the file.
+	if ( r_fastsky->integer ) {
 #ifndef USE_BUFFER_CLEAR
-	if ( r_fastsky->integer && vk.clearAttachment  )
-#else
-	if ( r_fastsky->integer )
-		return;
+		if ( vk.clearAttachment )
 #endif
+			return;
+	}
 
 	if ( backEnd.isGlowPass )
 		return;
