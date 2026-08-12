@@ -42,6 +42,10 @@
 #               and never running them checks nothing: the first time this was
 #               run it reported two misaligned accesses in the zone allocator,
 #               on the first allocation the engine makes
+#   prepass     the fixture drawn twice, with the depth pre-pass off and on, and
+#               the two sets of frames compared. It is a change that must not
+#               change the picture, and "the map still loads" cannot tell that
+#               from a wall that has gone missing behind the camera
 #
 # What it cannot cover: MSVC itself - its dialect and its linker. That used to
 # be read as "Windows", which is a much larger thing; the windows stage compiles
@@ -63,7 +67,7 @@ JOBS="${JOBS:-$(nproc)}"
 
 STAGES=( "$@" )
 if [ "${#STAGES[@]}" -eq 0 ]; then
-    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokesan )
+    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokesan prepass )
 fi
 
 failed=()
@@ -159,14 +163,54 @@ stage_smoke() {
     bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
 }
 
-# The same run at 32:9, which is where the interface's arithmetic is worth
-# checking: at 4:3 the fitted frame is the window and every wrong mapping agrees
-# with every right one. A whole class of defect - a splash stretched instead of
-# fitted, a model placed against the window inside a menu placed against the
-# frame - is only a different picture on a wide screen.
+# The depth pre-pass, checked the only way it can honestly be checked: it is a
+# change that is supposed to draw exactly the same picture. Filling the depth
+# buffer with the opaque geometry before shading it lets the hardware discard
+# occluded fragments, and every way of getting it wrong - a vertex transformed
+# differently in the two passes, a surface that writes depth and then does not
+# write colour - shows up as geometry that disappears. Comparing frames catches
+# that; a run that reaches the end of the map does not.
 #
-# Validation is off here because the run above already did that pass, and the
-# display number differs so the two do not share an X server.
+# The tolerance is two pixels, and getting it down to two was most of the work.
+# The fixture was not bit-exact against itself: the sky moved, the horizon
+# settled onto the floor over real time rather than over frames, the third-person
+# camera trailed, and a console cursor blinked. Each was switched off at the
+# source - JKX_SMOKE_PLAIN in smoke_headless.sh lists them - until a control run
+# of the same binary against itself differed by one pixel on jkx_inmap and two on
+# jkx_sky, both on the floor's edge. Two is that measurement, not a guess.
+#
+# The alternative was on the table the whole time and is worth naming so that
+# nobody takes it later: widen the tolerance until it passes. A tolerance loose
+# enough to hide a moving horizon is loose enough to hide a wall that has gone
+# missing, which is the one thing this stage exists to catch.
+stage_prepass() {
+    local a b rc
+    a="$(mktemp -d)"
+    b="$(mktemp -d)"
+    rc=0
+
+    prepass_run() {
+        JKX_SMOKE_SET="r_depthPrepass=$1" \
+        JKX_SMOKE_PLAIN=1 \
+        JKX_SMOKE_NO_VALIDATION=1 \
+        JKX_SMOKE_DISPLAY="$2" \
+        JKX_SMOKE_SHOT_DIR="$3" \
+            bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release" >/dev/null
+    }
+
+    prepass_run 0 "${JKX_SMOKE_PREPASS_DISPLAY_A:-:94}" "$a" || rc=1
+    prepass_run 1 "${JKX_SMOKE_PREPASS_DISPLAY_B:-:93}" "$b" || rc=1
+
+    if [ "$rc" -eq 0 ]; then
+        python3 "$ROOT/tools/verify/ab_frames.py" "$a" "$b" --max-pixels 2 || rc=1
+    else
+        echo "  one of the runs failed on its own terms; see it alone first"
+    fi
+
+    rm -rf "$a" "$b"
+    return "$rc"
+}
+
 stage_smokewide() {
     JKX_SMOKE_DISPLAY="${JKX_SMOKE_WIDE_DISPLAY:-:97}" \
     JKX_SMOKE_SCREEN=2560x720 \
