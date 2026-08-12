@@ -106,6 +106,14 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 #define Q3CONFIG_NAME PRODUCT_NAME ".cfg"
 
+// Further than anything in a map, used as the starting value of a
+// shortest-distance search. It lived in the gamecode's own g_local.h, and the
+// engine used it anyway - tri_coll_test.cpp, which is engine code compiled into
+// the game library, reached for it through an include of g_local.h that it
+// otherwise needed nothing from. A number with no game logic in it belongs
+// where both sides can see it.
+#define Q3_INFINITE			16777216
+
 #define VALIDSTRING( a )	( ( a != NULL ) && ( a[0] != '\0' ) )
 
 //JAC: Added

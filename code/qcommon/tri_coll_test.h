@@ -31,7 +31,14 @@ This file is part of Jedi Academy.
 #ifndef _TRI_COLL_TEST_H
 #define _TRI_COLL_TEST_H
 
-#include "../game/g_local.h"
+// This used to include ../game/g_local.h, the gamecode's own local header,
+// and it needed nothing from it: the one function declared below takes vec3_t,
+// which q_shared.h provides on the next line.
+//
+// It was not free. The engine is layered below the game, so every include that
+// points the other way is a place the two cannot be separated - and this one
+// dragged the whole of g_local.h and everything under it into the engine's
+// interface with the gamecode.
 #include "q_shared.h"
 
 float ShortestLineSegBewteen2LineSegs( vec3_t start1, vec3_t end1, vec3_t start2, vec3_t end2, vec3_t close_pnt1, vec3_t close_pnt2 );
