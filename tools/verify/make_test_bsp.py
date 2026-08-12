@@ -346,6 +346,21 @@ def visibility():
 
 
 def entities():
+    """Worldspawn and one player start, standing on the floor.
+
+    Standing, not forty units above it. The player's box reaches 24 below his
+    origin and the floor is at FLOOR_Z, so this is exactly where he ends up
+    either way - the difference is that he no longer falls to get there.
+
+    That fall was costing the fixture its determinism, and it took a while to
+    see. Landing dips the view, and the dip recovers over real time rather than
+    over frames, so a screenshot taken a fixed number of frames after the map
+    loads catches the horizon at a slightly different height depending on how
+    fast the run happened to be going. Two runs of the same binary differed by a
+    hundred and fifty pixels along the floor's edge - which is the size of a
+    difference worth catching, so the harness could not be allowed to produce one
+    on its own.
+    """
     return (
         b'{\n'
         b'"classname" "worldspawn"\n'
@@ -353,7 +368,7 @@ def entities():
         b'}\n'
         b'{\n'
         b'"classname" "info_player_start"\n'
-        b'"origin" "0 0 0"\n'
+        + b'"origin" "0 0 %d"\n' % int(FLOOR_Z + 24) +
         b'"angle" "90"\n'
         b'}\n\0'
     )

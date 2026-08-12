@@ -80,6 +80,13 @@ XVFB_PID=""
 # hand is how an afternoon goes missing.
 cleanup() {
     [ -n "$XVFB_PID" ] && kill "$XVFB_PID" 2>/dev/null || true
+    # JKX_SMOKE_SHOT_DIR keeps the screenshots and nothing else, which is what a
+    # comparison between two runs wants: the run directory is a hundred megabytes
+    # of engine and fixtures, and the frames are the only part worth keeping.
+    if [ -n "${JKX_SMOKE_SHOT_DIR:-}" ] && [ -d "$RUN/home/base/screenshots" ]; then
+        mkdir -p "$JKX_SMOKE_SHOT_DIR"
+        cp "$RUN"/home/base/screenshots/*.tga "$JKX_SMOKE_SHOT_DIR/" 2>/dev/null || true
+    fi
     if [ -n "${JKX_SMOKE_KEEP_RUN:-}" ]; then
         echo "  run directory kept: $RUN"
     else
@@ -209,10 +216,17 @@ else
     # and it subtracts 25 for eye height - so z is 25 to stand where the spawn is.
     # It takes a yaw and no pitch, so up and down are still not covered here;
     # tests/sky_projection_test.cpp covers all six, without a renderer.
-    INMAP_STEP+=( +wait 20 +map jkx_room2 +wait 60 +screenshot_tga jkx_sky +wait 20
-                  +setviewpos 0 0 25 0   +wait 30 +screenshot_tga jkx_sky_rt +wait 10
-                  +setviewpos 0 0 25 180 +wait 30 +screenshot_tga jkx_sky_lf +wait 10
-                  +setviewpos 0 0 25 270 +wait 30 +screenshot_tga jkx_sky_ft +wait 10 )
+    INMAP_STEP+=( +wait 20 +map jkx_room2 +wait 60 +screenshot_tga jkx_sky +wait 20 )
+
+    # The turned views belong to the sky, and are skipped when there is no sky.
+    # That is not a dodge around frames that would not compare: a plain run draws
+    # no sky, so three more headings are three more chances for the camera to be
+    # a pixel from where it was last time and nothing else at all.
+    if [ "${JKX_SMOKE_PLAIN:-0}" != "1" ]; then
+        INMAP_STEP+=( +setviewpos 0 0 -15 0   +wait 90 +screenshot_tga jkx_sky_rt +wait 10
+                      +setviewpos 0 0 -15 180 +wait 90 +screenshot_tga jkx_sky_lf +wait 10
+                      +setviewpos 0 0 -15 270 +wait 90 +screenshot_tga jkx_sky_ft +wait 10 )
+    fi
 fi
 
 # The second map carries a sky, and the sky is six faces that can be told apart.
@@ -256,6 +270,40 @@ for pair in ${JKX_SMOKE_SET:-}; do
     SET_STEP+=( +set "${pair%%=*}" "${pair#*=}" )
 done
 
+# JKX_SMOKE_PLAIN draws the scene and only the scene - no sky, no interface -
+# and asserts nothing about the picture. It exists for comparing one run against
+# another rather than for checking either one on its own, and everything it
+# removes was measured before it was removed:
+#
+#   the sky sits at the far plane, so a hundredth of a degree of view angle left
+#   over after the camera has otherwise settled is worth several pixels. Two runs
+#   of the identical binary differ by about four per cent of the frame on the sky
+#   views and by nothing at all anywhere else. That was chased for an hour as if
+#   it were a defect in the renderer;
+#
+#   the interface is drawn against real time rather than against the frame
+#   counter - the console cursor blinks, and the fixture's own head-up display
+#   moves - so two runs disagree on a few hundred pixels of it however carefully
+#   the camera is pinned.
+#
+# Neither is a reason to widen the tolerance on a frame comparison. A tolerance
+# wide enough to swallow a blinking cursor is wide enough to swallow a wall.
+# The console frame is the text check, and its cursor blinks on real time rather
+# than on the frame counter - thirty-four pixels that differ between any two runs
+# and have nothing to do with anything being rendered. A plain run is for
+# comparing scenes, so it does not open the console at all.
+CONSOLE_STEP=( +toggleconsole +wait 30 +screenshot_tga jkx_console +wait 20 +toggleconsole )
+if [ "${JKX_SMOKE_PLAIN:-0}" = "1" ]; then
+    CONSOLE_STEP=()
+fi
+
+if [ "${JKX_SMOKE_PLAIN:-0}" = "1" ]; then
+    SET_STEP+=( +set r_fastsky 1 +set cg_draw2D 0
+                +set cg_thirdPerson 0
+                +set cg_bobup 0 +set cg_bobpitch 0 +set cg_bobroll 0
+                +set cg_runpitch 0 +set cg_runroll 0 )
+fi
+
 set +e
 ( cd "$RUN" && \
   DISPLAY="$DISPLAY_NUM" \
@@ -268,8 +316,8 @@ set +e
       +set helpUsObi 1 \
       "${SET_STEP[@]}" \
       +wait 60 +screenshot_tga jkx_smoke \
-      +toggleconsole +wait 30 +screenshot_tga jkx_console +wait 20 \
-      +toggleconsole +wait 20 +map jkx_smoke +wait 60 +screenshot_tga jkx_wiped \
+      "${CONSOLE_STEP[@]}" \
+      +wait 20 +map jkx_smoke +wait 60 +screenshot_tga jkx_wiped \
       "${INMAP_STEP[@]}" \
       +wait 20 +quit ) > "$RUN/run.log" 2>&1
 status=$?
@@ -315,7 +363,7 @@ require 'VK_RENDERER:'
 require 'selected presentation mode'
 require 'Common Initialization Complete'
 require 'Wrote screenshots/jkx_smoke.tga'
-require 'Wrote screenshots/jkx_console.tga'
+[ "${JKX_SMOKE_PLAIN:-0}" = "1" ] || require 'Wrote screenshots/jkx_console.tga'
 require 'Wrote screenshots/jkx_wiped.tga'
 
 # The second map is a real one, and this is the half of the run that goes
@@ -325,6 +373,9 @@ require 'Wrote screenshots/jkx_wiped.tga'
 # line is the menu. Eight of the defects found so far were only reachable from
 # here, six of them reads or writes out of bounds.
 SHOTS=( "jkx_smoke 2" "jkx_console 200" "jkx_wiped 2" )
+if [ "${JKX_SMOKE_PLAIN:-0}" = "1" ]; then
+    SHOTS=( "jkx_smoke 2" "jkx_wiped 2" )
+fi
 HUD_SHOTS=()
 require 'Wrote screenshots/jkx_inmap.tga'
 require 'Server: jkx_room'
@@ -353,7 +404,7 @@ SHOTS+=( "jkx_debugview 2" )
 # not just presence - a sky face drawn upside down or on the wrong axis has
 # exactly the same pixels as a correct one, which is the whole reason the faces
 # are not flat colours.
-if [ -f "$RUN/home/base/screenshots/jkx_inmap.tga" ]; then
+if [ "${JKX_SMOKE_PLAIN:-0}" != "1" ] && [ -f "$RUN/home/base/screenshots/jkx_inmap.tga" ]; then
     if ! python3 "$HERE/tga_colour_where.py" \
         "$RUN/home/base/screenshots/jkx_inmap.tga" \
         "255,255,255@0.3,0.75,0.7,1.0"; then
@@ -361,7 +412,7 @@ if [ -f "$RUN/home/base/screenshots/jkx_inmap.tga" ]; then
     fi
 fi
 
-if [ -f "$RUN/home/base/screenshots/jkx_sky.tga" ]; then
+if [ "${JKX_SMOKE_PLAIN:-0}" != "1" ] && [ -f "$RUN/home/base/screenshots/jkx_sky.tga" ]; then
     if ! python3 "$HERE/tga_colour_where.py" \
         "$RUN/home/base/screenshots/jkx_sky.tga" \
         "0,153,0@0.3,0.2,0.7,0.8" "0,0,0@0.0,0.3,1.0,0.7"; then
@@ -398,7 +449,7 @@ sky_view() {
     fi
 }
 
-if [ -f "$RUN/home/base/screenshots/jkx_sky.tga" ]; then
+if [ "${JKX_SMOKE_PLAIN:-0}" != "1" ] && [ -f "$RUN/home/base/screenshots/jkx_sky.tga" ]; then
     sky_view jkx_sky_rt "+X (rt)" "204,0,0@0.3,0.2,0.7,0.8"   "0,0,0@0.0,0.3,1.0,0.7"
     sky_view jkx_sky_lf "-X (lf)" "0,51,255@0.3,0.2,0.7,0.8"  "0,0,0@0.0,0.3,1.0,0.7"
     sky_view jkx_sky_ft "-Y (ft)" "255,204,0@0.3,0.2,0.7,0.8" "0,0,0@0.0,0.3,1.0,0.7"
@@ -484,6 +535,7 @@ fi
 # written, which on this software rasteriser is a segfault inside the JIT
 # several frames after anything to do with fonts.
 for pair in "${SHOTS[@]}"; do
+    [ "${JKX_SMOKE_PLAIN:-0}" = "1" ] && break
     set -- $pair
     name="$1"
     want="$2"
@@ -518,6 +570,7 @@ done
 # x=0 in a 640-wide space and most of it lands off the fitted frame - which is
 # backlog section 1.2, and this check will notice when that is fixed.
 for name in "${HUD_SHOTS[@]}"; do
+    [ "${JKX_SMOKE_PLAIN:-0}" = "1" ] && break
     SHOT="$RUN/home/base/screenshots/$name.tga"
     if [ -f "$SHOT" ]; then
         if ! python3 "$HERE/tga_has_colour.py" "$SHOT" 51,102,204:500 204,51,51:20; then
@@ -538,6 +591,7 @@ done
 # that the fixture had no "white" shader and had been leaning on the default one
 # to paint its background - see the note in fixtures/base/shaders/jkx_smoke.shader.
 for name in jkx_smoke jkx_wiped; do
+    [ "${JKX_SMOKE_PLAIN:-0}" = "1" ] && break
     SHOT="$RUN/home/base/screenshots/$name.tga"
     if [ -f "$SHOT" ]; then
         if ! python3 "$HERE/tga_frame_geometry.py" "$SHOT"; then
