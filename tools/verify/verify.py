@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """One command that measures everything the plan is betting on.
 
-The verification checklist in docs/Phase1-Report.md needs a GPU and the retail
+The verification checklist in the project's phase 1 report needs a GPU and the retail
 game files, so it cannot run in CI. This turns it into a single command with no
 arguments:
 

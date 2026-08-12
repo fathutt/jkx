@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Write a player model, so that a map can be spawned on.
 
-The last rung of docs/Backlog.md section 16. With the map, the item tables and
+The last rung of the project backlog section 16. With the map, the item tables and
 the head-up display in place, the server gets as far as spawning a player and
 stops:
 

@@ -111,7 +111,7 @@ const vidmode_t r_vidModes[] = {
     // for that it is worth listing explicitly rather than leaving to
     // r_customWidth: it is where a stretched interface stops being ugly and
     // starts being unusable, and where the cutscene framing policy in
-    // docs/Backlog.md has to do its work.
+    // the project backlog has to do its work.
     { "Mode 13: 3840x1080 (32:9)",   3840, 1080 },
     { "Mode 14: 5120x1440 (32:9)",   5120, 1440 },
     { "Mode 15: 7680x2160 (32:9)",   7680, 2160 },

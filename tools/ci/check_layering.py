@@ -45,7 +45,7 @@ KNOWN_DEBT: set[tuple[str, str]] = {
     ("render", "game"),
 }
 
-# The tree starts with 44 inherited violations (see docs/OpenJK-Audit-Roadmap.md
+# The tree starts with 44 inherited violations (see the project's OpenJK audit roadmap
 # section 6.5). Gating on zero from day one would just mean disabling the check,
 # so this is a ratchet: the baseline may shrink, never grow.
 BASELINE_FILE = Path(__file__).with_name("layering-baseline.txt")

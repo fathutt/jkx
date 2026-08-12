@@ -14,7 +14,7 @@ You need the original game files. This is an engine, not a game.
 
 ## Status
 
-Phase 0 of the plan in [`docs/Engine-Design-Roadmap.md`](docs/Engine-Design-Roadmap.md).
+Phase 0 of the plan.
 
 | | |
 |---|---|
@@ -89,9 +89,12 @@ clang-format --dry-run --Werror <changed files>
 | Document | What it is |
 |---|---|
 | [`docs/CODING-STANDARDS.md`](docs/CODING-STANDARDS.md) | How we write code, and which defect each rule prevents |
-| [`docs/Engine-Design-Roadmap.md`](docs/Engine-Design-Roadmap.md) | Target architecture and the phased plan |
-| [`docs/OpenJK-Audit-Roadmap.md`](docs/OpenJK-Audit-Roadmap.md) | Audit the plan is based on |
-| [`docs/Step1-PBR-Build-Report.md`](docs/Step1-PBR-Build-Report.md) | Verification of the renderer we forked |
+
+The working documents - the backlog, the roadmaps, the phase reports and the
+upstream survey - are not in this repository. They were, and a copy of a document
+is a second source of truth that drifts silently: the committed backlog was
+forty kilobytes behind the live one before anyone noticed. They live in one place
+now and this file no longer pretends otherwise.
 
 Design documents are in Russian; code is not. See rule 1.
 
@@ -106,7 +109,7 @@ code/server       server                 code/rd-common   shared renderer code
 code/game         JKA gameplay           code/ghoul2      skeletal animation
 code/cgame        client-side gameplay   codeJK2/game     JK2 gameplay
 code/icarus       scripting VM           shared/          platform, SDL, safe utilities
-tools/ci          policy checks          docs/            design documents
+tools/ci          policy checks          docs/            the coding standards
 ```
 
 The `engine/ render/ game/` reorganisation described in the roadmap lands at the end of phase 2, once

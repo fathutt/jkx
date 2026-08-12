@@ -130,7 +130,7 @@ static void vk_create_instance( void )
     appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
 	// JKX targets Vulkan 1.3: dynamic rendering, synchronization2, descriptor
 	// indexing and timeline semaphores are all core there, so none of them needs
-	// an extension dance. See docs/Engine-Design-Roadmap.md section 3.
+	// an extension dance. See the project's engine design roadmap section 3.
 	appInfo.apiVersion = VK_API_VERSION_1_3;
 	flags = 0;
     count = 0;

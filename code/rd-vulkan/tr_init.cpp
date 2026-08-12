@@ -727,7 +727,7 @@ RB_TakeVideoFrameCmd
 // Video capture. Multiplayer records the framebuffer to an AVI through
 // CL_WriteAVIVideoFrame; single-player has no writer to hand it to and never
 // had the feature, so this is not adapted - it is left out until the engine
-// side exists. See docs/Backlog.md.
+// side exists. See the project backlog.
 
 void R_RemapSkyShader_f ( void ) {
 	int num;
@@ -767,7 +767,7 @@ void R_ClearRemaps_f( void ) {
 // is hours. Six screenshots from one run beat six builds.
 //
 // The list is upstream's, from JKSunny's inspector branch, minus the ImGui it
-// was wired to. See docs/Upstream-Survey.md.
+// was wired to. See the project's upstream survey.
 static const char *debugViewNames[] = {
 	"off",
 	"diffuse", "specular", "roughness", "ao",
@@ -1648,7 +1648,7 @@ void C_LevelLoadEnd( void )
 // Every signature is transcribed from the definition in our own sources, not
 // from rd-vanilla. A declaration that disagrees with its definition compiles
 // and then misbehaves, which is the most expensive way to be wrong in this
-// port - see docs/Phase2-Ghoul2.md.
+// port - see the project's phase 2 Ghoul2 notes.
 extern qboolean	G2API_GetRagBonePos( CGhoul2Info_v &ghoul2, const char *boneName, vec3_t pos, vec3_t entAngles, vec3_t entPos, vec3_t entScale );
 extern qboolean	G2API_RagEffectorGoal( CGhoul2Info_v &ghoul2, const char *boneName, vec3_t pos );
 extern qboolean	G2API_RagEffectorKick( CGhoul2Info_v &ghoul2, const char *boneName, vec3_t velocity );

@@ -25,7 +25,7 @@ installed you can have them read out of the real files instead of trusted:
 Advances are NOT matched - that was the decision, taken deliberately: the text
 is set in Libre Franklin's own metrics, so it has Libre Franklin's spacing and
 every line breaks where that spacing puts it rather than where ergoec's did.
-See docs/Phase2-Fonts.md.
+See the project's phase 2 font notes.
 
 aurabesh is not here. It is not a typeface but an invented alphabet, and no
 Latin face can stand in for it without turning alien signage into readable

@@ -6,7 +6,7 @@ Hunk_Clear wiping the renderer and RE_BeginRegistration building it again, and
 the thing that fires inside that window is the game registering the models of a
 map's entities. Nothing here could reach it, because nothing here has a map:
 retail BSPs are the game's, and this repository holds none of the game's data
-(docs/Backlog.md, section 10).
+(the project backlog, section 10).
 
 So this writes one. Not a level - a room: one box brush, one visible quad, one
 worldspawn and one player start. Enough for CM_LoadMap to accept, for
