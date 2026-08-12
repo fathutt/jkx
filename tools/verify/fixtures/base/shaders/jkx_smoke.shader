@@ -34,3 +34,21 @@ white
 		rgbGen vertex
 	}
 }
+
+// A sky, so that something here draws one.
+//
+// The six faces are generated - see make_test_sky.py - and each carries its own
+// colour plus a marker, because the question the bench asks about the sky is not
+// "did anything draw" but "which face, which way up". A flat blue sky answers
+// neither, and the sky is about to be moved onto a cubemap, which is a change to
+// exactly those two things.
+//
+// skyParms takes the box prefix, then a cloud height, then an inner box. 512 is
+// the height vanilla uses; "-" for the inner box means there is not one.
+textures/jkx/sky
+{
+	surfaceparm sky
+	surfaceparm nolightmap
+	surfaceparm noimpact
+	skyParms textures/jkx/sky 512 -
+}

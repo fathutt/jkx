@@ -1601,10 +1601,58 @@ void CIN_SetLooping(int handle, qboolean loop) {
 
 #define TC_DELAY 9000
 #define TC_STOPTIME 81000
+
+/*
+================
+CIN_FrameRect
+
+The interface's frame in window pixels.
+
+Everything else the client draws goes through the fitted frame - the video
+itself does, the menus do, the margins beside them are filled black. The text
+crawl did not: it is a three-dimensional scene rather than a picture, and its
+refdef was built from cls.glconfig directly, so on any window that is not the
+frame's shape the crawl was drawn across the whole of it while the picture
+behind it kept its proportions.
+
+On a 32:9 display that is the whole of the effect the user sees: a small
+correctly-shaped box of stars in the middle and the crawl text running off both
+edges of the monitor, over the margins, twice as wide as the thing it belongs
+to. The grey in those margins is the same story - a scene covering the window
+clears the window, and the renderer's clear colour is 0.75 grey.
+================
+*/
+static void CIN_FrameRect( float *x, float *y, float *w, float *h )
+{
+	const float frame = (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT;
+	const float width = (float)cls.glconfig.vidWidth;
+	const float height = (float)cls.glconfig.vidHeight;
+
+	if ( width <= 0.0f || height <= 0.0f ) {
+		*x = *y = 0.0f;
+		*w = width;
+		*h = height;
+		return;
+	}
+
+	if ( width / height > frame ) {
+		*h = height;
+		*w = height * frame;
+		*x = ( width - *w ) * 0.5f;
+		*y = 0.0f;
+	} else {
+		*w = width;
+		*h = width / frame;
+		*x = 0.0f;
+		*y = ( height - *h ) * 0.5f;
+	}
+}
+
 static void CIN_AddTextCrawl()
 {
 	refdef_t	refdef;
 	polyVert_t	verts[4];
+	float		fx, fy, fw, fh;
 
 	// Set up refdef
 	memset( &refdef, 0, sizeof( refdef ));
@@ -1615,10 +1663,16 @@ static void CIN_AddTextCrawl()
 	refdef.fov_x = 130;
 	refdef.fov_y = 130;
 
-	refdef.x = 0;
-	refdef.y = -50;
-	refdef.width = cls.glconfig.vidWidth;
-	refdef.height = cls.glconfig.vidHeight * 2; // deliberately extend off the bottom of the screen
+	// In the frame, not in the window. The offset and the doubled height are
+	// the original's and are kept as proportions of the frame rather than of
+	// the window: -50 of 480 is what pushes the crawl's vanishing point above
+	// the middle, and the second screen-height is deliberately off the bottom.
+	CIN_FrameRect( &fx, &fy, &fw, &fh );
+
+	refdef.x = (int)fx;
+	refdef.y = (int)( fy - fh * ( 50.0f / (float)SCREEN_HEIGHT ) );
+	refdef.width = (int)fw;
+	refdef.height = (int)( fh * 2.0f );
 
 	// use to set shaderTime for scrolling shaders
 	refdef.time = 0;

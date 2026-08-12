@@ -192,7 +192,11 @@ void QDECL Com_Printf( const char *fmt, ... ) {
 		// logfile
 		if ( com_logfile && com_logfile->integer ) {
 			if ( !logfile && FS_Initialized() ) {
-				logfile = FS_FOpenFileWrite( "qconsole.log" );
+				// In "logs" beside the other two. Everything this project
+				// writes about a run now lands in one folder under the home
+				// path; it used to be this file here and the crash reports
+				// somewhere else.
+				logfile = FS_FOpenFileWrite( "logs/qconsole.log" );
 				if ( com_logfile->integer > 1 ) {
 					// force it to not buffer so we get valid
 					// data even if we are crashing

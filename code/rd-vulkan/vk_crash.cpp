@@ -222,17 +222,37 @@ void vk_install_crash_handler( void )
 		return; // already installed in this load of the module
 	}
 
-	// Next to the executable rather than in the write directory: the run may
-	// die before the filesystem knows where that is, and the verification tool
-	// looks for the game directory it launched.
-	if ( GetModuleFileNameA( NULL, jkx_crash_path, sizeof( jkx_crash_path ) ) == 0 ) {
-		return;
+	// One place for logs, and it is the write directory.
+	//
+	// This used to land beside the executable while the console log and the
+	// engine's own crash log went to the home path, so a report was in one of
+	// two folders depending on which layer noticed the fault first. Asking
+	// somebody to find a log is not the moment to explain that.
+	//
+	// fs_homepath rather than anything derived here, because it is what the
+	// filesystem actually chose - including when the user overrode it with
+	// +set fs_homepath, which is how the headless run keeps its output inside
+	// its own directory. The executable's own folder is the fallback: on a
+	// Steam install it may not be writable, but a path that exists beats none,
+	// and it is where this wrote for its whole life until now.
+	const char *home = Cvar_VariableString( "fs_homepath" );
+
+	if ( home != NULL && home[0] != '\0' ) {
+		Com_sprintf( jkx_crash_path, sizeof( jkx_crash_path ), "%s\\logs", home );
+		CreateDirectoryA( jkx_crash_path, NULL );
+		Com_sprintf( jkx_crash_path, sizeof( jkx_crash_path ),
+			"%s\\logs\\jkx_crash.txt", home );
+	} else {
+		if ( GetModuleFileNameA( NULL, jkx_crash_path, sizeof( jkx_crash_path ) ) == 0 ) {
+			return;
+		}
+		slash = strrchr( jkx_crash_path, '\\' );
+		if ( slash == NULL ) {
+			return;
+		}
+		Q_strncpyz( slash + 1, "jkx_crash.txt",
+			(int)( sizeof( jkx_crash_path ) - ( slash + 1 - jkx_crash_path ) ) );
 	}
-	slash = strrchr( jkx_crash_path, '\\' );
-	if ( slash == NULL ) {
-		return;
-	}
-	Q_strncpyz( slash + 1, "jkx_crash.txt", (int)( sizeof( jkx_crash_path ) - ( slash + 1 - jkx_crash_path ) ) );
 
 	SymSetOptions( SYMOPT_DEFERRED_LOADS | SYMOPT_UNDNAME | SYMOPT_LOAD_LINES );
 	jkx_crash_symbols = SymInitialize( GetCurrentProcess(), NULL, TRUE ) != FALSE;

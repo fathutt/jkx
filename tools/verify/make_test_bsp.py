@@ -21,8 +21,12 @@ code/qcommon/cm_load.cpp (collision) and code/rd-vulkan/tr_bsp.cpp (drawing);
 both were read while writing this, and where a field has a value that is not
 obviously right, the comment says which of the two demanded it.
 
-    make_test_bsp.py <out.bsp> [--shader NAME]
+    make_test_bsp.py <out.bsp> [--shader NAME] [--sky NAME]
     make_test_bsp.py --check
+
+--sky adds a second drawn surface: a wall across the far end of the room
+carrying the named shader. Give it a shader with skyParms and the room has a
+sky, which is the only way anything here can exercise the sky path at all.
 
 --check writes nothing and verifies the directory it would write: every lump a
 whole number of its own records, every offset inside the file, the header the
@@ -65,8 +69,8 @@ def qpath(name):
     return b + b"\0" * (MAX_QPATH - len(b))
 
 
-def shaders(visible):
-    """Two: one the brush sides carry, one the drawn surface carries.
+def shaders(visible, sky=None):
+    """One the brush sides carry, one the floor carries, one the sky wall.
 
     CMod_LoadBrushes and CMod_LoadBrushSides both range-check shaderNum against
     this lump, so the count here is not free - it is the bound they check.
@@ -74,6 +78,8 @@ def shaders(visible):
     out = b""
     out += qpath("textures/jkx/solid") + struct.pack("<ii", 0, CONTENTS_SOLID)
     out += qpath(visible) + struct.pack("<ii", SURF_NODAMAGE, CONTENTS_SOLID)
+    if sky:
+        out += qpath(sky) + struct.pack("<ii", SURF_NODAMAGE, CONTENTS_SOLID)
     return out
 
 
@@ -106,7 +112,7 @@ def nodes():
     return struct.pack("<i2i3i3i", 8, -1, -2, *(mins + maxs))
 
 
-def leafs():
+def leafs(num_surfaces=1):
     """Two: the room, and the solid outside it.
 
     Cluster 0 for the room and -1 for the solid one. CM_ClusterPVS reads the
@@ -115,7 +121,7 @@ def leafs():
     """
     room = struct.pack("<2i3i3i4i", 0, 0,
                        -4096, -4096, -4096, 4096, 4096, 4096,
-                       0, 1,        # one leaf surface: the floor
+                       0, num_surfaces,     # the floor, and the sky wall if asked
                        0, 0)        # no brushes: this is the empty side
     solid = struct.pack("<2i3i3i4i", -1, 0,
                         -4096, -4096, -4096, 4096, 4096, 4096,
@@ -124,7 +130,7 @@ def leafs():
     return room + solid
 
 
-def models():
+def models(num_surfaces=1):
     """Model 0 is the world and owns everything.
 
     R_LoadLightGrid takes the grid's bounds from bmodels[0], so these are not
@@ -133,7 +139,7 @@ def models():
     """
     return struct.pack("<6f4i",
                        -HALF, -HALF, FLOOR_Z, HALF, HALF, HALF,
-                       0, 1,        # one surface
+                       0, num_surfaces,
                        0, 1)        # one brush
 
 
@@ -149,7 +155,23 @@ def brushsides():
     return out
 
 
-def drawverts():
+# The sky wall: the far end of the room, facing back at the player.
+#
+# The player starts at the origin looking along +Y ("angle" "90"), so a quad at
+# y = +HALF fills the view. The sky is not drawn where this surface is - it is
+# drawn *through* it: RB_StageIteratorSky takes the surface's extent, projects
+# it onto the six box faces in AddSkyPolygon, and draws those. Which face comes
+# out is decided by direction, so looking along +Y gives the face on axis 2.
+#
+# Axis order in AddSkyPolygon is +X, -X, +Y, -Y, +Z, -Z, and ParseSkyParms reads
+# the suffixes in the order rt, bk, lf, ft, up, dn. Those two lists line up by
+# index, which is how "lf" ends up being the face straight ahead. The names are
+# not a description of anything.
+SKY_Y = HALF
+SKY_TOP = FLOOR_Z + 2.0 * HALF
+
+
+def drawverts(sky=False):
     """Four corners of the floor.
 
     RBSP has four lightmap coordinate pairs and four colours per vertex rather
@@ -167,14 +189,39 @@ def drawverts():
         out += struct.pack("<8f", *([s, t] * MAXLIGHTMAPS))
         out += struct.pack("<3f", 0.0, 0.0, 1.0)
         out += bytes([255, 255, 255, 255] * MAXLIGHTMAPS)
+
+    if sky:
+        for x, z, s, t in ((-HALF, FLOOR_Z, 0.0, 1.0),
+                           (HALF, FLOOR_Z, 1.0, 1.0),
+                           (HALF, SKY_TOP, 1.0, 0.0),
+                           (-HALF, SKY_TOP, 0.0, 0.0)):
+            out += struct.pack("<3f", x, SKY_Y, z)
+            out += struct.pack("<2f", s, t)
+            out += struct.pack("<8f", *([s, t] * MAXLIGHTMAPS))
+            out += struct.pack("<3f", 0.0, -1.0, 0.0)   # facing the player
+            out += bytes([255, 255, 255, 255] * MAXLIGHTMAPS)
+
     return out
 
 
-def drawindexes():
-    return struct.pack("<6i", 0, 1, 2, 0, 2, 3)
+def drawindexes(sky=False):
+    """Two triangles per surface, and the numbers are RELATIVE to firstVert.
+
+    Not absolute indices into the lump. ParseFace does `verts += ds->firstVert`
+    and then copies the indices across untouched, so a second surface that
+    numbered its corners 4..7 - which is where they really are in the lump -
+    reads four vertices past the end of a surface that allocated four. That
+    corrupts the heap rather than failing: the first run of this fixture with a
+    sky in it died in glibc with "corrupted double-linked list" during the map
+    load, several allocations after the damage was done.
+    """
+    out = struct.pack("<6i", 0, 1, 2, 0, 2, 3)
+    if sky:
+        out += struct.pack("<6i", 0, 1, 2, 0, 2, 3)
+    return out
 
 
-def surfaces():
+def surfaces(sky=False):
     """One planar quad, lit per vertex.
 
     lightmapNum is LIGHTMAP_BY_VERTEX in every slot: with no lightmap lump, any
@@ -194,6 +241,23 @@ def surfaces():
     out += struct.pack("<3f", 0.0, 1.0, 0.0)
     out += struct.pack("<3f", 0.0, 0.0, 1.0)            # the surface normal
     out += struct.pack("<2i", 0, 0)                     # patch width/height
+
+    if sky:
+        out += struct.pack("<3i", 2, -1, MST_PLANAR)    # shader 2
+        out += struct.pack("<2i", 4, 4)                 # verts
+        out += struct.pack("<2i", 6, 6)                 # indexes
+        out += bytes([LS_NORMAL] + [LS_NONE] * 3)
+        out += bytes([LS_NORMAL] + [LS_NONE] * 3)
+        out += struct.pack("<4i", *([LIGHTMAP_BY_VERTEX] * MAXLIGHTMAPS))
+        out += struct.pack("<4i", *([0] * MAXLIGHTMAPS))
+        out += struct.pack("<4i", *([0] * MAXLIGHTMAPS))
+        out += struct.pack("<2i", 0, 0)
+        out += struct.pack("<3f", -HALF, SKY_Y, FLOOR_Z)
+        out += struct.pack("<3f", 1.0, 0.0, 0.0)
+        out += struct.pack("<3f", 0.0, 0.0, 1.0)
+        out += struct.pack("<3f", 0.0, -1.0, 0.0)
+        out += struct.pack("<2i", 0, 0)
+
     return out
 
 
@@ -220,22 +284,24 @@ def entities():
     )
 
 
-def build(visible_shader):
+def build(visible_shader, sky_shader=None):
+    sky = bool(sky_shader)
+    count = 2 if sky else 1
     lumps = {
         LUMP_ENTITIES: entities(),
-        LUMP_SHADERS: shaders(visible_shader),
+        LUMP_SHADERS: shaders(visible_shader, sky_shader),
         LUMP_PLANES: planes(),
         LUMP_NODES: nodes(),
-        LUMP_LEAFS: leafs(),
-        LUMP_LEAFSURFACES: struct.pack("<i", 0),
+        LUMP_LEAFS: leafs(count),
+        LUMP_LEAFSURFACES: struct.pack("<%di" % count, *range(count)),
         LUMP_LEAFBRUSHES: struct.pack("<i", 0),
-        LUMP_MODELS: models(),
+        LUMP_MODELS: models(count),
         LUMP_BRUSHES: brushes(),
         LUMP_BRUSHSIDES: brushsides(),
-        LUMP_DRAWVERTS: drawverts(),
-        LUMP_DRAWINDEXES: drawindexes(),
+        LUMP_DRAWVERTS: drawverts(sky),
+        LUMP_DRAWINDEXES: drawindexes(sky),
         LUMP_FOGS: b"",
-        LUMP_SURFACES: surfaces(),
+        LUMP_SURFACES: surfaces(sky),
         LUMP_LIGHTMAPS: b"",
         LUMP_LIGHTGRID: b"",
         LUMP_VISIBILITY: visibility(),
@@ -291,9 +357,51 @@ LUMP_NAMES = {
 }
 
 
+SURFACE_SIZE = 148
+
+
+def check_surfaces(data, failures):
+    """Every surface's indices must be inside its own vertices.
+
+    They are relative to firstVert, and the cost of getting that wrong is not an
+    error message - it is a write past the end of the surface's point array,
+    which surfaces later as heap corruption in an unrelated allocation. Cheap to
+    check here, expensive to find anywhere else.
+    """
+    ofs, length = struct.unpack_from("<2i", data, 8 + LUMP_SURFACES * 8)
+    iofs, ilen = struct.unpack_from("<2i", data, 8 + LUMP_DRAWINDEXES * 8)
+    vofs, vlen = struct.unpack_from("<2i", data, 8 + LUMP_DRAWVERTS * 8)
+
+    for n in range(length // SURFACE_SIZE):
+        base = ofs + n * SURFACE_SIZE
+        first_vert, num_verts = struct.unpack_from("<2i", data, base + 12)
+        first_index, num_indexes = struct.unpack_from("<2i", data, base + 20)
+
+        if (first_index + num_indexes) * 4 > ilen:
+            failures.append("surface %d: indices %d..%d overrun the lump"
+                            % (n, first_index, first_index + num_indexes))
+            continue
+
+        for i in range(num_indexes):
+            value = struct.unpack_from("<i", data, iofs + (first_index + i) * 4)[0]
+            if value < 0 or value >= num_verts:
+                failures.append(
+                    "surface %d: index %d is %d, outside its own %d vertices - "
+                    "these are relative to firstVert" % (n, i, value, num_verts))
+                break
+
+
 def check():
-    data = build("jkx/smoke")
     failures = []
+    for label, args in (("plain", ("jkx/smoke", None)),
+                        ("with a sky", ("jkx/smoke", "textures/jkx/sky"))):
+        data = build(*args)
+        before = len(failures)
+        check_surfaces(data, failures)
+        if len(failures) != before:
+            failures[before:] = ["%s: %s" % (label, f) for f in failures[before:]]
+
+    data = build("jkx/smoke")
 
     if data[:4] != BSP_IDENT:
         failures.append("ident is %r, not %r" % (data[:4], BSP_IDENT))
@@ -333,11 +441,15 @@ def main(argv):
     if "--check" in args:
         return check()
     visible = "jkx/smoke"
+    sky = None
     path = None
     i = 0
     while i < len(args):
         if args[i] == "--shader" and i + 1 < len(args):
             visible = args[i + 1]
+            i += 2
+        elif args[i] == "--sky" and i + 1 < len(args):
+            sky = args[i + 1]
             i += 2
         elif path is None:
             path = args[i]
@@ -347,13 +459,15 @@ def main(argv):
             return 2
 
     if path is None:
-        print("usage: %s <out.bsp> [--shader NAME]" % argv[0], file=sys.stderr)
+        print("usage: %s <out.bsp> [--shader NAME] [--sky NAME]" % argv[0],
+              file=sys.stderr)
         return 2
 
-    data = build(visible)
+    data = build(visible, sky)
     with open(path, "wb") as f:
         f.write(data)
-    print("%s: %d bytes, shader %s" % (path, len(data), visible))
+    print("%s: %d bytes, shader %s%s"
+          % (path, len(data), visible, ", sky %s" % sky if sky else ""))
     return 0
 
 

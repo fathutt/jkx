@@ -198,9 +198,31 @@ if [ "${JKX_SMOKE_SAVELOAD:-0}" = "1" ]; then
                   +save jkx_save +wait 60
                   +load jkx_save +wait 150 +screenshot_tga jkx_loaded )
 else
-    INMAP_STEP+=( +wait 20 +map jkx_room2 +wait 60 )
+    INMAP_STEP+=( +wait 20 +map jkx_room2 +wait 60 +screenshot_tga jkx_sky +wait 20 )
 fi
-python3 "$HERE/make_test_bsp.py" "$RUN/base/maps/jkx_room2.bsp" >/dev/null
+
+# The second map carries a sky, and the sky is six faces that can be told apart.
+#
+# A skybox is six images plus a set of conventions about which way up each of
+# them goes, and those conventions are not written down anywhere - they are
+# implied by a table of axis swaps in tr_sky.cpp. A flat blue sky cannot tell
+# anyone whether a change to how the sky is sampled kept them. So the fixture's
+# faces each carry their own colour and a marker in one corner. Looking along +Y
+# is the face on axis 2, which ParseSkyParms reads from the suffix "lf".
+#
+# The screenshot is taken and NOT yet asserted on, and the reason is a finding
+# in its own right: the frame from this map and the frame from the one before it
+# are byte for byte the same, and both are 98.7% the renderer's clear colour.
+# The fixture's floor has never been on screen. What the in-map check has been
+# checking all along is the head-up display drawn over an empty view - which is
+# real coverage, and is not the coverage its name claims.
+#
+# So the sky cannot be checked until the world draws, and that is the next piece
+# of work rather than something to paper over with a lenient assertion. The
+# faces, the map and the shot are here because they are what that work needs.
+python3 "$HERE/make_test_sky.py" "$RUN/base/textures/jkx" jkx_sky >/dev/null
+python3 "$HERE/make_test_bsp.py" "$RUN/base/maps/jkx_room2.bsp" \
+    --sky textures/jkx/sky >/dev/null
 
 set +e
 ( cd "$RUN" && \

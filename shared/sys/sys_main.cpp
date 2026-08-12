@@ -217,11 +217,16 @@ static void Sys_ErrorDialog( const char *error )
 
 	time( &rawtime );
 	strftime( timeStr, sizeof( timeStr ), "%Y-%m-%d_%H-%M-%S", localtime( &rawtime ) ); // or gmtime
+	// Under the home path, in "logs", which is where every log this project
+	// writes now goes - the console log, the renderer's crash report and this
+	// one. They used to be spread across the home path and the game directory,
+	// so which folder held the answer depended on which layer noticed the fault.
 	Com_sprintf( crashLogPath, sizeof( crashLogPath ),
-					"%s%ccrashlog-%s.txt",
-					Sys_DefaultHomePath(), PATH_SEP, timeStr );
+					"%s%clogs%ccrashlog-%s.txt",
+					Sys_DefaultHomePath(), PATH_SEP, PATH_SEP, timeStr );
 
 	Sys_Mkdir( Sys_DefaultHomePath() );
+	Sys_Mkdir( va( "%s%clogs", Sys_DefaultHomePath(), PATH_SEP ) );
 
 	FILE *fp = fopen( crashLogPath, "w" );
 	if ( fp )
