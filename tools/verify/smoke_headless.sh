@@ -226,6 +226,31 @@ else
         INMAP_STEP+=( +setviewpos 0 0 -15 0   +wait 90 +screenshot_tga jkx_sky_rt +wait 10
                       +setviewpos 0 0 -15 180 +wait 90 +screenshot_tga jkx_sky_lf +wait 10
                       +setviewpos 0 0 -15 270 +wait 90 +screenshot_tga jkx_sky_ft +wait 10 )
+
+    if [ "${JKX_SMOKE_FOG:-0}" = "1" ]; then
+        # The fog, measured against itself.
+        #
+        # Two frames from one standing position, seconds apart, differing by one
+        # cvar. That shape is the point: comparing a fog frame from one run against a
+        # no-fog frame from another run is comparing two camera positions as well,
+        # and this bench has already spent an afternoon on exactly that mistake
+        # (JKX_SMOKE_PLAIN, and the note above it). Within a single run, with the
+        # player settled and the view pinned, the only thing that changes between
+        # these two screenshots is r_drawfog.
+        #
+        # The view is pinned here the same way a plain run pins it: no trailing
+        # third-person camera, no view bob. Those move on real time, and real time is
+        # what the frame counter is not.
+        #
+        # r_drawfog is 0 for the whole run otherwise, because a global fog repaints
+        # the clear colour and washes every other colour check in this file.
+        INMAP_STEP+=( +cg_thirdPerson 0
+                      +cg_bobup 0 +cg_bobpitch 0 +cg_bobroll 0
+                      +setviewpos 0 0 -15 90 +wait 90
+                      +screenshot_tga jkx_nofog +wait 15
+                      +r_drawfog 1 +wait 20 +screenshot_tga jkx_fog +wait 15
+                      +r_drawfog 0 +wait 10 )
+    fi
     fi
 fi
 
@@ -265,8 +290,18 @@ python3 "$HERE/make_test_sky.py" --wide "$RUN/base/textures/jkx/wide.tga" >/dev/
 # jkx_smoke.bsp stays committed, because it is not this generator's output - it
 # is a deliberately truncated file, and the point of it is to be broken.
 python3 "$HERE/make_test_bsp.py" "$RUN/base/maps/jkx_room.bsp" >/dev/null
+# The fog is opt-in, and that is not shyness. A global fog repaints the clear
+# colour for the whole map - RB_BeginDrawingView clears to it once there is a
+# scene - so putting one in the shared fixture moves every other colour check in
+# this file. It gets its own lane instead: JKX_SMOKE_FOG, and the "fog" stage in
+# tools/ci/local.sh.
+FOG_ARGS=()
+if [ "${JKX_SMOKE_FOG:-0}" = "1" ]; then
+    FOG_ARGS=( --fog textures/jkx/fog )
+fi
 python3 "$HERE/make_test_bsp.py" "$RUN/base/maps/jkx_room2.bsp" \
-    --shader textures/jkx/wide --sky textures/jkx/sky >/dev/null
+    --shader textures/jkx/wide --sky textures/jkx/sky \
+    "${FOG_ARGS[@]}" >/dev/null
 
 # Extra cvars, as "name=value name=value". This exists for A/B runs: two passes
 # of the same fixture that differ by one setting, compared pixel for pixel. The
@@ -325,7 +360,7 @@ set +e
       +set fs_basepath "$RUN" +set fs_homepath "$RUN/home" \
       +set s_initsound 0 +set com_errorDialog 0 +set con_notifytime 0 \
       +set cg_hudFiles ui/jkx_hud.txt +set g_char_model jkx \
-      +set helpUsObi 1 \
+      +set helpUsObi 1 +set r_drawfog 0 \
       "${SET_STEP[@]}" \
       +wait 60 +screenshot_tga jkx_smoke \
       "${CONSOLE_STEP[@]}" \
@@ -429,6 +464,36 @@ if [ "${JKX_SMOKE_PLAIN:-0}" != "1" ] && [ -f "$RUN/home/base/screenshots/jkx_in
         "$RUN/home/base/screenshots/jkx_inmap.tga" \
         "255,255,255@0.3,0.75,0.7,1.0"; then
         report "the map's floor is not where it should be in jkx_inmap.tga"
+    fi
+fi
+
+# The fog pass, measured in both directions against the same floor.
+#
+# RB_FogPass had never been reached by a headless run - the generated map had no
+# fogs and the retail maps are not in this repository - so a second blended pass
+# over every fogged surface, its shader permutation and its texture coordinate
+# generation were all unexecuted. They run now, including under the sanitizers
+# and the validation layer.
+#
+# The two frames are one standing position seconds apart, differing by r_drawfog
+# alone, so the floor is the same floor in both. Without fog it is the unfogged
+# white of its own texture; with fog it is not, because the fog colour is one
+# nothing else in the fixture uses.
+#
+# The numbers are not arbitrary. The floor comes out around (245, 168, 245),
+# which is what the blend asks for: the fog is (0.9, 0.1, 0.9) and at this
+# distance its alpha is about 0.38, so red is 0.898 * 0.38 + 1 * 0.62 = 0.96,
+# and green is 0.098 * 0.38 + 0.62 = 0.66. Asserting the white rather than the
+# blend keeps the check independent of where exactly the camera stands, which is
+# the one thing about this bench that has repeatedly turned out not to be fixed.
+if [ "${JKX_SMOKE_FOG:-0}" = "1" ] && [ -f "$RUN/home/base/screenshots/jkx_fog.tga" ]; then
+    if ! python3 "$HERE/tga_has_colour.py" \
+        "$RUN/home/base/screenshots/jkx_nofog.tga" 255,255,255:2000 >/dev/null; then
+        report "the floor is not unfogged white in jkx_nofog.tga - nothing to compare against"
+    fi
+    if python3 "$HERE/tga_has_colour.py" \
+        "$RUN/home/base/screenshots/jkx_fog.tga" 255,255,255:2000 >/dev/null 2>&1; then
+        report "the floor is still unfogged white in jkx_fog.tga - the fog pass did nothing"
     fi
 fi
 

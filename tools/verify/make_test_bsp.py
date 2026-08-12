@@ -293,13 +293,15 @@ def drawindexes(sky=False):
     return out
 
 
-def surfaces(sky=False):
+def surfaces(sky=False, fog=False):
     """One planar quad, lit per vertex.
 
     lightmapNum is LIGHTMAP_BY_VERTEX in every slot: with no lightmap lump, any
     other value sends R_LoadSurfaces looking for a page that is not there.
     """
-    out = struct.pack("<3i", 1, -1, MST_PLANAR)     # shader 1, no fog, planar
+    # fogNum is stored one less than the index the renderer uses: the loader does
+    # fogIndex = fogNum + 1, so -1 is "no fog" and 0 is the first one.
+    out = struct.pack("<3i", 1, 0 if fog else -1, MST_PLANAR)
     out += struct.pack("<2i", 0, 4)                 # verts
     out += struct.pack("<2i", 0, 6)                 # indexes
     out += bytes([LS_NORMAL] + [LS_NONE] * 3)       # lightmapStyles
@@ -408,6 +410,23 @@ def lightarray():
     return struct.pack("<%dH" % (x * y * z), *([0] * (x * y * z)))
 
 
+# A fog volume, in the form that needs no brush: brushNum -1 means the fog is the
+# whole world, and R_LoadFogs takes that branch without looking at any geometry.
+#
+# Worth having because RB_FogPass had never run in a headless test. The fog path
+# is not small - a second blended pass over every fogged surface, its own shader
+# permutation, its own texture coordinate generation in RB_CalcFogTexCoords and a
+# collapse path that folds it into the surface's own stage - and none of it was
+# reached, because the generated map had no fogs and the retail maps are not in
+# this repository.
+#
+# The record is dfog_t: char shader[MAX_QPATH], int brushNum, int visibleSide.
+def fogs(name=None):
+    if not name:
+        return b""
+    return qpath(name) + struct.pack("<2i", -1, -1)
+
+
 def visibility():
     """One cluster that can see itself.
 
@@ -446,7 +465,7 @@ def entities():
     )
 
 
-def build(visible_shader, sky_shader=None):
+def build(visible_shader, sky_shader=None, fog_shader=None):
     sky = bool(sky_shader)
     count = 1 + len(SKY_WALLS) if sky else 1
     lumps = {
@@ -462,8 +481,8 @@ def build(visible_shader, sky_shader=None):
         LUMP_BRUSHSIDES: brushsides(),
         LUMP_DRAWVERTS: drawverts(sky),
         LUMP_DRAWINDEXES: drawindexes(sky),
-        LUMP_FOGS: b"",
-        LUMP_SURFACES: surfaces(sky),
+        LUMP_FOGS: fogs(fog_shader),
+        LUMP_SURFACES: surfaces(sky, bool(fog_shader)),
         LUMP_LIGHTMAPS: b"",
         LUMP_LIGHTGRID: lightgrid(),
         LUMP_VISIBILITY: visibility(),
@@ -558,7 +577,9 @@ def check_surfaces(data, failures):
 def check():
     failures = []
     for label, args in (("plain", ("jkx/smoke", None)),
-                        ("with a sky", ("jkx/smoke", "textures/jkx/sky"))):
+                        ("with a sky", ("jkx/smoke", "textures/jkx/sky")),
+                        ("with a sky and fog",
+                         ("jkx/smoke", "textures/jkx/sky", "textures/jkx/fog"))):
         data = build(*args)
         before = len(failures)
         check_surfaces(data, failures)
@@ -606,6 +627,7 @@ def main(argv):
         return check()
     visible = "jkx/smoke"
     sky = None
+    fog = None
     path = None
     i = 0
     while i < len(args):
@@ -615,6 +637,9 @@ def main(argv):
         elif args[i] == "--sky" and i + 1 < len(args):
             sky = args[i + 1]
             i += 2
+        elif args[i] == "--fog" and i + 1 < len(args):
+            fog = args[i + 1]
+            i += 2
         elif path is None:
             path = args[i]
             i += 1
@@ -623,11 +648,12 @@ def main(argv):
             return 2
 
     if path is None:
-        print("usage: %s <out.bsp> [--shader NAME] [--sky NAME]" % argv[0],
+        print("usage: %s <out.bsp> [--shader NAME] [--sky NAME] [--fog NAME]"
+              % argv[0],
               file=sys.stderr)
         return 2
 
-    data = build(visible, sky)
+    data = build(visible, sky, fog)
     with open(path, "wb") as f:
         f.write(data)
     print("%s: %d bytes, shader %s%s"

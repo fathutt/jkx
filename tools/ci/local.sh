@@ -42,6 +42,10 @@
 #               and never running them checks nothing: the first time this was
 #               run it reported two misaligned accesses in the zone allocator,
 #               on the first allocation the engine makes
+#   fog         the fixture with a fog volume in it, drawn with the fog pass off
+#               and on from one standing position. RB_FogPass had never run in a
+#               headless test; the fog is in its own lane because a global fog
+#               repaints the clear colour and moves every other colour check
 #   prepass     the fixture drawn twice, with the depth pre-pass off and on, and
 #               the two sets of frames compared. It is a change that must not
 #               change the picture, and "the map still loads" cannot tell that
@@ -67,7 +71,7 @@ JOBS="${JOBS:-$(nproc)}"
 
 STAGES=( "$@" )
 if [ "${#STAGES[@]}" -eq 0 ]; then
-    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokesan prepass )
+    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokesan prepass fog )
 fi
 
 failed=()
@@ -209,6 +213,23 @@ stage_prepass() {
 
     rm -rf "$a" "$b"
     return "$rc"
+}
+
+# The fog, in its own lane because a global fog repaints the clear colour and
+# would move every colour check in the shared fixture. RB_FogPass had never run
+# in a headless test at all: the generated map carried no fogs and the retail
+# maps are not in this repository, so a second blended pass over every fogged
+# surface, its shader permutation and its texture coordinate generation went
+# unexecuted.
+#
+# The check is two frames from one standing position seconds apart, differing by
+# r_drawfog alone - so the floor is the same floor, unfogged white in one and
+# fog-coloured in the other.
+stage_fog() {
+    JKX_SMOKE_FOG=1 \
+    JKX_SMOKE_NO_VALIDATION=1 \
+    JKX_SMOKE_DISPLAY="${JKX_SMOKE_FOG_DISPLAY:-:91}" \
+        bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
 }
 
 stage_smokewide() {

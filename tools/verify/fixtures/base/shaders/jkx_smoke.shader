@@ -71,3 +71,21 @@ textures/jkx/wide
 		map textures/jkx/wide
 	}
 }
+
+// The map's fog. Global rather than a brush: the generated map declares it with
+// brushNum -1, which R_LoadFogs accepts without looking at any geometry.
+//
+// It is here because RB_FogPass had never run in a headless test - the generated
+// map had no fogs, and the retail maps are not in this repository - so a second
+// blended pass over every fogged surface, its shader permutation and its texture
+// coordinate generation were all unexecuted.
+//
+// fogParms is the colour and the distance at which the fog becomes opaque. The
+// colour is one nothing else in the fixture uses, so a fogged surface is
+// recognisable from its colour alone.
+textures/jkx/fog
+{
+	surfaceparm fog
+	surfaceparm nonsolid
+	fogParms ( 0.9 0.1 0.9 ) 512
+}
