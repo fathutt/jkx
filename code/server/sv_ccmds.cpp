@@ -24,8 +24,9 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #include "../server/exe_headers.h"
 
 #include "server.h"
-#include "../game/weapons.h"
-#include "../game/g_items.h"
+// weapons.h was here for AMMO_MAX alone. That is the number of entries in
+// playerState_t::ammo, which q_shared.h already sizes as MAX_AMMO and which
+// is the bound this loop actually wants - the array, not the weapon list.
 #include "../game/statindex.h"
 #include "../qcommon/game_version.h"
 
@@ -193,7 +194,7 @@ void SV_Player_EndOfLevelSave(void)
 
 		//ammo
 		s2 = "";
-		for (i=0;i< AMMO_MAX; i++)
+		for (i=0;i< MAX_AMMO; i++)
 		{
 			s2 = va("%s %i",s2, pState->ammo[i]);
 		}

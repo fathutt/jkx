@@ -26,7 +26,6 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #include "../qcommon/q_shared.h"
 #include "../qcommon/qcommon.h"
 #include "../game/g_public.h"
-#include "../game/bg_public.h"
 
 #ifndef SERVER_H
 #define SERVER_H
@@ -34,11 +33,14 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 //=============================================================================
 
-//#define	PERS_SCORE				0		// !!! MUST NOT CHANGE, SERVER AND
-										// GAME BOTH REFERENCE !!!
-//rww - this won't do.. I need to include bg_public.h in the exe elsewhere.
-//I'm including it here instead so we can have our PERS_SCORE value. And have
-//it be the proper enum value.
+// PERS_SCORE used to be written out here as a bare 0 with "MUST NOT CHANGE,
+// SERVER AND GAME BOTH REFERENCE" beside it; then it became an include of the
+// whole of bg_public.h, so that the server would have the enumerator rather
+// than the number. Both halves of that were right - the server does need the
+// value, and it should be the declared one - and the cost was that every file
+// including server.h also got weapon events, entity flags and animation frames.
+// persindex.h is that enumeration and nothing else, and it sits in the engine
+// layer with q_shared.h pulling it in, so nothing here has to ask for it.
 
 #define	MAX_ENT_CLUSTERS	16
 

@@ -66,6 +66,31 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #define SVF_MOVER_ADJ_AREA_PORTALS	0x80000000	// For scripted movers only- must *explicitly instruct* them to affect area portals
 //===============================================================
 
+// entityState_t->eFlags, the two bits the server reads
+//
+// eFlags is otherwise game content: thirty-two bits of "is this thing on fire",
+// declared in bg_public.h and different in the two games. These two are not.
+// The server tests them while it builds snapshots - EF_PERMANENT decides whether
+// an entity is sent once in the game state instead of every frame, and
+// EF_FORCE_VISIBLE exempts one from the distance check that hides it - so they
+// are part of what the game promises the server, exactly like the SVF_ flags
+// above, and they belong here rather than three hundred lines into a header
+// about weapon events.
+//
+// They were not here, and it showed. sv_snapshot.cpp and cl_cgame.cpp both
+// wanted EF_PERMANENT, could not have bg_public.h - "bg_public.h won't
+// cooperate in here", says each of them - and wrote the constant out by hand
+// instead, twice, with nothing tying either copy to the declaration. The
+// remaining use, EF_FORCE_VISIBLE in sv_snapshot.cpp, was the reason server.h
+// pulled the whole of bg_public.h into every file that includes it.
+//
+// Jedi Outcast's gamecode sets neither bit; both are marked unused in its own
+// bg_public.h. Declaring them here reserves them in that tree too, so the two
+// games cannot quietly disagree about what the numbers mean.
+#define EF_PERMANENT			0x00080000	// sent once in the game state, never updated
+#define EF_FORCE_VISIBLE		0x00800000	// always visible with force sight
+//===============================================================
+
 //rww - RAGDOLL_BEGIN
 class CRagDollUpdateParams;
 class CRagDollParams;

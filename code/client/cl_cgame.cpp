@@ -230,8 +230,6 @@ Ghoul2 Insert End
 	return qtrue;
 }
 
-//bg_public.h won't cooperate in here
-#define EF_PERMANENT   0x00080000
 
 qboolean CL_GetDefaultState(int index, entityState_t *state)
 {

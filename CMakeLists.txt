@@ -530,6 +530,8 @@ set(SharedCommonFiles
 	"${SharedDir}/qcommon/q_string.h"
 	"${SharedDir}/qcommon/q_string.c"
 	"${SharedDir}/qcommon/q_platform.h"
+	"${SharedDir}/qcommon/persindex.h"
+	"${SharedDir}/qcommon/invindex.h"
 	"${CMAKE_BINARY_DIR}/shared/qcommon/q_version.h"
 	)
 set(SharedCommonSafeFiles

@@ -92,19 +92,8 @@ ITM_SECURITY_KEY_PICKUP,
 ITM_NUM_ITEMS
 };
 
-// Inventory item enums
-enum //# item_e
-{
-	INV_ELECTROBINOCULARS,
-	INV_BACTA_CANISTER,
-	INV_SEEKER,
-	INV_LIGHTAMP_GOGGLES,
-	INV_SENTRY,
-	//# #eol
-	INV_GOODIE_KEY,	// don't want to include keys in the icarus list
-	INV_SECURITY_KEY,
-
-	INV_MAX						// Be sure to update MAX_INVENTORY
-};
+// The inventory enumeration is in shared/qcommon/invindex.h, which q_shared.h
+// includes. The server walks the array it indexes and has no other business
+// in this file.
 
 #endif

@@ -275,8 +275,6 @@ static void SV_AddEntToSnapshot( svEntity_t *svEnt, gentity_t *gEnt, snapshotEnt
 	eNums->numSnapshotEntities++;
 }
 
-//rww - bg_public.h won't cooperate in here
-#define EF_PERMANENT			0x00080000
 
 float sv_sightRangeForLevel[6] =
 {

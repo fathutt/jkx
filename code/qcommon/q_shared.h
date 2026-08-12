@@ -809,15 +809,18 @@ typedef enum
 // bit field limits
 #define	MAX_STATS				16
 
-// NOTE!!! be careful about altering this because although it's used to define an array size, the entry indexes come from
-//	the typedef'd enum "persEnum_t" in bg_public.h, and there's no compile-tie between the 2 -slc
-//
+#include "qcommon/persindex.h"
 #define	MAX_PERSISTANT			16
+static_assert(PERS_TEAMMATES_KILLED < MAX_PERSISTANT,
+	"persEnum_t has outgrown playerState_t::persistant - raise MAX_PERSISTANT");
 
 #define	MAX_POWERUPS			16
 #define	MAX_WEAPONS				32
 #define MAX_AMMO				10
-#define MAX_INVENTORY			15		// See INV_MAX
+#include "qcommon/invindex.h"
+#define MAX_INVENTORY			15
+static_assert(INV_MAX <= MAX_INVENTORY,
+	"the inventory enumeration has outgrown playerState_t::inventory - raise MAX_INVENTORY");
 #define MAX_SECURITY_KEYS		5
 #define MAX_SECURITY_KEY_MESSSAGE		24
 

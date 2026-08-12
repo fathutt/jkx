@@ -28,6 +28,10 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #include "g_items.h"
 #include "teams.h"
 #include "statindex.h"
+// EF_PERMANENT and EF_FORCE_VISIBLE are in g_public.h, which this file must not
+// include: the gamecode defines GAME_INCLUDE before it reaches g_public.h, and
+// pulling it in from here would beat it to that and give the game module the
+// server's gentity_s. Every file that needs the two bits already has g_local.h.
 
 #define	DEFAULT_GRAVITY		800
 #define	GIB_HEALTH			-40
@@ -188,20 +192,8 @@ void PM_SetSaberMove(short newMove);
 //  NOTE!!! Even though this is an enum, the array that contains these uses #define MAX_PERSISTANT 16 in q_shared.h,
 //		so be careful how many you add since it'll just overflow without telling you -slc
 //
-typedef enum {
-	PERS_SCORE,						// !!! MUST NOT CHANGE, SERVER AND GAME BOTH REFERENCE !!!
-	PERS_HITS,						// total points damage inflicted so damage beeps can sound on change
-	PERS_TEAM,
-	PERS_SPAWN_COUNT,				// incremented every respawn
-//	PERS_REWARD_COUNT,				// incremented for each reward sound
-	PERS_ATTACKER,					// clientnum of last damage inflicter
-	PERS_KILLED,					// count of the number of times you died
-
-	PERS_ACCURACY_SHOTS,			// scoreboard - number of player shots
-	PERS_ACCURACY_HITS,				// scoreboard - number of player shots that hit an enemy
-	PERS_ENEMIES_KILLED,			// scoreboard - number of enemies player killed
-	PERS_TEAMMATES_KILLED			// scoreboard - number of teammates killed
-} persEnum_t;
+// persEnum_t is in shared/qcommon/persindex.h, which q_shared.h includes: the
+// server needs PERS_SCORE and used to include the whole of this file to get it.
 
 
 // entityState_t->eFlags
@@ -224,11 +216,11 @@ typedef enum {
 #define EF_PLANTED_CHARGE		0x00010000	// For detpack charge
 #define EF_PROX_TRIP			0x00020000	// Proximity trip mine has been activated
 #define EF_LOCKED_TO_WEAPON		0x00040000	// When we use an emplaced weapon, we turn this on to lock us to that weapon
-//#define EF_use_me				0x00080000	// Not used
+// 0x00080000 is EF_PERMANENT in g_public.h. Unused here, and reserved.
 //#define EF_use_me				0x00100000	// Not used
 //#define EF_use_me				0x00200000	// Not used
 //#define EF_use_me				0x00400000	// Not used
-//#define EF_use_me				0x00800000	// Not used
+// 0x00800000 is EF_FORCE_VISIBLE in g_public.h. Unused here, and reserved.
 #define EF_IN_ATST				0x01000000	// Driving an ATST
 #define EF_DISINTEGRATION		0x02000000	// Disruptor effect
 //#define EF_use_me				0x04000000	// Not used

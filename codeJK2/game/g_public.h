@@ -66,6 +66,19 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #define SVF_MOVER_ADJ_AREA_PORTALS	0x80000000	// For scripted movers only- must *explicitly instruct* them to affect area portals
 //===============================================================
 
+// entityState_t->eFlags, the two bits the server reads
+//
+// The declarations are Jedi Academy's, and this tree does not use either bit -
+// its own bg_public.h has both marked "Not used". They are here so that the two
+// games cannot come to mean different things by the same number: the server is
+// one program built twice, it tests these bits either way, and the bits it
+// tests have to be spelled the same on both sides of the boundary.
+//
+// See the longer note in code/game/g_public.h.
+#define EF_PERMANENT			0x00080000	// sent once in the game state, never updated
+#define EF_FORCE_VISIBLE		0x00800000	// always visible with force sight
+//===============================================================
+
 typedef struct gentity_s gentity_t;
 //typedef struct gclient_s gclient_t;
 

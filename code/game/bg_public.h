@@ -28,6 +28,10 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #include "g_items.h"
 #include "teams.h"
 #include "statindex.h"
+// EF_PERMANENT and EF_FORCE_VISIBLE are in g_public.h, which this file must not
+// include: the gamecode defines GAME_INCLUDE before it reaches g_public.h, and
+// pulling it in from here would beat it to that and give the game module the
+// server's gentity_s. Every file that needs the two bits already has g_local.h.
 
 #define	DEFAULT_GRAVITY		800
 #define	GIB_HEALTH			-40
@@ -188,20 +192,8 @@ void PM_SetAnimFinal(int *torsoAnim,int *legsAnim,int type,int anim,int priority
 //  NOTE!!! Even though this is an enum, the array that contains these uses #define MAX_PERSISTANT 16 in q_shared.h,
 //		so be careful how many you add since it'll just overflow without telling you -slc
 //
-typedef enum {
-	PERS_SCORE,						// !!! MUST NOT CHANGE, SERVER AND GAME BOTH REFERENCE !!!
-	PERS_HITS,						// total points damage inflicted so damage beeps can sound on change
-	PERS_TEAM,
-	PERS_SPAWN_COUNT,				// incremented every respawn
-//	PERS_REWARD_COUNT,				// incremented for each reward sound
-	PERS_ATTACKER,					// clientnum of last damage inflicter
-	PERS_KILLED,					// count of the number of times you died
-
-	PERS_ACCURACY_SHOTS,			// scoreboard - number of player shots
-	PERS_ACCURACY_HITS,				// scoreboard - number of player shots that hit an enemy
-	PERS_ENEMIES_KILLED,			// scoreboard - number of enemies player killed
-	PERS_TEAMMATES_KILLED			// scoreboard - number of teammates killed
-} persEnum_t;
+// persEnum_t is in shared/qcommon/persindex.h, which q_shared.h includes: the
+// server needs PERS_SCORE and used to include the whole of this file to get it.
 
 
 // entityState_t->eFlags
@@ -227,11 +219,14 @@ typedef enum {
 
 //rest not sent over net?
 
-#define EF_PERMANENT			0x00080000	// this entity is permanent and is never updated (sent only in the game state)
+// EF_PERMANENT (0x00080000) is declared in g_public.h - the server reads it
+// while it builds snapshots, so it is part of what the game promises the
+// server rather than part of this list. The bit is reserved either way.
 #define EF_SPOTLIGHT			0x00100000	// Your lights are on...
 #define EF_PLANTED_CHARGE		0x00200000	// For detpack charge
 #define EF_POWERING_ROSH		0x00400000	// Only for Twins powering up Rosh
-#define EF_FORCE_VISIBLE		0x00800000	// Always visible with force sight
+// EF_FORCE_VISIBLE (0x00800000) is declared in g_public.h, for the same
+// reason as EF_PERMANENT above.
 #define EF_IN_ATST				0x01000000	// Driving an ATST
 #define EF_DISINTEGRATION		0x02000000	// Disruptor effect
 #define EF_LESS_ATTEN			0x04000000	// Use less sound attenuation (louder even when farther).
