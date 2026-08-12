@@ -24,7 +24,20 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 // q_shared.c -- stateless support routines that are included in each code dll
 
-#include "../game/common_headers.h"
+// This was including game/common_headers.h, which is q_shared.h plus b_local.h,
+// cg_local.h, g_navigator.h, g_shared.h and g_functions.h - the whole gamecode
+// surface, reached from the file whose own first line calls it "stateless
+// support routines that are included in each code dll".
+//
+// It was the single largest thing holding the engine and the gamecode together.
+// The engine is layered below the game, so every include that points the other
+// way is a place the two cannot be separated, and this one was worth eleven
+// thousand of the thirteen thousand lines that interface measured - from one
+// include site, used only to reach q_shared.h the long way round.
+//
+// GenericParser2.cpp had the same include for the same non-reason and was fixed
+// earlier; the note there says so.
+#include "q_shared.h"
 
 /*
 ============
