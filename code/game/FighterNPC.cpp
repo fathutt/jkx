@@ -23,69 +23,20 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 //seems to be a compiler bug, it doesn't clean out the #ifdefs between dif-compiles
 //or something, so the headers spew errors on these defs from the previous compile.
 //this fixes that. -rww
-#ifdef _JK2MP
-//get rid of all the crazy defs we added for this file
-#undef currentAngles
-#undef currentOrigin
-#undef mins
-#undef maxs
-#undef legsAnimTimer
-#undef torsoAnimTimer
-#undef bool
-#undef false
-#undef true
 
-#undef sqrtf
-#undef Q_flrand
 
-#undef MOD_EXPLOSIVE
-#endif
-
-#ifdef _JK2 //SP does not have this preprocessor for game like MP does
-#ifndef _JK2MP
-#define _JK2MP
-#endif
-#endif
-
-#ifndef _JK2MP //if single player
 #ifndef QAGAME //I don't think we have a QAGAME define
 #define QAGAME //but define it cause in sp we're always in the game
-#endif
 #endif
 
 #ifdef QAGAME //including game headers on cgame is FORBIDDEN ^_^
 #include "g_local.h"
-#elif defined _JK2MP
-#include "bg_public.h"
 #endif
 
-#ifndef _JK2MP
 #include "g_functions.h"
 #include "g_vehicles.h"
-#else
-#include "bg_vehicles.h"
-#endif
 
-#ifdef _JK2MP
-//this is really horrible, but it works! just be sure not to use any locals or anything
-//with these names (exluding bool, false, true). -rww
-#define currentAngles r.currentAngles
-#define currentOrigin r.currentOrigin
-#define mins r.mins
-#define maxs r.maxs
-#define legsAnimTimer legsTimer
-#define torsoAnimTimer torsoTimer
-#define bool qboolean
-#define false qfalse
-#define true qtrue
-
-#define sqrtf sqrt
-#define Q_flrand flrand
-
-#define MOD_EXPLOSIVE MOD_SUICIDE
-#else
 #define bgEntity_t gentity_t
-#endif
 
 extern float DotToSpot( vec3_t spot, vec3_t from, vec3_t fromAngles );
 #ifdef QAGAME //SP or gameside MP
@@ -101,13 +52,6 @@ extern void G_VehicleTrace( trace_t *results, const vec3_t start, const vec3_t t
 
 extern qboolean BG_UnrestrainedPitchRoll( playerState_t *ps, Vehicle_t *pVeh );
 
-#ifdef _JK2MP
-
-#include "../namespace_begin.h"
-
-extern void BG_SetAnim(playerState_t *ps, animation_t *animations, int setAnimParts,int anim,int setAnimFlags, int blendTime);
-extern int BG_GetTime(void);
-#endif
 
 #include "b_local.h"
 extern void BG_ExternThisSoICanRecompileInDebug( Vehicle_t *pVeh, playerState_t *riderPS );
@@ -125,11 +69,7 @@ bool BG_FighterUpdate(Vehicle_t *pVeh, const usercmd_t *pUcmd, vec3_t trMins, ve
 #endif
 
 
-#ifdef _JK2MP
-	parentPS = pVeh->m_pParentEntity->playerState;
-#else
 	parentPS = &pVeh->m_pParentEntity->client->ps;
-#endif
 
 	if (!parentPS)
 	{
@@ -141,31 +81,14 @@ bool BG_FighterUpdate(Vehicle_t *pVeh, const usercmd_t *pUcmd, vec3_t trMins, ve
 	if ( pVeh->m_pPilot )
 	{
 		parentPS->gravity = 0;
-#ifndef _JK2MP //don't need this flag in mp, I.. guess
 		pVeh->m_pParentEntity->svFlags |= SVF_CUSTOM_GRAVITY;
-#endif
 	}
 	else
 	{
-#ifndef _JK2MP //don't need this flag in mp, I.. guess
 		pVeh->m_pParentEntity->svFlags &= ~SVF_CUSTOM_GRAVITY;
-#else //in MP set grav back to normal gravity
-		if (pVeh->m_pVehicleInfo->gravity)
-		{
-			parentPS->gravity = pVeh->m_pVehicleInfo->gravity;
-		}
-		else
-		{ //it doesn't have gravity specified apparently
-			parentPS->gravity = gravity;
-		}
-#endif
 	}
 
-#ifdef _JK2MP
-	//isDead = (qboolean)((parentPS->eFlags&EF_DEAD)!=0);
-#else
 	//isDead = (parentPS->stats[STAT_HEALTH] <= 0 );
-#endif
 
 	/*
 	if ( isDead ||
@@ -201,11 +124,7 @@ static bool Update( Vehicle_t *pVeh, const usercmd_t *pUcmd )
 	assert(pVeh->m_pParentEntity);
 	if (!BG_FighterUpdate(pVeh, pUcmd, ((gentity_t *)pVeh->m_pParentEntity)->mins,
 		((gentity_t *)pVeh->m_pParentEntity)->maxs,
-#ifdef _JK2MP
-		g_gravity.value,
-#else
 		g_gravity->value,
-#endif
 		G_VehicleTrace))
 	{
 		return false;
@@ -388,61 +307,10 @@ static void ProcessMoveCommands( Vehicle_t *pVeh )
 	float speedInc, speedIdleDec, speedIdle, speedIdleAccel, speedMin, speedMax;
 	bgEntity_t *parent = pVeh->m_pParentEntity;
 	qboolean isLandingOrLaunching = qfalse;
-#ifndef _JK2MP//SP
 	int curTime = level.time;
-#elif defined QAGAME//MP GAME
-	int curTime = level.time;
-#elif defined CGAME//MP CGAME
-	//FIXME: pass in ucmd?  Not sure if this is reliable...
-	int curTime = pm->cmd.serverTime;
-#endif
 
-#ifdef _JK2MP
-	playerState_t *parentPS = parent->playerState;
-#else
 	playerState_t *parentPS = &parent->client->ps;
-#endif
 
-#ifdef _JK2MP
-	if ( parentPS->hyperSpaceTime
-		&& curTime - parentPS->hyperSpaceTime < HYPERSPACE_TIME )
-	{//Going to Hyperspace
-		//totally override movement
-		float timeFrac = ((float)(curTime-parentPS->hyperSpaceTime))/HYPERSPACE_TIME;
-		if ( timeFrac < HYPERSPACE_TELEPORT_FRAC )
-		{//for first half, instantly jump to top speed!
-			if ( !(parentPS->eFlags2&EF2_HYPERSPACE) )
-			{//waiting to face the right direction, do nothing
-				parentPS->speed = 0.0f;
-			}
-			else
-			{
-				if ( parentPS->speed < HYPERSPACE_SPEED )
-				{//just started hyperspace
-//MIKE: This is going to play the sound twice for the predicting client, I suggest using
-//a predicted event or only doing it game-side. -rich
-#ifdef QAGAME//MP GAME-side
-					//G_EntitySound( ((gentity_t *)(pVeh->m_pParentEntity)), CHAN_LOCAL, pVeh->m_pVehicleInfo->soundHyper );
-#elif defined CGAME//MP CGAME-side
-					trap_S_StartSound( NULL, pm->ps->clientNum, CHAN_LOCAL, pVeh->m_pVehicleInfo->soundHyper );
-#endif
-				}
-
-				parentPS->speed = HYPERSPACE_SPEED;
-			}
-		}
-		else
-		{//slow from top speed to 200...
-			parentPS->speed = 200.0f + ((1.0f-timeFrac)*(1.0f/HYPERSPACE_TELEPORT_FRAC)*(HYPERSPACE_SPEED-200.0f));
-			//don't mess with acceleration, just pop to the high velocity
-			if ( VectorLength( parentPS->velocity ) < parentPS->speed )
-			{
-				VectorScale( parentPS->moveDir, parentPS->speed, parentPS->velocity );
-			}
-		}
-		return;
-	}
-#endif
 
 	if ( pVeh->m_iDropTime >= curTime )
 	{//no speed, just drop
@@ -461,15 +329,6 @@ static void ProcessMoveCommands( Vehicle_t *pVeh )
 
 		if ( pVeh->m_ucmd.upmove > 0 )
 		{
-#ifdef _JK2MP
-			if ( parentPS->velocity[2] <= 0
-				&& pVeh->m_pVehicleInfo->soundTakeOff )
-			{//taking off for the first time
-#ifdef QAGAME//MP GAME-side
-				G_EntitySound( ((gentity_t *)(pVeh->m_pParentEntity)), CHAN_AUTO, pVeh->m_pVehicleInfo->soundTakeOff );
-#endif
-			}
-#endif
 			parentPS->velocity[2] += pVeh->m_pVehicleInfo->acceleration * pVeh->m_fTimeModifier;// * ( /*fInvFrac **/ 1.5f );
 		}
 		else if ( pVeh->m_ucmd.upmove < 0 )
@@ -519,23 +378,13 @@ static void ProcessMoveCommands( Vehicle_t *pVeh )
 					{
 						break;
 					}
-					#ifndef _JK2MP//SP
 						G_PlayEffect(pVeh->m_pVehicleInfo->iTurboStartFX, pVeh->m_pParentEntity->playerModel, pVeh->m_iExhaustTag[i], pVeh->m_pParentEntity->s.number, pVeh->m_pParentEntity->currentOrigin );
-					#else
-						//TODO: MP Play Effect?
-					#endif
 				}
 			}
 			//NOTE: turbo sound can't be part of effect if effect is played on every muzzle!
 			if ( pVeh->m_pVehicleInfo->soundTurbo )
 			{
-#ifndef _JK2MP//SP
 				G_SoundIndexOnEnt( pVeh->m_pParentEntity, CHAN_AUTO, pVeh->m_pVehicleInfo->soundTurbo );
-#elif defined QAGAME//MP GAME-side
-				G_EntitySound( ((gentity_t *)(pVeh->m_pParentEntity)), CHAN_AUTO, pVeh->m_pVehicleInfo->soundTurbo );
-#elif defined CGAME//MP CGAME-side
-				//trap_S_StartSound( NULL, pVeh->m_pParentEntity->s.number, CHAN_AUTO, pVeh->m_pVehicleInfo->soundTurbo );
-#endif
 			}
 		}
 	}
@@ -547,10 +396,6 @@ static void ProcessMoveCommands( Vehicle_t *pVeh )
 		speedInc *= 2.0f;
 		//force us to move forward
 		pVeh->m_ucmd.forwardmove = 127;
-#ifdef _JK2MP//SP can cheat and just check m_iTurboTime directly... :)
-		//add flag to let cgame know to draw the iTurboFX effect
-		parentPS->eFlags |= EF_JETPACK_ACTIVE;
-#endif
 	}
 	/*
 	//FIXME: if turbotime is up and we're waiting for it to recharge, should our max speed drop while we recharge?
@@ -562,12 +407,6 @@ static void ProcessMoveCommands( Vehicle_t *pVeh )
 	else
 	{//normal max speed
 		speedMax = pVeh->m_pVehicleInfo->speedMax;
-#ifdef _JK2MP//SP can cheat and just check m_iTurboTime directly... :)
-		if ( (parentPS->eFlags&EF_JETPACK_ACTIVE) )
-		{//stop cgame from playing the turbo exhaust effect
-			parentPS->eFlags &= ~EF_JETPACK_ACTIVE;
-		}
-#endif
 	}
 	speedIdleDec = pVeh->m_pVehicleInfo->decelIdle * pVeh->m_fTimeModifier;
 	speedIdle = pVeh->m_pVehicleInfo->speedIdle;
@@ -736,12 +575,10 @@ static void ProcessMoveCommands( Vehicle_t *pVeh )
 			pVeh->m_ucmd.upmove = 0;
 		}
 
-#ifndef _JK2MP
 		if ( !pVeh->m_pVehicleInfo->strafePerc || (!g_speederControlScheme->value && !pVeh->m_pParentEntity->s.number) )
 		{//if in a strafe-capable vehicle, clear strafing unless using alternate control scheme
 			pVeh->m_ucmd.rightmove = 0;
 		}
-#endif
 	}
 
 #if 1//This is working now, but there are some transitional jitters... Rich?
@@ -1044,18 +881,6 @@ static void FighterDamageRoutine( Vehicle_t *pVeh, bgEntity_t *parent, playerSta
 	{ //if you land at all when pieces of your ship are missing, then die
 		gentity_t *parent = (gentity_t *)pVeh->m_pParentEntity;
 		gentity_t *killer = parent;
-#ifdef _JK2MP//only have this info in MP...
-		if (parent->client->ps.otherKiller < ENTITYNUM_WORLD &&
-			parent->client->ps.otherKillerTime > level.time)
-		{
-			gentity_t *potentialKiller = &g_entities[parent->client->ps.otherKiller];
-
-			if (potentialKiller->inuse && potentialKiller->client)
-			{ //he's valid I guess
-				killer = potentialKiller;
-			}
-		}
-#endif
 		G_Damage(parent, killer, killer, vec3_origin, parent->client->ps.origin, 99999, DAMAGE_NO_ARMOR, MOD_SUICIDE);
 	}
 #endif
@@ -1117,59 +942,6 @@ static void FighterDamageRoutine( Vehicle_t *pVeh, bgEntity_t *parent, playerSta
 	}
 }
 
-#ifdef _JK2MP
-void FighterYawAdjust(Vehicle_t *pVeh, playerState_t *riderPS, playerState_t *parentPS)
-{
-	float angDif = AngleSubtract(pVeh->m_vOrientation[YAW], riderPS->viewangles[YAW]);
-
-	if (parentPS && parentPS->speed)
-	{
-		float s = parentPS->speed;
-		float maxDif = pVeh->m_pVehicleInfo->turningSpeed*0.8f; //magic number hackery
-
-		if (s < 0.0f)
-		{
-			s = -s;
-		}
-		angDif *= s/pVeh->m_pVehicleInfo->speedMax;
-		if (angDif > maxDif)
-		{
-			angDif = maxDif;
-		}
-		else if (angDif < -maxDif)
-		{
-			angDif = -maxDif;
-		}
-		pVeh->m_vOrientation[YAW] = AngleNormalize180(pVeh->m_vOrientation[YAW] - angDif*(pVeh->m_fTimeModifier*0.2f));
-	}
-}
-
-void FighterPitchAdjust(Vehicle_t *pVeh, playerState_t *riderPS, playerState_t *parentPS)
-{
-	float angDif = AngleSubtract(pVeh->m_vOrientation[PITCH], riderPS->viewangles[PITCH]);
-
-	if (parentPS && parentPS->speed)
-	{
-		float s = parentPS->speed;
-		float maxDif = pVeh->m_pVehicleInfo->turningSpeed*0.8f; //magic number hackery
-
-		if (s < 0.0f)
-		{
-			s = -s;
-		}
-		angDif *= s/pVeh->m_pVehicleInfo->speedMax;
-		if (angDif > maxDif)
-		{
-			angDif = maxDif;
-		}
-		else if (angDif < -maxDif)
-		{
-			angDif = -maxDif;
-		}
-		pVeh->m_vOrientation[PITCH] = AngleNormalize360(pVeh->m_vOrientation[PITCH] - angDif*(pVeh->m_fTimeModifier*0.2f));
-	}
-}
-#endif
 
 //MP RULE - ALL PROCESSORIENTCOMMANDS FUNCTIONS MUST BE BG-COMPATIBLE!!!
 //If you really need to violate this rule for SP, then use ifdefs.
@@ -1193,53 +965,19 @@ static void ProcessOrientCommands( Vehicle_t *pVeh )
 	float	curRoll = 0.0f;
 	qboolean isDead = qfalse;
 	qboolean isLandingOrLanded = qfalse;
-#ifndef _JK2MP//SP
 	int curTime = level.time;
-#elif defined QAGAME//MP GAME
-	int curTime = level.time;
-#elif defined CGAME//MP CGAME
-	//FIXME: pass in ucmd?  Not sure if this is reliable...
-	int curTime = pm->cmd.serverTime;
-#endif
 
-#ifdef _JK2MP
-	bgEntity_t *rider = NULL;
-	if (parent->s.owner != ENTITYNUM_NONE)
-	{
-		rider = PM_BGEntForNum(parent->s.owner); //&g_entities[parent->r.ownerNum];
-	}
-#else
 	gentity_t *rider = parent->owner;
-#endif
 
-#ifdef _JK2MP
-	if ( !rider )
-#else
 	if ( !rider || !rider->client )
-#endif
 	{
 		rider = parent;
 	}
 
-#ifdef _JK2MP
-	parentPS = parent->playerState;
-	riderPS = rider->playerState;
-	isDead = (qboolean)((parentPS->eFlags&EF_DEAD)!=0);
-#else
 	parentPS = &parent->client->ps;
 	riderPS = &rider->client->ps;
 	isDead = (qboolean)(parentPS->stats[STAT_HEALTH] <= 0 );
-#endif
 
-#ifdef _JK2MP
-	if ( parentPS->hyperSpaceTime
-		&& (curTime - parentPS->hyperSpaceTime) < HYPERSPACE_TIME )
-	{//Going to Hyperspace
-		VectorCopy( riderPS->viewangles, pVeh->m_vOrientation );
-		VectorCopy( riderPS->viewangles, parentPS->viewangles );
-		return;
-	}
-#endif
 
 	if ( pVeh->m_iDropTime >= curTime )
 	{//you can only YAW during this
@@ -1338,11 +1076,7 @@ static void ProcessOrientCommands( Vehicle_t *pVeh )
 			|| pVeh->m_LandTrace.plane.normal[2] < MIN_LANDING_SLOPE )
 		{//off the ground, at least (or not on a valid landing surf)
 			// Dampen the turn rate based on the current height.
-#ifdef _JK2MP
-			FighterYawAdjust(pVeh, riderPS, parentPS);
-#else
 			pVeh->m_vOrientation[YAW] = riderPS->viewangles[YAW];//*pVeh->m_LandTrace.fraction;
-#endif
 		}
 	}
 	else if ( (pVeh->m_iRemovedSurfaces||parentPS->electrifyTime>=curTime)//spiralling out of control
@@ -1355,9 +1089,6 @@ static void ProcessOrientCommands( Vehicle_t *pVeh )
 		{
 			VectorCopy( riderPS->viewangles, pVeh->m_vOrientation );
 			VectorCopy( riderPS->viewangles, parentPS->viewangles );
-#ifdef _JK2MP
-			//BG_ExternThisSoICanRecompileInDebug( pVeh, riderPS );
-#endif
 
 			curRoll = pVeh->m_vOrientation[ROLL];
 
@@ -1385,11 +1116,7 @@ static void ProcessOrientCommands( Vehicle_t *pVeh )
 			*/
 
 			//Actal YAW
-#ifdef _JK2MP
-			FighterYawAdjust(pVeh, riderPS, parentPS);
-#else
 			pVeh->m_vOrientation[YAW] = riderPS->viewangles[YAW];
-#endif
 
 			// If we are not hitting the ground, allow the fighter to pitch up and down.
 			if ( !FighterOverValidLandingSurface( pVeh )
@@ -1398,11 +1125,7 @@ static void ProcessOrientCommands( Vehicle_t *pVeh )
 			{
 				float fYawDelta;
 
-#ifdef _JK2MP
-				FighterPitchAdjust(pVeh, riderPS, parentPS);
-#else
 				pVeh->m_vOrientation[PITCH] = riderPS->viewangles[PITCH];
-#endif
 
 				FighterNoseMalfunctionCheck( pVeh, parentPS );
 
@@ -1572,33 +1295,9 @@ static void AnimateVehicle( Vehicle_t *pVeh )
 	int Anim = -1;
 	int iFlags = SETANIM_FLAG_NORMAL, iBlend = 300;
 	qboolean isLanding = qfalse, isLanded = qfalse;
-#ifdef _JK2MP
-	playerState_t *parentPS = pVeh->m_pParentEntity->playerState;
-#else
 	playerState_t *parentPS = &pVeh->m_pParentEntity->client->ps;
-#endif
-#ifndef _JK2MP//SP
 	//nothing
-#elif defined QAGAME//MP GAME
-	int curTime = level.time;
-#elif defined CGAME//MP CGAME
-	//FIXME: pass in ucmd?  Not sure if this is reliable...
-	int curTime = pm->cmd.serverTime;
-#endif
 
-#ifdef _JK2MP
-	if ( parentPS->hyperSpaceTime
-		&& curTime - parentPS->hyperSpaceTime < HYPERSPACE_TIME )
-	{//Going to Hyperspace
-		//close the wings (FIXME: makes sense on X-Wing, not Shuttle?)
-		if ( pVeh->m_ulFlags & VEH_WINGSOPEN )
-		{
-			pVeh->m_ulFlags &= ~VEH_WINGSOPEN;
-			Anim = BOTH_WINGS_CLOSE;
-		}
-	}
-	else
-#endif
 	{
 		isLanding = FighterIsLanding( pVeh, parentPS );
 		isLanded = FighterIsLanded( pVeh, parentPS );
@@ -1623,16 +1322,6 @@ static void AnimateVehicle( Vehicle_t *pVeh )
 				// Open gears.
 				if ( !( pVeh->m_ulFlags & VEH_GEARSOPEN ) )
 				{
-#ifdef _JK2MP
-					if ( pVeh->m_pVehicleInfo->soundLand )
-					{//just landed?
-#ifdef QAGAME//MP GAME-side
-						G_EntitySound( ((gentity_t *)(pVeh->m_pParentEntity)), CHAN_AUTO, pVeh->m_pVehicleInfo->soundLand );
-#elif defined CGAME//MP CGAME-side
-						//trap_S_StartSound( NULL, pVeh->m_pParentEntity->s.number, CHAN_AUTO, pVeh->m_pVehicleInfo->soundLand );
-#endif
-					}
-#endif
 					pVeh->m_ulFlags |= VEH_GEARSOPEN;
 					Anim = BOTH_GEARS_OPEN;
 				}
@@ -1661,12 +1350,7 @@ static void AnimateVehicle( Vehicle_t *pVeh )
 
 	if ( Anim != -1 )
 	{
-		#ifdef _JK2MP
-			BG_SetAnim(pVeh->m_pParentEntity->playerState, bgAllAnims[pVeh->m_pParentEntity->localAnimIndex].anims,
-				SETANIM_BOTH, Anim, iFlags, iBlend);
-		#else
 			NPC_SetAnim( pVeh->m_pParentEntity, SETANIM_BOTH, Anim, iFlags, iBlend );
-		#endif
 	}
 }
 
@@ -1714,58 +1398,17 @@ void G_SetFighterVehicleFunctions( vehicleInfo_t *pVehInfo )
 }
 
 // Following is only in game, not in namespace
-#ifdef _JK2MP
-#include "../namespace_end.h"
-#endif
 
 #ifdef QAGAME
 extern void G_AllocateVehicleObject(Vehicle_t **pVeh);
 #endif
 
-#ifdef _JK2MP
-#include "../namespace_begin.h"
-#endif
 
 // Create/Allocate a new Animal Vehicle (initializing it as well).
 void G_CreateFighterNPC( Vehicle_t **pVeh, const char *strType )
 {
 	// Allocate the Vehicle.
-#ifdef _JK2MP
-#ifdef QAGAME
-	//these will remain on entities on the client once allocated because the pointer is
-	//never stomped. on the server, however, when an ent is freed, the entity struct is
-	//memset to 0, so this memory would be lost..
-    G_AllocateVehicleObject(pVeh);
-#else
-	if (!*pVeh)
-	{ //only allocate a new one if we really have to
-		(*pVeh) = (Vehicle_t *) BG_Alloc( sizeof(Vehicle_t) );
-	}
-#endif
-	memset(*pVeh, 0, sizeof(Vehicle_t));
-#else
 	(*pVeh) = (Vehicle_t *) gi.Malloc( sizeof(Vehicle_t), TAG_G_ALLOC, qtrue );
-#endif
 	(*pVeh)->m_pVehicleInfo = &g_vehicleInfo[BG_VehicleGetIndex( strType )];
 }
 
-#ifdef _JK2MP
-
-#include "../namespace_end.h"
-
-//get rid of all the crazy defs we added for this file
-#undef currentAngles
-#undef currentOrigin
-#undef mins
-#undef maxs
-#undef legsAnimTimer
-#undef torsoAnimTimer
-#undef bool
-#undef false
-#undef true
-
-#undef sqrtf
-#undef Q_flrand
-
-#undef MOD_EXPLOSIVE
-#endif
