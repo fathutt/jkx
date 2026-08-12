@@ -127,6 +127,17 @@ Xvfb "$DISPLAY_NUM" -screen 0 ${JKX_SMOKE_SCREEN:-1280x720}x24 >/dev/null 2>&1 &
 XVFB_PID=$!
 sleep 2
 
+# Did it actually start? Xvfb exits immediately if the display number is already
+# taken, and the run then attaches to whatever server is already there - at
+# whatever size that one was created with. What comes out is a frame of the
+# right content at the wrong geometry, so the checks that ask where something is
+# fail and the ones that ask whether it is there pass. That is a confusing way
+# to lose an afternoon, and it costs one line to rule out.
+if ! kill -0 "$XVFB_PID" 2>/dev/null; then
+    echo "Xvfb did not start on $DISPLAY_NUM - is another one already using it?" >&2
+    exit 2
+fi
+
 # Sixty frames is enough to be past everything that only happens once, and few
 # enough that a software rasteriser running under the validation layer still
 # finishes in under a minute. The engine quits itself, so a non-zero exit is a
@@ -156,7 +167,35 @@ sleep 2
 # ported, saving wrote no Ghoul2 chunk at all and loading passed nullptr into a
 # function that starts by dereferencing it, so "load" was a guaranteed crash and
 # nothing here would have said so.
-INMAP_STEP=( +wait 20 +map jkx_room +wait 80 +screenshot_tga jkx_inmap )
+#
+# How long to wait after a map change before the frame is worth looking at.
+#
+# "wait" counts frames, and frames keep ticking while a map loads - the command
+# buffer is not held. So a wait placed after +map does not begin after the load,
+# it overlaps it, and what is left over on the far side is however many frames
+# the load did not use. That remainder is real time divided by frame time, and
+# neither is fixed.
+#
+# Measured, twice, with a screenshot every ten frames after +map jkx_room: the
+# world first appeared at frame 80 in one run and at frame 60 in the other, and
+# the first frame it appeared in was not yet the settled one (5667 lit pixels,
+# then 5833, then 5832 for the rest of the run). The wait here was 80. It sat
+# exactly on that edge, so the same command line drew the world in one run and
+# a black screen in the next.
+#
+# Nothing said so. Every picture check steps aside under JKX_SMOKE_PLAIN, so a
+# frame the engine never drew passed the run and went on to be compared against
+# one that had - which is why the prepass stage reported thousands of changed
+# pixels and pointed at the depth pre-pass, and why the fog stage said the floor
+# was in the wrong place. One race, two accusations, neither of them true. The
+# flat-colour gate further down is the other half of this fix.
+#
+# Two hundred is two and a half times the worst load measured. It is not a
+# proof - the only proof would be a fence the engine does not offer - but it is
+# a margin with a number behind it instead of a number that happened to work.
+SETTLE=200
+
+INMAP_STEP=( +wait 20 +map jkx_room +wait $SETTLE +screenshot_tga jkx_inmap )
 #
 # The weather, asked about a place rather than about the world. A wind zone is
 # created with a velocity of 800 along +Y over a box around the origin, and then
@@ -203,7 +242,7 @@ if [ "${JKX_SMOKE_SAVELOAD:-0}" = "1" ]; then
     # not happened.
     INMAP_STEP+=( +give health +wait 20
                   +save jkx_save +wait 60
-                  +load jkx_save +wait 150 +screenshot_tga jkx_loaded )
+                  +load jkx_save +wait $SETTLE +screenshot_tga jkx_loaded )
 else
     # Then turn around. This is not padding: for as long as this step existed it
     # only ever looked along +Y, and +Y is the one face out of six where the sky
@@ -216,7 +255,7 @@ else
     # and it subtracts 25 for eye height - so z is 25 to stand where the spawn is.
     # It takes a yaw and no pitch, so up and down are still not covered here;
     # tests/sky_projection_test.cpp covers all six, without a renderer.
-    INMAP_STEP+=( +wait 20 +map jkx_room2 +wait 60 +screenshot_tga jkx_sky +wait 20 )
+    INMAP_STEP+=( +wait 20 +map jkx_room2 +wait $SETTLE +screenshot_tga jkx_sky +wait 20 )
 
     # The turned views belong to the sky, and are skipped when there is no sky.
     # That is not a dodge around frames that would not compare: a plain run draws
@@ -364,7 +403,7 @@ set +e
       "${SET_STEP[@]}" \
       +wait 60 +screenshot_tga jkx_smoke \
       "${CONSOLE_STEP[@]}" \
-      +wait 20 +map jkx_smoke +wait 60 +screenshot_tga jkx_wiped \
+      +wait 20 +map jkx_smoke +wait $SETTLE +screenshot_tga jkx_wiped \
       "${INMAP_STEP[@]}" \
       +imagelist +wait 20 +quit ) > "$RUN/run.log" 2>&1
 status=$?
@@ -658,6 +697,29 @@ for pair in "${SHOTS[@]}"; do
         report "no $name.tga was written"
     fi
 done
+
+# The one check a plain run still owes.
+#
+# JKX_SMOKE_PLAIN turns off the sky, the interface, the third-person camera and
+# the view bob, which is what makes two runs comparable pixel for pixel. It also
+# steps around every loop above, and until this block there was nothing left in
+# the run that looked at a scene frame at all. A plain run could therefore write
+# five files the engine had drawn nothing into and report success.
+#
+# It did. See the note on SETTLE. The thresholds up there are tuned for a frame
+# with a head-up display over it and mean nothing here, but the floor does not
+# need tuning: a scene frame that drew has a floor and a wall in it, and one
+# that did not is a single flat colour. Two is enough to tell them apart, and
+# two is all this claims to check.
+if [ "${JKX_SMOKE_PLAIN:-0}" = "1" ]; then
+    for name in jkx_smoke jkx_wiped jkx_inmap; do
+        SHOT="$RUN/home/base/screenshots/$name.tga"
+        [ -f "$SHOT" ] || continue
+        if ! python3 "$HERE/tga_is_a_picture.py" "$SHOT" 2 >/dev/null; then
+            report "$name.tga is one flat colour - the scene never drew"
+        fi
+    done
+fi
 
 # What the interface painted, not just how varied the frame is.
 #
