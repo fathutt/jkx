@@ -23,6 +23,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 
 #include "tr_local.h"
+#include "tr_sky_projection.h"
 
 #define	myftol(x) ((int)(x))
 #define SKY_SUBDIVISIONS		8
@@ -54,26 +55,16 @@ AddSkyPolygon
 */
 static void AddSkyPolygon( int nump, vec3_t vecs )
 {
-	int		i, j;
-	vec3_t	v, av;
-	float	s, t, dv;
+	int		i;
+	vec3_t	v;
+	float	s, t;
 	int		axis;
 	float	*vp;
-	// s = [0]/[2], t = [1]/[2]
-	static const int vec_to_st[6][3] =
-	{
-		{-2,3,1},
-		{2,3,-1},
 
-		{1,3,2},
-		{-1,3,-2},
-
-		{-2,-1,3},
-		{-2,1,-3}
-
-		//	{-1,2,3},
-		//	{1,2,-3}
-	};
+	// The table this used to carry is now in tr_sky_projection.h, next to its
+	// inverse and next to a test that round-trips the two against each other.
+	// They were a pair all along - one here, one in MakeSkyVec - and nothing
+	// said so.
 
 	// decide which face it maps to
 	VectorCopy(vec3_origin, v);
@@ -81,53 +72,14 @@ static void AddSkyPolygon( int nump, vec3_t vecs )
 	{
 		VectorAdd(vp, v, v);
 	}
-	av[0] = fabs(v[0]);
-	av[1] = fabs(v[1]);
-	av[2] = fabs(v[2]);
-	if (av[0] > av[1] && av[0] > av[2])
-	{
-		if (v[0] < 0)
-			axis = 1;
-		else
-			axis = 0;
-	}
-	else if (av[1] > av[2] && av[1] > av[0])
-	{
-		if (v[1] < 0)
-			axis = 3;
-		else
-			axis = 2;
-	}
-	else
-	{
-		if (v[2] < 0)
-			axis = 5;
-		else
-			axis = 4;
-	}
+
+	axis = SkyAxisForVec( v );
 
 	// project new texture coords
 	for (i = 0; i < nump; i++, vecs += 3)
 	{
-		j = vec_to_st[axis][2];
-		if (j > 0)
-			dv = vecs[j - 1];
-		else
-			dv = -vecs[-j - 1];
-		if (dv < 0.001)
-			continue;	// don't divide by zero
-
-		j = vec_to_st[axis][0];
-		if (j < 0)
-			s = -vecs[-j - 1] / dv;
-		else
-			s = vecs[j - 1] / dv;
-
-		j = vec_to_st[axis][1];
-		if (j < 0)
-			t = -vecs[-j - 1] / dv;
-		else
-			t = vecs[j - 1] / dv;
+		if ( !SkySTForVec( axis, vecs, &s, &t ) )
+			continue;	// edge-on to the face: don't divide by zero
 
 		if (s < sky_mins[0][axis])
 			sky_mins[0][axis] = s;
@@ -291,41 +243,11 @@ CLOUD VERTEX GENERATION
 */
 static void MakeSkyVec( float s, float t, int axis, vec3_t outXYZ )
 {
-	// 1 = s, 2 = t, 3 = 2048
-	static const int st_to_vec[6][3] =
-	{
-		{3,-1,2},
-		{-3,1,2},
+	// The table is in tr_sky_projection.h now, with its inverse and a test.
+	const float boxSize = backEnd.viewParms.zFar / 1.75f;		// div sqrt(3)
 
-		{1,3,2},
-		{-1,-3,2},
-
-		{-2,-1,3},		// 0 degrees yaw, look straight up
-		{2,-1,-3}		// look straight down
-	};
-
-	vec3_t		b;
-	int			j, k;
-	float	boxSize;
-
-	boxSize = backEnd.viewParms.zFar / 1.75;		// div sqrt(3)
-	b[0] = s * boxSize;
-	b[1] = t * boxSize;
-	b[2] = boxSize;
-
-	for (j = 0; j < 3; j++)
-	{
-		k = st_to_vec[axis][j];
-		outXYZ[j] = (k < 0) ? -b[-k - 1] : b[k - 1];
-		/*if (k < 0)
-		{
-			outXYZ[j] = -b[-k - 1];
-		}
-		else
-		{
-			outXYZ[j] = b[k - 1];
-		}*/
-	}
+	SkyVecForST( axis, s, t, outXYZ );
+	VectorScale( outXYZ, boxSize, outXYZ );
 }
 
 /*
@@ -662,32 +584,18 @@ static void BuildSkyTexCoords( void )
 			s = (j - HALF_SKY_SUBDIVISIONS) / (float)HALF_SKY_SUBDIVISIONS;
 			t = (i - HALF_SKY_SUBDIVISIONS) / (float)HALF_SKY_SUBDIVISIONS;
 
-			// avoid bilerp seam
-			s = (s + 1) * 0.5;
-			t = (t + 1) * 0.5;
+			float u, v;
 
-			if (s < 0.0f)
-			{
-				s = 0.0f;
-			}
-			else if (s > 1.0f)
-			{
-				s = 1.0f;
-			}
+			SkyTexCoordForST( s, t, &u, &v );
 
-			if (t < 0.0f)
-			{
-				t = 0.0f;
-			}
-			else if (t > 1.0f)
-			{
-				t = 1.0f;
-			}
+			// The clamp is the "avoid bilerp seam" one. It does nothing for the
+			// sky box, whose s and t are already inside [-1,1]; it is the cloud
+			// layer, which runs past the edges, that needs it.
+			if ( u < 0.0f ) u = 0.0f; else if ( u > 1.0f ) u = 1.0f;
+			if ( v < 0.0f ) v = 0.0f; else if ( v > 1.0f ) v = 1.0f;
 
-			t = 1.0f - t;
-
-			s_skyTexCoords[i][j][0] = s;
-			s_skyTexCoords[i][j][1] = t;
+			s_skyTexCoords[i][j][0] = u;
+			s_skyTexCoords[i][j][1] = v;
 		}
 	}
 }

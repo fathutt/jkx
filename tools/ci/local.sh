@@ -139,7 +139,20 @@ stage_tests() {
     python3 "$ROOT/tools/fontgen/build_fonts.py" --check &&
     python3 "$ROOT/tools/verify/make_test_bsp.py" --check &&
     python3 "$ROOT/tools/verify/make_test_glm.py" --check &&
-    python3 "$ROOT/tools/verify/make_test_gla.py" --check
+    python3 "$ROOT/tools/verify/make_test_gla.py" --check &&
+    stage_tests_cxx
+}
+
+# The C++ checks that need no renderer. Compiled here rather than through CMake
+# because they depend on one header apiece and nothing else, and a test that
+# takes two seconds to build is a test people run.
+stage_tests_cxx() {
+    local out="$BUILD_ROOT/tests"
+    mkdir -p "$out" || return 1
+
+    c++ -O2 -Wall -Werror -o "$out/sky_projection_test" \
+        "$ROOT/tests/sky_projection_test.cpp" || return 1
+    "$out/sky_projection_test" || return 1
 }
 
 stage_smoke() {
