@@ -158,9 +158,6 @@ typedef unsigned int uvec4_t[4];
 #define ST0_OFFSET						( COLOR_OFFSET + COLOR_SIZE )
 #define ST1_OFFSET						( ST0_OFFSET + ST0_SIZE )
 
-#define IMAGE_CHUNK_SIZE				( 32 * 1024 * 1024 )
-#define MAX_IMAGE_CHUNKS				256
-
 #define TESS_XYZ						( 1 )
 #define TESS_RGBA0 						( 2 )
 #define TESS_RGBA1 						( 4 )
@@ -993,7 +990,6 @@ typedef struct {
 
 	renderPass_t renderPassIndex;
 
-	uint32_t image_chunk_size;
 	uint32_t maxBoundDescriptorSets;
 
 	// How many sets the main pipeline layout has: the full VK_DESC_COUNT, or
@@ -1189,6 +1185,7 @@ uint32_t	vk_append_uniform( const void *uniform, size_t size, uint32_t min_offse
 void		R_SetColorMappings( void );
 void		R_LightScaleTexture( byte *in, int inwidth, int inheight, qboolean only_gamma );
 void		ResampleTexture( unsigned *in, int inwidth, int inheight, unsigned *out, int outwidth, int outheight );
+byte		*R_ResampleRowScratch( size_t size );
 void		R_BlendOverTexture( unsigned char *data, const uint32_t pixelCount, const uint32_t l );
 void		R_MipMap( byte *out, byte *in, int width, int height );
 void		R_MipMap2( unsigned* const out, unsigned* const in, int inWidth, int inHeight );

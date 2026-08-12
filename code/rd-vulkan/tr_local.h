@@ -65,7 +65,24 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #define MAX_LITSURFS			( MAX_DRAWSURFS )
 #define	MAX_FLARES				256
 	
-#define MAX_TEXTURE_SIZE		2048 // must be less or equal to 32768
+// The widest texture the renderer will keep, before the hardware's own limit is
+// applied on top of it. This was 2048, and the number came from two places that
+// had both stopped being true:
+//
+//   ResampleTexture kept its two column tables as fixed arrays of 2048 on the
+//   stack, so anything wider could not be indexed. They are scratch-allocated
+//   now;
+//
+//   maxTextureSize was additionally clamped so that one image fitted inside
+//   IMAGE_CHUNK_SIZE, the unit of the renderer's own image memory allocator.
+//   That allocator no longer exists - images go through VMA - and the constant
+//   was governing nothing but this.
+//
+// What is left is arithmetic. ResampleTexture computes inwidth * 0x10000 in an
+// integer to get a 16.16 step, so the width has to stay below 32768; the next
+// power of two down is the ceiling, and hardware reporting less than that wins
+// anyway (see vk_init.cpp).
+#define MAX_TEXTURE_SIZE		16384
 #define MAX_TEXTURE_UNITS		8
 
 #define USE_BUFFER_CLEAR		/* clear attachments on render pass begin */

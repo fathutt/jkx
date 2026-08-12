@@ -358,11 +358,25 @@ void ResampleTexture( unsigned *in, int inwidth, int inheight, unsigned *out,
     int		i, j;
     unsigned* inrow, * inrow2;
     unsigned	frac, fracstep;
-    unsigned	p1[2048], p2[2048];
+    unsigned	*p1, *p2;
     byte* pix1, * pix2, * pix3, * pix4;
 
-    if (outwidth > 2048)
-        Com_Error(ERR_DROP, "ResampleTexture: max width");
+    // These two were fixed arrays of 2048 on the stack, and that number was the
+    // real reason the renderer refused to keep a texture wider than 2048 texels:
+    // MAX_TEXTURE_SIZE existed to stop this function from being called with
+    // anything it could not index. Sixteen kilobytes of stack is also not
+    // nothing on a thread that is several frames deep in the loader.
+    //
+    // The ceiling that is left is arithmetic rather than storage. fracstep is
+    // inwidth in 16.16 fixed point, so inwidth has to stay under 32768 for
+    // inwidth * 0x10000 to fit in the integer it is computed in - which is where
+    // MAX_TEXTURE_SIZE now sits, one power of two below.
+    if ( outwidth > MAX_TEXTURE_SIZE || inwidth > MAX_TEXTURE_SIZE )
+        Com_Error( ERR_DROP, "ResampleTexture: %dx%d is past MAX_TEXTURE_SIZE %d",
+            inwidth, inheight, MAX_TEXTURE_SIZE );
+
+    p1 = (unsigned *)R_ResampleRowScratch( (size_t)outwidth * 2 * sizeof( unsigned ) );
+    p2 = p1 + outwidth;
 
     fracstep = inwidth * 0x10000 / outwidth;
 

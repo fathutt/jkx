@@ -576,13 +576,19 @@ void vk_initialize( void )
 		}
 	}
 
-	// maxTextureSize must not exceed IMAGE_CHUNK_SIZE
-	glConfig.maxTextureSize = MIN( props.limits.maxImageDimension2D, log2pad( sqrtf( IMAGE_CHUNK_SIZE / 4 ), 0 ) );
-	if ( glConfig.maxTextureSize > MAX_TEXTURE_SIZE )
-		glConfig.maxTextureSize = MAX_TEXTURE_SIZE; // ResampleTexture() relies on that maximum
-
-	// default chunk size, may be doubled on demand
-	vk.image_chunk_size = IMAGE_CHUNK_SIZE; 
+	// What the device will actually make, bounded by what this renderer's own
+	// image processing can address. It used to be bounded a third time, by the
+	// size of one IMAGE_CHUNK_SIZE block, so that an image fitted inside a single
+	// chunk of the renderer's image memory allocator - and that allocator has
+	// been gone for some time. Images are VMA allocations now; the chunk size was
+	// read nowhere else, and all it did was hold every texture in the game to
+	// 2048 texels on hardware that reports 16384.
+	//
+	// It is worth knowing what that cost, because it was not only texture packs:
+	// R_DissolveCaptureScreen grabs the framebuffer, so on a 5120-wide screen the
+	// wipe between the intro crawl and the level was being captured at a quarter
+	// of the width it was drawn at.
+	glConfig.maxTextureSize = MIN( props.limits.maxImageDimension2D, MAX_TEXTURE_SIZE );
 
 	// maxActiveTextures must not exceed MAX_TEXTURE_UNITS
 	if ( props.limits.maxPerStageDescriptorSamplers != 0xFFFFFFFF )

@@ -109,6 +109,7 @@ typedef struct imageScratch_s {
 	imageScratchBuffer_t mip;
 	imageScratchBuffer_t compress;
 	imageScratchBuffer_t convert;
+	imageScratchBuffer_t resampleRows;
 } imageScratch_t;
 
 static imageScratch_t s_imageScratch;
@@ -134,6 +135,24 @@ static byte* R_ImageScratchAlloc( imageScratchBuffer_t *scratch, size_t size )
 	return scratch->buffer;
 }
 
+/*
+================
+R_ResampleRowScratch
+
+The two column tables ResampleTexture walks. They live here rather than on its
+stack because their length is the width of the widest texture the renderer will
+accept, and that is no longer a number small enough to put on a stack: as fixed
+arrays of 2048 they were the reason MAX_TEXTURE_SIZE was 2048.
+
+Narrow on purpose. The scratch buffers are private to this file and should stay
+that way; what the resampler needs is some bytes, not the allocator.
+================
+*/
+byte *R_ResampleRowScratch( size_t size )
+{
+	return R_ImageScratchAlloc( &s_imageScratch.resampleRows, size );
+}
+
 void R_InitImageScratch(void) 
 {
 	Com_Memset( &s_imageScratch, 0, sizeof(s_imageScratch) );
@@ -155,6 +174,7 @@ void R_DestroyImageScratch( void )
 	R_FreeScratch( &s_imageScratch.mip );
 	R_FreeScratch( &s_imageScratch.compress );
 	R_FreeScratch( &s_imageScratch.convert );
+	R_FreeScratch( &s_imageScratch.resampleRows );
 
 	Com_Memset( &s_imageScratch, 0, sizeof(s_imageScratch) );
 }
