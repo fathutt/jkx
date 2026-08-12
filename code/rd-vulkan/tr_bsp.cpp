@@ -2653,7 +2653,20 @@ static void R_LoadLightGridArray( const lump_t *l, world_t &worldData ) {
 	w->numGridArrayElements = w->lightGridBounds[0] * w->lightGridBounds[1] * w->lightGridBounds[2];
 
 	if ( (unsigned)l->filelen != w->numGridArrayElements * sizeof(*w->lightGridArray) ) {
-		vk_debug("WARNING: light grid array mismatch\n" );
+		// Loud, and in a release build. What this branch does is throw the map's
+		// light grid away - every model in it is then lit by the fall-back in
+		// R_SetupEntityLighting instead of by the map - and it used to say so
+		// only through vk_debug, which is compiled out. A map whose lighting is
+		// quietly not the lighting it was built with is worth a line.
+		//
+		// The bench ran in exactly this state for months: its generated map
+		// shipped both grid lumps empty, so the size check failed every time and
+		// the grid path was never executed at all.
+		CL_RefPrintf( PRINT_WARNING,
+			"WARNING: light grid array is %d bytes, expected %u for %d x %d x %d cells;"
+			" the grid is being discarded and models will not be lit by the map\n",
+			l->filelen, (unsigned)( w->numGridArrayElements * sizeof( *w->lightGridArray ) ),
+			w->lightGridBounds[0], w->lightGridBounds[1], w->lightGridBounds[2] );
 		w->lightGridData = NULL;
 		return;
 	}

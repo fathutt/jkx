@@ -256,6 +256,15 @@ python3 "$HERE/make_test_sky.py" --mask "$RUN/base/textures/common/dissolve.tga"
 # The sky room's floor carries a texture wider than the renderer used to keep.
 # See the shader, and the require below.
 python3 "$HERE/make_test_sky.py" --wide "$RUN/base/textures/jkx/wide.tga" >/dev/null
+# Both rooms are generated. jkx_room.bsp used to be a committed copy of this
+# generator's output, and the two drifted the moment the generator learned to
+# write a light grid: the run kept loading a map without one and the check for it
+# failed while the generator's own self-test passed. A generated artifact that is
+# also committed is two sources of truth.
+#
+# jkx_smoke.bsp stays committed, because it is not this generator's output - it
+# is a deliberately truncated file, and the point of it is to be broken.
+python3 "$HERE/make_test_bsp.py" "$RUN/base/maps/jkx_room.bsp" >/dev/null
 python3 "$HERE/make_test_bsp.py" "$RUN/base/maps/jkx_room2.bsp" \
     --shader textures/jkx/wide --sky textures/jkx/sky >/dev/null
 
@@ -354,6 +363,14 @@ forbid() {
 # the map until the kill. Two hours went into looking for a hang in the weather
 # code, which had only been the thing that pushed the count over the line.
 forbid 'were dropped and will not run'
+
+# The map's light grid has to actually load. Both of its lumps used to be empty
+# in the generated map, which fails the size check in R_LoadLightGridArray and
+# throws the grid away - so every headless run lit its models by the fall-back
+# and never once executed R_SetupEntityLightingGrid, the eight-way interpolation
+# every model in every real map goes through. The warning this forbids is the
+# one that branch now prints.
+forbid 'the grid is being discarded'
 
 # There is one renderer and it is inside the engine, so this is a check that it
 # started rather than a check on which one started.

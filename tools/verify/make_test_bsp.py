@@ -35,6 +35,7 @@ fail loudly - it produces a map that loads and draws in the wrong place - so it
 is worth checking the arithmetic separately from running the engine.
 """
 
+import math
 import struct
 import sys
 
@@ -336,6 +337,77 @@ def surfaces(sky=False):
     return out
 
 
+# The light grid: how the world lights everything that is not part of it.
+#
+# Every model in every real map is lit by asking this grid where it stands -
+# R_SetupEntityLightingGrid - and the fixture shipped both of its lumps empty,
+# which is not the same as shipping a dark map. An empty LUMP_LIGHTARRAY fails
+# the size check in R_LoadLightGridArray, which nulls lightGridData and returns;
+# the warning it prints goes through vk_debug, so a release build says nothing at
+# all. Every headless run so far has therefore exercised the fall-back branch and
+# never the grid.
+#
+# The engine derives the grid's shape from the world model's bounds rather than
+# from anything in these lumps, so the array length is not a free choice - get it
+# wrong and the load silently reverts to the state described above. The
+# arithmetic below is R_LoadLightGrid's, repeated, and the self-check compares
+# the two.
+GRID_SIZE = (64.0, 64.0, 128.0)     # the engine's default, and no worldspawn key
+
+
+def light_grid_bounds():
+    """Cells per axis, by the engine's own formula."""
+    mins = (-HALF, -HALF, FLOOR_Z)
+    maxs = (HALF, HALF, HALF)
+    out = []
+    for i in range(3):
+        step = GRID_SIZE[i]
+        origin = step * math.ceil(mins[i] / step)
+        top = step * math.floor(maxs[i] / step)
+        out.append(int((top - origin) / step) + 1)
+    return out
+
+
+# One cell's worth of light, reused by every cell. A strong colour rather than a
+# plausible one: the question this fixture asks is whether the grid was read at
+# all, and a tasteful grey is indistinguishable from the fall-back.
+#
+# Ambient is what reaches a surface from everywhere, directed is what arrives
+# along latLong. Both are shifted by R_ColorShiftLightingBytes on load, so these
+# are not the numbers that come out the other end.
+GRID_AMBIENT = (160, 32, 32)
+GRID_DIRECT = (255, 64, 64)
+GRID_LATLONG = (32, 64)
+
+
+def lightgrid():
+    """A single mgrid_t: ambient, directed, styles, and a direction.
+
+    Thirty bytes, and the layout is four lightmap styles deep like everything
+    else in RBSP: byte ambient[4][3], byte direct[4][3], byte styles[4],
+    byte latLong[2].
+    """
+    out = bytearray()
+    for _ in range(MAXLIGHTMAPS):
+        out += bytes(GRID_AMBIENT)
+    for _ in range(MAXLIGHTMAPS):
+        out += bytes(GRID_DIRECT)
+    out += bytes([LS_NORMAL] + [LS_NONE] * 3)
+    out += bytes(GRID_LATLONG)
+    return bytes(out)
+
+
+def lightarray():
+    """One unsigned short per cell, all naming the single grid record.
+
+    R_LoadLightGridArray checks this length against the bounds it derived
+    itself, and on a mismatch it throws the grid away rather than failing - so
+    the length is the whole contract.
+    """
+    x, y, z = light_grid_bounds()
+    return struct.pack("<%dH" % (x * y * z), *([0] * (x * y * z)))
+
+
 def visibility():
     """One cluster that can see itself.
 
@@ -393,9 +465,9 @@ def build(visible_shader, sky_shader=None):
         LUMP_FOGS: b"",
         LUMP_SURFACES: surfaces(sky),
         LUMP_LIGHTMAPS: b"",
-        LUMP_LIGHTGRID: b"",
+        LUMP_LIGHTGRID: lightgrid(),
         LUMP_VISIBILITY: visibility(),
-        LUMP_LIGHTARRAY: b"",
+        LUMP_LIGHTARRAY: lightarray(),
     }
 
     header_size = 8 + HEADER_LUMPS * 8
@@ -431,6 +503,8 @@ RECORD_SIZES = {
     LUMP_BRUSHSIDES: 12,
     LUMP_DRAWVERTS: 12 + 8 + 8 * MAXLIGHTMAPS + 12 + 4 * MAXLIGHTMAPS,
     LUMP_DRAWINDEXES: 4,
+    LUMP_LIGHTGRID: 30,     # byte[4][3] + byte[4][3] + byte[4] + byte[2]
+    LUMP_LIGHTARRAY: 2,
     LUMP_FOGS: MAX_QPATH + 8,
     LUMP_SURFACES: 12 + 8 + 8 + 8 + 16 + 16 + 16 + 8 + 12 + 36 + 8,
 }
