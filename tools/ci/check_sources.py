@@ -1,20 +1,23 @@
 #!/usr/bin/env python3
-"""Keep code/rd-vulkan/CMakeLists.txt honest about what is on disk.
+"""Keep the CMake source lists honest about what is on disk.
 
-That CMakeLists now has a real target behind it (BuildSPRdVulkan), but the
-target is off by default because it does not compile yet, so an ordinary build
-still never reads the list. It remains documentation for now - and undetected
-documentation drifts. By the
-time this check was written it had: five source files on disk that it never
-mentioned, including three added by this project, and nineteen vendored Vulkan
-headers that were deleted when the renderer moved to volk.
+An unbuilt source file is worse than a deleted one. It reads as live code, it
+turns up in searches, it gets edited - and none of that reaches a binary, so
+nothing ever says so. This check exists because the renderer's list had drifted
+that way: five sources on disk it never mentioned, including three added by this
+project, and nineteen vendored Vulkan headers deleted when the renderer moved to
+volk.
 
-None of that broke a build, which is the point. It would have broken the first
-build of phase 2, months from now, in the middle of much harder work.
+The renderer was checked from the start. The gamecode was not, and it had
+drifted the same way: code/game/g_vehicleLoad.cpp - a 435-line predecessor of
+the 1715-line bg_vehicleLoad.cpp that is actually built - plus three files in
+codeJK2/icarus, all four in no source list and included by nothing. Deleting a
+file that nothing compiles cannot change a binary, which is exactly why nobody
+noticed them for years.
 
-The rule is one-directional where it has to be: every .cpp and .c under
-code/rd-vulkan must be listed, and every path listed must exist. Headers are
-not required to be listed - the list carries them for IDE grouping, not for
+The rule is one-directional where it has to be: every .cpp and .c under a
+watched directory must be listed, and every path listed must exist. Headers are
+not required to be listed - the lists carry them for IDE grouping, not for
 correctness - but a listed header that no longer exists is still an error.
 """
 
@@ -22,66 +25,84 @@ import re
 import sys
 from pathlib import Path
 
-CMAKE = Path("code/rd-vulkan/CMakeLists.txt")
-ROOT = Path("code/rd-vulkan")
 
-# Third-party and generated trees. shaders/ is built by tools/shadergen and
-# checked by its own gate; utils/ is vendored stb and mikktspace, listed
-# separately and deliberately not tracked file by file.
-SKIP_DIRS = {"shaders"}
+class Watched:
+    """One CMakeLists, one directory, and the variable its paths start with."""
+
+    def __init__(self, cmake: str, root: str, prefix: str, skip=()):
+        self.cmake = Path(cmake)
+        self.root = Path(root)
+        self.prefix = prefix
+        self.skip = set(skip)
+
+    def listed(self, text: str) -> set[str]:
+        pattern = r'\$\{%s\}/%s/([^"]+)"' % (
+            re.escape(self.prefix[2:-1]), re.escape(self.root.name))
+        return set(re.findall(pattern, text))
+
+    def on_disk(self) -> set[str]:
+        found = set()
+        for path in self.root.rglob("*"):
+            if not path.is_file() or path.suffix not in SOURCE_SUFFIXES:
+                continue
+            rel = path.relative_to(self.root)
+            if self.skip & set(rel.parts):
+                continue
+            found.add(rel.as_posix())
+        return found
+
 
 SOURCE_SUFFIXES = {".cpp", ".c"}
 
-
-def listed_paths(text: str) -> set[str]:
-    """Every "${SPDir}/rd-vulkan/<path>" the file mentions.
-
-    MPDir was the prefix while the list was still the multiplayer fork's,
-    copied verbatim and built by nothing here. It is SPDir now that the target
-    exists in this tree.
-    """
-    return set(re.findall(r'\$\{SPDir\}/rd-vulkan/([^"]+)"', text))
-
-
-def disk_sources() -> set[str]:
-    found = set()
-    for path in ROOT.rglob("*"):
-        if not path.is_file() or path.suffix not in SOURCE_SUFFIXES:
-            continue
-        rel = path.relative_to(ROOT)
-        if SKIP_DIRS & set(rel.parts):
-            continue
-        found.add(rel.as_posix())
-    return found
+# shaders/ is built by tools/shadergen and checked by its own gate.
+WATCHED = [
+    Watched("code/rd-vulkan/CMakeLists.txt", "code/rd-vulkan", "${SPDir}",
+            skip={"shaders"}),
+    Watched("code/game/CMakeLists.txt", "code/game", "${SPDir}"),
+    Watched("code/game/CMakeLists.txt", "code/cgame", "${SPDir}"),
+    Watched("code/game/CMakeLists.txt", "code/icarus", "${SPDir}"),
+    Watched("codeJK2/game/CMakeLists.txt", "codeJK2/game", "${JK2SPDir}"),
+    Watched("codeJK2/game/CMakeLists.txt", "codeJK2/cgame", "${JK2SPDir}"),
+    Watched("codeJK2/game/CMakeLists.txt", "codeJK2/icarus", "${JK2SPDir}"),
+]
 
 
 def main() -> int:
-    if not CMAKE.is_file():
-        print(f"not found: {CMAKE}", file=sys.stderr)
-        print("run this from the top of the repository", file=sys.stderr)
-        return 2
+    failed = 0
+    checked = 0
 
-    text = CMAKE.read_text(encoding="utf-8")
-    listed = listed_paths(text)
-    sources = disk_sources()
+    for watch in WATCHED:
+        if not watch.cmake.is_file():
+            print(f"not found: {watch.cmake}", file=sys.stderr)
+            print("run this from the top of the repository", file=sys.stderr)
+            return 2
 
-    missing = sorted(sources - listed)
-    stale = sorted(p for p in listed if not (ROOT / p).exists())
+        text = watch.cmake.read_text(encoding="utf-8")
+        listed = watch.listed(text)
+        sources = watch.on_disk()
 
-    for path in missing:
-        print(f"error: {path} is in code/rd-vulkan but not in its CMakeLists.txt")
-    for path in stale:
-        print(f"error: CMakeLists.txt lists {path}, which does not exist")
+        missing = sorted(sources - listed)
+        stale = sorted(p for p in listed if not (watch.root / p).exists())
 
-    if missing or stale:
+        for path in missing:
+            print(f"error: {watch.root}/{path} is on disk but in no source list")
+            failed += 1
+        for path in stale:
+            print(f"error: {watch.cmake} lists {watch.root}/{path}, "
+                  f"which does not exist")
+            failed += 1
+
+        checked += len(sources)
+
+    if failed:
         print()
-        print("The renderer's CMakeLists is not compiled yet, so nothing else would")
-        print("have told you. Add the new sources to SPRDVulkanFiles, and drop")
-        print("the entries for files that are gone.")
+        print("A source file that is in no list is not compiled, so nothing else")
+        print("would have told you. Either add it to the list or delete it -")
+        print("leaving it on disk is the option that costs the next person time.")
         return 1
 
-    print(f"checked {len(sources)} source(s) against {CMAKE}")
-    print("OK: the renderer source list matches the directory")
+    print(f"checked {checked} source(s) against {len(WATCHED)} source list(s)")
+    print("OK: every source on disk is built, and every path listed exists")
     return 0
 
 
