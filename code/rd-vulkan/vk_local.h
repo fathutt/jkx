@@ -424,6 +424,12 @@ typedef struct {
 	qboolean				vbo_ghoul2;
 	qboolean				vbo_mdv;
 
+	// The depth pre-pass variant of this pipeline: same geometry, same vertex
+	// shader, no colour. It is a field of the def rather than a flag beside it
+	// because vk_find_pipeline_ext keys on a memcmp of the whole struct, so a
+	// discriminator that lives outside it does not distinguish anything.
+	qboolean				depth_only;
+
 	Vk_Shader_Type			shader_type;	
 	Vk_Shadow_Phase			shadow_phase;
 	Vk_Primitive_Topology	primitives;

@@ -2618,6 +2618,13 @@ void RB_StageIteratorGeneric( void )
 	is_ghoul2_vbo = qfalse;
 	is_mdv_vbo = qfalse;
 
+	// A surface that does not own the depth of the pixels it covers is not in
+	// the pre-pass at all. Decided once, when the shader was finished; see
+	// ComputeDepthPrepass.
+	if ( backEnd.depthPrepass && tess.shader->depthPrepass == DEPTHPREPASS_SKIP ) {
+		return;
+	}
+
 	if ( tess.vbo_model ) {
 		is_ghoul2_vbo = (qboolean)( tess.surfType == SF_MDX );
 		is_mdv_vbo = (qboolean)( tess.surfType == SF_VBO_MDVMESH );
@@ -2649,7 +2656,11 @@ void RB_StageIteratorGeneric( void )
 	fogCollapse = qfalse;
 
 #ifdef USE_FOG_COLLAPSE
-	if ( tess.fogNum && tess.shader->fogPass && tess.shader->fogCollapse && r_drawfog->value >= 2 ) {
+	// Fog is colour. It neither moves a vertex nor decides whether one is there,
+	// so in the pre-pass it would only cost a second set of pipelines that draw
+	// the same depth.
+	if ( !backEnd.depthPrepass &&
+		tess.fogNum && tess.shader->fogPass && tess.shader->fogCollapse && r_drawfog->value >= 2 ) {
 		vk_set_fog_params( &uniform, &fog_stage );
 
 		fogCollapse = qtrue;
@@ -2855,8 +2866,20 @@ void RB_StageIteratorGeneric( void )
 		
 			pipeline = vk_find_pipeline_ext( 0, &def, qfalse );
 		}
-	
-		if ( is_refraction ) 
+
+		// Whatever pipeline the stage arrived at, the pre-pass wants that exact
+		// one with colour switched off. Pulling the def back out and re-resolving
+		// - rather than building a depth pipeline from scratch - is what keeps
+		// the vertex side identical: same shader type, same bindings, same
+		// skinning, so vk_bind_geometry below feeds it what it expects and the
+		// depth it writes is the depth the main pass will find.
+		if ( backEnd.depthPrepass ) {
+			vk_get_pipeline_def( pipeline, &def );
+			def.depth_only = qtrue;
+			pipeline = vk_find_pipeline_ext( 0, &def, qfalse );
+		}
+
+		if ( is_refraction )
 		{
 			// bind extracted color image copy / blit
 			vk_update_descriptor( VK_DESC_TEXTURE0, vk.refraction_extract_descriptor );
@@ -2983,13 +3006,21 @@ void RB_StageIteratorGeneric( void )
 			break;
 
 		tess_flags = 0;
+
+		// One stage is the whole of the pre-pass. Later stages add colour to a
+		// surface whose extent the first one already fixed, so drawing them
+		// would write the same depth a second time.
+		if ( backEnd.depthPrepass ) {
+			break;
+		}
 	}
 
 	if (tess_flags) // fog-only shaders?
 		vk_bind_geometry(tess_flags);
 
 	// now do fog
-	if ( tr.world && r_drawfog->value && tess.fogNum && tess.shader->fogPass && !fogCollapse ) {
+	if ( !backEnd.depthPrepass &&
+		tr.world && r_drawfog->value && tess.fogNum && tess.shader->fogPass && !fogCollapse ) {
 		RB_FogPass();
 	}
 

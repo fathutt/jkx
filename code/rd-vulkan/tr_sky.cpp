@@ -987,6 +987,19 @@ Other things could be stuck in here, like birds in the sky, etc
 */
 void RB_StageIteratorSky( void )
 {
+	// The sky is not in the depth pre-pass, and this is the guard that says so:
+	// the sky iterator is a second entry point into drawing, so the check that
+	// RB_StageIteratorGeneric makes against the shader's classification never
+	// reaches here.
+	//
+	// It has to be said out loud rather than left to the classification because
+	// the sky writes no depth at all - both of its pipelines have state_bits of
+	// zero and it sits at DEPTH_RANGE_ONE - so a depth pre-pass that drew it
+	// would spend a full screen of fill on a buffer it cannot change.
+	if ( backEnd.depthPrepass ) {
+		return;
+	}
+
 	// r_fastsky means "do not draw the sky, leave whatever cleared the
 	// attachment showing". Both spellings of that had one body between them:
 	//

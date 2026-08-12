@@ -718,20 +718,92 @@ static void RB_SubmitRenderPass( Pass& renderPass, Allocator& allocator )
 RB_RenderDrawSurfList
 ==================
 */
-static void RB_RenderDrawSurfList( drawSurf_t *drawSurfs, int numDrawSurfs ) 
+/*
+=================
+RB_DepthPrepass
+
+Draw the opaque half of the list into depth alone, before anything is shaded.
+
+Nothing about the picture changes: the same geometry writes the same depth it
+would have written anyway, just earlier and with colour masked off. What changes
+is that by the time the main sweep runs, the depth buffer already holds the
+nearest opaque surface for most of the screen, so the hardware can throw away
+occluded fragments before their shader runs. On a PBR fragment shader that is
+the difference between shading a pixel once and shading it as many times as
+there are walls behind it.
+
+It is the ordinary surface loop, run twice. That is the expensive way to do it
+and it is the only way that is certainly right: a pre-pass with its own
+position-only vertex shader has to reimplement skinning, deforms and every
+entity transform, and the moment it disagrees by a bit the main pass fails its
+depth test and the surface disappears. Running the real path means the two
+cannot disagree, because they are the same code.
+
+Not free, and worth saying plainly: the front end's work is done once, but every
+surface is tessellated and every stage's texture coordinates and colours are
+computed a second time for a pass that throws the colour away. World geometry
+lives in a VBO and does not pay this; models do. That is the reason this is off
+by default until it has been measured on hardware that has a hardware early-Z to
+gain from - lavapipe, which is what the smoke test runs on, has nothing to gain
+and would only show the cost.
+=================
+*/
+static void RB_DepthPrepass( drawSurf_t *drawSurfs, int numDrawSurfs, float originalTime )
+{
+	void *allocMark;
+
+	if ( !r_depthPrepass->integer ) {
+		return;
+	}
+
+	// A glow pass draws a filtered subset into its own attachment, and a
+	// refraction fill deliberately leaves the refracted surfaces out. Neither is
+	// the pass whose depth the scene is built on, and laying depth down in front
+	// of either would only remove surfaces from it.
+	if ( backEnd.isGlowPass || backEnd.refractionFill ) {
+		return;
+	}
+
+	allocMark = backEndData->perFrameMemory->Mark();
+	backEndData->currentPass = RB_CreatePass( *backEndData->perFrameMemory, numDrawSurfs );
+
+	backEnd.depthPrepass = qtrue;
+	backEnd.currentEntity = &tr.worldEntity;
+
+	RB_SubmitDrawSurfs( drawSurfs, numDrawSurfs, originalTime );
+
+	RB_SubmitRenderPass( *backEndData->currentPass, *backEndData->perFrameMemory );
+
+	backEnd.depthPrepass = qfalse;
+
+	backEndData->perFrameMemory->ResetTo( allocMark );
+	backEndData->currentPass = nullptr;
+
+	backEnd.refdef.floatTime = originalTime;
+
+	// The sweep walked entities, so both of these are wherever the last one left
+	// them. The main sweep starts from the world and will set its own, but it
+	// compares against what it thinks is current before doing so.
+	Com_Memcpy( vk_world.modelview_transform, backEnd.viewParms.world.modelViewMatrix, 64 );
+	vk_set_depthrange( DEPTH_RANGE_NORMAL );
+}
+
+static void RB_RenderDrawSurfList( drawSurf_t *drawSurfs, int numDrawSurfs )
 {
 	void *allocMark = nullptr;
 
 
 	const int estimatedNumShaderStages = 4;
 
-	allocMark = backEndData->perFrameMemory->Mark();
-	backEndData->currentPass = RB_CreatePass( *backEndData->perFrameMemory, 
-		numDrawSurfs * estimatedNumShaderStages );
-
 	// save original time for entity shader offsets
 	float originalTime = backEnd.refdef.floatTime;
-	
+
+	RB_DepthPrepass( drawSurfs, numDrawSurfs, originalTime );
+
+	allocMark = backEndData->perFrameMemory->Mark();
+	backEndData->currentPass = RB_CreatePass( *backEndData->perFrameMemory,
+		numDrawSurfs * estimatedNumShaderStages );
+
 	backEnd.currentEntity	= &tr.worldEntity;
 	backEnd.pc.c_surfaces	+= numDrawSurfs;
 

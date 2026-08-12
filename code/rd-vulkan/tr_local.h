@@ -700,6 +700,19 @@ typedef struct fogParms_s {
 	float	depthForOpaque;
 } fogParms_t;
 
+// What a shader costs to draw into depth alone, which is a different question
+// from what it costs to draw properly. The depth pre-pass asks it once, at load
+// time, rather than working it out per surface per frame.
+//
+// SKIP is not "cheap", it is "must not": a blended surface does not own the
+// depth of the pixels it covers, and writing its depth early would occlude
+// whatever is meant to show through it.
+typedef enum {
+	DEPTHPREPASS_ALPHATESTED,	// needs its texture and its alpha test to know the shape
+	DEPTHPREPASS_SIMPLE,		// geometry alone decides the shape
+	DEPTHPREPASS_SKIP			// contributes no depth of its own
+} depthPrepass_t;
+
 typedef struct shader_s {
 	char		name[MAX_QPATH];					// game path, including extension
 	int			lightmapSearchIndex[MAXLIGHTMAPS];	// for a shader to match, both name and lightmapIndex must match
@@ -740,6 +753,8 @@ typedef struct shader_s {
 	unsigned	noTC:1;								// for images that don't want to be texture compressed (eg skies)
 
 	fogPass_t	fogPass;							// draw a blended pass, possibly with depth test equals
+
+	depthPrepass_t	depthPrepass;					// how this shader takes part in the depth pre-pass
 
 	qboolean	fogCollapse;
 	int			tessFlags;
@@ -1712,6 +1727,12 @@ typedef struct backEndState_s {
 
 	qboolean hasRefractionSurfaces;
 	qboolean refractionFill;
+
+	// Set while the depth pre-pass sweep is running. The sweep is the ordinary
+	// surface loop - same tessellation, same skinning, same deforms - with the
+	// stage iterator asked to draw depth and nothing else, which is what makes
+	// it impossible for the two passes to disagree about where a vertex is.
+	qboolean depthPrepass;
 } backEndState_t;
 
 typedef struct drawSurfsCommand_s drawSurfsCommand_t;
@@ -2056,6 +2077,7 @@ extern	cvar_t	*r_uiFullScreen;		// ui is running fullscreen
 extern	cvar_t	*r_logFile;				// number of frames to emit GL logs
 extern	cvar_t	*r_showtris;			// enables wireframe rendering of the world
 extern	cvar_t	*r_showsky;				// forces sky in front of all surfaces
+extern	cvar_t	*r_depthPrepass;		// lay down opaque depth before shading
 extern	cvar_t	*r_shownormals;			// draws wireframe normals
 extern	cvar_t	*r_clear;				// force screen clear every frame
 

@@ -4325,6 +4325,85 @@ static qboolean EqualTCgen( int bundle, const shaderStage_t *st1, const shaderSt
 
 /*
 ===================
+ComputeDepthPrepass
+
+How this shader takes part in the depth pre-pass, decided once here rather than
+per surface per frame.
+
+Three conditions have to hold before a surface may write depth ahead of the
+scene, and each of them is a correctness condition rather than a saving:
+
+  - it has to be opaque. SS_OPAQUE is the sort class, and everything after it
+    either blends or is a decal that leans on the depth somebody else wrote.
+    A blended surface does not own the depth of the pixels it covers;
+  - it must not deform. A deform moves vertices at draw time, and the pre-pass
+    would have to move them identically or write depth for geometry that is not
+    where the main pass puts it. That is checked rather than arranged: the whole
+    point of running the pre-pass through the ordinary tessellation path is that
+    it cannot disagree - but numDeforms is cheap insurance and it is what the
+    reference implementation does;
+  - its first stage must not blend. A shader whose first stage is additive
+    contributes light, not surface.
+
+What is left is the distinction between the two kinds that do write depth: a
+stage with an alpha test needs its texture to know its own shape, and one
+without does not. The second can be drawn with nothing bound.
+
+Only the first active stage is examined, and deliberately so: it is the one that
+decides whether the surface is there at all. Later stages add to a surface whose
+extent the first one already fixed.
+===================
+*/
+static void ComputeDepthPrepass( void )
+{
+	int i;
+
+	// Everything past SS_OPAQUE either blends or leans on depth somebody else
+	// wrote, and the sky before it is at the far plane by construction. Asked
+	// here rather than in the back end so that one place decides and the sweep
+	// only has to ask.
+	if ( shader.sort != SS_OPAQUE ) {
+		shader.depthPrepass = DEPTHPREPASS_SKIP;
+		return;
+	}
+
+	// The conservative answer, and the one a shader keeps unless it earns
+	// something better - including every deforming shader. A deform is not a
+	// reason to skip: the sweep runs the ordinary tessellation path, so the
+	// vertices it writes depth for are the ones the main pass will draw. It is
+	// only a reason not to call the shader simple.
+	shader.depthPrepass = DEPTHPREPASS_ALPHATESTED;
+
+	if ( shader.numDeforms != 0 ) {
+		return;
+	}
+
+	for ( i = 0; i < MAX_SHADER_STAGES; i++ ) {
+		const shaderStage_t *pStage = &stages[i];
+
+		if ( !pStage->active ) {
+			continue;
+		}
+
+		if ( pStage->stateBits & ( GLS_SRCBLEND_BITS | GLS_DSTBLEND_BITS ) ) {
+			// Sorted opaque and yet its first stage blends. That is a surface
+			// which adds light to what is behind it rather than replacing it,
+			// and writing its depth would hide what it is adding to.
+			shader.depthPrepass = DEPTHPREPASS_SKIP;
+		} else if ( !( pStage->stateBits & GLS_ATEST_BITS ) ) {
+			// Nothing can discard, so the driver is free to throw the fragment
+			// shader away entirely once the pre-pass masks colour off. That is
+			// where most of the saving in this whole feature lives, and it falls
+			// out of the state bits rather than out of a second shader.
+			shader.depthPrepass = DEPTHPREPASS_SIMPLE;
+		}
+
+		return;
+	}
+}
+
+/*
+===================
 ComputeStageIteratorFunc
 
 See if we can use on of the simple fastpath stage functions,
@@ -5040,6 +5119,8 @@ shader_t *FinishShader( void )
 			}
 		}
 	}
+
+	ComputeDepthPrepass();
 
 	// determine which stage iterator function is appropriate
 	ComputeStageIteratorFunc();

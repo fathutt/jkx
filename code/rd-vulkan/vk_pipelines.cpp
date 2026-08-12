@@ -1298,6 +1298,24 @@ VkPipeline vk_create_pipeline( const Vk_Pipeline_Def *def, renderPass_t renderPa
 #else
     depth_stencil_state.depthCompareOp = (def->state_bits & GLS_DEPTHFUNC_EQUAL) ? VK_COMPARE_OP_EQUAL : VK_COMPARE_OP_LESS_OR_EQUAL;
 #endif
+
+    // The pre-pass writes depth and nothing else, and it has to write it
+    // whatever the stage's own state bits say: a stage that does not write
+    // depth in the main pass - because something before it already did - would
+    // otherwise contribute nothing here and the pre-pass would have holes in it.
+    //
+    // The compare stays ordinary. EQUAL is the state a stage uses when it is the
+    // second pass over geometry the first pass already placed, and in the
+    // pre-pass there is no first pass to be equal to.
+    if ( def->depth_only ) {
+        depth_stencil_state.depthTestEnable = VK_TRUE;
+        depth_stencil_state.depthWriteEnable = VK_TRUE;
+#ifdef USE_REVERSED_DEPTH
+        depth_stencil_state.depthCompareOp = VK_COMPARE_OP_GREATER_OR_EQUAL;
+#else
+        depth_stencil_state.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+#endif
+    }
     depth_stencil_state.depthBoundsTestEnable = VK_FALSE;
     depth_stencil_state.stencilTestEnable = (def->shadow_phase != SHADOW_DISABLED) ? VK_TRUE : VK_FALSE;
     depth_stencil_state.minDepthBounds = 0.0f;
@@ -1337,7 +1355,11 @@ VkPipeline vk_create_pipeline( const Vk_Pipeline_Def *def, renderPass_t renderPa
     Com_Memset(&attachment_blend_state, 0, sizeof(attachment_blend_state));
     attachment_blend_state.blendEnable = (def->state_bits & (GLS_SRCBLEND_BITS | GLS_DSTBLEND_BITS)) ? VK_TRUE : VK_FALSE;
 
-    if ( def->shadow_phase == SHADOW_EDGES || def->shader_type == TYPE_DOT ) {
+    if ( def->depth_only ) {
+        attachment_blend_state.blendEnable = VK_FALSE;
+    }
+
+    if ( def->depth_only || def->shadow_phase == SHADOW_EDGES || def->shader_type == TYPE_DOT ) {
         attachment_blend_state.colorWriteMask = 0;
     }
     else {
