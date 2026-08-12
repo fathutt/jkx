@@ -714,6 +714,164 @@ void RB_DrawSun( float scale, shader_t *shader ) {
 
 /*
 ================
+R_BuildSkyCubemap
+
+Six flat images and a set of conventions about their orientation, gathered into
+one cube that can be sampled by direction.
+
+Why bother: the seams. Each face is a separate texture clamped to its own edge,
+so the last texel of one and the first texel of its neighbour are different
+colours with a hard line between them, and no amount of texture-coordinate
+inset reaches that - the inset fixes sampling PAST an edge, and the problem is
+what is AT it. A cubemap has no seams because the hardware filters across faces.
+
+The orientation is not guessed. For every texel of every cube face this asks
+which box face that direction belongs to and where on it, using the same two
+tables the box path uses - see tr_sky_projection.h, where they live with a test
+that round-trips them against each other. Whatever the box drew for a direction,
+the cube now holds for that direction, by construction rather than by
+inspection.
+
+Returns NULL when the faces cannot be read, and that is not a failure: the box
+path is still there and still correct, and a map whose sky images are missing
+should look the way it looked before.
+================
+*/
+static image_t *R_BuildSkyCubemap( const char *baseName )
+{
+	static const char *suf[6] = { "rt", "bk", "lf", "ft", "up", "dn" };
+
+	byte	*pics[6] = { NULL };
+	int		widths[6], heights[6];
+	char	pathname[MAX_QPATH];
+	int		i, size, face, x, y;
+	byte	*faceData;
+	image_t	*cube = NULL;
+
+	// Read the six, and give up quietly if any of them is missing or is not
+	// square: the cube's faces have to agree on one size, and picking one for
+	// them is a decision this has no business making.
+	if ( !r_skyCubemap->integer ) {
+		return NULL;
+	}
+
+	size = 0;
+	for ( i = 0; i < 6; i++ ) {
+		Com_sprintf( pathname, sizeof( pathname ), "%s_%s", baseName, suf[i] );
+		R_LoadImage( pathname, &pics[i], &widths[i], &heights[i] );
+
+		if ( pics[i] == NULL || widths[i] != heights[i] || widths[i] < 1 ) {
+			goto done;
+		}
+		if ( size == 0 ) {
+			size = widths[i];
+		} else if ( widths[i] != size ) {
+			goto done;
+		}
+	}
+
+	// One mip. The sky is drawn at roughly one texel per pixel and never gets
+	// far enough away to want a smaller one, and a mip chain that nothing fills
+	// is worse than no mip chain at all.
+	// The format has to be said out loud. R_CreateImage picks one from the
+	// pixels it is given, and a cubemap is created empty and filled afterwards,
+	// so there are no pixels to pick from - it comes out VK_FORMAT_UNDEFINED,
+	// which the validation layer rejects three times in a row before anything
+	// is drawn. Found that way, on the first run.
+	cube = R_CreateImage( va( "*skycube_%s", baseName ), NULL, size, size,
+		IMGFLAG_CUBEMAP | IMGFLAG_CLAMPTOEDGE | IMGFLAG_NO_COMPRESSION,
+		VK_FORMAT_R8G8B8A8_UNORM, 0 );
+
+	if ( cube == NULL ) {
+		goto done;
+	}
+
+	cube->width = cube->uploadWidth = size;
+	cube->height = cube->uploadHeight = size;
+	cube->layers = 6;
+	vk_create_image( cube, size, size, 1 );
+
+	faceData = (byte *)R_Malloc( size * size * 4, TAG_TEMP_WORKSPACE, qfalse );
+
+	for ( face = 0; face < 6; face++ ) {
+		for ( y = 0; y < size; y++ ) {
+			for ( x = 0; x < size; x++ ) {
+				vec3_t	dir;
+				float	fs, ft, u, v;
+				int		axis, sx, sy;
+				const byte *src;
+				byte	*dst = faceData + ( y * size + x ) * 4;
+
+				// The middle of the texel, in the cube's own [-1,1].
+				const float cs = ( ( x + 0.5f ) / (float)size ) * 2.0f - 1.0f;
+				const float ct = ( ( y + 0.5f ) / (float)size ) * 2.0f - 1.0f;
+
+				// A cube face and a sky face are the same parameterisation, so
+				// the direction for this texel is the box's own answer.
+				SkyVecForST( face, cs, ct, dir );
+
+				axis = SkyAxisForVec( dir );
+				if ( !SkySTForVec( axis, dir, &fs, &ft ) ) {
+					dst[0] = dst[1] = dst[2] = 0;
+					dst[3] = 255;
+					continue;
+				}
+
+				SkyTexCoordForST( fs, ft, &u, &v );
+
+				// Which image, and where in it. sky_texorder is the reason a
+				// direction along +Y reads "bk" and not "lf".
+				{
+					const int img = sky_texorder[axis];
+
+					sx = (int)( u * ( widths[img] - 1 ) + 0.5f );
+					sy = (int)( v * ( heights[img] - 1 ) + 0.5f );
+
+					if ( sx < 0 ) sx = 0; else if ( sx >= widths[img] ) sx = widths[img] - 1;
+					if ( sy < 0 ) sy = 0; else if ( sy >= heights[img] ) sy = heights[img] - 1;
+
+					src = pics[img] + ( sy * widths[img] + sx ) * 4;
+				}
+
+				dst[0] = src[0];
+				dst[1] = src[1];
+				dst[2] = src[2];
+				dst[3] = 255;
+			}
+		}
+
+		vk_upload_image_data( cube, 0, 0, size, size, 1, faceData,
+			size * size * 4, ( face != 0 ) ? qtrue : qfalse, face );
+	}
+
+	R_Free( faceData );
+
+done:
+	for ( i = 0; i < 6; i++ ) {
+		if ( pics[i] != NULL ) {
+			R_Free( pics[i] );
+		}
+	}
+
+	if ( cube != NULL ) {
+		CL_RefPrintf( PRINT_DEVELOPER, "sky cubemap %s: %d x %d per face\n",
+			baseName, size, size );
+	}
+
+	return cube;
+}
+
+void R_SkyBuildCubemap( struct shader_s *sh, const char *baseName )
+{
+	if ( sh == NULL || sh->sky == NULL ) {
+		return;
+	}
+
+	sh->sky->cube = R_BuildSkyCubemap( baseName );
+}
+
+/*
+================
 RB_StageIteratorSky
 
 All of the visible sky triangles are in tess

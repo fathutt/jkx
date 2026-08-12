@@ -2358,12 +2358,17 @@ ParseSkyParms
 skyParms <outerbox> <cloudheight> <innerbox>
 ===============
 */
+static void ParseSkyCubemap( const char *outerbox );
+
 static void ParseSkyParms( const char **text ) {
 	const char			*token;
 	static const char	*suf[6] = { "rt", "bk", "lf", "ft", "up", "dn" };
 	char				pathname[MAX_QPATH];
+	char				outerboxName[MAX_QPATH];
 	int					i;
 	imgFlags_t			imgFlags;
+
+	outerboxName[0] = '\0';
 
 	imgFlags = IMGFLAG_MIPMAP | IMGFLAG_PICMIP;
 	if (shader.noTC) {
@@ -2379,6 +2384,8 @@ static void ParseSkyParms( const char **text ) {
 		return;
 	}
 	if (strcmp(token, "-")) {
+		Q_strncpyz( outerboxName, token, sizeof( outerboxName ) );
+
 		for (i = 0; i < 6; i++) {
 			Com_sprintf(pathname, sizeof(pathname), "%s_%s", token, suf[i]);
 			shader.sky->outerbox[i] = R_FindImageFile((char*)pathname, imgFlags | IMGFLAG_CLAMPTOEDGE, 0);
@@ -2427,6 +2434,21 @@ static void ParseSkyParms( const char **text ) {
 	}
 
 	shader.isSky = qtrue;
+
+	ParseSkyCubemap( outerboxName );
+}
+
+// Gathering the six faces into a cube needs their pixels, and the loop above
+// keeps only the images it made from them. Done here, after the parse, rather
+// than inside it, so the box path stays exactly as it was: if this returns
+// nothing the sky draws the way it always did.
+static void ParseSkyCubemap( const char *outerbox )
+{
+	if ( !shader.isSky || shader.sky == NULL || outerbox == NULL || outerbox[0] == '\0' ) {
+		return;
+	}
+
+	R_SkyBuildCubemap( &shader, outerbox );
 }
 
 /*

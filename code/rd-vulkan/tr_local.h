@@ -688,6 +688,11 @@ typedef enum {
 typedef struct skyParms_s {
 	float		cloudHeight;
 	image_t* outerbox[6], * innerbox[6];
+
+	// The six outer faces gathered into one cube, so the sky can be sampled by
+	// direction instead of by face. NULL when the faces could not be read, which
+	// is not an error - the box path still works and is what draws then.
+	image_t*	cube;
 } skyParms_t;
 
 typedef struct fogParms_s {
@@ -2112,6 +2117,7 @@ extern cvar_t	*r_deluxeMapping;
 extern cvar_t	*r_deluxeSpecular;
 #endif
 extern cvar_t	*r_debugView;			// draw one term of the lighting; "debugview" lists them
+extern cvar_t	*r_skyCubemap;			// gather the sky faces into a cubemap
 #ifdef VK_DLIGHT_GPU
 extern cvar_t	*r_dlightMethod;		// 0 - CPU, 1 - GPU
 #endif
@@ -2439,6 +2445,7 @@ SKIES
 ============================================================
 */
 void R_InitSkyTexCoords( float heightCloud );
+void		R_SkyBuildCubemap( struct shader_s *sh, const char *baseName );
 void RB_DrawSun( float scale, shader_t* shader );
 /*
 ============================================================
@@ -2992,7 +2999,10 @@ void		vk_bind( image_t *image );
 void		vk_flush_staging_buffer( qboolean final );
 void		vk_alloc_staging_buffer( VkDeviceSize size );
 void		vk_upload_image( image_t *image, byte *pic );
-void		vk_upload_image_data( image_t *image, int x, int y, int width, int height, int mipmaps, byte *pixels, int size, qboolean update ) ;
+// layer is the array slice, which for anything but a cubemap is the only one
+// there is. Defaulted so the eight callers that upload a plain image do not
+// have to say so.
+void		vk_upload_image_data( image_t *image, int x, int y, int width, int height, int mipmaps, byte *pixels, int size, qboolean update, int layer = 0 ) ;
 void		vk_generate_image_upload_data( image_t *image, byte *data, Image_Upload_Data *upload_data );
 void		vk_create_image( image_t *image, int width, int height, int mip_levels );
 void		vk_clean_staging_buffer( void );

@@ -174,6 +174,7 @@ cvar_t	*r_ambientScale;
 cvar_t	*r_directedScale;
 cvar_t	*r_debugLight;
 cvar_t	*r_debugView;
+cvar_t	*r_skyCubemap;
 cvar_t	*r_debugSort;
 
 cvar_t	*r_marksOnTriangleMeshes;
@@ -934,6 +935,7 @@ void R_Register( void )
 	r_showImages						= Cvar_Get( "r_showImages",						"0",						CVAR_CHEAT, "" );
 	r_debugLight						= Cvar_Get( "r_debuglight",						"0",						CVAR_TEMP, "" );
 	r_debugView							= Cvar_Get( "r_debugView",						"0",						CVAR_TEMP, "show one term of the lighting instead of the frame; \"debugview\" lists them" );
+	r_skyCubemap						= Cvar_Get( "r_skyCubemap",					"1",						CVAR_ARCHIVE_ND | CVAR_LATCH, "gather the six sky faces into one cubemap; 0 keeps the six-quad box" );
 	r_debugSort							= Cvar_Get( "r_debugSort",						"0",						CVAR_CHEAT, "" );
 	r_dlightStyle						= Cvar_Get( "r_dlightStyle",						"1",						CVAR_TEMP, "" );
 	r_surfaceSprites					= Cvar_Get( "r_surfaceSprites",					"1",						CVAR_ARCHIVE_ND | CVAR_LATCH, "" );

@@ -1274,7 +1274,7 @@ byte *vk_resample_image_data( const int target_format, byte *data, const int dat
 //static int batch_by_format = 0;
 
 void vk_upload_image_data( image_t *image, int x, int y, int width, 
-	int height, int mipmaps, byte *pixels, int size, qboolean update ) 
+	int height, int mipmaps, byte *pixels, int size, qboolean update, int layer ) 
 {
 	vk_staging_note( image->imgName, size );
 
@@ -1310,7 +1310,7 @@ void vk_upload_image_data( image_t *image, int x, int y, int width,
 		region.bufferImageHeight = 0;
 		region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 		region.imageSubresource.mipLevel = num_regions;
-		region.imageSubresource.baseArrayLayer = 0;
+		region.imageSubresource.baseArrayLayer = layer;
 		region.imageSubresource.layerCount = 1;
 		region.imageOffset.x = x;
 		region.imageOffset.y = y;
