@@ -768,10 +768,28 @@ char *Sys_StripAppBundle( char *dir )
 #	endif
 #endif
 
+// The command line is flattened back into one string for Com_Init, and it used
+// to be flattened into MAX_STRING_CHARS - one kilobyte. Q_strcat returns without
+// a word when what it is given will not fit, so a longer command line did not
+// truncate: it dropped whole arguments out of the middle and kept whichever
+// shorter ones came after them and still fitted.
+//
+// What that looks like from outside is not a length problem at all. A bench run
+// lost the name argument of "+screenshot_tga jkx_sky_lf" while keeping the
+// command, so the engine wrote a screenshot under a default name, reported
+// success, and quit cleanly - and two of the frames the run exists to compare
+// were simply not there. This is the second time a silently bounded command line
+// has cost an afternoon; backlog section 29 is the first.
+//
+// Sixteen kilobytes on the stack of main, and a complaint when even that is not
+// enough, because the alternative to a complaint is another afternoon.
+#define JKX_MAX_COMMAND_LINE	16384
+
 int main ( int argc, char* argv[] )
 {
 	int		i;
-	char	commandLine[ MAX_STRING_CHARS ] = { 0 };
+	char	commandLine[ JKX_MAX_COMMAND_LINE ] = { 0 };
+	size_t	needed = 0;
 
 	Sys_PlatformInit( argc, argv );
 	CON_Init();
@@ -787,6 +805,18 @@ int main ( int argc, char* argv[] )
 
 	Sys_SetBinaryPath( Sys_Dirname( argv[ 0 ] ) );
 	Sys_SetDefaultInstallPath( DEFAULT_BASEDIR );
+
+	// Say so before anything is lost. There is no console at this point, but
+	// CON_Init has run, so Sys_Print reaches the terminal - and a run that is
+	// going to behave strangely is worth a line that says why.
+	for ( i = 1; i < argc; i++ ) {
+		needed += strlen( argv[i] ) + 3;	// the argument, a space, two quotes
+	}
+	if ( needed >= sizeof( commandLine ) ) {
+		Sys_Print( va( "WARNING: the command line is %u bytes and only %u fit. "
+			"Arguments will be dropped, and not necessarily the last ones.\n",
+			(unsigned)needed, (unsigned)sizeof( commandLine ) ) );
+	}
 
 	// Concatenate the command line for passing to Com_Init
 	for( i = 1; i < argc; i++ )
