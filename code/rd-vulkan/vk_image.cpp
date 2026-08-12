@@ -1035,12 +1035,64 @@ void vk_clean_staging_buffer( void )
 }
 
 #ifdef USE_UPLOAD_QUEUE
+// WHAT THE GPU WAS DOING WHEN IT DIED
+//
+// A device loss is reported at the next fence wait, which is nowhere near
+// whatever caused it. The engine's answer to "why" has so far been the string
+// "VK_ERROR_DEVICE_LOST at vk_wait_staging_buffer", which names the messenger.
+//
+// This is a ring of the last few things handed to the upload queue. It costs a
+// pointer store per upload and it turns that message into a list ending in the
+// upload that was in flight, which is the difference between reading a report
+// and asking for another run - and a run costs hours, because the machine with
+// the graphics card is not this one.
+#define VK_STAGING_NOTES 16
+
+static char        vk_staging_note_text[VK_STAGING_NOTES][MAX_QPATH];
+static int         vk_staging_note_size[VK_STAGING_NOTES];
+static uint32_t    vk_staging_note_head;
+
+void vk_staging_note( const char *what, int size )
+{
+	// Copied rather than kept by pointer. One of these names comes from va(),
+	// whose buffer rotates, and an image name belongs to an image_t that a map
+	// change can free - and a diagnostic that reads freed memory while
+	// explaining a crash is not a diagnostic.
+	Q_strncpyz( vk_staging_note_text[vk_staging_note_head % VK_STAGING_NOTES],
+		what ? what : "?", MAX_QPATH );
+	vk_staging_note_size[vk_staging_note_head % VK_STAGING_NOTES] = size;
+	vk_staging_note_head++;
+}
+
+void vk_staging_report( void )
+{
+	uint32_t i, n;
+
+	if ( vk_staging_note_head == 0 ) {
+		CL_RefPrintf( PRINT_ALL, "the upload queue had done nothing yet\n" );
+		return;
+	}
+
+	n = ( vk_staging_note_head < VK_STAGING_NOTES )
+		? vk_staging_note_head : VK_STAGING_NOTES;
+
+	CL_RefPrintf( PRINT_ALL, "last %u upload(s), oldest first, the last one was in flight:\n", n );
+
+	for ( i = n; i > 0; i-- ) {
+		const uint32_t at = ( vk_staging_note_head - i ) % VK_STAGING_NOTES;
+
+		CL_RefPrintf( PRINT_ALL, "  %s (%d bytes)\n",
+			vk_staging_note_text[at], vk_staging_note_size[at] );
+	}
+}
+
 static qboolean vk_wait_staging_buffer( void )
 {
 	if ( vk.aux_fence_wait ) {
 		VkResult res = vkWaitForFences( vk.device, 1, &vk.aux_fence, VK_TRUE, 5 * 1000000000ULL );
 
 		if ( res != VK_SUCCESS ) {
+			vk_staging_report();
 			Com_Error( ERR_FATAL, "vkWaitForFences() failed with %s at %s", vk_result_string( res ), __func__ );
 		}
 		vkResetFences( vk.device, 1, &vk.aux_fence );
@@ -1107,6 +1159,7 @@ void vk_flush_staging_buffer( qboolean final )
 		VK_CHECK( vkQueueSubmit( vk.queue, 1, &submit_info, vk.aux_fence ) );
 		res = vkWaitForFences( vk.device, 1, &vk.aux_fence, VK_TRUE, 5 * 1000000000ULL );
 		if ( res != VK_SUCCESS ) {
+			vk_staging_report();
 			Com_Error( ERR_FATAL, "vkWaitForFences() failed with %s at %s", vk_result_string( res ), __func__ );
 		}
 		vkResetFences( vk.device, 1, &vk.aux_fence );
@@ -1223,6 +1276,8 @@ byte *vk_resample_image_data( const int target_format, byte *data, const int dat
 void vk_upload_image_data( image_t *image, int x, int y, int width, 
 	int height, int mipmaps, byte *pixels, int size, qboolean update ) 
 {
+	vk_staging_note( image->imgName, size );
+
 	VkCommandBuffer command_buffer;
 	VkBufferImageCopy regions[16];
 	VkBufferImageCopy region;

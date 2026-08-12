@@ -83,12 +83,32 @@ def shaders(visible, sky=None):
     return out
 
 
+# The six box faces, in the order planes() writes them. Each is followed by its
+# opposite, so the plane for entry n is at 2n and its mirror at 2n+1 - the
+# format's "planes x^1 is always the opposite of plane x".
+#
+# Named, because they were not, and the cost of that was the whole fixture
+# drawing nothing: the node below asked for plane 8, its comment said "the floor
+# plane", and plane 8 is the CEILING. Everything downstream was consistent with
+# a camera standing in the solid leaf, which is a state the engine handles
+# quietly - no PVS, no surfaces, a view of the clear colour - and the screenshot
+# check passed on the head-up display drawn over it.
+PLANE_X_POS = 0     # ( 1  0  0)  x <=  256
+PLANE_X_NEG = 2     # (-1  0  0)  x >= -256
+PLANE_Y_POS = 4
+PLANE_Y_NEG = 6
+PLANE_CEILING = 8   # ( 0  0  1)  z <=  256
+PLANE_FLOOR = 10    # ( 0  0 -1)  z >= FLOOR_Z, pointing DOWN
+PLANE_FLOOR_UP = 11 # its opposite: ( 0 0 1) at FLOOR_Z, pointing UP
+
+
 def planes():
     """Six box faces, each followed by its opposite.
 
-    "planes x^1 is always the opposite of plane x" - qfiles.h. The tree below
-    only uses the first of each pair, but the invariant is the format's and
-    cheap to hold to.
+    "planes x^1 is always the opposite of plane x" - qfiles.h. The invariant is
+    the format's and cheap to hold to, and the tree uses both halves of the last
+    pair: the brush wants the face pointing out of the room, the node wants the
+    one pointing into it.
     """
     out = b""
     for normal, dist in (
@@ -102,14 +122,24 @@ def planes():
 
 
 def nodes():
-    """One node splitting on the floor plane: above it empty, below it solid.
+    """One node splitting on the floor plane: in front of it empty, behind solid.
 
     Children are leaf indices encoded as -(leaf + 1), which is the format's way
-    of distinguishing them from node indices.
+    of distinguishing them from node indices. child[0] is the front side, so it
+    has to be the plane that points UP out of the floor - the room is in front
+    of that one and the solid is behind it.
+
+    This asked for plane 8 for a long time. Plane 8 is the ceiling, at z = +256,
+    and a camera standing at z = 0 is behind it - which put every view in leaf 1,
+    the solid one, whose cluster is -1. A leaf with no cluster sees nothing, so
+    the world drew nothing, every frame, from the first day this fixture
+    existed. It did not look like a failure: the head-up display still drew, the
+    colour checks still passed, and the run reported that it had reached the map.
+    It had. It just could not see it.
     """
     mins = (-4096, -4096, -4096)
     maxs = (4096, 4096, 4096)
-    return struct.pack("<i2i3i3i", 8, -1, -2, *(mins + maxs))
+    return struct.pack("<i2i3i3i", PLANE_FLOOR_UP, -1, -2, *(mins + maxs))
 
 
 def leafs(num_surfaces=1):

@@ -342,12 +342,22 @@ reach the edge of the window.
 ================
 */
 static void SCR_FillFrameMargins( void ) {
-	const float virtualWidth = ( cls.glconfig.virtualWidth > 0.0f )
-		? cls.glconfig.virtualWidth : (float)SCREEN_WIDTH;
-
 	const float frame = (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT;
 	const float have = ( cls.glconfig.vidHeight > 0 )
 		? (float)cls.glconfig.vidWidth / (float)cls.glconfig.vidHeight : frame;
+
+	// The fallback used to be SCREEN_WIDTH, and SCREEN_WIDTH is the frame's own
+	// width - so when virtualWidth was not set yet the bar came out
+	// (640 - 640) / 2 = 0 and this function drew nothing while reporting
+	// nothing. That is the state during a map load, which is when the
+	// introduction crawl plays, which is where the grey margins that were
+	// supposed to be fixed kept coming back.
+	//
+	// The virtual width is a definition, not a measurement: it is the frame's
+	// height scaled to the window's shape. Computing it here costs a divide and
+	// removes a way for this to fail quietly.
+	const float virtualWidth = ( cls.glconfig.virtualWidth > 0.0f )
+		? cls.glconfig.virtualWidth : ( (float)SCREEN_HEIGHT * have );
 
 	if ( fabsf( have - frame ) < 0.001f ) {
 		return;					// the frame covers the window

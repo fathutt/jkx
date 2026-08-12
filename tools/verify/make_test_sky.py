@@ -22,12 +22,16 @@ colour comes near.
 
     make_test_sky.py <dir> <basename>     writes <basename>_{rt,bk,lf,ft,up,dn}.tga
 
-The suffix order is ParseSkyParms's, and the axis each one lands on is decided
-by AddSkyPolygon's vec_to_st table, not by the name:
+The suffix order is ParseSkyParms's. Which face you actually see looking in a
+given direction is NOT that order: DrawSkyBox indexes the images through
+sky_texorder = { 0, 2, 1, 3, 4, 5 }, so the second and third are swapped. Read
+off the code and then confirmed by looking at the picture:
 
-    rt -> +X    bk -> -X    lf -> +Y    ft -> -Y    up -> +Z    dn -> -Z
+    +X -> rt    -X -> lf    +Y -> bk    -Y -> ft    +Z -> up    -Z -> dn
 
-which is why "lf" is what the fixture's player sees while looking along +Y.
+so the fixture's player, who starts at the origin looking along +Y, sees "bk".
+Which is the sort of thing this fixture exists to pin down: the first guess here
+was that the suffixes lined up with the axes, and the picture said otherwise.
 """
 
 import os
@@ -38,11 +42,11 @@ SIZE = 64                   # power of two: R_FindImageFile refuses anything els
 MARKER = 12                 # side of the corner square
 STRIPE = 6                  # thickness of the edge stripe
 
-# suffix, base colour, and which axis it ends up on - the comment is the point
+# suffix, base colour, and the direction you have to look to see it
 FACES = [
     ("rt", (204, 0, 0)),      # +X
-    ("bk", (0, 153, 0)),      # -X
-    ("lf", (0, 51, 255)),     # +Y   <- straight ahead in the fixture
+    ("bk", (0, 153, 0)),      # +Y   <- straight ahead in the fixture
+    ("lf", (0, 51, 255)),     # -X
     ("ft", (255, 204, 0)),    # -Y
     ("up", (153, 0, 204)),    # +Z
     ("dn", (0, 204, 204)),    # -Z

@@ -207,20 +207,14 @@ fi
 # them goes, and those conventions are not written down anywhere - they are
 # implied by a table of axis swaps in tr_sky.cpp. A flat blue sky cannot tell
 # anyone whether a change to how the sky is sampled kept them. So the fixture's
-# faces each carry their own colour and a marker in one corner. Looking along +Y
-# is the face on axis 2, which ParseSkyParms reads from the suffix "lf".
+# faces each carry their own colour, a marker in one corner and a stripe down one
+# edge, so which face is up and which way round it is are both answerable from
+# the picture.
 #
-# The screenshot is taken and NOT yet asserted on, and the reason is a finding
-# in its own right: the frame from this map and the frame from the one before it
-# are byte for byte the same, and both are 98.7% the renderer's clear colour.
-# The fixture's floor has never been on screen. What the in-map check has been
-# checking all along is the head-up display drawn over an empty view - which is
-# real coverage, and is not the coverage its name claims.
-#
-# So the sky cannot be checked until the world draws, and that is the next piece
-# of work rather than something to paper over with a lenient assertion. The
-# faces, the map and the shot are here because they are what that work needs.
-python3 "$HERE/make_test_sky.py" "$RUN/base/textures/jkx" jkx_sky >/dev/null
+# Looking along +Y shows "bk", not "lf": DrawSkyBox indexes the images through
+# sky_texorder = { 0, 2, 1, 3, 4, 5 }, which swaps the second and third. That is
+# measured, not assumed - the first guess was "lf" and the screenshot said green.
+python3 "$HERE/make_test_sky.py" "$RUN/base/textures/jkx" sky >/dev/null
 python3 "$HERE/make_test_bsp.py" "$RUN/base/maps/jkx_room2.bsp" \
     --sky textures/jkx/sky >/dev/null
 
@@ -304,6 +298,36 @@ fi
 
 require 'debugview: roughness'
 SHOTS+=( "jkx_debugview 2" )
+
+# The world, and then the sky over it.
+#
+# Both of these are new because until now neither was drawn. The map's floor had
+# never been on screen: the fixture's one BSP node split on plane 8, which its
+# own comment called the floor and which is the ceiling, so every camera stood in
+# the solid leaf - no cluster, no PVS, no surfaces. What the in-map check tested
+# for weeks was the head-up display over the renderer's clear colour, and it
+# passed, because a frame with a head-up display in it is a frame.
+#
+# So: the floor is white and near the bottom of the view, and the sky face
+# straight ahead is the green one with its black stripe down the left. Positions,
+# not just presence - a sky face drawn upside down or on the wrong axis has
+# exactly the same pixels as a correct one, which is the whole reason the faces
+# are not flat colours.
+if [ -f "$RUN/home/base/screenshots/jkx_inmap.tga" ]; then
+    if ! python3 "$HERE/tga_colour_where.py" \
+        "$RUN/home/base/screenshots/jkx_inmap.tga" \
+        "255,255,255@0.3,0.75,0.7,1.0"; then
+        report "the map's floor is not where it should be in jkx_inmap.tga"
+    fi
+fi
+
+if [ -f "$RUN/home/base/screenshots/jkx_sky.tga" ]; then
+    if ! python3 "$HERE/tga_colour_where.py" \
+        "$RUN/home/base/screenshots/jkx_sky.tga" \
+        "0,153,0@0.3,0.1,0.8,0.6" "0,0,0@0.0,0.1,0.3,0.7"; then
+        report "the sky is not the face it should be, or not the way up it should be"
+    fi
+fi
 
 if [ "${JKX_SMOKE_SAVELOAD:-0}" = "1" ]; then
     require 'Wrote screenshots/jkx_loaded.tga'

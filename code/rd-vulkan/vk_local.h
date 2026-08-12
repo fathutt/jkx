@@ -1041,6 +1041,8 @@ void		vk_shutdown( void );
 // Must be paired. The engine unloads this module on every vid_restart, and a
 // handler the operating system still points at, in freed memory, turns the next
 // exception of any kind into an access violation.
+void		vk_staging_note( const char *what, int size );
+void		vk_staging_report( void );
 void		vk_install_crash_handler( void );
 void		vk_remove_crash_handler( void );
 void		vk_init_library( void );

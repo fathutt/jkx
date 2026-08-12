@@ -601,6 +601,10 @@ IBO_t *R_CreateIBO( const char *name, const byte *vbo_data, int vbo_size )
 
 	memcpy( data, vbo_data, vbo_size );
 
+	// Named in the upload breadcrumb, because a device loss is reported at the
+	// next fence wait and never where it happened.
+	vk_staging_note( va( "IBO %s", name ), vbo_size );
+
 	command_buffer = vk_begin_command_buffer();
 	copyRegion[0].srcOffset = 0;
 	copyRegion[0].dstOffset = 0;
@@ -666,6 +670,8 @@ VBO_t *R_CreateVBO( const char *name, const byte *vbo_data, int vbo_size )
 	}
 
 	memcpy( data, vbo_data, vbo_size );
+
+	vk_staging_note( va( "VBO %s", name ), vbo_size );
 
 	command_buffer = vk_begin_command_buffer();
 	copyRegion[0].srcOffset = 0;
