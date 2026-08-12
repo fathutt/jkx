@@ -85,6 +85,24 @@ def face_pixels(base):
     return rows
 
 
+def write_tga_size(path, rows, width, height):
+    """The same Targa, at a size the caller chooses."""
+    header = struct.pack("<3B2HB4H2B",
+                         0, 0, 2,
+                         0, 0, 0,
+                         0, 0, width, height,
+                         24, 0)
+
+    body = bytearray()
+    for y in range(height - 1, -1, -1):
+        for r, g, b in rows[y]:
+            body += bytes((b, g, r))
+
+    with open(path, "wb") as f:
+        f.write(header)
+        f.write(bytes(body))
+
+
 def write_tga(path, rows):
     """Uncompressed 24-bit Targa, bottom-up.
 
@@ -118,7 +136,34 @@ def mask_pixels():
             for _ in range(SIZE)]
 
 
+# Wider than the renderer used to be willing to keep. 4096 is past the old
+# ceiling of 2048, so the same file measures the cap from both sides: before the
+# ceiling was lifted the loader halved this to 2048 and said nothing, and
+# imagelist is where that shows.
+#
+# A power of two, because the loader refuses anything else outright - "Refusing
+# to load non-power-2-dims" - which is worth knowing before spending an
+# afternoon on a texture that never reaches the code being tested.
+#
+# White, because it is the floor of the room the sky fixture stands in and the
+# checks there are about the sky. A texture that changed the picture would be
+# testing two things at once.
+WIDE_W = 4096
+WIDE_H = 64
+
+
+def wide_pixels():
+    return [[(255, 255, 255)] * WIDE_W for _ in range(WIDE_H)]
+
+
 def main(argv):
+    if len(argv) >= 3 and argv[1] == "--wide":
+        path = argv[2]
+        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+        write_tga_size(path, wide_pixels(), WIDE_W, WIDE_H)
+        print("%s: %dx%d, past the old 2048 ceiling" % (path, WIDE_W, WIDE_H))
+        return 0
+
     if len(argv) >= 3 and argv[1] == "--mask":
         path = argv[2]
         os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
@@ -127,7 +172,8 @@ def main(argv):
         return 0
 
     if len(argv) < 3:
-        print("usage: %s <dir> <basename> | --mask <path.tga>" % argv[0],
+        print("usage: %s <dir> <basename> | --mask <path.tga> "
+              "| --wide <path.tga>" % argv[0],
               file=sys.stderr)
         return 2
 

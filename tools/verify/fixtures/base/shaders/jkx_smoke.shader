@@ -52,3 +52,22 @@ textures/jkx/sky
 	surfaceparm noimpact
 	skyParms textures/jkx/sky 512 -
 }
+
+// The floor of the sky room, and the only reason it is a file rather than
+// $whiteimage is its size: 4096 texels wide, which is past the 2048 the
+// renderer used to clamp every texture to. Under the old ceiling the loader
+// halved it on the way in and said nothing about it; imagelist is where the
+// difference shows, and the run requires it.
+//
+// nopicmip so that a picmip setting cannot quietly halve it back under the old
+// ceiling and turn the check into a check of nothing.
+//
+// White on purpose. It is the floor beneath the sky checks, and a texture that
+// changed the picture would be testing two things at once.
+textures/jkx/wide
+{
+	nopicmip
+	{
+		map textures/jkx/wide
+	}
+}

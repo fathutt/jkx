@@ -253,8 +253,11 @@ python3 "$HERE/make_test_sky.py" "$RUN/base/textures/jkx" sky >/dev/null
 # texels than the image holds. The wide lane runs at 2560, so it is the one that
 # reaches it; below 2048 nothing is clamped and nothing goes wrong.
 python3 "$HERE/make_test_sky.py" --mask "$RUN/base/textures/common/dissolve.tga" >/dev/null
+# The sky room's floor carries a texture wider than the renderer used to keep.
+# See the shader, and the require below.
+python3 "$HERE/make_test_sky.py" --wide "$RUN/base/textures/jkx/wide.tga" >/dev/null
 python3 "$HERE/make_test_bsp.py" "$RUN/base/maps/jkx_room2.bsp" \
-    --sky textures/jkx/sky >/dev/null
+    --shader textures/jkx/wide --sky textures/jkx/sky >/dev/null
 
 # Extra cvars, as "name=value name=value". This exists for A/B runs: two passes
 # of the same fixture that differ by one setting, compared pixel for pixel. The
@@ -319,7 +322,7 @@ set +e
       "${CONSOLE_STEP[@]}" \
       +wait 20 +map jkx_smoke +wait 60 +screenshot_tga jkx_wiped \
       "${INMAP_STEP[@]}" \
-      +wait 20 +quit ) > "$RUN/run.log" 2>&1
+      +imagelist +wait 20 +quit ) > "$RUN/run.log" 2>&1
 status=$?
 set -e
 
@@ -410,6 +413,25 @@ if [ "${JKX_SMOKE_PLAIN:-0}" != "1" ] && [ -f "$RUN/home/base/screenshots/jkx_in
         "255,255,255@0.3,0.75,0.7,1.0"; then
         report "the map's floor is not where it should be in jkx_inmap.tga"
     fi
+fi
+
+# The texture ceiling, checked against a texture rather than against the number
+# the renderer prints about itself.
+#
+# The sky room's floor is 4096 texels wide. The renderer used to clamp every
+# texture to 2048 - not because of hardware, which reports 16384 here, but
+# because maxTextureSize was derived from the block size of an image memory
+# allocator that had already been replaced by VMA, and because ResampleTexture
+# kept its column tables in a fixed array of that size. Under that ceiling this
+# line reads 2048 and 32, and nothing anywhere says a texture was halved.
+#
+# imagelist is asked for at the end of the run for this one line. Only the lanes
+# that reach the sky room have loaded the texture at all - the savegame lane
+# spends its second map on a save and load round trip instead.
+if [ -f "$RUN/home/base/screenshots/jkx_sky.tga" ] &&
+   ! grep -qE "4096 +64 +RGBA.*textures/jkx/wide" "$RUN/run.log"; then
+    report "the 4096-wide floor texture was not kept at 4096 - the texture ceiling is back"
+    grep -E "textures/jkx/wide" "$RUN/run.log" | tail -2
 fi
 
 if [ "${JKX_SMOKE_PLAIN:-0}" != "1" ] && [ -f "$RUN/home/base/screenshots/jkx_sky.tga" ]; then
