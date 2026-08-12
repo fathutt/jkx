@@ -1,6 +1,5 @@
 # Inherited layer violations. This file may shrink, never grow.
 # Regenerate only when removing entries: tools/ci/check_layering.py --write-baseline
-code/client/cl_cgame.cpp:29: engine -> game  (#include "../ui/ui_shared.h")
 code/client/client.h:29: engine -> render  (#include "../rd-common/tr_public.h")
 code/client/client.h:32: engine -> game  (#include "../cgame/cg_public.h")
 code/client/client_ui.h:27: engine -> game  (#include "../ui/ui_public.h")

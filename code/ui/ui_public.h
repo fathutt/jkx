@@ -31,6 +31,55 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #define UI_API_VERSION	3
 
 
+/*
+===============================================================================
+
+What the engine calls in the menu system.
+
+Single-player compiles the interface into the engine rather than loading it as
+a module, so these are ordinary function calls and this list is what the client
+is allowed to make. It exists because the alternative was what cl_cgame.cpp did
+for twenty years: include ui_shared.h - the menu system's whole private
+vocabulary, 517 lines of it - and reach into menuDef_t and itemDef_t from
+outside to read window rectangles and shader handles by hand.
+
+The menu handle is void * on purpose. cgame asks for a menu by name, keeps the
+answer and hands it back to be painted; nothing on this side of the boundary
+needs to know what is behind the pointer, and once it does not, the header
+describing it can stay where it belongs.
+
+The parser is here for a less good reason: PC_* is a general text parser that
+happens to live in ui_shared.cpp, and cgame reaches it through the client. It
+is not part of the menu system and should not be in this list; moving it out is
+its own piece of work.
+
+===============================================================================
+*/
+
+// menus
+void		*UI_FindMenuByName( const char *name );
+void		UI_PaintMenuByHandle( void *menu, qboolean forcePaint );
+qboolean	UI_GetMenuInfo( const char *menuName, int *x, int *y, int *w, int *h );
+qboolean	UI_GetItemText( const char *menuName, const char *itemName, char *dest, int destSize );
+qboolean	UI_GetItemInfo( const char *menuName, const char *itemName,
+				int *x, int *y, int *w, int *h, vec4_t *color, qhandle_t *background );
+void		Menus_OpenByName( const char *p );
+void		Menus_CloseAll( void );
+void		Menu_Reset( void );
+void		Menu_New( char *buffer );
+void		Menu_PaintAll( void );
+void		String_Init( void );
+void		UI_Cursor_Show( qboolean flag );
+
+// the text parser that lives in the same file
+int			PC_StartParseSession( const char *fileName, char **buffer );
+void		PC_EndParseSession( char *buffer );
+char		*PC_ParseExt( void );
+qboolean	PC_ParseInt( int *number );
+qboolean	PC_ParseFloat( float *number );
+qboolean	PC_ParseString( const char **tempStr );
+
+
 typedef struct {
 	//============== general Quake services ==================
 

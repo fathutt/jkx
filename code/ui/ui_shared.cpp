@@ -11561,3 +11561,116 @@ void UI_Cursor_Show(qboolean flag)
 		DC->cursorShow = qtrue;
 	}
 }
+
+/*
+===============================================================================
+
+The engine's view of the menu system.
+
+cl_cgame.cpp forwards a dozen cgame system calls into this file, and until now
+it did that by including ui_shared.h - all 517 lines of it, the whole menu
+system's private vocabulary - into the client. Most of the calls only needed a
+name and a number, but three of them reached into menuDef_t and itemDef_t and
+read window rectangles, colours and shader handles out of them by hand. That is
+why the header had to be there: not because the engine drives the menus, but
+because it was taking them apart from the outside.
+
+So the taking-apart moves here, where the structures live, and the engine gets
+five functions and a void pointer. The pointer is deliberate: cgame asks for a
+menu by name, keeps the answer as an opaque handle and passes it back to be
+painted, and neither side has to agree on what a menuDef_t looks like for that
+to work.
+
+===============================================================================
+*/
+
+void *UI_FindMenuByName( const char *name )
+{
+	return Menus_FindByName( name );
+}
+
+void UI_PaintMenuByHandle( void *menu, qboolean forcePaint )
+{
+	Menu_Paint( (menuDef_t *)menu, forcePaint );
+}
+
+qboolean UI_GetMenuInfo( const char *menuName, int *x, int *y, int *w, int *h )
+{
+	menuDef_t *menu = Menus_FindByName( menuName );
+
+	if ( !menu )
+	{
+		return qfalse;
+	}
+
+	*x = (int)menu->window.rect.x;
+	*y = (int)menu->window.rect.y;
+#ifndef JK2_MODE
+	// Jedi Outcast's caller asks for the position and not the size, and its
+	// menus are authored so that the two would not agree; this is the shape
+	// the syscall had in cl_cgame.cpp and it keeps it.
+	*w = (int)menu->window.rect.w;
+	*h = (int)menu->window.rect.h;
+#endif
+	return qtrue;
+}
+
+qboolean UI_GetItemText( const char *menuName, const char *itemName, char *dest, int destSize )
+{
+	menuDef_t *menu = Menus_FindByName( menuName );
+	itemDef_t *item;
+
+	if ( !menu )
+	{
+		return qfalse;
+	}
+
+	item = Menu_FindItemByName( menu, itemName );
+	if ( !item )
+	{
+		return qfalse;
+	}
+
+	Q_strncpyz( dest, item->text, destSize );
+	return qtrue;
+}
+
+qboolean UI_GetItemInfo( const char *menuName, const char *itemName,
+	int *x, int *y, int *w, int *h, vec4_t *color, qhandle_t *background )
+{
+	menuDef_t *menu = Menus_FindByName( menuName );
+	itemDef_t *item;
+
+	if ( !menu )
+	{
+		return qfalse;
+	}
+
+	item = Menu_FindItemByName( menu, itemName );
+	if ( !item )
+	{
+		return qfalse;
+	}
+
+	// The caller passes pointers straight out of the cgame's address space, so
+	// two of them are allowed to be null and the answer is then "no" rather
+	// than a write through zero. That check was in cl_cgame.cpp and it comes
+	// along with the rest of the body.
+	if ( !color || !background )
+	{
+		return qfalse;
+	}
+
+	*x = (int)item->window.rect.x;
+	*y = (int)item->window.rect.y;
+	*w = (int)item->window.rect.w;
+	*h = (int)item->window.rect.h;
+
+	(*color)[0] = item->window.foreColor[0];
+	(*color)[1] = item->window.foreColor[1];
+	(*color)[2] = item->window.foreColor[2];
+	(*color)[3] = item->window.foreColor[3];
+
+	*background = item->window.background;
+	return qtrue;
+}

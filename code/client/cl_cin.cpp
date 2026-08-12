@@ -1465,8 +1465,10 @@ e_status CIN_RunCinematic (int handle)
 	return cinTable[currentHandle].status;
 }
 
-void		Menus_CloseAll(void);
-void		UI_Cursor_Show(qboolean flag);
+// These two used to be declared here by hand, because the header that had
+// them was the menu system's private one and this file could not have it.
+// They are in ui_public.h now, which client_ui.h at the top of this file
+// already includes.
 
 /*
 ==================

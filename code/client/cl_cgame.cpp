@@ -26,7 +26,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 // leave this as first line for PCH reasons...
 //
 #include "../server/exe_headers.h"
-#include "../ui/ui_shared.h"
+#include "client_ui.h"
 
 #include "client.h"
 #include "vmachine.h"
@@ -52,7 +52,6 @@ extern int S_AddLocalSet( const char *name, vec3_t listener_origin, vec3_t origi
 extern void AS_ParseSets( void );
 extern sfxHandle_t AS_GetBModelSound( const char *name, int stage );
 extern void	AS_AddPrecacheEntry( const char *name );
-extern menuDef_t *Menus_FindByName(const char *p);
 
 extern qboolean R_inPVS( vec3_t p1, vec3_t p2 );
 
@@ -804,8 +803,6 @@ The cgame module is making a system call
 ====================
 */
 void CM_SnapPVS(vec3_t origin,byte *buffer);
-extern void		Menu_Paint(menuDef_t *menu, qboolean forcePaint);
-extern menuDef_t *Menus_FindByName(const char *p);
 intptr_t CL_CgameSystemCalls( intptr_t *args ) {
 #ifdef JK2_MODE
 	args[0] = (intptr_t)CL_ConvertJK2SysCall((cgameJK2Import_t)args[0]);
@@ -1195,133 +1192,34 @@ Ghoul2 Insert End
 		return 0;
 
 	case CG_OPENJK_MENU_PAINT:
-		Menu_Paint( (menuDef_t *)VMA(1), (qboolean)(args[2] != 0) );
+		UI_PaintMenuByHandle( VMA(1), (qboolean)(args[2] != 0) );
 		return 0;
 
 	case CG_OPENJK_GETMENU_BYNAME:
-		return (intptr_t)Menus_FindByName( (const char *)VMA(1) );
+		return (intptr_t)UI_FindMenuByName( (const char *)VMA(1) );
 
 	case CG_UI_STRING_INIT:
 		String_Init();
 		return 0;
 
+	// These three used to be written out here, with menuDef_t and itemDef_t
+	// dereferenced by hand: window rectangles, fore colours, background shader
+	// handles. That is the only reason the client included ui_shared.h at all,
+	// and it is 517 lines of somebody else's private vocabulary to answer "how
+	// wide is that item". The bodies moved into ui_shared.cpp, beside the
+	// structures they read. See the note at the top of that block.
 	case CG_UI_GETMENUINFO:
-		menuDef_t *menu;
-		int		*xPos,*yPos,*w,*h,result;
-#ifndef JK2_MODE
-		menu = Menus_FindByName((char *) VMA(1));	// Get menu
-		if (menu)
-		{
-			xPos = (int *) VMA(2);
-			*xPos = (int) menu->window.rect.x;
-			yPos = (int *) VMA(3);
-			*yPos = (int) menu->window.rect.y;
-			w = (int *) VMA(4);
-			*w = (int) menu->window.rect.w;
-			h = (int *) VMA(5);
-			*h = (int) menu->window.rect.h;
-			result = qtrue;
-		}
-		else
-		{
-			result = qfalse;
-		}
-
-		return result;
-#else
-		menu = Menus_FindByName((char *) VMA(1));	// Get menu
-		if (menu)
-		{
-			xPos = (int *) VMA(2);
-			*xPos = (int) menu->window.rect.x;
-			yPos = (int *) VMA(3);
-			*yPos = (int) menu->window.rect.y;
-			result = qtrue;
-		}
-		else
-		{
-			result = qfalse;
-		}
-
-		return result;
-#endif
-		break;
+		return UI_GetMenuInfo( (const char *)VMA(1),
+			(int *)VMA(2), (int *)VMA(3), (int *)VMA(4), (int *)VMA(5) );
 
 	case CG_UI_GETITEMTEXT:
-		itemDef_t *item;
-		menu = Menus_FindByName((char *) VMA(1));	// Get menu
-
-		if (menu)
-		{
-			item = (itemDef_s *) Menu_FindItemByName((menuDef_t *) menu, (char *) VMA(2));
-			if (item)
-			{
-				Q_strncpyz( (char *) VMA(3), item->text, 256 );
-				result = qtrue;
-			}
-			else
-			{
-				result = qfalse;
-			}
-		}
-		else
-		{
-			result = qfalse;
-		}
-
-		return result;
+		return UI_GetItemText( (const char *)VMA(1), (const char *)VMA(2),
+			(char *)VMA(3), 256 );
 
 	case CG_UI_GETITEMINFO:
-		menu = Menus_FindByName((char *) VMA(1));	// Get menu
-
-		if (menu)
-		{
-			qhandle_t *background;
-
-			item = (itemDef_s *) Menu_FindItemByName((menuDef_t *) menu, (char *) VMA(2));
-			if (item)
-			{
-				xPos = (int *) VMA(3);
-				*xPos = (int) item->window.rect.x;
-				yPos = (int *) VMA(4);
-				*yPos = (int) item->window.rect.y;
-				w = (int *) VMA(5);
-				*w = (int) item->window.rect.w;
-				h = (int *) VMA(6);
-				*h = (int) item->window.rect.h;
-
-				vec4_t *color;
-
-				color = (vec4_t *) VMA(7);
-				if (!color)
-				{
-					return qfalse;
-				}
-
-				(*color)[0] = (float) item->window.foreColor[0];
-				(*color)[1] = (float) item->window.foreColor[1];
-				(*color)[2] = (float) item->window.foreColor[2];
-				(*color)[3] = (float) item->window.foreColor[3];
-				background = (qhandle_t *) VMA(8);
-				if (!background)
-				{
-					return qfalse;
-				}
-				*background = item->window.background;
-
-				result = qtrue;
-			}
-			else
-			{
-				result = qfalse;
-			}
-		}
-		else
-		{
-			result = qfalse;
-		}
-
-		return result;
+		return UI_GetItemInfo( (const char *)VMA(1), (const char *)VMA(2),
+			(int *)VMA(3), (int *)VMA(4), (int *)VMA(5), (int *)VMA(6),
+			(vec4_t *)VMA(7), (qhandle_t *)VMA(8) );
 
 #ifdef JK2_MODE
 	case CG_SP_GETSTRINGTEXTSTRING:
