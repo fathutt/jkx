@@ -24,7 +24,28 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #define __G_SHARED_H__
 
 #include "bg_public.h"
-#include "g_public.h"
+
+// One g_public.h, not two.
+//
+// This tree had its own copy, and the two described the same binary interface:
+// identical table layout, identical order, thirty-one lines of difference and
+// every one of them cosmetic - void * where Jedi Academy's has a typed pointer
+// (CRagDollParams, SSkinGoreData, sharedIKMoveParams_t - all of them declared
+// in q_shared.h, which both trees include anyway), plus a commented-out pair of
+// entries and a parameter name.
+//
+// That is one interface written down twice, and the engine only ever read one
+// of them: it is built from code/ for both games, so code/game/g_public.h is
+// what the server was compiled against either way. The second copy could only
+// ever drift away from the truth, never toward it.
+//
+// GAME_INCLUDE has to be set before the include rather than after, which is the
+// one thing the deleted copy did differently: it defined the macro inside
+// itself, so the block declaring the server's gentity_s was always skipped
+// here. Setting it here reproduces that exactly, and g_shared.h defines it
+// again further down for its own use, which is harmless.
+#define GAME_INCLUDE
+#include "../../code/game/g_public.h"
 #include "b_public.h"
 #include "../icarus/icarus.h"
 #include "../../code/rd-common/tr_types.h"

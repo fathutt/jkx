@@ -147,7 +147,6 @@ set(JK2SPGameGameFiles
 	"${JK2SPDir}/game/g_local.h"
 	"${JK2SPDir}/game/g_nav.h"
 	"${JK2SPDir}/game/g_navigator.h"
-	"${JK2SPDir}/game/g_public.h"
 	"${JK2SPDir}/game/g_roff.h"
 	"${JK2SPDir}/game/g_shared.h"
 	"${JK2SPDir}/game/genericparser2.h"
