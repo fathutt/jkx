@@ -900,8 +900,7 @@ static image_t *R_BuildSkyCubemap( const char *baseName )
 	for ( face = 0; face < 6; face++ ) {
 		for ( y = 0; y < size; y++ ) {
 			for ( x = 0; x < size; x++ ) {
-				vec3_t	dir;
-				float	fs, ft, u, v;
+				float	u, v;
 				int		axis, sx, sy;
 				const byte *src;
 				byte	*dst = faceData + ( y * size + x ) * 4;
@@ -910,26 +909,29 @@ static image_t *R_BuildSkyCubemap( const char *baseName )
 				const float cs = ( ( x + 0.5f ) / (float)size ) * 2.0f - 1.0f;
 				const float ct = ( ( y + 0.5f ) / (float)size ) * 2.0f - 1.0f;
 
-				// A cube face and a sky face are the same parameterisation, so
-				// the direction for this texel is the box's own answer.
-				SkyVecForST( face, cs, ct, dir );
-
-				axis = SkyAxisForVec( dir );
-				if ( !SkySTForVec( axis, dir, &fs, &ft ) ) {
+				// A cube face and a sky face are NOT the same parameterisation.
+				// They agree on +Y and on nothing else, which is why this goes
+				// through the shared mapping rather than the box's own table:
+				// filling the layers with the box's table draws a sky that is
+				// correct straight ahead and rotated or mirrored at every edge.
+				if ( !SkyCubeSourceForTexel( face, cs, ct, &axis, &u, &v ) ) {
 					dst[0] = dst[1] = dst[2] = 0;
 					dst[3] = 255;
 					continue;
 				}
-
-				SkyTexCoordForST( fs, ft, &u, &v );
 
 				// Which image, and where in it. sky_texorder is the reason a
 				// direction along +Y reads "bk" and not "lf".
 				{
 					const int img = sky_texorder[axis];
 
-					sx = (int)( u * ( widths[img] - 1 ) + 0.5f );
-					sy = (int)( v * ( heights[img] - 1 ) + 0.5f );
+					// The texel u falls in, not the texel nearest u scaled onto
+					// the last index: with equal sizes the second of those
+					// shrinks the source by one texel across the face and puts
+					// the error at the edges, which is the one place the
+					// cubemap was supposed to improve on.
+					sx = (int)( u * widths[img] );
+					sy = (int)( v * heights[img] );
 
 					if ( sx < 0 ) sx = 0; else if ( sx >= widths[img] ) sx = widths[img] - 1;
 					if ( sy < 0 ) sy = 0; else if ( sy >= heights[img] ) sy = heights[img] - 1;
