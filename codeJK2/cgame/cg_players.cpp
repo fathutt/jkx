@@ -27,7 +27,6 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #define	CG_PLAYERS_CPP
 #include "cg_media.h"
 #include "FxScheduler.h"
-#include "../game/ghoul2_shared.h"
 #include "../game/anims.h"
 #include "../game/wp_saber.h"
 

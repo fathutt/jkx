@@ -240,9 +240,6 @@ public:
 	int			shotTime;
 	int			burstCount;
 	int			burstMin;
-#ifdef BASE_SAVE_COMPAT
-	int			burstMean;			// keeping for original save compatibility
-#endif
 	int			burstMax;
 	int			burstSpacing;
 	int			attackHold;
@@ -406,11 +403,6 @@ public:
 		saved_game.write<int32_t>(shotTime);
 		saved_game.write<int32_t>(burstCount);
 		saved_game.write<int32_t>(burstMin);
-
-#ifdef BASE_SAVE_COMPAT
-		saved_game.write<int32_t>(burstMean);
-#endif // BASE_SAVE_COMPAT
-
 		saved_game.write<int32_t>(burstMax);
 		saved_game.write<int32_t>(burstSpacing);
 		saved_game.write<int32_t>(attackHold);
@@ -528,11 +520,6 @@ public:
 		saved_game.read<int32_t>(shotTime);
 		saved_game.read<int32_t>(burstCount);
 		saved_game.read<int32_t>(burstMin);
-
-#ifdef BASE_SAVE_COMPAT
-		saved_game.read<int32_t>(burstMean);
-#endif // BASE_SAVE_COMPAT
-
 		saved_game.read<int32_t>(burstMax);
 		saved_game.read<int32_t>(burstSpacing);
 		saved_game.read<int32_t>(attackHold);

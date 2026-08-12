@@ -13598,7 +13598,6 @@ static void PM_Weapon( void )
 				PM_SetAnim(pm,SETANIM_TORSO,BOTH_ATTACK1,SETANIM_FLAG_OVERRIDE|SETANIM_FLAG_RESTART|SETANIM_FLAG_HOLD);
 			}
 		}
-#ifndef BASE_SAVE_COMPAT
 		else if ( pm->gent && pm->gent->client && pm->gent->client->NPC_class == CLASS_HAZARD_TROOPER )
 		{
 			// Kneel attack
@@ -13615,7 +13614,6 @@ static void PM_Weapon( void )
 			// Standing attack
 			//-----------------
 		}
-#endif
 		else if ( pm->gent && pm->gent->client && pm->gent->client->NPC_class == CLASS_ASSASSIN_DROID )
 		{
 			// Crouched Attack

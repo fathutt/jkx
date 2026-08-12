@@ -106,8 +106,6 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 #define Q3CONFIG_NAME PRODUCT_NAME ".cfg"
 
-#define BASE_SAVE_COMPAT // this is defined to disable/fix some changes that break save compatibility
-
 #define VALIDSTRING( a )	( ( a != NULL ) && ( a[0] != '\0' ) )
 
 //JAC: Added
@@ -716,12 +714,7 @@ Ghoul2 Insert End
 #define	CS_SOUNDS			(CS_SKYBOXORG+1)
 #endif // JK2_MODE
 
-#ifdef BASE_SAVE_COMPAT
-#define CS_RESERVED1		(CS_SOUNDS+MAX_SOUNDS) // reserved field for base compat from immersion removal
-#define	CS_PLAYERS			(CS_RESERVED1 + 96)
-#else
 #define	CS_PLAYERS			(CS_SOUNDS+MAX_SOUNDS)
-#endif
 
 #define	CS_LIGHT_STYLES		(CS_PLAYERS+MAX_CLIENTS)
 

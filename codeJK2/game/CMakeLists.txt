@@ -152,7 +152,6 @@ set(JK2SPGameGameFiles
 	"${JK2SPDir}/game/g_roff.h"
 	"${JK2SPDir}/game/g_shared.h"
 	"${JK2SPDir}/game/genericparser2.h"
-	"${JK2SPDir}/game/ghoul2_shared.h"
 	"${JK2SPDir}/game/npc_headers.h"
 	"${JK2SPDir}/game/objectives.h"
 	"${JK2SPDir}/game/say.h"
