@@ -20,6 +20,15 @@ hstring.cpp and hstring.h, 14 KB of a string-interning class that nothing
 compiles and nothing includes. The one every caller actually uses is
 code/Rufl/hstring.h, which is what all four source lists name.
 
+A fourth instance had a different shape and this gate said "OK" straight past
+it: a whole top-level directory, ui/, holding one 397-line menudef.h that was
+the multiplayer menu definitions from Jedi Academy. No CMakeLists mentioned the
+directory at all, so there was no list for it to be missing from. The two
+#include "menudef.h" in code/ui both resolve beside their own source. The
+per-directory check above cannot see this, because it only looks where it is
+told to look - so there is now a second check that asks the opposite question:
+is there a directory holding sources that no CMakeLists names anywhere.
+
 It also refuses project files for any build system that is not CMake, which is
 a different question asked for the same reason - see the note beside the list.
 
@@ -31,7 +40,7 @@ correctness - but a listed header that no longer exists is still an error.
 
 import re
 import sys
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 
 class Watched:
@@ -102,6 +111,65 @@ WATCHED = [
 ]
 
 
+# Directories that hold sources for reasons other than being compiled into the
+# engine or a game: the gates and the bench, the unit tests, and the shader
+# sources that tools/shadergen owns.
+NOT_BUILT_BY_CMAKE = ("tools/", "tests/", "assets/", "code/rd-vulkan/shaders/")
+
+# The path variables the top-level CMakeLists defines, so a quoted "${CodeDir}/ui"
+# can be turned back into a directory on disk.
+DIR_VARS = {
+    "CodeDir": "code",
+    "JKADir": "games/jka",
+    "JK2Dir": "games/jk2",
+    "SharedDir": "shared",
+    "OpenJKLibDir": "lib",
+}
+
+QUOTED = re.compile(r'"([^"\n]+)"')
+
+
+def cmake_named_dirs(root: Path) -> set[str]:
+    """Every directory any CMakeLists names, as a repo-relative posix path."""
+    named: set[str] = set()
+    for cmake in root.rglob("CMakeLists.txt"):
+        if SKIP_DIRS & set(cmake.parts) or "build" in cmake.parts:
+            continue
+        here = cmake.parent.relative_to(root).as_posix()
+        text = cmake.read_text(encoding="utf-8", errors="replace")
+        for quoted in QUOTED.findall(text):
+            path = quoted
+            for var, value in DIR_VARS.items():
+                path = path.replace("${%s}" % var, value)
+            if "${" in path:
+                continue
+            if not path.startswith(tuple(DIR_VARS.values())):
+                # relative to the CMakeLists that names it
+                path = f"{here}/{path}" if here != "." else path
+            parts = PurePosixPath(path).parts
+            for i in range(1, len(parts)):
+                named.add("/".join(parts[:i]))
+    return named
+
+
+def unnamed_source_dirs(root: Path) -> list[str]:
+    """Directories holding sources that no CMakeLists mentions at all."""
+    named = cmake_named_dirs(root)
+    orphans = set()
+    for path in root.rglob("*"):
+        if not path.is_file() or path.suffix not in SOURCE_SUFFIXES | {".h", ".hpp"}:
+            continue
+        parts = path.relative_to(root).parts
+        if SKIP_DIRS & set(parts) or "build" in parts[0] or parts[0].startswith("."):
+            continue
+        directory = "/".join(parts[:-1])
+        if not directory or directory.startswith(NOT_BUILT_BY_CMAKE):
+            continue
+        if directory not in named:
+            orphans.add(directory)
+    return sorted(orphans)
+
+
 def foreign_build_files(root: Path) -> list[Path]:
     """Build files for anything that is not CMake, anywhere but the vendored trees."""
     found = []
@@ -120,6 +188,10 @@ def main() -> int:
     foreign = foreign_build_files(Path("."))
     for path in foreign:
         print(f"error: {path} builds this tree with something that is not CMake")
+
+    orphans = unnamed_source_dirs(Path("."))
+    for directory in orphans:
+        print(f"error: {directory}/ holds sources and no CMakeLists names it")
 
     for watch in WATCHED:
         for cmake in watch.cmakes:
@@ -158,7 +230,14 @@ def main() -> int:
         print("would have told you. Either add it to the list or delete it -")
         print("leaving it on disk is the option that costs the next person time.")
 
-    if failed or foreign:
+    if orphans:
+        print()
+        print("A directory no CMakeLists mentions is not half-built, it is not")
+        print("built - and unlike a file missing from a list, there is no list it")
+        print("is missing from, so the check above reports OK. Delete it, or name")
+        print("it somewhere that compiles it.")
+
+    if failed or foreign or orphans:
         return 1
 
     print(f"checked {checked} source(s) against {len(WATCHED)} source list(s)")

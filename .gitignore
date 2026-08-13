@@ -1,6 +1,10 @@
-build*/
-out/
-cmake-build-*/
+# Anchored to the root on purpose. Unanchored, "build*/" matches any directory
+# whose name starts with "build" at any depth - which is how scripts/builds/,
+# five checked-in .bat files from the OpenJK release process, sat in this tree
+# untracked and invisible to git status for the whole life of the project.
+/build*/
+/out/
+/cmake-build-*/
 compile_commands.json
 code/rd-vulkan/shaders/spirv/
 *.spv

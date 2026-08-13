@@ -1040,8 +1040,10 @@ Hacks to fix issues with Team Arena menu scripts
 ===============
 */
 static void Item_ApplyHacks( itemDef_t *item ) {
-#if !defined(_WIN32) || ( defined(_WIN32) && defined(idx64) )
-	// Fix length of favorite address in createfavorite.menu
+	// The retail menus carry an OpenAL/EAX toggle. There is no OpenAL path in
+	// this engine any more - it was 32-bit MSVC only - so the control is greyed
+	// out and its icon hidden on every platform, rather than on the ones the
+	// original build happened not to support.
 	if ( item->type == ITEM_TYPE_MULTI && item->cvar && !Q_stricmp( item->cvar, "s_UseOpenAL" ) ) {
 		if( item->parent )
 		{
@@ -1065,7 +1067,6 @@ static void Item_ApplyHacks( itemDef_t *item ) {
 			Com_Printf( "Hiding eax_icon object because current platform does not support EAX.\n");
 		}
 	}
-#endif
 
 	if ( item->type == ITEM_TYPE_MULTI && item->window.name && !Q_stricmp( item->window.name, "sound_quality") ) {
 		multiDef_t *multiPtr = (multiDef_t *)item->typeData;

@@ -7,7 +7,7 @@
    1 code/Ravl/CBounds.cpp
    2 code/Ravl/CVec.cpp
    1 code/client/cl_main.cpp
-  12 code/client/snd_dma.cpp
+   2 code/client/snd_dma.cpp
   16 code/client/snd_mem.cpp
    3 code/ghoul2/G2_API.cpp
    2 code/ghoul2/G2_bones.cpp

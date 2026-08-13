@@ -64,30 +64,6 @@ if(BuildJKAEngine OR BuildJK2Engine)
 		set(EngineLibraries ${EngineLibraries} ${OPENGL_LIBRARIES})
 	endif()
 
-	# OpenAL (is optionally included for Windows)
-	if(MSVC AND NOT WIN64)
-		if(UseInternalOpenAL)
-			# There's a libs/OpenAL32.lib
-			# (mrw) TODO Is this actually required on windows? It is loaded at runtime, should not be linked?
-			find_library(OpenALLibrary NAMES OpenAL32 PATHS "${OpenJKLibDir}")
-			if(NOT OpenALLibrary)
-				message(FATAL_ERROR "UseInternalOpenAL enabled, but lib/OpenAL32.lib not found!")
-			endif(NOT OpenALLibrary)
-			set(EngineLibraries ${EngineLibraries} ${OpenALLibrary})
-		else(UseInternalOpenAL)
-			find_package(OpenAL REQUIRED)
-			set(EngineIncludeDirectories ${EngineIncludeDirectories} ${OPENAL_INCLUDE_DIR})
-			set(EngineLibraries ${EngineLibraries} ${OPENAL_LIBRARY})
-		endif(UseInternalOpenAL)
-
-		set(EngineEAXFiles
-			"${CodeDir}/client/eax/eax.h"
-			"${CodeDir}/client/eax/EaxMan.h"
-			)
-		source_group("eax" FILES ${EngineEAXFiles})
-		set(EngineFiles ${EngineFiles} ${EngineEAXFiles})
-	endif()
-
 	if(UseInternalSDL2)
 		if(CMAKE_SIZEOF_VOID_P EQUAL 4)
 			set(EngineLibraries
