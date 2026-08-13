@@ -40,10 +40,11 @@ from pathlib import Path
 # Layer name -> path prefixes that belong to it. Order matters only for output.
 LAYERS: dict[str, tuple[str, ...]] = {
     "platform": ("shared/sys", "shared/sdl"),
-    "engine": ("code/qcommon", "code/server", "code/client", "shared/qcommon"),
+    "engine": ("code/qcommon", "code/server", "code/client", "shared/qcommon",
+               "code/ui"),
     "api": ("code/api",),
     "render": ("code/rd-vulkan", "code/rd-common"),
-    "game": ("games/jka", "games/jk2", "code/ui"),
+    "game": ("games/jka", "games/jk2"),
 }
 
 # What each layer is allowed to include from (itself always allowed).

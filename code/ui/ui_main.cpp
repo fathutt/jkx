@@ -42,35 +42,8 @@ USER INTERFACE MAIN
 
 #include "../ghoul2/G2.h"
 
-#ifdef JK2_MODE
-	#include "../../games/jk2/game/bg_public.h"
-#else
-	#include "../../games/jka/game/bg_public.h"
-#endif
-
-// The animation vocabulary is an asset-format contract, not a private detail of
-// the gamecode: .menu files name animations as strings, models/players/<skel>/
-// animation.cfg names them again, and the engine's menu code has to resolve
-// both. It is also *per game* - Jedi Academy's table begins with FACE_TALK0 and
-// Jedi Outcast's with BOTH_1CRUFTFORGIL, and the two enums agree on nothing
-// beyond some of the names.
-//
-// This used to include Jedi Academy's copy unconditionally, in both engines.
-// The mistake was invisible because the engine parses animation.cfg through the
-// same table it later looks names up in, so it stayed consistent with itself;
-// what it lost was every animation whose name exists in Jedi Outcast and not in
-// Jedi Academy, which is silently dropped at parse and then not found at use.
-//
-// This belongs in code/api. It is here, spelled out, until that move is made,
-// because moving it changes what the interface ratchet measures and that is a
-// decision about the shape of the tree rather than a bug fix.
-#ifdef JK2_MODE
-	#include "../../games/jk2/game/anims.h"
-#else
-	#include "../../games/jka/game/anims.h"
-#endif
-
-extern stringID_table_t animTable [MAX_ANIMATIONS+1];
+#include "../api/anim_names.h"
+#include "qcommon/statindex.h"
 
 #include "../qcommon/stringed_ingame.h"
 #include "../qcommon/q_shared.h"
@@ -2123,15 +2096,32 @@ static qboolean UI_OwnerDrawHandleKey(int ownerDraw, int flags, float *special, 
   return qfalse;
 }
 
+// The comment below was already true and is now finished: the menu code owns
+// its animation data outright rather than borrowing a game's struct. It has to,
+// because the two games do not agree on what one looks like - Academy packs it
+// into eight bytes with a glaIndex, Outcast uses five ints with an initialLerp -
+// and neither of them is ever handed one of these. What leaves this file is a
+// pair of frame numbers and a speed, straight into G2API_SetBoneAnim.
+//
+// UI_MAX_ANIMATIONS is a ceiling over both games rather than either game's
+// count; UI_ParseAnimationFile refuses to write past it and says so.
+#define UI_MAX_ANIMATIONS 2048
+
+typedef struct {
+	int		firstFrame;
+	int		numFrames;
+	int		loopFrames;		// 0 to numFrames, -1 = no loop
+	int		frameLerp;		// msec between frames
+} uiAnimation_t;
+
 //unfortunately we cannot rely on any game/cgame module code to do our animation stuff,
 //because the ui can be loaded while the game/cgame are not loaded. So we're going to recreate what we need here.
-#undef MAX_ANIM_FILES
 #define MAX_ANIM_FILES 4
 class ui_animFileSet_t
 {
 public:
 	char			filename[MAX_QPATH];
-	animation_t		animations[MAX_ANIMATIONS];
+	uiAnimation_t	animations[UI_MAX_ANIMATIONS];
 }; // ui_animFileSet_t
 static ui_animFileSet_t	ui_knownAnimFileSets[MAX_ANIM_FILES];
 
@@ -2146,7 +2136,7 @@ qboolean UI_ParseAnimationFile( const char *af_filename )
 	float		fps;
 	char		text[80000];
 	int			animNum;
-	animation_t	*animations = ui_knownAnimFileSets[ui_numKnownAnimFileSets].animations;
+	uiAnimation_t	*animations = ui_knownAnimFileSets[ui_numKnownAnimFileSets].animations;
 
 	len = re.GetAnimationCFG(af_filename, text, sizeof(text));
 	if ( len <= 0 )
@@ -2165,7 +2155,7 @@ qboolean UI_ParseAnimationFile( const char *af_filename )
 	//FIXME: have some way of playing anims backwards... negative numFrames?
 
 	//initialize anim array so that from 0 to MAX_ANIMATIONS, set default values of 0 1 0 100
-	for(i = 0; i < MAX_ANIMATIONS; i++)
+	for(i = 0; i < UI_MAX_ANIMATIONS; i++)
 	{
 		animations[i].firstFrame = 0;
 		animations[i].numFrames = 0;
@@ -2186,6 +2176,15 @@ qboolean UI_ParseAnimationFile( const char *af_filename )
 		}
 
 		animNum = GetIDForString(animTable, token);
+		if (animNum >= UI_MAX_ANIMATIONS)
+		{
+			// A limit that is silently exceeded is the failure mode section 6.6
+			// of the coding standards exists to stop. This one cannot happen
+			// with either game's table as it stands, which is exactly why it
+			// would go unnoticed if one grew.
+			Com_Error( ERR_DROP, "UI_ParseAnimationFile: animation %s is %d, "
+					   "UI_MAX_ANIMATIONS is %d", token, animNum, UI_MAX_ANIMATIONS );
+		}
 		if(animNum == -1)
 		{
 //#ifndef FINAL_BUILD
@@ -2316,7 +2315,7 @@ int UI_G2SetAnim(CGhoul2Info *ghlInfo, const char *boneName, int animNum, const 
 
 	if (animIndex != -1)
 	{
-		animation_t *anim = &ui_knownAnimFileSets[animIndex].animations[animNum];
+		uiAnimation_t *anim = &ui_knownAnimFileSets[animIndex].animations[animNum];
 		if (anim->numFrames <= 0)
 		{
 			return 0;
@@ -4942,18 +4941,9 @@ static void	UI_RecordWeapons( void )
 		return;
 	}
 
-	const char *s2 = "";
-
-	int wpns = 0;
-	// always add blaster and saber
-	wpns |= (1<<WP_SABER);
-	wpns |= (1<<WP_BLASTER_PISTOL);
-	wpns |= (1<< uiInfo.selectedWeapon1);
-	wpns |= (1<< uiInfo.selectedWeapon2);
-	wpns |= (1<< uiInfo.selectedThrowWeapon);
-	s2 = va("%i", wpns );
-
-	Cvar_Set( "demo_playerwpns", s2 );
+	// demo_playerwpns was set here and read by nothing, in this tree or in the
+	// assets. It was also the only reason this file needed a game's weapon enum,
+	// which differs between the two games in size and in order.
 
 }
 
@@ -5649,7 +5639,7 @@ static void UI_ClearWeapons ( void )
 		// Clear out any weapons for the player
 		pState->stats[ STAT_WEAPONS ] = 0;
 
-		pState->weapon = WP_NONE;
+		pState->weapon = 0;	// WP_NONE, which is zero in both games
 
 	}
 
@@ -5669,7 +5659,7 @@ static void UI_GiveWeapon ( const int weaponIndex )
 	{
 		playerState_t*	pState = cl->gentity->client;
 
-		if (weaponIndex<WP_NUM_WEAPONS)
+		if (weaponIndex<MAX_WEAPONS)
 		{
 			pState->stats[ STAT_WEAPONS ] |= ( 1 << weaponIndex );
 		}
@@ -5690,7 +5680,7 @@ static void UI_EquipWeapon ( const int weaponIndex )
 	{
 		playerState_t*	pState = cl->gentity->client;
 
-		if (weaponIndex<WP_NUM_WEAPONS)
+		if (weaponIndex<MAX_WEAPONS)
 		{
 			pState->weapon = weaponIndex;
 			//force it to change
@@ -5831,13 +5821,13 @@ static void	UI_AddWeaponSelection ( const int weaponIndex, const int ammoIndex, 
 		{
 			playerState_t*	pState = cl->gentity->client;
 
-			if ((weaponIndex>0) && (weaponIndex<WP_NUM_WEAPONS))
+			if ((weaponIndex>0) && (weaponIndex<MAX_WEAPONS))
 			{
 				pState->stats[ STAT_WEAPONS ] |= ( 1 << weaponIndex );
 			}
 
 			// Give them ammo too
-			if ((ammoIndex>0) && (ammoIndex<AMMO_MAX))
+			if ((ammoIndex>0) && (ammoIndex<MAX_AMMO))
 			{
 				pState->ammo[ ammoIndex ] = ammoAmount;
 			}
@@ -5936,13 +5926,13 @@ static void UI_RemoveWeaponSelection ( const int weaponSelectionIndex )
 		{
 			playerState_t*	pState = cl->gentity->client;
 
-			if ((weaponIndex>0) && (weaponIndex<WP_NUM_WEAPONS))
+			if ((weaponIndex>0) && (weaponIndex<MAX_WEAPONS))
 			{
 				pState->stats[ STAT_WEAPONS ]  &= ~( 1 << weaponIndex );
 			}
 
 			// Remove ammo too
-			if ((ammoIndex>0) && (ammoIndex<AMMO_MAX))
+			if ((ammoIndex>0) && (ammoIndex<MAX_AMMO))
 			{	// But don't take it away if the other weapon is using that ammo
 				if ( uiInfo.selectedWeapon1AmmoIndex != uiInfo.selectedWeapon2AmmoIndex )
 				{
@@ -6122,13 +6112,13 @@ static void	UI_AddThrowWeaponSelection ( const int weaponIndex, const int ammoIn
 		{
 			playerState_t*	pState = cl->gentity->client;
 
-			if ((weaponIndex>0) && (weaponIndex<WP_NUM_WEAPONS))
+			if ((weaponIndex>0) && (weaponIndex<MAX_WEAPONS))
 			{
 				pState->stats[ STAT_WEAPONS ] |= ( 1 << weaponIndex );
 			}
 
 			// Give them ammo too
-			if ((ammoIndex>0) && (ammoIndex<AMMO_MAX))
+			if ((ammoIndex>0) && (ammoIndex<MAX_AMMO))
 			{
 				pState->ammo[ ammoIndex ] = ammoAmount;
 			}
@@ -6201,13 +6191,13 @@ static void UI_RemoveThrowWeaponSelection ( void )
 		{
 			playerState_t*	pState = cl->gentity->client;
 
-			if ((uiInfo.selectedThrowWeapon>0) && (uiInfo.selectedThrowWeapon<WP_NUM_WEAPONS))
+			if ((uiInfo.selectedThrowWeapon>0) && (uiInfo.selectedThrowWeapon<MAX_WEAPONS))
 			{
 				pState->stats[ STAT_WEAPONS ]  &= ~( 1 << uiInfo.selectedThrowWeapon );
 			}
 
 			// Remove ammo too
-			if ((uiInfo.selectedThrowWeaponAmmoIndex>0) && (uiInfo.selectedThrowWeaponAmmoIndex<AMMO_MAX))
+			if ((uiInfo.selectedThrowWeaponAmmoIndex>0) && (uiInfo.selectedThrowWeaponAmmoIndex<MAX_AMMO))
 			{
 				pState->ammo[ uiInfo.selectedThrowWeaponAmmoIndex ] = 0;
 			}

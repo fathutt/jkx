@@ -32,7 +32,9 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 #define	LOOK_SWING_SCALE	0.5
 
-#include "animtable.h"
+// animTable is a translation unit of its own now, linked in rather than
+// included - see code/api/anim_names.h.
+#include "api/anim_names.h"
 
 
 /*

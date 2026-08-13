@@ -32,16 +32,28 @@ import sys
 from pathlib import Path
 
 # Lower this when it drops. See the note above before touching it.
-CEILING = 933
+#
+# It has been raised once, from 933 to 983, and the fifty lines are
+# code/api/anim_names.h. The engine's menu code resolves animation names out of
+# .menu files and out of animation.cfg, with no game module loaded, so the table
+# of names is a contract between the assets and everyone rather than a detail of
+# a game. The alternative measured at the time was to move the whole vocabulary
+# - the enums, the tables and the per-game animation_t - which would have put
+# the ceiling near 8,800 and left it guarding nothing.
+#
+# The count also went from three include sites to six in the same commit,
+# because code/ui joined ENGINE below. It was always compiled into both engines;
+# the gate had simply been told it was gamecode.
+CEILING = 983
 
-ENGINE = ("code/qcommon", "code/server", "code/client", "shared")
+ENGINE = ("code/qcommon", "code/server", "code/client", "shared", "code/ui")
 # code/api is counted on the game side on purpose. It is the contract - the
 # three headers both sides include - and moving it out of the gamecode is what
 # let the layering gate stop calling those three includes violations. If it were
 # also dropped from this count the number would fall to zero and the gate would
 # be measuring nothing, which is bookkeeping rather than progress. The question
 # here has not changed: how much of the game side can the engine see.
-GAME = ("code/api", "games/jka", "games/jk2", "code/ui")
+GAME = ("code/api", "games/jka", "games/jk2")
 
 # shared/qcommon/safe/files.cpp includes game/g_shared.h under JKX_GAME_MODULE - that
 # is, when it is compiled into the game library rather than into the engine. It is

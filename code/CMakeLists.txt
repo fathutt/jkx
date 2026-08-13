@@ -279,7 +279,6 @@ if(BuildJKAEngine OR BuildJK2Engine)
 		"${CodeDir}/ui/ui_saber.cpp"
 		"${CodeDir}/ui/ui_shared.cpp"
 		"${CodeDir}/ui/ui_syscalls.cpp"
-		"${CodeDir}/ui/gameinfo.h"
 		"${CodeDir}/ui/menudef.h"
 		"${CodeDir}/ui/ui_local.h"
 		"${CodeDir}/ui/ui_shared.h"
@@ -315,12 +314,9 @@ if(BuildJKAEngine OR BuildJK2Engine)
 	set(EngineFiles ${EngineFiles} ${EngineGhoul2Files})
 
 
-	# Server files
-	set(EngineCGameFiles
-		"${JKADir}/cgame/animtable.h"
-		)
-	source_group("cgame" FILES ${EngineCGameFiles})
-	set(EngineFiles ${EngineFiles} ${EngineCGameFiles})
+	# The animation name table. Which game's is decided per engine, inside
+	# add_engine_project below, because it is the one source file in here that
+	# differs between the two.
 
 	set(EngineSysFiles
 		"${SharedDir}/sys/sys_main.cpp"
@@ -366,7 +362,15 @@ if(BuildJKAEngine OR BuildJK2Engine)
 	# The two engines are the same sources with a different define. The Windows
 	# resources are now the same file too: shared/win32/product.h reads JK2_MODE
 	# and supplies the five strings that used to be a second copy of each .rc.
-	function(add_engine_project ProjectName Label GameDirName InstallDir Component)
+	# GameDirName is where the macOS bundle resources live and is code/ for Jedi
+	# Academy for historical reasons; GameSrcDir is that game's own tree. They
+	# are separate parameters because conflating them is how the animation table
+	# ended up being looked for in code/cgame.
+	function(add_engine_project ProjectName Label GameDirName GameSrcDir InstallDir Component)
+		set(EngineCGameFiles "${GameSrcDir}/cgame/animtable.cpp")
+		source_group("cgame" FILES ${EngineCGameFiles})
+		set(EngineFiles ${EngineFiles} ${EngineCGameFiles})
+
 		if(WIN32)
 			set(EngineWin32Files
 				"${SharedDir}/win32/resource.h"
@@ -438,7 +442,7 @@ if(BuildJKAEngine OR BuildJK2Engine)
 		endif(EngineLibraries)
 	endfunction(add_engine_project)
 	if(BuildJKAEngine)
-		add_engine_project(${EngineJKA} "SP Client" ${CodeDir} ${JKAInstallDir} ${JKAClientComponent})
+		add_engine_project(${EngineJKA} "SP Client" ${CodeDir} ${JKADir} ${JKAInstallDir} ${JKAClientComponent})
 
 		# The renderer is part of the engine, not a module beside it. GetRefAPI
 		# is then an ordinary function call and the client says so at compile
@@ -451,7 +455,7 @@ if(BuildJKAEngine OR BuildJK2Engine)
 	endif(BuildJKAEngine)
 	if(BuildJK2Engine)
 		set(EngineDefines ${EngineDefines} "JK2_MODE")
-		add_engine_project(${EngineJK2} "JK2 SP Client" ${JK2Dir} ${JK2InstallDir} ${JK2ClientComponent})
+		add_engine_project(${EngineJK2} "JK2 SP Client" ${JK2Dir} ${JK2Dir} ${JK2InstallDir} ${JK2ClientComponent})
 
 		# The same renderer, linked the same way. It used to be the one place
 		# the two engines diverged: JK2 loaded a renderer module while JKA had

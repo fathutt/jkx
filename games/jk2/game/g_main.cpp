@@ -782,8 +782,6 @@ and global variables
 */
 extern int PM_ValidateAnimRange( int startFrame, int endFrame, float animSpeed );
 extern "C" Q_EXPORT game_export_t* QDECL GetGameAPI( game_import_t *import ) {
-	gameinfo_import_t	gameinfo_import;
-
 	gi = *import;
 
 	globals.apiversion = GAME_API_VERSION;
@@ -810,14 +808,10 @@ extern "C" Q_EXPORT game_export_t* QDECL GetGameAPI( game_import_t *import ) {
 
 	globals.gentitySize = sizeof(gentity_t);
 
-	gameinfo_import.FS_FOpenFile = gi.FS_FOpenFile;
-	gameinfo_import.FS_Read = gi.FS_Read;
-	gameinfo_import.FS_FCloseFile = gi.FS_FCloseFile;
-	gameinfo_import.Cvar_Set = gi.cvar_set;
-	gameinfo_import.Cvar_VariableStringBuffer = gi.Cvar_VariableStringBuffer;
-	gameinfo_import.Cvar_Create = G_Cvar_Create;
 
-	GI_Init( &gameinfo_import );
+	// GI_Init was a one-line function behind a nine-entry import table it
+	// never read. This is what it did.
+	WP_LoadWeaponParms();
 
 	return &globals;
 }

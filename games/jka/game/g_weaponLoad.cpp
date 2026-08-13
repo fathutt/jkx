@@ -1459,6 +1459,16 @@ static void WP_ParseParms(const char *buffer)
 }
 
 //--------------------------------------------
+// These were defined in code/ui/gameinfo.cpp, which was compiled into both game
+// libraries and included Jedi Academy's weapons.h whichever game it was being
+// built for. The two enums are not the same size - 29 weapons against 23 - so
+// the Jedi Outcast library defined an array of 29 while every other translation
+// unit in it declared one of 23. They live beside the function that fills them
+// now, and the compiler checks the size against the same header everything else
+// uses.
+weaponData_t weaponData[WP_NUM_WEAPONS];
+ammoData_t ammoData[AMMO_MAX];
+
 void WP_LoadWeaponParms (void)
 {
 	char *buffer;

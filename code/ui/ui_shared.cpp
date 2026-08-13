@@ -33,38 +33,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 //rww - added for ui ghoul2 models
 #define UI_SHARED_CPP
 
-// These point out of the engine and into a game's code, and they are written the
-// long way on purpose. Putting games/* on this target's include path would hide
-// them behind a short name; spelled out, they stay visible until they are gone.
-//
-// The animation vocabulary is an asset-format contract, not a private detail of
-// the gamecode: .menu files name animations as strings, models/players/<skel>/
-// animation.cfg names them again, and the engine's menu code has to resolve
-// both. It is also *per game* - Jedi Academy's table begins with FACE_TALK0 and
-// Jedi Outcast's with BOTH_1CRUFTFORGIL, and the two enums agree on nothing
-// beyond some of the names.
-//
-// This used to include Jedi Academy's copy unconditionally, in both engines.
-// The mistake was invisible because the engine parses animation.cfg through the
-// same table it later looks names up in, so it stayed consistent with itself;
-// what it lost was every animation whose name exists in Jedi Outcast and not in
-// Jedi Academy, which is silently dropped at parse and then not found at use.
-//
-// This belongs in code/api. It is here, spelled out, until that move is made,
-// because moving it changes what the interface ratchet measures and that is a
-// decision about the shape of the tree rather than a bug fix.
-#ifdef JK2_MODE
-	#include "../../games/jk2/game/bg_public.h"
-	#include "../../games/jk2/game/anims.h"
-#else
-	#include "../../games/jka/game/bg_public.h"
-	#include "../../games/jka/game/anims.h"
-#endif
-#ifdef JK2_MODE
-	#include "../../games/jk2/cgame/animtable.h"
-#else
-	#include "../../games/jka/cgame/animtable.h"
-#endif
+#include "../api/anim_names.h"
 
 #include "ui_shared.h"
 #include "menudef.h"
@@ -3491,7 +3460,7 @@ qboolean ItemParse_model_g2anim_go( itemDef_t *item, const char *animName )
 		return qtrue;
 	}
 
-	while (i < MAX_ANIMATIONS)
+	while (i < Anim_Count())
 	{
 		if (!Q_stricmp(animName, animTable[i].name))
 		{ //found it
@@ -7181,57 +7150,71 @@ void Item_Model_Paint(itemDef_t *item)
 		modelPtr = (modelDef_t*)item->typeData;
 		if (modelPtr)
 		{
-			//HACKHACKHACK: check for any multi-part anim sequences, and play the next anim, if needbe
-			switch( modelPtr->g2anim )
+			// Which animation follows which, by name.
+			//
+			// This was a switch over enum constants, which meant the engine had
+			// to have a game's animation enum compiled into it. Names are what
+			// the table holds and what the assets use, and a name a game does
+			// not have simply never matches - where a missing enum constant is
+			// a build error and a present-but-different one is a wrong
+			// animation played silently.
+			static const struct {
+				const char *psFrom;
+				const char *psTo;
+				int			iSound;		// index into the sounds below, -1 for none
+			} moveFollowUps[] = {
+				{ "BOTH_FORCEWALLREBOUND_FORWARD",	"BOTH_FORCEINAIR1",			-1 },
+				{ "BOTH_FORCEJUMP1",				"BOTH_FORCEINAIR1",			-1 },
+				{ "BOTH_FORCEINAIR1",				"BOTH_FORCELAND1",			-1 },
+				{ "BOTH_FORCEWALLRUNFLIP_START",	"BOTH_FORCEWALLRUNFLIP_END",-1 },
+				{ "BOTH_FORCELONGLEAP_START",		"BOTH_FORCELONGLEAP_LAND",	-1 },
+				{ "BOTH_KNOCKDOWN3",				"BOTH_FORCE_GETUP_F1",		 0 },
+				{ "BOTH_GETUP_BROLL_F",				NULL,						-1 },
+				{ "BOTH_KNOCKDOWN2",				"BOTH_GETUP_BROLL_F",		 0 },
+				{ "BOTH_KNOCKDOWN1",				"BOTH_GETUP_BROLL_R",		 1 },
+			};
+
+			const char *psCurrent = ( modelPtr->g2anim >= 0 && modelPtr->g2anim < Anim_Count() )
+								  ? animTable[modelPtr->g2anim].name : NULL;
+			const char *psNext = NULL;
+			int iSound = -1;
+
+			if ( psCurrent )
 			{
-			case BOTH_FORCEWALLREBOUND_FORWARD:
-			case BOTH_FORCEJUMP1:
-				ItemParse_model_g2anim_go( item, animTable[BOTH_FORCEINAIR1].name );
+				for ( size_t f = 0; f < ARRAY_LEN( moveFollowUps ); f++ )
+				{
+					if ( !Q_stricmp( psCurrent, moveFollowUps[f].psFrom ) && moveFollowUps[f].psTo )
+					{
+						psNext = moveFollowUps[f].psTo;
+						iSound = moveFollowUps[f].iSound;
+						break;
+					}
+				}
+			}
+
+			if ( psNext )
+			{
+				if ( iSound == 0 )
+				{
+					DC->startLocalSound( uiInfo.uiDC.Assets.datapadmoveJumpSound, CHAN_LOCAL );
+				}
+				else if ( iSound == 1 )
+				{
+					DC->startLocalSound( uiInfo.uiDC.Assets.datapadmoveRollSound, CHAN_LOCAL );
+				}
+
+				ItemParse_model_g2anim_go( item, psNext );
 				uiInfo.moveAnimTime = DC->g2hilev_SetAnim(&item->ghoul2[0], "model_root", modelPtr->g2anim, qtrue);
 				if ( !uiInfo.moveAnimTime )
 				{
 					uiInfo.moveAnimTime = 500;
 				}
 				uiInfo.moveAnimTime += uiInfo.uiDC.realTime;
-				break;
-			case BOTH_FORCEINAIR1:
-				ItemParse_model_g2anim_go( item, animTable[BOTH_FORCELAND1].name );
-				uiInfo.moveAnimTime = DC->g2hilev_SetAnim(&item->ghoul2[0], "model_root", modelPtr->g2anim, qtrue);
-				uiInfo.moveAnimTime += uiInfo.uiDC.realTime;
-				break;
-			case BOTH_FORCEWALLRUNFLIP_START:
-				ItemParse_model_g2anim_go( item, animTable[BOTH_FORCEWALLRUNFLIP_END].name );
-				uiInfo.moveAnimTime = DC->g2hilev_SetAnim(&item->ghoul2[0], "model_root", modelPtr->g2anim, qtrue);
-				uiInfo.moveAnimTime += uiInfo.uiDC.realTime;
-				break;
-			case BOTH_FORCELONGLEAP_START:
-				ItemParse_model_g2anim_go( item, animTable[BOTH_FORCELONGLEAP_LAND].name );
-				uiInfo.moveAnimTime = DC->g2hilev_SetAnim(&item->ghoul2[0], "model_root", modelPtr->g2anim, qtrue);
-				uiInfo.moveAnimTime += uiInfo.uiDC.realTime;
-				break;
-			case BOTH_KNOCKDOWN3://on front - into force getup
-				DC->startLocalSound(uiInfo.uiDC.Assets.datapadmoveJumpSound, CHAN_LOCAL );
-				ItemParse_model_g2anim_go( item, animTable[BOTH_FORCE_GETUP_F1].name );
-				uiInfo.moveAnimTime = DC->g2hilev_SetAnim(&item->ghoul2[0], "model_root", modelPtr->g2anim, qtrue);
-				uiInfo.moveAnimTime += uiInfo.uiDC.realTime;
-				break;
-			case BOTH_KNOCKDOWN2://on back - kick forward getup
-				DC->startLocalSound(uiInfo.uiDC.Assets.datapadmoveJumpSound, CHAN_LOCAL );
-				ItemParse_model_g2anim_go( item, animTable[BOTH_GETUP_BROLL_F].name );
-				uiInfo.moveAnimTime = DC->g2hilev_SetAnim(&item->ghoul2[0], "model_root", modelPtr->g2anim, qtrue);
-				uiInfo.moveAnimTime += uiInfo.uiDC.realTime;
-				break;
-			case BOTH_KNOCKDOWN1://on back - roll-away
-				DC->startLocalSound(uiInfo.uiDC.Assets.datapadmoveRollSound, CHAN_LOCAL );
-				ItemParse_model_g2anim_go( item, animTable[BOTH_GETUP_BROLL_R].name );
-				uiInfo.moveAnimTime = DC->g2hilev_SetAnim(&item->ghoul2[0], "model_root", modelPtr->g2anim, qtrue);
-				uiInfo.moveAnimTime += uiInfo.uiDC.realTime;
-				break;
-			default:
+			}
+			else
+			{
 				ItemParse_model_g2anim_go( item, uiInfo.movesBaseAnim );
 				DC->g2hilev_SetAnim(&item->ghoul2[0], "model_root", modelPtr->g2anim, qtrue);
-				uiInfo.moveAnimTime = 0;
-				break;
 			}
 		}
 	}

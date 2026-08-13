@@ -189,7 +189,7 @@ set(JK2GameCGameFiles
 	"${JK2Dir}/cgame/FxTemplate.cpp"
 	"${JK2Dir}/cgame/FxUtil.cpp"
 	"${JK2Dir}/cgame/FxUtil.h"
-	"${JK2Dir}/cgame/animtable.h"
+	"${JK2Dir}/cgame/animtable.cpp"
 	"${JK2Dir}/cgame/cg_camera.cpp"
 	"${JK2Dir}/cgame/cg_camera.h"
 	"${JK2Dir}/cgame/cg_consolecmds.cpp"
@@ -222,8 +222,6 @@ source_group("cgame" FILES ${JK2GameCGameFiles})
 set(JK2GameFiles ${JK2GameFiles} ${JK2GameCGameFiles})
 
 set(JK2GameUIFiles
-	"${CodeDir}/ui/gameinfo.cpp"
-	"${CodeDir}/ui/gameinfo.h"
 	)
 source_group("ui" FILES ${JK2GameUIFiles})
 set(JK2GameFiles ${JK2GameFiles} ${JK2GameUIFiles})
