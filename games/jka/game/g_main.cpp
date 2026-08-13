@@ -657,10 +657,24 @@ void G_InitCvars( void ) {
 	g_navSafetyChecks = gi.cvar( "g_navSafetyChecks", "0", 0 );
 	// NOTE : I also create this is UI_Init()
 	g_subtitles = gi.cvar( "g_subtitles", "0", CVAR_ARCHIVE );
-	com_buildScript = gi.cvar ("com_buildscript", "0", 0);
+	com_buildScript = gi.cvar ("com_buildScript", "0", 0);	// capital S, as the engine and the renderer register it
 
 	g_saberAutoBlocking = gi.cvar( "g_saberAutoBlocking", "1", CVAR_CHEAT );//must press +block button to do any blocking
-	g_saberRealisticCombat = gi.cvar( "g_saberMoreRealistic", "0", CVAR_ARCHIVE );//makes collision more precise, increases damage
+	// The same setting was called g_saberMoreRealistic here and
+	// g_saberRealisticCombat in Jedi Outcast, for one variable and one meaning,
+	// which made a config written for either game do nothing in the other. The
+	// Outcast name wins because it is the one the variable already had.
+	//
+	// The old name is still read once, so that nobody's config stops working
+	// silently - which would be the same defect wearing different clothes.
+	g_saberRealisticCombat = gi.cvar( "g_saberRealisticCombat", "0", CVAR_ARCHIVE );//makes collision more precise, increases damage
+	{
+		const int iLegacy = gi.Cvar_VariableIntegerValue( "g_saberMoreRealistic" );
+		if ( iLegacy && !g_saberRealisticCombat->integer )
+		{
+			gi.cvar_set( "g_saberRealisticCombat", va( "%d", iLegacy ) );
+		}
+	}
 	debug_subdivision = gi.cvar( "debug_subdivision", "0", CVAR_ARCHIVE );//debug for dismemberment
 	g_dismemberProbabilities = gi.cvar ( "g_dismemberProbabilities", "1", CVAR_ARCHIVE );//0 = ignore probabilities, 1 = use probabilities
 	g_saberDamageCapping = gi.cvar( "g_saberDamageCapping", "1", CVAR_CHEAT );//caps damage of sabers vs players and NPC who use sabers

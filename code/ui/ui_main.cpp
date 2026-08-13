@@ -2484,7 +2484,7 @@ static void UI_BuildPlayerModel_List( qboolean inGameLoad )
 	char*	dirptr;
 	int		dirlen;
 	int		i;
-	const int building = Cvar_VariableIntegerValue("com_buildscript");
+	const int building = Cvar_VariableIntegerValue("com_buildScript");
 
 	dirlist = (char *)malloc(DIR_LIST_SIZE);
 	if ( !dirlist )

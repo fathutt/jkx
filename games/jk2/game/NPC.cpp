@@ -60,9 +60,6 @@ extern cvar_t	*g_saberRealisticCombat;
 // ai debug cvars
 cvar_t		*debugNPCAI;			// used to print out debug info about the bot AI
 cvar_t		*debugNPCFreeze;		// set to disable bot ai and temporarily freeze them in place
-cvar_t		*debugNPCAimingBeam;
-cvar_t		*debugBreak;
-cvar_t		*debugNoRoam;
 cvar_t		*debugNPCName;
 cvar_t		*d_saberCombat;
 cvar_t		*d_JediAI;
@@ -2129,9 +2126,9 @@ void NPC_Think ( gentity_t *self)//, int msec )
 
 void NPC_InitAI ( void )
 {
-	debugNoRoam = gi.cvar ( "d_noroam", "0", CVAR_CHEAT );
-	debugNPCAimingBeam = gi.cvar ( "d_npcaiming", "0", CVAR_CHEAT );
-	debugBreak = gi.cvar ( "d_break", "0", CVAR_CHEAT );
+	// d_noroam, d_npcaiming and d_break were registered here and read nowhere,
+	// in either game. A cheat cvar that does nothing is worse than one that is
+	// missing: it appears in the console's completion and answers to being set.
 
 	debugNPCAI = gi.cvar ( "d_npcai", "0", CVAR_CHEAT );
 	debugNPCFreeze = gi.cvar ( "d_npcfreeze", "0", CVAR_CHEAT);

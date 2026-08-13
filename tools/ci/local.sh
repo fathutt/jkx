@@ -97,6 +97,7 @@ stage_policy() {
     python3 "$ROOT/tools/ci/check_interface.py" "$ROOT" &&
     python3 "$ROOT/tools/ci/check_sources.py" "$ROOT" &&
     python3 "$ROOT/tools/ci/check_strings.py" "$ROOT" &&
+    python3 "$ROOT/tools/ci/check_cvars.py" "$ROOT" &&
     python3 "$ROOT/tools/ci/check_msvc.py" "$ROOT" &&
     python3 "$ROOT/tools/ci/check_commits.py" &&
     stage_workflows

@@ -50,6 +50,9 @@ jobs:
       - name: String functions with no destination size
         run: python3 tools/ci/check_strings.py .
 
+      - name: One setting, one name
+        run: python3 tools/ci/check_cvars.py .
+
       # This one fails here in two seconds instead of failing in the Windows
       # job twenty minutes in, with an error message that names the wrong
       # token. Everything it looks for compiles cleanly on every compiler this

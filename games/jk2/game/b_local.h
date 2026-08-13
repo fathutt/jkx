@@ -58,9 +58,6 @@ void SaveNPCGlobals();
 void RestoreNPCGlobals();
 extern cvar_t		*debugNPCAI;			// used to print out debug info about the NPC AI
 extern cvar_t		*debugNPCFreeze;		// set to disable NPC ai and temporarily freeze them in place
-extern cvar_t		*debugNPCAimingBeam;
-extern cvar_t		*debugBreak;
-extern cvar_t		*debugNoRoam;
 extern cvar_t		*debugNPCName;
 extern cvar_t		*d_JediAI;
 extern cvar_t		*d_saberCombat;

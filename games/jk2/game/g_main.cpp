@@ -581,7 +581,7 @@ void G_InitCvars( void ) {
 	g_timescale = gi.cvar( "timescale", "1", 0 );
 
 	g_subtitles = gi.cvar( "g_subtitles", "2", CVAR_ARCHIVE );
-	com_buildScript = gi.cvar ("com_buildscript", "0", 0);
+	com_buildScript = gi.cvar ("com_buildScript", "0", 0);	// capital S, as the engine and the renderer register it
 
 	g_saberAutoBlocking = gi.cvar( "g_saberAutoBlocking", "1", CVAR_ARCHIVE|CVAR_CHEAT );//must press +block button to do any blocking
 	g_saberRealisticCombat = gi.cvar( "g_saberRealisticCombat", "0", CVAR_ARCHIVE );//makes collision more precise, increases damage
