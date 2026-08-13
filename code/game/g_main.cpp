@@ -33,7 +33,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #include "../cgame/cg_local.h"	// yeah I know this is naughty, but we're shipping soon...
 
 //rww - RAGDOLL_BEGIN
-#include "../ghoul2/ghoul2_gore.h"
+#include "ghoul2/ghoul2_gore.h"
 //rww - RAGDOLL_END
 
 #include "qcommon/ojk_saved_game_helper.h"

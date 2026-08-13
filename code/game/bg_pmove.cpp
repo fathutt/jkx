@@ -23,7 +23,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 #include "common_headers.h"
 
-#include "../rd-common/tr_public.h"
+#include "rd-common/tr_public.h"
 
 
 // bg_pmove.c -- both games player movement code
@@ -34,7 +34,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 // because we define the full size ones in this file
 
 #define	GAME_INCLUDE
-#include "../qcommon/q_shared.h"
+#include "qcommon/q_shared.h"
 #include "g_shared.h"
 #include "bg_local.h"
 #include "g_local.h"

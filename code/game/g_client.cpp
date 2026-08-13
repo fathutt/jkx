@@ -21,7 +21,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 ===========================================================================
 */
 
-#include "../icarus/IcarusInterface.h"
+#include "icarus/IcarusInterface.h"
 #include "../cgame/cg_local.h"
 #include "Q3_Interface.h"
 #include "g_local.h"

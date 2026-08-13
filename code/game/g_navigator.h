@@ -43,7 +43,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 
 #if !defined(RAVL_VEC_INC)
-	#include "../Ravl/CVec.h"
+	#include "Ravl/CVec.h"
 #endif
 
 

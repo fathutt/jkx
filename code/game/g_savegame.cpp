@@ -22,14 +22,14 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 // Filename:-	g_savegame.cpp
 
-#include "../icarus/IcarusInterface.h"
+#include "icarus/IcarusInterface.h"
 #include "../cgame/cg_local.h"
 #include "Q3_Interface.h"
 #include "g_local.h"
 #include "fields.h"
 #include "objectives.h"
 #include "../cgame/cg_camera.h"
-#include "../qcommon/sstring.h"
+#include "qcommon/sstring.h"
 #include "qcommon/ojk_saved_game_helper.h"
 
 extern void OBJ_LoadTacticalInfo(void);

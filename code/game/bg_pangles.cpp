@@ -27,13 +27,13 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 // short, server-visible gclient_t and gentity_t structures,
 // because we define the full size ones in this file
 #define GAME_INCLUDE
-#include "../qcommon/q_shared.h"
+#include "qcommon/q_shared.h"
 #include "g_shared.h"
 #include "bg_local.h"
 #include "anims.h"
 #include "wp_saber.h"
 #include "g_vehicles.h"
-#include "../ghoul2/ghoul2_gore.h"
+#include "ghoul2/ghoul2_gore.h"
 
 extern void CG_SetClientViewAngles( vec3_t angles, qboolean overrideViewEnt );
 extern qboolean PM_InAnimForSaberMove( int anim, int saberMove );

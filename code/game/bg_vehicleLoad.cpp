@@ -28,7 +28,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 
 
-#include "../Ratl/string_vs.h"
+#include "Ratl/string_vs.h"
 
 #ifdef QAGAME
 extern void G_SetSharedVehicleFunctions( vehicleInfo_t *pVehInfo );

@@ -22,7 +22,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 //wp_saberLoad.cpp
 
-#include "../qcommon/q_shared.h"
+#include "qcommon/q_shared.h"
 #include "g_local.h"
 #include "wp_saber.h"
 #include "../cgame/cg_local.h"

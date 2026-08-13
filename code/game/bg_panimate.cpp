@@ -28,7 +28,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 // because we define the full size ones in this file
 #define GAME_INCLUDE
 
-#include "../qcommon/q_shared.h"
+#include "qcommon/q_shared.h"
 #include "g_shared.h"
 #include "bg_local.h"
 #include "../cgame/cg_local.h"

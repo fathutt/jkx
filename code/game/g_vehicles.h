@@ -23,8 +23,8 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #ifndef __G_VEHICLES_H
 #define __G_VEHICLES_H
 
-#include "../qcommon/q_shared.h"
-#include "../api/g_public.h"
+#include "qcommon/q_shared.h"
+#include "api/g_public.h"
 
 typedef enum
 {

@@ -27,7 +27,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #include "objectives.h"
 #include "g_local.h"
 
-#include "../icarus/IcarusInterface.h"
+#include "icarus/IcarusInterface.h"
 
 
 int	BMS_START = 0;

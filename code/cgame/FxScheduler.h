@@ -25,10 +25,10 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #endif
 
 
-#include "../qcommon/sstring.h"
+#include "qcommon/sstring.h"
 typedef sstring_t fxString_t;
 
-#include "../qcommon/GenericParser2.h"
+#include "qcommon/GenericParser2.h"
 #include "qcommon/safe/string.h"
 
 #include <algorithm>

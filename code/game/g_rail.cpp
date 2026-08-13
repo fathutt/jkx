@@ -31,7 +31,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 // upon their targets and recycled in random positions and order
 //
 ////////////////////////////////////////////////////////////////////////////////////////
-#include "../qcommon/q_shared.h"
+#include "qcommon/q_shared.h"
 #include "bg_public.h"
 #include "../cgame/cg_local.h"
 #include "g_functions.h"
@@ -51,22 +51,22 @@ class	CRailMover;
 ////////////////////////////////////////////////////////////////////////////////////////
 #include "b_local.h"
 #if !defined(RATL_ARRAY_VS_INC)
-	#include "../Ratl/array_vs.h"
+	#include "Ratl/array_vs.h"
 #endif
 #if !defined(RATL_VECTOR_VS_INC)
-	#include "../Ratl/vector_vs.h"
+	#include "Ratl/vector_vs.h"
 #endif
 #if !defined(RAVL_VEC_INC)
-	#include "../Ravl/CVec.h"
+	#include "Ravl/CVec.h"
 #endif
 #if !defined(RUFL_HSTRING_INC)
-	#include "../Rufl/hstring.h"
+	#include "Rufl/hstring.h"
 #endif
 #if !defined(RATL_GRID_VS_INC)
-	#include "../Ratl/grid_vs.h"
+	#include "Ratl/grid_vs.h"
 #endif
 #if !defined(RATL_POOL_VS_INC)
-	#include "../Ratl/pool_vs.h"
+	#include "Ratl/pool_vs.h"
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////////////

@@ -22,7 +22,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 #include <memory>
 #include "g_local.h"
-#include "../Rufl/hstring.h"
+#include "Rufl/hstring.h"
 #include "qcommon/ojk_saved_game_helper.h"
 
 #define MAX_GTIMERS	16384

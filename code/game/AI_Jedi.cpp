@@ -24,7 +24,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #include "g_nav.h"
 #include "anims.h"
 #include "wp_saber.h"
-#include "../qcommon/tri_coll_test.h"
+#include "qcommon/tri_coll_test.h"
 #include "g_navigator.h"
 #include "../cgame/cg_local.h"
 #include "g_functions.h"
