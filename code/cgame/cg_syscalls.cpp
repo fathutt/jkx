@@ -112,22 +112,6 @@ void	cgi_UpdateScreen( void ) {
 	Q_syscall( CG_UPDATESCREEN );
 }
 
-//RMG BEGIN
-void cgi_RMG_Init(int terrainID, const char *terrainInfo)
-{
-	Q_syscall( CG_RMG_INIT, terrainID, terrainInfo);
-}
-
-int cgi_CM_RegisterTerrain(const char *terrainInfo)
-{
-	return Q_syscall( CG_CM_REGISTER_TERRAIN, terrainInfo);
-}
-
-void cgi_RE_InitRendererTerrain( const char *terrainInfo )
-{
-	Q_syscall(CG_RE_INIT_RENDERER_TERRAIN, terrainInfo);
-}
-//RMG END
 
 void	cgi_CM_LoadMap( const char *mapname, qboolean subBSP ) {
 	Q_syscall( CG_CM_LOADMAP, mapname, subBSP );

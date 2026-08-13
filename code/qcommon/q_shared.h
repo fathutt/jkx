@@ -646,7 +646,6 @@ typedef struct {
 // per-level limits
 //
 #define	MAX_CLIENTS			1 // 128		// absolute limit
-#define MAX_TERRAINS		1 //32
 
 #define	GENTITYNUM_BITS		10		// don't need to send any more
 #define	MAX_GENTITIES		(1<<GENTITYNUM_BITS)
@@ -727,8 +726,13 @@ Ghoul2 Insert End
 #define	CS_LIGHT_STYLES		(CS_PLAYERS+MAX_CLIENTS)
 
 #ifndef JK2_MODE
-#define CS_TERRAINS			(CS_LIGHT_STYLES + (MAX_LIGHT_STYLES*3))
-#define CS_BSP_MODELS		(CS_TERRAINS + MAX_TERRAINS)
+// CS_TERRAINS was here, one slot wide, and nothing wrote it or read it: the
+// only reader was a loop in cg_main.cpp over an empty range. Removing it moves
+// every configstring after it down by one, which is a savegame format change
+// and is meant to be - this engine's saves are its own, the retail format was
+// given up deliberately, and a reserved slot for a feature that was cut before
+// the game shipped is not worth carrying to keep a number the same.
+#define CS_BSP_MODELS		(CS_LIGHT_STYLES + (MAX_LIGHT_STYLES*3))
 #endif // !JK2_MODE
 
 #ifdef JK2_MODE

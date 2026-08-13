@@ -1746,25 +1746,12 @@ Ghoul2 Insert End
 		}
 	}
 
-	const char	*terrainInfo;
-	int			terrainID;
-
-	for(i = 1; i < MAX_TERRAINS; i++)
-	{
-		terrainInfo = CG_ConfigString( CS_TERRAINS + i );
-		if ( !terrainInfo[0] )
-		{
-			break;
-		}
-		CG_LoadingString("Creating terrain");
-
-		terrainID = cgi_CM_RegisterTerrain(terrainInfo);
-
-		cgi_RMG_Init(terrainID, terrainInfo);
-
-		// Send off the terrainInfo to the renderer
-		cgi_RE_InitRendererTerrain( terrainInfo );
-	}
+	// A loop over the terrains used to be here, and it could not run: MAX_TERRAINS
+	// is 1 and the loop starts at 1, so the range is empty. Someone turned the
+	// random map generator off by changing that constant from 32 and left
+	// everything else in place - three system calls the engine answers with
+	// "return 0", their wrappers, a configstring range nobody writes, and two
+	// null function pointers in game_import_t. All of it is gone now.
 }
 
 //===========================================================================

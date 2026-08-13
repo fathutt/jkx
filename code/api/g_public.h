@@ -383,9 +383,11 @@ Ghoul2 Insert Start
 	void		(*G2API_AddSkinGore)(CGhoul2Info_v &ghoul2,SSkinGoreData &gore);
 	void		(*G2API_ClearSkinGore)( CGhoul2Info_v &ghoul2 );
 
-	void		(*RMG_Init)(int terrainID);
-
-	int			(*CM_RegisterTerrain)(const char *info);
+	// RMG_Init and CM_RegisterTerrain were here, and the engine never assigned
+	// either one. A game module that called them would have called through a
+	// null pointer. See the note in cg_main.cpp: the random map generator was
+	// switched off by setting MAX_TERRAINS to 1 and everything else was left
+	// where it stood.
 
 	const char	*(*SetActiveSubBSP)(int index);
 
@@ -448,7 +450,6 @@ typedef struct {
 	// and parameters.  Return qfalse if the game doesn't recognize it as a command.
 	qboolean	(*ConsoleCommand)( void );
 
-	void		(*GameSpawnRMGEntity)(char *s);
 	//
 	// global variables shared between game and server
 	//

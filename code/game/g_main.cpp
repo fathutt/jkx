@@ -860,19 +860,6 @@ static void G_Cvar_Create( const char *var_name, const char *var_value, int flag
 	gi.cvar( var_name, var_value, flags );
 }
 
-//BEGIN GAMESIDE RMG
-qboolean G_ParseSpawnVars( const char **data );
-void G_SpawnGEntityFromSpawnVars( void );
-
-void G_GameSpawnRMGEntity(char *s)
-{
-	if (G_ParseSpawnVars((const char **)&s))
-	{
-		G_SpawnGEntityFromSpawnVars();
-	}
-}
-//END GAMESIDE RMG
-
 /*
 =================
 GetGameAPI
@@ -910,7 +897,6 @@ extern "C" Q_EXPORT game_export_t* QDECL GetGameAPI( game_import_t *import ) {
 
 	//globals.ValidateAnimRange = PM_ValidateAnimRange;
 
-	globals.GameSpawnRMGEntity = G_GameSpawnRMGEntity;
 
 	globals.gentitySize = sizeof(gentity_t);
 

@@ -32,7 +32,7 @@ import sys
 from pathlib import Path
 
 # Lower this when it drops. See the note above before touching it.
-CEILING = 935
+CEILING = 933
 
 ENGINE = ("code/qcommon", "code/server", "code/client", "shared")
 # code/api is counted on the game side on purpose. It is the contract - the

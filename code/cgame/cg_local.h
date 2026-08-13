@@ -966,10 +966,6 @@ void	cgi_SendClientCommand( const char *s );
 // force a screen update, only used during gamestate load
 void	cgi_UpdateScreen( void );
 
-//RMG
-void	cgi_RMG_Init(int terrainID, const char *terrainInfo);
-int		cgi_CM_RegisterTerrain(const char *terrainInfo);
-void	cgi_RE_InitRendererTerrain( const char *terrainInfo );
 
 // model collision
 void	cgi_CM_LoadMap( const char *mapname, qboolean subBSP );

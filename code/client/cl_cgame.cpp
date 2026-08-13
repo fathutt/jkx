@@ -493,14 +493,6 @@ intptr_t CL_CgameSystemCalls( intptr_t *args ) {
 		Com_EventLoop();	// FIXME: if a server restarts here, BAD THINGS HAPPEN!
 		SCR_UpdateScreen();
 		return 0;
-	case CG_RMG_INIT:
-		return 0;
-	case CG_CM_REGISTER_TERRAIN:
-		return 0;
-
-	case CG_RE_INIT_RENDERER_TERRAIN:
-		return 0;
-
 	case CG_CM_LOADMAP:
 		CL_CM_LoadMap( (const char *) VMA(1), (qboolean)(args[2] != 0) );
 		return 0;
