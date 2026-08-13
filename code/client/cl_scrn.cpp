@@ -446,7 +446,17 @@ void SCR_DrawScreenField( stereoFrame_t stereoFrame ) {
 	// this the margins beside it were never filled - and what showed through
 	// was the renderer's clear colour, which is 0.75 grey. Grey bars beside
 	// every video, from a comparison that reads as though it covers this case.
-	if ( uiFullscreen || cls.state < CA_ACTIVE || cls.state == CA_CINEMATIC ) {
+	//
+	// The other half of the same thing: a video played during a level runs at
+	// CA_ACTIVE and is drawn by the branch above that tests these two functions
+	// rather than the state. Testing the state alone therefore covered the
+	// videos between levels and not the ones inside them, which is where the
+	// campaign's opening video is - and it is the one that kept coming back
+	// with grey beside it after the fix that was supposed to remove it.
+	const qboolean bVideo = (qboolean)( cls.state == CA_CINEMATIC
+		|| CL_IsRunningInGameCinematic() || CL_InGameCinematicOnStandBy() );
+
+	if ( uiFullscreen || cls.state < CA_ACTIVE || bVideo ) {
 		SCR_FillFrameMargins();
 	}
 

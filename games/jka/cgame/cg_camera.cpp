@@ -1327,6 +1327,18 @@ void CGCam_DrawWideScreen( void )
 	const float width = CG_ScreenWidth();
 	const float height = CG_ScreenHeight();
 
+	// Which way the letterbox runs.
+	//
+	// Bars exist to frame the shot at the proportions it was composed for, and
+	// that is 16:9. On a wider screen the frame belongs at the sides, and taking
+	// the black off the top and bottom gives the cinematic back the height it
+	// was drawn with instead of cropping a 4:3-era picture twice. On a 16:9
+	// screen there is nothing to trim, so the classic top-and-bottom bars stay -
+	// they are the framing on anything that is not wider than the shot.
+	const float composed = 16.0f / 9.0f;
+	const float sideBar = ( width - height * composed ) * 0.5f;
+	const qboolean bSides = (qboolean)( sideBar > 1.0f );
+
 	CG_HudSpace();
 
 	//Only draw if visible
@@ -1337,8 +1349,20 @@ void CGCam_DrawWideScreen( void )
 		modulate[0] = modulate[1] = modulate[2] = 0.0f;
 		modulate[3] = client_camera.bar_alpha;
 
-		CG_FillRect( 0, 0, width, client_camera.bar_height, modulate  );
-		CG_FillRect( 0, height - client_camera.bar_height, width, client_camera.bar_height, modulate  );
+		// bar_height animates from zero to 480/10 and back; what it is really
+		// carrying is how far through the fade we are, so it drives whichever
+		// edge the bars are on.
+		const float progress = client_camera.bar_height / (float)( 480 / 10 );
+
+		if ( bSides ) {
+			const float bar = sideBar * progress;
+			CG_FillRect( 0, 0, bar, height, modulate );
+			CG_FillRect( width - bar, 0, bar, height, modulate );
+		} else {
+			CG_FillRect( 0, 0, width, client_camera.bar_height, modulate );
+			CG_FillRect( 0, height - client_camera.bar_height, width,
+						 client_camera.bar_height, modulate );
+		}
 	}
 
 	//NOTENOTE: Camera always draws the fades unless the alpha is 0

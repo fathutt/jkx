@@ -253,6 +253,7 @@ vmCvar_t	cg_crosshairForceHint;
 vmCvar_t	cg_crosshairX;
 vmCvar_t	cg_crosshairY;
 vmCvar_t	cg_crosshairDotSize;
+vmCvar_t	cg_crosshairTrace;
 vmCvar_t	cg_draw2D;
 vmCvar_t	cg_drawStatus;
 vmCvar_t	cg_drawHUD;
@@ -369,6 +370,9 @@ static cvarTable_t cvarTable[] = {
 	// under two meanings is the same defect check_cvars.py exists for, and a
 	// value already on disk is exactly where it bites.
 	{ &cg_crosshairDotSize, "cg_crosshairDotSize", "3", CVAR_ARCHIVE },
+	// Draw the crosshair where the weapon trace lands rather than at the centre
+	// of the screen. That was the only behaviour until now; see CG_DrawCrosshair.
+	{ &cg_crosshairTrace, "cg_crosshairTrace", "0", CVAR_ARCHIVE },
 	{ &cg_crosshairX, "cg_crosshairX", "0", CVAR_ARCHIVE },
 	{ &cg_crosshairY, "cg_crosshairY", "0", CVAR_ARCHIVE },
 	{ &cg_simpleItems, "cg_simpleItems", "0", CVAR_ARCHIVE },

@@ -3156,8 +3156,17 @@ static void CG_ScanForCrosshairEntity( qboolean scanAll )
 		return;
 	}
 */
-	//draw crosshair at endpoint
-	CG_DrawCrosshair( trace.endpos );
+	// The crosshair goes at the centre of the screen and stays there.
+	//
+	// It used to be drawn at the point the weapon trace hit, projected back onto
+	// the screen. That is where the shot lands, and in first person it is the
+	// middle of the screen anyway - but in third person the camera and the gun
+	// are in different places, so the crosshair slides around the screen as the
+	// camera turns and settles somewhere off-centre. Every modern game pins it,
+	// and a pinned crosshair is what a player aims with; the trace is still what
+	// the shot follows, and cg_crosshairTrace 1 brings the old drawing back for
+	// anyone who wants to see the difference.
+	CG_DrawCrosshair( cg_crosshairTrace.integer ? trace.endpos : NULL );
 
 	g_crosshairEntNum = trace.entityNum;
 	g_crosshairEntDist = 4096*trace.fraction;
