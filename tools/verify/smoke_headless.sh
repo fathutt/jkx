@@ -190,9 +190,24 @@ fi
 # was in the wrong place. One race, two accusations, neither of them true. The
 # flat-colour gate further down is the other half of this fix.
 #
-# Two hundred is two and a half times the worst load measured. It is not a
-# proof - the only proof would be a fence the engine does not offer - but it is
-# a margin with a number behind it instead of a number that happened to work.
+# The same constant covers the screen wipe, which is the second thing here that
+# is timed in milliseconds and waited for in frames. RE_ProcessDissolve runs for
+# fDISSOLVE_SECONDS - 0.75 - measured with Sys_Milliseconds2, so how many frames
+# it takes is a function of how fast the machine is drawing.
+#
+# The fog stage caught that the hard way. Its unfogged frame is checked for at
+# least 2000 white pixels of floor and it had "+wait 90" in front of it, which
+# put the screenshot inside the wipe. Measured with a screenshot every twenty
+# frames after setviewpos: 1016 white pixels, 1156, 1160, 1654, 4824, 6090,
+# 6573, 6873, 6853, 7002, 7022, 7022. The threshold falls between the fourth
+# and the fifth sample. Run on its own the stage landed above it; run after
+# twelve other stages it landed below, twice, and read as a rendering fault in
+# a commit that had already been shown to produce a byte-identical binary.
+#
+# Two hundred is two and a half times the worst load measured, and by the same
+# series the wipe is over by then with room to spare. It is not a proof - the
+# only proof would be a fence the engine does not offer - but it is a margin
+# with numbers behind it instead of a number that happened to work.
 SETTLE=200
 
 INMAP_STEP=( +wait 20 +map jkx_room +wait $SETTLE +screenshot_tga jkx_inmap )
@@ -285,7 +300,7 @@ else
         # the clear colour and washes every other colour check in this file.
         INMAP_STEP+=( +cg_thirdPerson 0
                       +cg_bobup 0 +cg_bobpitch 0 +cg_bobroll 0
-                      +setviewpos 0 0 -15 90 +wait 90
+                      +setviewpos 0 0 -15 90 +wait $SETTLE
                       +screenshot_tga jkx_nofog +wait 15
                       +r_drawfog 1 +wait 20 +screenshot_tga jkx_fog +wait 15
                       +r_drawfog 0 +wait 10 )
