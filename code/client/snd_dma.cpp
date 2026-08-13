@@ -70,6 +70,7 @@ typedef struct MusicInfo_s
 	sfx_t		sfxMP3_Bgrnd;
 	MP3STREAM	streamMP3_Bgrnd;	// this one is pointed at by the sfx_t's ptr, and is NOT the one the decoder uses every cycle
 	channel_t	chMP3_Bgrnd;		// ... but the one in this struct IS.
+	soundStream_t streamState_Bgrnd;	// the decode slot chMP3_Bgrnd.stream points at
 	//
 	// MP3 disk streamer stuff... (if music is non-dynamic)
 	//
@@ -115,8 +116,8 @@ typedef struct MusicInfo_s
 
 	void SeekTo(float fTime)
 	{
-		chMP3_Bgrnd.iMP3SlidingDecodeWindowPos = 0;
-		chMP3_Bgrnd.iMP3SlidingDecodeWritePos = 0;
+		chMP3_Bgrnd.stream->windowPos = 0;
+		chMP3_Bgrnd.stream->writePos = 0;
 		MP3Stream_SeekTo( &chMP3_Bgrnd, fTime );
 		s_backgroundSamples = sfxMP3_Bgrnd.iSoundLengthInSamples;
 	}
@@ -151,6 +152,29 @@ const float	SOUND_FMAXVOL=0.75;//1.0;
 const int	SOUND_MAXVOL=255;
 
 channel_t   s_channels[MAX_CHANNELS];
+
+// One decode slot per channel, wired once and never moved. Same total memory as
+// when this lived inside channel_t, and none of it in the array the mixer walks.
+static soundStream_t s_channelStreams[MAX_CHANNELS];
+
+// Called after anything that clears the channel array wholesale. A channel
+// without a slot would fault the first time it streamed, so this is the one
+// place that has to be right.
+//
+// It resets the decode state as well, because the bulk memset it follows used
+// to reach the state through channel_t and no longer does. The 50 KB window is
+// left alone on purpose - it is written before it is read, and not clearing it
+// is the whole reason Channel_Clear used to be two memsets with offsetof
+// arithmetic between them.
+static void S_WireChannelStreams( void )
+{
+	for ( int i = 0; i < MAX_CHANNELS; i++ ) {
+		s_channels[i].stream = &s_channelStreams[i];
+		memset( &s_channelStreams[i].header, 0, sizeof( s_channelStreams[i].header ) );
+		s_channelStreams[i].writePos = 0;
+		s_channelStreams[i].windowPos = 0;
+	}
+}
 
 int			s_soundStarted;
 qboolean	s_soundMuted;
@@ -220,20 +244,26 @@ int			s_entityWavVol_back[MAX_GENTITIES];
 int			s_numChannels;			// Number of AL Sources == Num of Channels
 
 
-// instead of clearing a whole channel_t struct, we're going to skip the MP3SlidingDecodeBuffer[] buffer in the middle...
-//
-#ifndef offsetof
-#include <stddef.h>
-#endif
+// This used to memset around the 50 KB decode buffer sitting in the middle of
+// channel_t, in two calls whose offsetof arithmetic had to be kept in step with
+// the field order by hand. The buffer is out of line now, so clearing a channel
+// is just clearing a channel - but the decode slot it owns is a permanent
+// association and has to survive.
 static inline void Channel_Clear(channel_t *ch)
 {
-	// memset (ch, 0, sizeof(*ch));
+	soundStream_t *const stream = ch->stream;
+	memset(ch, 0, sizeof(*ch));
+	ch->stream = stream;
 
-	memset(ch,0,offsetof(channel_t,MP3SlidingDecodeBuffer));
-
-	byte *const p = (byte *)ch + offsetof(channel_t,MP3SlidingDecodeBuffer) + sizeof(ch->MP3SlidingDecodeBuffer);
-
-	memset(p,0,(sizeof(*ch) - offsetof(channel_t,MP3SlidingDecodeBuffer)) - sizeof(ch->MP3SlidingDecodeBuffer));
+	// The old two-memset version cleared the decoder header and both window
+	// positions and skipped only the 50 KB window itself. Keep exactly that:
+	// the window is overwritten before it is read, and clearing it every time
+	// a channel is picked is what the offsetof arithmetic existed to avoid.
+	if ( stream ) {
+		memset( &stream->header, 0, sizeof( stream->header ) );
+		stream->writePos = 0;
+		stream->windowPos = 0;
+	}
 }
 
 // ====================================================================
@@ -313,6 +343,14 @@ void S_Init( void ) {
 	qboolean	r;
 
 	Com_Printf("\n------- sound initialization -------\n");
+
+	// Every channel that can stream gets its decode slot here, once, and keeps
+	// it. Doing it in one place is what makes channel_t::stream safe to
+	// dereference without a check on every use.
+	S_WireChannelStreams();
+	for ( int i = 0; i < eBGRNDTRACK_NUMBEROF; i++ ) {
+		tMusic_Info[i].chMP3_Bgrnd.stream = &tMusic_Info[i].streamState_Bgrnd;
+	}
 
 	s_allowDynamicMusic = Cvar_Get( "s_allowDynamicMusic", "1",       CVAR_ARCHIVE_ND );
 	s_debugdynamic      = Cvar_Get( "s_debugdynamic",      "0",       0 );
@@ -906,13 +944,13 @@ void S_StartAmbientSound( const vec3_t origin, int entityNum, unsigned char volu
 
 	if (sfx->pMP3StreamHeader)
 	{
-		memcpy(&ch->MP3StreamHeader,sfx->pMP3StreamHeader,	sizeof(ch->MP3StreamHeader));
-		//ch->iMP3SlidingDecodeWritePos = 0; // These will be zero from the memset in S_PickChannel(), but keep them here for reference...
-		//ch->iMP3SlidingDecodeWindowPos= 0; //
+		memcpy(&ch->stream->header,sfx->pMP3StreamHeader,	sizeof(ch->stream->header));
+		//ch->stream->writePos = 0; // These will be zero from the memset in S_PickChannel(), but keep them here for reference...
+		//ch->stream->windowPos= 0; //
 	}
 	else
 	{
-		memset(&ch->MP3StreamHeader,0,						sizeof(ch->MP3StreamHeader));
+		memset(&ch->stream->header,0,						sizeof(ch->stream->header));
 	}
 }
 
@@ -985,13 +1023,13 @@ void S_StartSound(const vec3_t origin, int entityNum, soundChannel_t entchannel,
 
 	if (sfx->pMP3StreamHeader)
 	{
-		memcpy(&ch->MP3StreamHeader,sfx->pMP3StreamHeader,	sizeof(ch->MP3StreamHeader));
-		//ch->iMP3SlidingDecodeWritePos = 0; // These will be zero from the memset in S_PickChannel(), but keep them here for reference...
-		//ch->iMP3SlidingDecodeWindowPos= 0; //
+		memcpy(&ch->stream->header,sfx->pMP3StreamHeader,	sizeof(ch->stream->header));
+		//ch->stream->writePos = 0; // These will be zero from the memset in S_PickChannel(), but keep them here for reference...
+		//ch->stream->windowPos= 0; //
 	}
 	else
 	{
-		memset(&ch->MP3StreamHeader,0,						sizeof(ch->MP3StreamHeader));
+		memset(&ch->stream->header,0,						sizeof(ch->stream->header));
 	}
 }
 
@@ -1103,7 +1141,7 @@ void S_CIN_StopSound(sfxHandle_t sfxHandle)
 		{
 			SND_FreeSFXMem(ch->thesfx);	// heh, may as well...
 			ch->thesfx = NULL;
-			memset(&ch->MP3StreamHeader, 0, sizeof(MP3STREAM));
+			memset(&ch->stream->header, 0, sizeof(MP3STREAM));
 			break;
 		}
 	}
@@ -1124,6 +1162,7 @@ void S_StopSounds(void)
 	S_ClearLoopingSounds();
 
 		memset(s_channels, 0, sizeof(s_channels));
+		S_WireChannelStreams();
 
 	// clear out the lip synching override array
 	memset(s_entityWavVol, 0,sizeof(s_entityWavVol));
@@ -1315,7 +1354,7 @@ void S_AddLoopSounds (void)
 		}
 		else
 		{
-			memset(&ch->MP3StreamHeader,0,						sizeof(ch->MP3StreamHeader));
+			memset(&ch->stream->header,0,						sizeof(ch->stream->header));
 		}
 	}
 }
@@ -1635,8 +1674,8 @@ static int S_CheckAmplitude(channel_t	*ch, const int s_oldpaintedtime )
 
 					case ct_MP3:
 					{
-						const int iIndex = (i*100) + ((offset * /*ch->thesfx->width*/2) - ch->iMP3SlidingDecodeWindowPos);
-						const short* pwSamples = (short*) (ch->MP3SlidingDecodeBuffer + iIndex);
+						const int iIndex = (i*100) + ((offset * /*ch->thesfx->width*/2) - ch->stream->windowPos);
+						const short* pwSamples = (short*) (ch->stream->window + iIndex);
 
 						sample = *pwSamples;
 					}
@@ -2498,8 +2537,9 @@ static qboolean S_StartBackgroundTrack_Actual( MusicInfo_t *pMusicInfo, qboolean
 				pMusicInfo->s_backgroundSamples			= pMusicInfo->sfxMP3_Bgrnd.iSoundLengthInSamples;
 
 				memset(&pMusicInfo->chMP3_Bgrnd,0,sizeof(pMusicInfo->chMP3_Bgrnd));
+						pMusicInfo->chMP3_Bgrnd.stream = &pMusicInfo->streamState_Bgrnd;
 						pMusicInfo->chMP3_Bgrnd.thesfx = &pMusicInfo->sfxMP3_Bgrnd;
-				memcpy(&pMusicInfo->chMP3_Bgrnd.MP3StreamHeader, pMusicInfo->sfxMP3_Bgrnd.pMP3StreamHeader, sizeof(*pMusicInfo->sfxMP3_Bgrnd.pMP3StreamHeader));
+				memcpy(&pMusicInfo->chMP3_Bgrnd.stream->header, pMusicInfo->sfxMP3_Bgrnd.pMP3StreamHeader, sizeof(*pMusicInfo->sfxMP3_Bgrnd.pMP3StreamHeader));
 
 				if (qbDynamic)
 				{
@@ -2656,7 +2696,7 @@ static void S_HandleDynamicMusicStateChange( void )
 		//
 		if (Music_StateCanBeInterrupted( eMusic_StateActual, eMusic_StateRequest ))
 		{
-			LP_MP3STREAM pMP3StreamActual = &tMusic_Info[ eMusic_StateActual ].chMP3_Bgrnd.MP3StreamHeader;
+			LP_MP3STREAM pMP3StreamActual = &tMusic_Info[ eMusic_StateActual ].chMP3_Bgrnd.stream->header;
 
 			switch (eMusic_StateRequest)
 			{
@@ -2928,7 +2968,7 @@ void S_StartBackgroundTrack( const char *intro, const char *loop, qboolean bCall
 				pMusicInfo->iXFadeVolume		= 0;
 
 	//#ifdef _DEBUG
-	//			float fRemaining = MP3Stream_GetPlayingTimeInSeconds( &pMusicInfo->chMP3_Bgrnd.MP3StreamHeader);
+	//			float fRemaining = MP3Stream_GetPlayingTimeInSeconds( &pMusicInfo->chMP3_Bgrnd.stream->header);
 	//#endif
 			}
 			else
@@ -3061,16 +3101,16 @@ static qboolean S_UpdateBackgroundTrack_Actual( MusicInfo_t *pMusicInfo, qboolea
 				//
 				qbForceFinish = (MP3Stream_GetSamples( &pMusicInfo->chMP3_Bgrnd, iStartingSampleNum, fileBytes/2, (short*) raw, qtrue ))?qfalse:qtrue;
 
-				//Com_Printf(S_COLOR_YELLOW "Music time remaining: %f seconds\n", MP3Stream_GetRemainingTimeInSeconds( &pMusicInfo->chMP3_Bgrnd.MP3StreamHeader ));
+				//Com_Printf(S_COLOR_YELLOW "Music time remaining: %f seconds\n", MP3Stream_GetRemainingTimeInSeconds( &pMusicInfo->chMP3_Bgrnd.stream->header ));
 			}
 			else
 			{
 				// streaming an MP3 file instead... (note that the 'fileBytes' request size isn't that relevant for MP3s,
 				//										since code here can't know how much the MP3 needs to decompress)
 				//
-				byte *pbScrolledStreamData = MP3MusicStream_ReadFromDisk(pMusicInfo, pMusicInfo->chMP3_Bgrnd.MP3StreamHeader.iSourceReadIndex, fileBytes);
+				byte *pbScrolledStreamData = MP3MusicStream_ReadFromDisk(pMusicInfo, pMusicInfo->chMP3_Bgrnd.stream->header.iSourceReadIndex, fileBytes);
 
-				pMusicInfo->chMP3_Bgrnd.MP3StreamHeader.pbSourceData = pbScrolledStreamData - pMusicInfo->chMP3_Bgrnd.MP3StreamHeader.iSourceReadIndex;
+				pMusicInfo->chMP3_Bgrnd.stream->header.pbSourceData = pbScrolledStreamData - pMusicInfo->chMP3_Bgrnd.stream->header.iSourceReadIndex;
 
 				qbForceFinish = (MP3Stream_GetSamples( &pMusicInfo->chMP3_Bgrnd, iStartingSampleNum, fileBytes/2, (short*) raw, qtrue ))?qfalse:qtrue;
 			}
@@ -3273,7 +3313,7 @@ static void S_UpdateBackgroundTrack( void )
 					}
 				}
 
-				float fRemainingTimeInSeconds = MP3Stream_GetRemainingTimeInSeconds( &pMusicInfoCurrent->chMP3_Bgrnd.MP3StreamHeader );
+				float fRemainingTimeInSeconds = MP3Stream_GetRemainingTimeInSeconds( &pMusicInfoCurrent->chMP3_Bgrnd.stream->header );
 				// Com_Printf("Remaining: %3.3f\n",fRemainingTimeInSeconds);
 
 				if ( fRemainingTimeInSeconds < fDYNAMIC_XFADE_SECONDS*2 )

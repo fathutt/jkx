@@ -420,13 +420,14 @@ int MP3Stream_Decode( LP_MP3STREAM lpMP3Stream, qboolean bDoingMusic )
 
 qboolean MP3Stream_SeekTo( channel_t *ch, float fTimeToSeekTo )
 {
+	assert( ch->stream );	// wired in S_Init, see S_WireChannelStreams
 	const float fEpsilon = 0.05f;	// accurate to 1/50 of a second, but plus or minus this gives 1/10 of second
 
 	MP3Stream_Rewind( ch );
 	//
 	// sanity... :-)
 	//
-	const float fTrackLengthInSeconds = MP3Stream_GetPlayingTimeInSeconds( &ch->MP3StreamHeader );
+	const float fTrackLengthInSeconds = MP3Stream_GetPlayingTimeInSeconds( &ch->stream->header );
 	if (fTimeToSeekTo > fTrackLengthInSeconds)
 	{
 		fTimeToSeekTo = fTrackLengthInSeconds;
@@ -436,7 +437,7 @@ qboolean MP3Stream_SeekTo( channel_t *ch, float fTimeToSeekTo )
 	//
 	while (1)
 	{
-		float fPlayingTimeElapsed = MP3Stream_GetPlayingTimeInSeconds( &ch->MP3StreamHeader ) - MP3Stream_GetRemainingTimeInSeconds( &ch->MP3StreamHeader );
+		float fPlayingTimeElapsed = MP3Stream_GetPlayingTimeInSeconds( &ch->stream->header ) - MP3Stream_GetRemainingTimeInSeconds( &ch->stream->header );
 		float fAbsTimeDiff = fabs(fTimeToSeekTo - fPlayingTimeElapsed);
 
 		if ( fAbsTimeDiff <= fEpsilon)
@@ -444,7 +445,7 @@ qboolean MP3Stream_SeekTo( channel_t *ch, float fTimeToSeekTo )
 
 		// when decoding, use fast-forward until within 3 seconds, then slow-decode (which should init stuff properly?)...
 		//
-		int iBytesDecodedThisPacket = C_MP3Stream_Decode( &ch->MP3StreamHeader, (fAbsTimeDiff > 3.0f) );	// bFastForwarding
+		int iBytesDecodedThisPacket = C_MP3Stream_Decode( &ch->stream->header, (fAbsTimeDiff > 3.0f) );	// bFastForwarding
 		if (iBytesDecodedThisPacket == 0)
 			break;	// EOS
 	}
@@ -457,11 +458,12 @@ qboolean MP3Stream_SeekTo( channel_t *ch, float fTimeToSeekTo )
 //
 qboolean MP3Stream_Rewind( channel_t *ch )
 {
-	ch->iMP3SlidingDecodeWritePos = 0;
-	ch->iMP3SlidingDecodeWindowPos= 0;
+	assert( ch->stream );	// wired in S_Init, see S_WireChannelStreams
+	ch->stream->writePos = 0;
+	ch->stream->windowPos= 0;
 
 /*
-	char *psError = C_MP3Stream_Rewind( &ch->MP3StreamHeader );
+	char *psError = C_MP3Stream_Rewind( &ch->stream->header );
 
 	if (psError)
 	{
@@ -474,7 +476,7 @@ qboolean MP3Stream_Rewind( channel_t *ch )
 
 	// speed opt, since I know I already have the right data setup here...
 	//
-	memcpy(&ch->MP3StreamHeader, ch->thesfx->pMP3StreamHeader, sizeof(ch->MP3StreamHeader));
+	memcpy(&ch->stream->header, ch->thesfx->pMP3StreamHeader, sizeof(ch->stream->header));
 	return qtrue;
 
 }
@@ -484,10 +486,11 @@ qboolean MP3Stream_Rewind( channel_t *ch )
 //
 qboolean MP3Stream_GetSamples( channel_t *ch, int startingSampleNum, int count, short *buf, qboolean bStereo )
 {
+	assert( ch->stream );	// wired in S_Init, see S_WireChannelStreams
 	qboolean qbStreamStillGoing = qtrue;
 
-	const int iQuarterOfSlidingBuffer		=  sizeof(ch->MP3SlidingDecodeBuffer)/4;
-	const int iThreeQuartersOfSlidingBuffer	= (sizeof(ch->MP3SlidingDecodeBuffer)*3)/4;
+	const int iQuarterOfSlidingBuffer		=  sizeof(ch->stream->window)/4;
+	const int iThreeQuartersOfSlidingBuffer	= (sizeof(ch->stream->window)*3)/4;
 
 //	Com_Printf("startingSampleNum %d\n",startingSampleNum);
 
@@ -497,7 +500,7 @@ qboolean MP3Stream_GetSamples( channel_t *ch, int startingSampleNum, int count, 
 	//
 	startingSampleNum *= 2 /* <- = SOF2; ch->sfx->width*/ * (bStereo?2:1);
 
-	if ( startingSampleNum < ch->iMP3SlidingDecodeWindowPos)
+	if ( startingSampleNum < ch->stream->windowPos)
 	{
 		// what?!?!?!   smegging time travel needed or something?, forget it
 		memset(buf,0,count);
@@ -505,15 +508,15 @@ qboolean MP3Stream_GetSamples( channel_t *ch, int startingSampleNum, int count, 
 	}
 
 //	OutputDebugString(va("\nRequest: startingSampleNum %d, count %d\n",startingSampleNum,count));
-//	OutputDebugString(va("WindowPos %d, WindowWritePos %d\n",ch->iMP3SlidingDecodeWindowPos,ch->iMP3SlidingDecodeWritePos));
+//	OutputDebugString(va("WindowPos %d, WindowWritePos %d\n",ch->stream->windowPos,ch->stream->writePos));
 
 //	qboolean _bDecoded = qfalse;
 
 	while (!
 		(
-			(startingSampleNum			>= ch->iMP3SlidingDecodeWindowPos)
+			(startingSampleNum			>= ch->stream->windowPos)
 			&&
-			(startingSampleNum + count	<  ch->iMP3SlidingDecodeWindowPos + ch->iMP3SlidingDecodeWritePos)
+			(startingSampleNum + count	<  ch->stream->windowPos + ch->stream->writePos)
 			)
 			)
 	{
@@ -524,33 +527,33 @@ qboolean MP3Stream_GetSamples( channel_t *ch, int startingSampleNum, int count, 
 //		_bDecoded = qtrue;
 //		OutputDebugString("Scrolling...");
 
-		int _iBytesDecoded = MP3Stream_Decode( (LP_MP3STREAM) &ch->MP3StreamHeader, bStereo );	// stereo only for music, so this is safe
+		int _iBytesDecoded = MP3Stream_Decode( &ch->stream->header, bStereo );	// stereo only for music, so this is safe
 //		OutputDebugString(va("%d bytes decoded\n",_iBytesDecoded));
 		if (_iBytesDecoded == 0)
 		{
 			// no more source data left so clear the remainder of the buffer...
 			//
-			memset(ch->MP3SlidingDecodeBuffer + ch->iMP3SlidingDecodeWritePos, 0, sizeof(ch->MP3SlidingDecodeBuffer)-ch->iMP3SlidingDecodeWritePos);
+			memset(ch->stream->window + ch->stream->writePos, 0, sizeof(ch->stream->window)-ch->stream->writePos);
 //			OutputDebugString("Finished\n");
 			qbStreamStillGoing = qfalse;
 			break;
 		}
 		else
 		{
-			memcpy(ch->MP3SlidingDecodeBuffer + ch->iMP3SlidingDecodeWritePos,ch->MP3StreamHeader.bDecodeBuffer,_iBytesDecoded);
+			memcpy(ch->stream->window + ch->stream->writePos,ch->stream->header.bDecodeBuffer,_iBytesDecoded);
 
-			ch->iMP3SlidingDecodeWritePos += _iBytesDecoded;
+			ch->stream->writePos += _iBytesDecoded;
 
 			// if reached 3/4 of buffer pos, backscroll the decode window by one quarter...
 			//
-			if (ch->iMP3SlidingDecodeWritePos > iThreeQuartersOfSlidingBuffer)
+			if (ch->stream->writePos > iThreeQuartersOfSlidingBuffer)
 			{
-				memmove(ch->MP3SlidingDecodeBuffer, ((byte *)ch->MP3SlidingDecodeBuffer + iQuarterOfSlidingBuffer), iThreeQuartersOfSlidingBuffer);
-				ch->iMP3SlidingDecodeWritePos -= iQuarterOfSlidingBuffer;
-				ch->iMP3SlidingDecodeWindowPos+= iQuarterOfSlidingBuffer;
+				memmove(ch->stream->window, ((byte *)ch->stream->window + iQuarterOfSlidingBuffer), iThreeQuartersOfSlidingBuffer);
+				ch->stream->writePos -= iQuarterOfSlidingBuffer;
+				ch->stream->windowPos+= iQuarterOfSlidingBuffer;
 			}
 		}
-//		OutputDebugString(va("WindowPos %d, WindowWritePos %d\n",ch->iMP3SlidingDecodeWindowPos,ch->iMP3SlidingDecodeWritePos));
+//		OutputDebugString(va("WindowPos %d, WindowWritePos %d\n",ch->stream->windowPos,ch->stream->writePos));
 	}
 
 //	if (!_bDecoded)
@@ -558,8 +561,8 @@ qboolean MP3Stream_GetSamples( channel_t *ch, int startingSampleNum, int count, 
 //		Com_Printf(S_COLOR_YELLOW"No decode needed\n");
 //	}
 
-	assert(startingSampleNum >= ch->iMP3SlidingDecodeWindowPos);
-	memcpy( buf, ch->MP3SlidingDecodeBuffer + (startingSampleNum-ch->iMP3SlidingDecodeWindowPos), count);
+	assert(startingSampleNum >= ch->stream->windowPos);
+	memcpy( buf, ch->stream->window + (startingSampleNum-ch->stream->windowPos), count);
 
 //	OutputDebugString("OK\n\n");
 

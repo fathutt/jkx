@@ -100,6 +100,27 @@ typedef struct {
 #define UNQUEUED	2
 
 
+// Decoding state for one streamed sound.
+//
+// This used to live inside channel_t, which meant every one of the 32 mixer
+// channels carried a whole decoder - 26,656 bytes of it - plus a 50,000-byte
+// sliding window, whether it ever streamed anything or not. channel_t was
+// 76,720 bytes and S_PaintChannels walks the array of them every frame, so a
+// channel was several cache lines apart from the next one for no reason.
+//
+// Out of line it is also the only shape a second codec can fit: a decoder's
+// state is its own size, and Ogg Vorbis wants considerably more of it than
+// MP3 does.
+typedef struct soundStream_s
+{
+	MP3STREAM	header;
+	// Typical back-request is -3072, so roughly double that is 6000 for
+	// safety, then doubled again so the 6K position sits in the middle.
+	byte		window[50000];
+	int			writePos;
+	int			windowPos;
+} soundStream_t;
+
 typedef struct
 {
 // back-indented fields new in TA codebase, will re-format when MP3 code finished -ste
@@ -119,10 +140,11 @@ typedef struct
 	sfx_t		*thesfx;		// sfx structure
 	qboolean	loopSound;		// from an S_AddLoopSound call, cleared each frame
 	//
-	MP3STREAM	MP3StreamHeader;
-	byte		MP3SlidingDecodeBuffer[50000/*12000*/];	// typical back-request = -3072, so roughly double is 6000 (safety), then doubled again so the 6K pos is in the middle of the buffer)
-	int			iMP3SlidingDecodeWritePos;
-	int			iMP3SlidingDecodeWindowPos;
+	// Decoding state, out of line on purpose - see soundStream_t above. NULL
+	// only for a channel whose owner never wired one; every channel in
+	// s_channels and the music channels have theirs for the life of the
+	// process, so this is a permanent association rather than an allocation.
+	soundStream_t *stream;
 
 } channel_t;
 
