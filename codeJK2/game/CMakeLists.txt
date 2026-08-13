@@ -23,9 +23,17 @@ endif(NOT InOpenJK)
 
 set(JK2SPGameDefines ${SharedDefines} "JK2_MODE" "JKX_GAME_MODULE")
 
+# ${SPDir} is on this list so that this tree can name what it includes from the
+# engine instead of counting directory levels back to it. Thirty-seven includes
+# here reached across as "../../code/qcommon/q_shared.h" or, worse,
+# "../code/qcommon/..." - which resolved only because codeJK2 itself is an
+# include directory, so the path went codeJK2/../code. Two spellings of the same
+# thing, both of them depending on how deeply this tree happens to sit, and they
+# would have broken differently the moment it moved.
 set(JK2SPGameIncludeDirectories
 	"${JK2SPDir}"
 	"${JK2SPDir}/game"
+	"${SPDir}"
 	"${SharedDir}"
 	"${GSLIncludeDirectory}"
 	"${CMAKE_BINARY_DIR}/shared"
@@ -240,7 +248,6 @@ set(JK2SPGameCommonSafeFiles
 	${SharedCommonSafeFiles}
 	"${SharedDir}/qcommon/safe/files.h"
 	"${SharedDir}/qcommon/safe/files.cpp"
-	"${JK2SPDir}/qcommon/safe/memory.h"
 	)
 source_group("common/safe" FILES ${JK2SPGameCommonSafeFiles})
 set(JK2SPGameFiles ${JK2SPGameFiles} ${JK2SPGameCommonSafeFiles})

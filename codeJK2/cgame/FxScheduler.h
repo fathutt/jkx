@@ -25,7 +25,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #endif
 
 
-#include "../../code/qcommon/sstring.h"
+#include "qcommon/sstring.h"
 typedef sstring_t fxString_t;
 
 #include "../game/genericparser2.h"

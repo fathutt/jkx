@@ -36,7 +36,7 @@ char		*spawnVars[MAX_SPAWN_VARS][2];	// key / value pairs
 int			numSpawnVarChars;
 char		spawnVarChars[MAX_SPAWN_VARS_CHARS];
 
-#include "../../code/qcommon/sstring.h"
+#include "qcommon/sstring.h"
 
 //NOTENOTE: Be sure to change the mirrored code in cgmain.cpp
 typedef std::map< sstring_t, unsigned char, std::less<sstring_t> >	namePrecache_m;

@@ -28,7 +28,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #endif
 
 #if !defined(G2_H_INC)
-	#include "../../code/ghoul2/G2.h"
+	#include "ghoul2/G2.h"
 #endif
 
 #if !defined(__Q_SHARED_H)

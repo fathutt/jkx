@@ -26,7 +26,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #define __TASK_MANAGER__
 
 #include "sequencer.h"
-#include "../../code/qcommon/q_shared.h"
+#include "qcommon/q_shared.h"
 
 #define MAX_TASK_NAME	64
 

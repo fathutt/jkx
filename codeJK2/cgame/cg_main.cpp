@@ -25,10 +25,10 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #include "cg_media.h"
 #include "FxScheduler.h"
 
-#include "../../code/client/vmachine.h"
+#include "client/vmachine.h"
 
-#include "../../code/qcommon/sstring.h"
-#include "../code/qcommon/ojk_saved_game_helper.h"
+#include "qcommon/sstring.h"
+#include "qcommon/ojk_saved_game_helper.h"
 
 //NOTENOTE: Be sure to change the mirrored code in g_shared.h
 typedef std::map< sstring_t, unsigned char, std::less<sstring_t> >	namePrecache_m;

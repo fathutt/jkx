@@ -26,7 +26,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #include "cg_local.h"
 #include "cg_media.h"
 #include "../game/g_functions.h"
-#include "../../code/ghoul2/G2.h"
+#include "ghoul2/G2.h"
 #include "FxScheduler.h"
 #include "../game/wp_saber.h"
 

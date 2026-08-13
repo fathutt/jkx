@@ -27,7 +27,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #include "g_headers.h"
 
 #include "b_local.h"
-#include "../../code/qcommon/q_shared.h"
+#include "qcommon/q_shared.h"
 /*
 Debug_Printf
 */

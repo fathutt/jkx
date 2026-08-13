@@ -45,10 +45,10 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 // here. Setting it here reproduces that exactly, and g_shared.h defines it
 // again further down for its own use, which is harmless.
 #define GAME_INCLUDE
-#include "../../code/api/g_public.h"
+#include "api/g_public.h"
 #include "b_public.h"
 #include "../icarus/icarus.h"
-#include "../../code/rd-common/tr_types.h"
+#include "rd-common/tr_types.h"
 // One cg_public.h, like g_public.h above it.
 //
 // This tree had its own, and the difference was not the interface - it was the
@@ -64,7 +64,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 // long time: GAME_API_VERSION and the whole of game_import_t have moved.
 //
 // Also, that file had no include guard.
-#include "../../code/api/cg_public.h"
+#include "api/cg_public.h"
 #include "bset.h"
 
 #define	FOFS(x) offsetof(gentity_t, x)

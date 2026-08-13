@@ -24,7 +24,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #ifndef	__CG_LOCAL_H__
 #define	__CG_LOCAL_H__
 
-#include "../../code/qcommon/q_shared.h"
+#include "qcommon/q_shared.h"
 
 // define GAME_INCLUDE so that g_public.h does not define the
 // short, server-visible gclient_t and gentity_t structures,

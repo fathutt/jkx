@@ -31,7 +31,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #include "g_icarus.h"
 #include "b_local.h"
 #include "anims.h"
-#include "../../code/rd-common/mdx_format.h"
+#include "rd-common/mdx_format.h"
 
 #define ACT_ACTIVE		qtrue
 #define ACT_INACTIVE	qfalse
