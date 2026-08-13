@@ -120,6 +120,22 @@ stage_workflows() {
         echo "             curl -sSfL https://github.com/rhysd/actionlint/releases/download/v1.7.7/actionlint_1.7.7_linux_amd64.tar.gz | tar xz actionlint"
         return 0
     fi
+    # actionlint without shellcheck is not a smaller check, it is a different
+    # one: the YAML is read and the shell inside "run:" is not. That is the half
+    # this stage exists for, and it degrades in silence - actionlint says nothing
+    # about the tool it could not find and exits zero.
+    #
+    # It has now cost two red builds. The second was a run: block whose folded
+    # scalar had a whitespace-only line left in the middle of it, so the command
+    # was cut in two and the second half began with -DJKX_VK_TRACE. shellcheck
+    # calls that SC2215, "this flag is used as a command name"; local actionlint
+    # called it nothing at all and the stage passed.
+    if ! command -v shellcheck >/dev/null; then
+        echo "  WARNING: shellcheck is not installed, so actionlint has read the"
+        echo "           YAML and skipped every run: block in it. That is where"
+        echo "           the last two workflow failures were. Install it with:"
+        echo "             apt-get install -y shellcheck"
+    fi
     ( cd "$ROOT" && "$lint" -no-color )
 }
 

@@ -161,7 +161,6 @@ jobs:
           -DBuildRdVulkan=ON
           -DBuildJK2Engine=OFF
           -DBuildJK2Game=OFF
-         
           -DJKX_VK_TRACE=${{ inputs.trace && 'ON' || 'OFF' }}
           -DCMAKE_C_COMPILER_LAUNCHER=sccache
           -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
