@@ -9,14 +9,14 @@ Three headers, and they belong to neither side.
 
 Everything here is included by both the engine and the gamecode. That is the
 whole entry requirement, and it is why the directory exists: a header describing
-a boundary cannot live on one side of it. These three lived in code/game,
-code/cgame and code/ui, so every engine build had to reach up into the gamecode
-to find out what the gamecode had promised - and the layering gate had to carry
-that as inherited debt rather than refuse it.
+a boundary cannot live on one side of it. These three lived in the gamecode -
+code/game, code/cgame and code/ui, as it was laid out then - so every engine
+build had to reach up into it to find out what the gamecode had promised, and
+the layering gate had to carry that as inherited debt rather than refuse it.
 
 Now it can refuse it. code/api is its own layer in tools/ci/check_layering.py:
 anyone may include it, and it may include the engine and the platform and
-nothing else. An engine file that includes code/game again is a new violation
+nothing else. An engine file that includes games/ again is a new violation
 with no baseline entry to hide behind, which is what this directory was for.
 
 What is not here

@@ -41,7 +41,7 @@ ENGINE = ("code/qcommon", "code/server", "code/client", "shared")
 # also dropped from this count the number would fall to zero and the gate would
 # be measuring nothing, which is bookkeeping rather than progress. The question
 # here has not changed: how much of the game side can the engine see.
-GAME = ("code/api", "code/game", "code/cgame", "code/ui", "code/icarus", "games/jk2")
+GAME = ("code/api", "games/jka", "games/jk2", "code/ui", "code/icarus")
 
 # shared/qcommon/safe/files.cpp includes game/g_shared.h under JKX_GAME_MODULE - that
 # is, when it is compiled into the game library rather than into the engine. It is
@@ -56,7 +56,7 @@ SOURCE_SUFFIXES = {".cpp", ".c", ".h"}
 def resolve(root: Path, include: str, origin: Path) -> Path | None:
     """Where an #include lands, by the include paths the build actually sets."""
     for base in (origin.parent, root, root / "code", root / "shared",
-                 root / "code/game", root / "games/jk2"):
+                 root / "games/jka", root / "games/jk2"):
         candidate = (base / include)
         if candidate.is_file():
             return candidate.resolve().relative_to(root.resolve())

@@ -33,8 +33,14 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 //rww - added for ui ghoul2 models
 #define UI_SHARED_CPP
 
-#include "../game/anims.h"
-#include "../cgame/animtable.h"
+// These two point out of the engine and into Jedi Academy's gamecode, and they
+// are written the long way on purpose. The interface is compiled into the
+// engine, so this is the engine reaching up a layer for an animation table -
+// the last such reach left, now that the contract lives in code/api. Putting
+// games/jka on this target's include path would have hidden it behind a short
+// name; leaving it spelled out keeps it visible until it is gone.
+#include "../../games/jka/game/anims.h"
+#include "../../games/jka/cgame/animtable.h"
 
 #include "ui_shared.h"
 #include "menudef.h"

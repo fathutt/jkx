@@ -42,8 +42,8 @@ USER INTERFACE MAIN
 
 #include "../ghoul2/G2.h"
 
-#include "../game/bg_public.h"
-#include "../game/anims.h"
+#include "../../games/jka/game/bg_public.h"
+#include "../../games/jka/game/anims.h"
 extern stringID_table_t animTable [MAX_ANIMATIONS+1];
 
 #include "../qcommon/stringed_ingame.h"

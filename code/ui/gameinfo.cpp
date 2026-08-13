@@ -27,7 +27,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 // *** This file is used by both the game and the user interface ***
 
 #include "gameinfo.h"
-#include "../game/weapons.h"
+#include "../../games/jka/game/weapons.h"
 
 weaponData_t weaponData[WP_NUM_WEAPONS];
 ammoData_t ammoData[AMMO_MAX];

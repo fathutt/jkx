@@ -310,6 +310,7 @@ set(SharedLib "shared")
 #
 #=============================================================================
 set(SPDir "${CMAKE_SOURCE_DIR}/code")
+set(JKASPDir "${CMAKE_SOURCE_DIR}/games/jka")
 set(JK2SPDir "${CMAKE_SOURCE_DIR}/games/jk2")
 set(SharedDir ${CMAKE_SOURCE_DIR}/shared)
 set(OpenJKLibDir "${CMAKE_SOURCE_DIR}/lib")
@@ -608,6 +609,9 @@ add_subdirectory(lib/minizip)
 
 # Add projects
 add_subdirectory(${SPDir})
+if(BuildSPGame)
+	add_subdirectory("${JKASPDir}/game")
+endif()
 if(BuildJK2SPGame)
 	add_subdirectory("${JK2SPDir}/game")
 endif()

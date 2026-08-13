@@ -109,8 +109,9 @@ code/server       server                 code/ghoul2      skeletal animation
 code/api          the engine-game        code/ui          menus, compiled into the engine
                   contract, three        code/icarus      scripting VM
                   headers                shared/          platform, SDL, safe utilities
-code/game         JKA gameplay           games/jk2/       JK2 gameplay: game, cgame, icarus
-code/cgame        JKA client-side        tools/ci         policy checks
+games/jka/        JKA gameplay: game, cgame
+games/jk2/        JK2 gameplay: game, cgame, icarus
+tools/ci          policy checks
 ```
 
 The `engine/ render/ game/` reorganisation described in the roadmap lands at the end of phase 2, once

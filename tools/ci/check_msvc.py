@@ -30,7 +30,7 @@ from pathlib import Path
 
 # Our code. lib/ is vendored and third_party/ is not ours to lint - both are
 # built by MSVC in CI already and neither is where our mistakes land.
-ROOTS = ["code", "games/jk2", "shared", "tests"]
+ROOTS = ["code", "games", "shared", "tests"]
 SKIP_DIRS = {"lib", "third_party", "spirv"}
 
 SUFFIXES = {".c", ".cpp", ".h", ".hpp", ".inl"}

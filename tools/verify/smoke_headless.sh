@@ -58,7 +58,7 @@ ARCH="$(uname -m)"
 # every JK2_MODE branch in shared code.
 GAME_ID="${JKX_SMOKE_GAME:-ja}"
 case "$GAME_ID" in
-    ja) ENGINE="$BUILD/jkx_ja.$ARCH"; GAME="$BUILD/code/game/jagame$ARCH.so" ;;
+    ja) ENGINE="$BUILD/jkx_ja.$ARCH"; GAME="$BUILD/games/jka/game/jagame$ARCH.so" ;;
     jo) ENGINE="$BUILD/jkx_jo.$ARCH"; GAME="$BUILD/games/jk2/game/jospgame$ARCH.so" ;;
     *)  echo "JKX_SMOKE_GAME must be ja or jo, not $GAME_ID" >&2; exit 2 ;;
 esac

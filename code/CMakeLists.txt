@@ -21,10 +21,10 @@ if(NOT InOpenJK)
 	message(FATAL_ERROR "Use the top-level cmake script!")
 endif(NOT InOpenJK)
 
-#    Add Game Project
-if(BuildSPGame)
-	add_subdirectory("${SPDir}/game")
-endif(BuildSPGame)
+# The Jedi Academy game project is added from the top-level script now, beside
+# the Jedi Outcast one. add_subdirectory cannot reach outside its own directory
+# without being told where to put the build tree, and games/jka is not under
+# code/ any more.
 
 #    Add Modular Renderer project
 add_subdirectory("${SPDir}/rd-vulkan")
@@ -374,7 +374,7 @@ if(BuildSPEngine OR BuildJK2SPEngine)
 
 	# Server files
 	set(SPEngineCGameFiles
-		"${SPDir}/cgame/animtable.h"
+		"${JKASPDir}/cgame/animtable.h"
 		)
 	source_group("cgame" FILES ${SPEngineCGameFiles})
 	set(SPEngineFiles ${SPEngineFiles} ${SPEngineCGameFiles})

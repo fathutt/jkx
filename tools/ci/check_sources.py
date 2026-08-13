@@ -71,14 +71,14 @@ SOURCE_SUFFIXES = {".cpp", ".c"}
 WATCHED = [
     Watched("code/rd-vulkan/CMakeLists.txt", "code/rd-vulkan", "${SPDir}",
             skip={"shaders"}),
-    Watched("code/game/CMakeLists.txt", "code/game", "${SPDir}"),
-    Watched("code/game/CMakeLists.txt", "code/cgame", "${SPDir}"),
-    Watched("code/game/CMakeLists.txt", "code/icarus", "${SPDir}"),
+    Watched("games/jka/game/CMakeLists.txt", "games/jka/game", "${JKASPDir}"),
+    Watched("games/jka/game/CMakeLists.txt", "games/jka/cgame", "${JKASPDir}"),
+    Watched("games/jka/game/CMakeLists.txt", "code/icarus", "${SPDir}"),
     Watched("games/jk2/game/CMakeLists.txt", "games/jk2/game", "${JK2SPDir}"),
     Watched("games/jk2/game/CMakeLists.txt", "games/jk2/cgame", "${JK2SPDir}"),
     Watched("games/jk2/game/CMakeLists.txt", "games/jk2/icarus", "${JK2SPDir}"),
     Watched(["code/CMakeLists.txt", "code/rd-vulkan/CMakeLists.txt",
-             "code/game/CMakeLists.txt", "games/jk2/game/CMakeLists.txt"],
+             "games/jka/game/CMakeLists.txt", "games/jk2/game/CMakeLists.txt"],
             "code/qcommon", "${SPDir}"),
 ]
 
