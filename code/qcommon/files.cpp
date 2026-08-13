@@ -2995,12 +2995,21 @@ void FS_InitFilesystem( void ) {
 	// try to start up normally
 	FS_Startup( BASEGAME );
 
-	// if we can't find default.cfg, assume that the paths are
-	// busted and error out now, rather than getting an unreadable
-	// graphics screen when the font fails to load
+	// The paths are checked by looking for a file the game data is known to
+	// contain. Nothing reads it here - it is a probe, not a config - and the
+	// message says so, because "Couldn't load default.cfg" told a player
+	// neither what the file is nor where it was looked for, and the answer is
+	// almost always that fs_basepath points somewhere else.
 	if ( FS_ReadFile( "default.cfg", NULL ) <= 0 ) {
-		Com_Error( ERR_FATAL, "Couldn't load default.cfg" );
-		// bk001208 - SafeMode see below, FIXME?
+		Com_Error( ERR_FATAL,
+				   "No game data found.\n\n"
+				   "Looked for base/default.cfg under:\n"
+				   "  fs_basepath  %s\n"
+				   "  fs_homepath  %s\n\n"
+				   "That file ships with the game. If you have it installed "
+				   "elsewhere, start with\n  +set fs_basepath <path to the "
+				   "folder containing base/>",
+				   fs_basepath->string, fs_homepath->string );
 	}
 
 	Q_strncpyz(lastValidBase, fs_basepath->string, sizeof(lastValidBase));

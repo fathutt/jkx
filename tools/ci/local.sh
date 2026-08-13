@@ -71,7 +71,7 @@ JOBS="${JOBS:-$(nproc)}"
 
 STAGES=( "$@" )
 if [ "${#STAGES[@]}" -eq 0 ]; then
-    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokesan prepass fog )
+    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokesan prepass fog noassets )
 fi
 
 failed=()
@@ -268,6 +268,17 @@ stage_fog() {
     JKX_SMOKE_FOG=1 \
     JKX_SMOKE_NO_VALIDATION=1 \
     JKX_SMOKE_DISPLAY="${JKX_SMOKE_FOG_DISPLAY:-:91}" \
+        bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
+}
+
+# The engine with no material definitions at all - which is what an installation
+# with its game data in the wrong place looks like. It was a three-word fatal
+# error until now, so this stage is asserting that starting and explaining is
+# possible, not that the picture is right.
+stage_noassets() {
+    JKX_SMOKE_NO_SHADERS=1 \
+    JKX_SMOKE_NO_VALIDATION=1 \
+    JKX_SMOKE_DISPLAY="${JKX_SMOKE_NOASSETS_DISPLAY:-:90}" \
         bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
 }
 

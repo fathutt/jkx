@@ -456,12 +456,13 @@ A reviewer must check these and may block on any of them:
 .clang-format                  formatting, required, a CI gate
 .clang-tidy                    the check set; warnings are errors in new code
 .editorconfig                  UTF-8, LF, 4 spaces, final newline
-tools/ci/local.sh              everything CI runs, in thirteen stages
+tools/ci/local.sh              everything CI runs, in fourteen stages
 tools/ci/check_ascii.py        §1
 tools/ci/check_layering.py     §6.1, over the #include graph; ratchet
 tools/ci/check_interface.py    how much of a game the engine can see; ratchet
 tools/ci/check_strings.py      §13.6: bans strcpy/strcat/vsprintf, ratchets the rest
 tools/ci/check_sources.py      a source no CMake list builds; a directory none names
+tools/ci/check_cvars.py        one setting under two names, or two spellings of one
 tools/ci/check_msvc.py         declaration shapes only MSVC accepts
 tools/ci/check_commits.py      §12.2
 tools/shadergen/               the cross-platform permutation generator

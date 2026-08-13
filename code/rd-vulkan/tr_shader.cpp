@@ -3240,7 +3240,21 @@ static void ScanAndLoadShaderFiles( void )
 
 	if (!shaderFiles || !numShaderFiles)
 	{
-		Com_Error(ERR_FATAL, "ERROR: no shader files found");
+		// This used to be fatal, which meant an installation with the game data
+		// in the wrong place died here with three words and no idea which three
+		// words mattered. A world with no materials draws untextured, which is
+		// wrong but is a thing you can look at and read a console message on
+		// top of - and a missing individual shader already behaves this way.
+		Com_Printf(S_COLOR_YELLOW "WARNING: no .shader files found under shaders/ - "
+				   "every surface will use the default material\n");
+		s_shaderText = (char *)R_Hunk_Alloc(1, h_low);
+		s_shaderText[0] = '\0';
+		memset(shaderTextHashTableSizes, 0, sizeof(shaderTextHashTableSizes));
+		size = 0;
+		for (i = 0; i < MAX_SHADERTEXT_HASH; i++) {
+			shaderTextHashTable[i] = (const char **)R_Hunk_Alloc(sizeof(char *), h_low);
+			shaderTextHashTable[i][0] = NULL;
+		}
 		return;
 	}
 

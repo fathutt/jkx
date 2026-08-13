@@ -97,6 +97,20 @@ trap cleanup EXIT
 
 mkdir -p "$RUN/home" "$RUN/xdg"
 cp -r "$HERE/fixtures/base" "$RUN/base"
+
+# JKX_SMOKE_NO_SHADERS removes the material definitions, which used to be a
+# fatal error three words long. An installation whose game data is in the wrong
+# place hits exactly this, so the interesting question is whether the engine
+# still starts and says something useful rather than whether it draws correctly.
+if [ "${JKX_SMOKE_NO_SHADERS:-0}" = "1" ]; then
+    rm -f "$RUN"/base/shaders/*.shader
+    # Without materials there is no picture to assert, so the picture checks
+    # step aside the same way they do for JKX_SMOKE_PLAIN. What is being tested
+    # is that the engine starts, says what is missing and quits on its own -
+    # which it could not do at all until now, because this was fatal.
+    JKX_SMOKE_PLAIN=1
+    export JKX_SMOKE_PLAIN
+fi
 cp "$ENGINE" "$RUN/"
 [ -n "$RENDERER" ] && cp "$RENDERER" "$RUN/"
 
@@ -471,6 +485,9 @@ require 'selected physical device'
 require 'VK_RENDERER:'
 require 'selected presentation mode'
 require 'Common Initialization Complete'
+if [ "${JKX_SMOKE_NO_SHADERS:-0}" = "1" ]; then
+    require 'no .shader files found'
+fi
 require 'Wrote screenshots/jkx_smoke.tga'
 [ "${JKX_SMOKE_PLAIN:-0}" = "1" ] || require 'Wrote screenshots/jkx_console.tga'
 require 'Wrote screenshots/jkx_wiped.tga'

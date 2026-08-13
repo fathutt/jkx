@@ -82,11 +82,11 @@ The rule people trip over most:
 Before pushing, run what CI runs:
 
 ```sh
-tools/ci/local.sh              # everything, thirteen stages, ~35 minutes cold
+tools/ci/local.sh              # everything, fourteen stages, ~35 minutes cold
 tools/ci/local.sh policy       # just the gates, ~10 seconds
 ```
 
-`policy` is the one worth running constantly. It is seven checks, and each exists because something
+`policy` is the one worth running constantly. It is nine checks, and each exists because something
 got through once:
 
 | Check | Refuses |
@@ -95,6 +95,7 @@ got through once:
 | `check_layering.py` | a new include that points up a layer - engine into game, render into game |
 | `check_interface.py` | the engine seeing more of the gamecode than it does today |
 | `check_sources.py` | a source on disk that no CMake list builds, and project files for any build system that is not CMake |
+| `check_cvars.py` | one setting registered under two names, or two spellings of one name |
 | `check_msvc.py` | declaration shapes that only MSVC accepts |
 | `check_commits.py` | a commit message that points at a conversation |
 | `actionlint` | broken workflows. **Install `shellcheck` too** - without it actionlint reads the YAML and skips every `run:` block, silently |
