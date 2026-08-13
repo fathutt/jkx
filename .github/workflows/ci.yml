@@ -243,8 +243,9 @@ jobs:
         run: |
           c++ -O2 -std=c++20 -Wall -Werror -DARCH_STRING='"x86_64"' -DJKX_ENGINE \
               -I code -I code/client -I shared -I third_party \
-              -o snd_codec_test tests/snd_codec_test.cpp code/client/snd_codec.cpp
-          ./snd_codec_test tools/verify/fixtures/tone.mp3
+              -o snd_codec_test tests/snd_codec_test.cpp code/client/snd_codec.cpp \
+                 third_party/stb/stb_vorbis.c
+          ./snd_codec_test tools/verify/fixtures
 
       - name: render graph core
         run: |

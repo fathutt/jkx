@@ -31,6 +31,10 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 // Declarations only - the implementation is compiled once, in snd_codec.cpp.
 #define DR_MP3_NO_STDIO
 #include "dr_libs/dr_mp3.h"
+
+// Only a pointer to it is held here; the implementation is compiled once, as C,
+// from third_party/stb/stb_vorbis.c.
+typedef struct stb_vorbis stb_vorbis;
 #include "../qcommon/qcommon.h"
 #include "snd_public.h"
 
@@ -125,6 +129,10 @@ typedef struct soundStream_s
 	int			channels;		// what the source has, not what the caller asked for
 	int			rate;
 	drmp3		mp3;			// valid while open and codec == CODEC_MP3
+	stb_vorbis	*vorbis;		// valid while open and codec == CODEC_VORBIS
+	// Vorbis decodes from memory only, so a stream opened from a file owns a
+	// copy of it. NULL when the caller's buffer is being used directly.
+	byte		*ownedData;
 
 	// The decode window. Typical back-request is -3072, so roughly double that
 	// is 6000 for safety, then doubled again so the 6K position sits in the

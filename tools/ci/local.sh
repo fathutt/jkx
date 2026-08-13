@@ -187,8 +187,9 @@ stage_tests_cxx() {
         -I "$ROOT/code" -I "$ROOT/code/client" -I "$ROOT/shared" \
         -I "$ROOT/third_party" \
         -o "$out/snd_codec_test" \
-        "$ROOT/tests/snd_codec_test.cpp" "$ROOT/code/client/snd_codec.cpp" || return 1
-    "$out/snd_codec_test" "$ROOT/tools/verify/fixtures/tone.mp3" || return 1
+        "$ROOT/tests/snd_codec_test.cpp" "$ROOT/code/client/snd_codec.cpp" \
+        "$ROOT/third_party/stb/stb_vorbis.c" || return 1
+    "$out/snd_codec_test" "$ROOT/tools/verify/fixtures" || return 1
 }
 
 stage_smoke() {

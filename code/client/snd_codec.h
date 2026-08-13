@@ -41,6 +41,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 typedef enum {
 	CODEC_NONE = 0,
 	CODEC_MP3,
+	CODEC_VORBIS,
 } soundCodec_t;
 
 // What the first few bytes say this is. Never guesses from the file extension:

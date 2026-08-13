@@ -1,5 +1,5 @@
 #!/bin/sh
-# Regenerates the compressed-audio fixture that tests/snd_codec_test.cpp reads.
+# Regenerates the compressed-audio fixtures that tests/snd_codec_test.cpp reads.
 #
 # One second of a 440 Hz sine at 22,050 Hz, mono, 32 kbit/s: small enough to
 # commit, long enough that the decode window has to scroll several times while
@@ -13,7 +13,12 @@
 # The result is committed rather than built, because a machine running the
 # tests has no other reason to have an encoder on it.
 set -e
-out="$(dirname "$0")/fixtures/tone.mp3"
+dir="$(dirname "$0")/fixtures"
+
 ffmpeg -f lavfi -i "sine=frequency=440:sample_rate=22050:duration=1.0" \
-       -ac 1 -b:a 32k -write_xing 0 -id3v2_version 0 -y "$out"
-echo "wrote $out"
+       -ac 1 -b:a 32k -write_xing 0 -id3v2_version 0 -y "$dir/tone.mp3"
+
+ffmpeg -f lavfi -i "sine=frequency=440:sample_rate=22050:duration=1.0" \
+       -ac 1 -c:a libvorbis -b:a 48k -y "$dir/tone.ogg"
+
+echo "wrote $dir/tone.mp3 and $dir/tone.ogg"

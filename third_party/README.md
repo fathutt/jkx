@@ -26,6 +26,7 @@ vendoring, not after.
 | Directory | Version | Licence | Used by |
 |---|---|---|---|
 | `dr_libs/` | dr_mp3 0.7.4 | Unlicense **or** MIT-0, at our choice | MP3 decoding, `code/client/snd_codec.cpp` |
+| `stb/` | stb_vorbis 1.22 | MIT **or** public domain, at our choice | Ogg Vorbis decoding, same |
 | `gsl-lite/` | 0.41.0 | MIT | `shared/qcommon/safe/`, engine and both games |
 | `jpeg-9a/` | 9a, 19 Jan 2014 | IJG (BSD-like) | texture loading |
 | `libpng/` | 1.6.53 | libpng (BSD-like) | texture loading |
@@ -42,5 +43,5 @@ is a dependency nobody can reason about later.
 
 `jpeg-9a`, `libpng`, `zlib` and `minizip` are built from source only when the
 matching `UseInternal*` option is on - by default the system or vcpkg copies are
-used, and these are the fallback. `gsl-lite`, `vma`, `volk` and `dr_libs` are
+used, and these are the fallback. `gsl-lite`, `vma`, `volk`, `dr_libs` and `stb` are
 header-only or single-file and are always compiled in.

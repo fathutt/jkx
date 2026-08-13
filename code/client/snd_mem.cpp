@@ -361,6 +361,19 @@ extern	cvar_t	*com_buildScript;
 // buffer is, which is why these are the only six string copies in the tree that
 // the size-carrying overloads in q_string.h could not take. The arithmetic is
 // what makes them safe, not the buffer.
+// Sound files are asked for by one name and can be on disk under several. The
+// extension in the request is not the truth about the format - the header is,
+// and S_CodecSniff reads it - so this only has to find the file.
+//
+// Ogg is tried last, so an installation that has both keeps whichever the
+// retail data shipped and only reaches a replacement when there is nothing else.
+static void S_TryExtension( char *psFilename, int iNameStrlen, const char *psExt3 )
+{
+	psFilename[iNameStrlen-3] = psExt3[0];
+	psFilename[iNameStrlen-2] = psExt3[1];
+	psFilename[iNameStrlen-1] = psExt3[2];
+}
+
 static qboolean S_LoadSound_FileLoadAndNameAdjuster(char *psFilename, byte **pData, int *piSize, int iNameStrlen)
 {
 	char *psVoice = strstr(psFilename,"chars");
@@ -439,10 +452,13 @@ static qboolean S_LoadSound_FileLoadAndNameAdjuster(char *psFilename, byte **pDa
 
 	*piSize = FS_ReadFile( psFilename, (void **)pData );	// try WAV
 	if ( !*pData ) {
-		psFilename[iNameStrlen-3] = 'm';
-		psFilename[iNameStrlen-2] = 'p';
-		psFilename[iNameStrlen-1] = '3';
+		S_TryExtension( psFilename, iNameStrlen, "mp3" );
 		*piSize = FS_ReadFile( psFilename, (void **)pData );	// try MP3
+
+		if ( !*pData ) {
+			S_TryExtension( psFilename, iNameStrlen, "ogg" );
+			*piSize = FS_ReadFile( psFilename, (void **)pData );	// try Ogg
+		}
 
 		if ( !*pData )
 		{
@@ -459,16 +475,17 @@ static qboolean S_LoadSound_FileLoadAndNameAdjuster(char *psFilename, byte **pDa
 
 				strncpy(psVoice,"chars",5);
 
-				psFilename[iNameStrlen-3] = 'w';
-				psFilename[iNameStrlen-2] = 'a';
-				psFilename[iNameStrlen-1] = 'v';
+				S_TryExtension( psFilename, iNameStrlen, "wav" );
 				*piSize = FS_ReadFile( psFilename, (void **)pData );	// try English WAV
 				if ( !*pData )
 				{
-					psFilename[iNameStrlen-3] = 'm';
-					psFilename[iNameStrlen-2] = 'p';
-					psFilename[iNameStrlen-1] = '3';
+					S_TryExtension( psFilename, iNameStrlen, "mp3" );
 					*piSize = FS_ReadFile( psFilename, (void **)pData );	// try English MP3
+				}
+				if ( !*pData )
+				{
+					S_TryExtension( psFilename, iNameStrlen, "ogg" );
+					*piSize = FS_ReadFile( psFilename, (void **)pData );	// try English Ogg
 				}
 			}
 

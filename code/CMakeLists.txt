@@ -140,6 +140,7 @@ if(BuildJKAEngine OR BuildJK2Engine)
 
 		"${CodeDir}/client/snd_ambient.cpp"
 		"${CodeDir}/client/snd_codec.cpp"
+		"${ThirdPartyDir}/stb/stb_vorbis.c"
 		"${CodeDir}/client/snd_dma.cpp"
 		"${CodeDir}/client/snd_mem.cpp"
 		"${CodeDir}/client/snd_mix.cpp"

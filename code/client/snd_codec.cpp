@@ -32,6 +32,13 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #define DR_MP3_NO_STDIO
 #include "dr_libs/dr_mp3.h"
 
+// Declarations only; third_party/stb/stb_vorbis.c is compiled as its own C
+// translation unit, because it is a .c file and there is no reason to make it
+// pretend otherwise.
+#define STB_VORBIS_HEADER_ONLY
+#define STB_VORBIS_NO_STDIO
+#include "stb/stb_vorbis.c"
+
 /*
 ===============================================================================
 
@@ -83,12 +90,18 @@ Format identification
 ===============================================================================
 */
 
+static qboolean S_Codec_IsOgg( const void *pvData, int iDataLen );
+
 soundCodec_t S_CodecSniff( const void *pvData, int iDataLen )
 {
 	const byte *p = (const byte *)pvData;
 
 	if ( !p || iDataLen < 4 ) {
 		return CODEC_NONE;
+	}
+
+	if ( S_Codec_IsOgg( p, iDataLen ) ) {
+		return CODEC_VORBIS;
 	}
 
 	// An ID3v2 tag can sit in front of the audio; its header carries the size
@@ -113,10 +126,20 @@ soundCodec_t S_CodecSniff( const void *pvData, int iDataLen )
 	return CODEC_NONE;
 }
 
+// Ogg is checked before the ID3 skip above, because an Ogg page starts with
+// its own four-byte capture pattern and nothing else in it can look like one.
+static qboolean S_Codec_IsOgg( const void *pvData, int iDataLen )
+{
+	const byte *p = (const byte *)pvData;
+	return (qboolean)( p && iDataLen >= 4
+					   && p[0] == 'O' && p[1] == 'g' && p[2] == 'g' && p[3] == 'S' );
+}
+
 const char *S_CodecName( soundCodec_t codec )
 {
 	switch ( codec ) {
 	case CODEC_MP3:		return "MP3";
+	case CODEC_VORBIS:	return "Ogg Vorbis";
 	default:			return "unrecognised";
 	}
 }
@@ -148,10 +171,55 @@ Whole-file decoding
 ===============================================================================
 */
 
+static qboolean S_Codec_DecodeAllVorbis( const void *pvData, int iDataLen, qboolean bWantStereo,
+										short **ppPcm, int *piFrames, int *piRate, int *piChannels )
+{
+	int iChannels = 0, iRate = 0;
+	short *psRaw = NULL;
+
+	// stb_vorbis allocates this with malloc, not through our callbacks, so it
+	// is copied into the zone and released again rather than handed upwards.
+	const int iFrames = stb_vorbis_decode_memory( (const unsigned char *)pvData, iDataLen,
+												  &iChannels, &iRate, &psRaw );
+	if ( iFrames <= 0 || !psRaw ) {
+		if ( psRaw ) {
+			free( psRaw );
+		}
+		return qfalse;
+	}
+
+	const qboolean bDownmix = (qboolean)( iChannels == 2 && !bWantStereo );
+	const int iOutChannels = bDownmix ? 1 : iChannels;
+	const int iBytes = iFrames * iOutChannels * (int)sizeof( short );
+
+	short *psPcm = (short *)Z_Malloc( iBytes, TAG_SND_RAWDATA, qfalse );
+	if ( bDownmix ) {
+		for ( int i = 0; i < iFrames; i++ ) {
+			psPcm[i] = (short)( ( (int)psRaw[i * 2] + (int)psRaw[i * 2 + 1] ) / 2 );
+		}
+	} else {
+		memcpy( psPcm, psRaw, iBytes );
+	}
+	free( psRaw );
+
+	*ppPcm		= psPcm;
+	*piFrames	= iFrames;
+	*piRate		= iRate;
+	*piChannels	= iOutChannels;
+	return qtrue;
+}
+
 qboolean S_CodecDecodeAll( const void *pvData, int iDataLen, qboolean bWantStereo,
 						   short **ppPcm, int *piFrames, int *piRate, int *piChannels )
 {
-	if ( S_CodecSniff( pvData, iDataLen ) != CODEC_MP3 ) {
+	const soundCodec_t codec = S_CodecSniff( pvData, iDataLen );
+
+	if ( codec == CODEC_VORBIS ) {
+		return S_Codec_DecodeAllVorbis( pvData, iDataLen, bWantStereo,
+										ppPcm, piFrames, piRate, piChannels );
+	}
+
+	if ( codec != CODEC_MP3 ) {
 		return qfalse;
 	}
 
@@ -181,7 +249,21 @@ qboolean S_CodecDecodeAll( const void *pvData, int iDataLen, qboolean bWantStere
 
 int S_CodecFrameCount( const void *pvData, int iDataLen )
 {
-	if ( S_CodecSniff( pvData, iDataLen ) != CODEC_MP3 ) {
+	const soundCodec_t codec = S_CodecSniff( pvData, iDataLen );
+
+	if ( codec == CODEC_VORBIS ) {
+		int iError = 0;
+		stb_vorbis *pv = stb_vorbis_open_memory( (const unsigned char *)pvData, iDataLen,
+												 &iError, NULL );
+		if ( !pv ) {
+			return 0;
+		}
+		const int iFrames = (int)stb_vorbis_stream_length_in_samples( pv );
+		stb_vorbis_close( pv );
+		return iFrames;
+	}
+
+	if ( codec != CODEC_MP3 ) {
 		return 0;
 	}
 
@@ -217,7 +299,28 @@ qboolean S_CodecStreamOpen( soundStream_t *pStream, const void *pvData, int iDat
 {
 	S_CodecStreamClose( pStream );
 
-	if ( S_CodecSniff( pvData, iDataLen ) != CODEC_MP3 ) {
+	const soundCodec_t codec = S_CodecSniff( pvData, iDataLen );
+
+	if ( codec == CODEC_VORBIS ) {
+		int iError = 0;
+		pStream->vorbis = stb_vorbis_open_memory( (const unsigned char *)pvData, iDataLen,
+												  &iError, NULL );
+		if ( !pStream->vorbis ) {
+			return qfalse;
+		}
+
+		const stb_vorbis_info info = stb_vorbis_get_info( pStream->vorbis );
+		pStream->codec		= CODEC_VORBIS;
+		pStream->open		= qtrue;
+		pStream->wantStereo	= bWantStereo;
+		pStream->channels	= info.channels;
+		pStream->rate		= (int)info.sample_rate;
+		pStream->writePos	= 0;
+		pStream->windowPos	= 0;
+		return qtrue;
+	}
+
+	if ( codec != CODEC_MP3 ) {
 		return qfalse;
 	}
 
@@ -268,6 +371,44 @@ qboolean S_CodecStreamOpenFile( soundStream_t *pStream, fileHandle_t f, qboolean
 {
 	S_CodecStreamClose( pStream );
 
+	// Sniff from the front of the file and put the cursor back.
+	byte header[4] = {};
+	FS_Seek( f, 0, FS_SEEK_SET );
+	FS_Read( header, sizeof( header ), f );
+	FS_Seek( f, 0, FS_SEEK_SET );
+
+	if ( S_Codec_IsOgg( header, sizeof( header ) ) ) {
+		// stb_vorbis decodes from memory and has no pull interface, so a file
+		// stream reads the whole track in and owns it. Music is the only thing
+		// streamed from a file and dynamic music is already held in memory, so
+		// this is the same order of cost as what is there.
+		FS_Seek( f, 0, FS_SEEK_END );
+		const int iLen = FS_FTell( f );
+		FS_Seek( f, 0, FS_SEEK_SET );
+
+		if ( iLen <= 0 ) {
+			return qfalse;
+		}
+
+		// Deliberately a local until the stream is open. S_CodecStreamOpen
+		// begins by closing whatever was there, and closing frees ownedData -
+		// so assigning it first hands the open call a pointer that has already
+		// been released, and the eventual close frees it a second time.
+		byte *pOwned = (byte *)Z_Malloc( iLen, TAG_SND_DYNAMICMUSIC, qfalse );
+		if ( FS_Read( pOwned, iLen, f ) != iLen ) {
+			Z_Free( pOwned );
+			return qfalse;
+		}
+
+		if ( !S_CodecStreamOpen( pStream, pOwned, iLen, bWantStereo ) ) {
+			Z_Free( pOwned );
+			return qfalse;
+		}
+
+		pStream->ownedData = pOwned;
+		return qtrue;
+	}
+
 	if ( !drmp3_init( &pStream->mp3, S_Codec_FileRead, S_Codec_FileSeek, S_Codec_FileTell,
 					  NULL, (void *)(intptr_t)f, &s_codecAlloc ) ) {
 		return qfalse;
@@ -286,8 +427,19 @@ qboolean S_CodecStreamOpenFile( soundStream_t *pStream, fileHandle_t f, qboolean
 void S_CodecStreamClose( soundStream_t *pStream )
 {
 	if ( pStream->open ) {
-		drmp3_uninit( &pStream->mp3 );
+		if ( pStream->codec == CODEC_VORBIS ) {
+			if ( pStream->vorbis ) {
+				stb_vorbis_close( pStream->vorbis );
+			}
+		} else {
+			drmp3_uninit( &pStream->mp3 );
+		}
 		pStream->open = qfalse;
+	}
+	pStream->vorbis		= NULL;
+	if ( pStream->ownedData ) {
+		Z_Free( pStream->ownedData );
+		pStream->ownedData = NULL;
 	}
 	pStream->codec		= CODEC_NONE;
 	pStream->writePos	= 0;
@@ -305,8 +457,19 @@ static int S_Codec_DecodePacket( soundStream_t *pStream, short *psOut, int iMaxF
 	const qboolean bDownmix = (qboolean)( pStream->channels == 2 && !pStream->wantStereo );
 	const int iOutChannels = bDownmix ? 1 : pStream->channels;
 
-	const drmp3_uint64 iFrames = drmp3_read_pcm_frames_s16( &pStream->mp3,
-														   (drmp3_uint64)iMaxFrames, psOut );
+	drmp3_uint64 iFrames;
+	if ( pStream->codec == CODEC_VORBIS ) {
+		// stb_vorbis counts shorts, not frames, and interleaves however many
+		// channels it is asked for - so ask for the source's own count and fold
+		// afterwards, the same way the MP3 path does.
+		iFrames = (drmp3_uint64)stb_vorbis_get_samples_short_interleaved(
+						pStream->vorbis, pStream->channels, psOut,
+						iMaxFrames * pStream->channels );
+	} else {
+		iFrames = drmp3_read_pcm_frames_s16( &pStream->mp3,
+											 (drmp3_uint64)iMaxFrames, psOut );
+	}
+
 	if ( iFrames == 0 ) {
 		return 0;
 	}
@@ -392,6 +555,11 @@ qboolean S_CodecStreamRewind( soundStream_t *pStream )
 
 	pStream->writePos	= 0;
 	pStream->windowPos	= 0;
+
+	if ( pStream->codec == CODEC_VORBIS ) {
+		return (qboolean)( stb_vorbis_seek_start( pStream->vorbis ) != 0 );
+	}
+
 	return (qboolean)( drmp3_seek_to_pcm_frame( &pStream->mp3, 0 ) != 0 );
 }
 
@@ -407,7 +575,11 @@ qboolean S_CodecStreamSeekSeconds( soundStream_t *pStream, float fSeconds )
 	// tell you where anything is.
 	const drmp3_uint64 iFrame = (drmp3_uint64)( fSeconds * (float)pStream->rate );
 
-	if ( !drmp3_seek_to_pcm_frame( &pStream->mp3, iFrame ) ) {
+	if ( pStream->codec == CODEC_VORBIS ) {
+		if ( !stb_vorbis_seek( pStream->vorbis, (unsigned int)iFrame ) ) {
+			return qfalse;
+		}
+	} else if ( !drmp3_seek_to_pcm_frame( &pStream->mp3, iFrame ) ) {
 		return qfalse;
 	}
 
@@ -427,6 +599,11 @@ float S_CodecStreamLengthSeconds( const soundStream_t *pStream )
 		return 0.0f;
 	}
 
+	if ( pStream->codec == CODEC_VORBIS ) {
+		return (float)stb_vorbis_stream_length_in_samples( pStream->vorbis )
+			 / (float)pStream->rate;
+	}
+
 	// totalPCMFrameCount is what drmp3_get_pcm_frame_count computed when the
 	// stream opened, so this costs nothing.
 	drmp3 *pMutable = (drmp3 *)&pStream->mp3;
@@ -442,6 +619,12 @@ float S_CodecStreamRemainingSeconds( const soundStream_t *pStream )
 {
 	if ( !pStream->open || pStream->rate <= 0 ) {
 		return 0.0f;
+	}
+
+	if ( pStream->codec == CODEC_VORBIS ) {
+		const int iTotal = (int)stb_vorbis_stream_length_in_samples( pStream->vorbis );
+		const int iAt = stb_vorbis_get_sample_offset( pStream->vorbis );
+		return ( iAt >= iTotal ) ? 0.0f : (float)( iTotal - iAt ) / (float)pStream->rate;
 	}
 
 	drmp3 *pMutable = (drmp3 *)&pStream->mp3;

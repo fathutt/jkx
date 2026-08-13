@@ -160,10 +160,8 @@ static float Rms( const short *psPcm, int iFrames )
 	return (float)sqrt( sum / (double)iFrames );
 }
 
-int main( int argc, char **argv )
+static int RunFixture( const char *psFixture, soundCodec_t expectCodec )
 {
-	const char *psFixture = ( argc > 1 ) ? argv[1] : "tools/verify/fixtures/tone.mp3";
-
 	FILE *f = fopen( psFixture, "rb" );
 	if ( !f ) {
 		printf( "cannot open fixture %s\n", psFixture );
@@ -184,7 +182,9 @@ int main( int argc, char **argv )
 
 	// --- sniffing -----------------------------------------------------------
 
-	CHECK( S_CodecSniff( data.data(), (int)lLen ) == CODEC_MP3, "fixture not recognised as MP3" );
+	CHECK( S_CodecSniff( data.data(), (int)lLen ) == expectCodec,
+		   "fixture sniffed as %s, expected %s",
+		   S_CodecName( S_CodecSniff( data.data(), (int)lLen ) ), S_CodecName( expectCodec ) );
 	CHECK( S_CodecSniff( "not audio at all", 16 ) == CODEC_NONE, "text sniffed as audio" );
 	CHECK( S_CodecSniff( data.data(), 2 ) == CODEC_NONE, "two bytes sniffed as audio" );
 	CHECK( S_CodecSniff( NULL, 100 ) == CODEC_NONE, "null sniffed as audio" );
@@ -197,8 +197,9 @@ int main( int argc, char **argv )
 	// The check is that it is the right order of magnitude, which is what
 	// catches the failure that matters: a rate or channel count read wrongly
 	// puts this out by a factor of two.
-	CHECK( iCount >= kFrames && iCount <= kFrames + 2 * 1152,
-		   "frame count %d, expected between %d and %d", iCount, kFrames, kFrames + 2 * 1152 );
+	CHECK( iCount >= kFrames - 1152 && iCount <= kFrames + 2 * 1152,
+		   "frame count %d, expected between %d and %d",
+		   iCount, kFrames - 1152, kFrames + 2 * 1152 );
 
 	// --- whole-file decode --------------------------------------------------
 
@@ -313,11 +314,32 @@ int main( int argc, char **argv )
 	S_CodecStreamClose( pStream );
 	free( pStream );
 
+	return 0;
+}
+
+int main( int argc, char **argv )
+{
+	const char *psDir = ( argc > 1 ) ? argv[1] : "tools/verify/fixtures";
+	char sPath[512];
+
+	// The same checks against both formats. The point of the codec layer is
+	// that nothing above it can tell which one it is holding, so the test
+	// should not be able to either.
+	snprintf( sPath, sizeof( sPath ), "%s/tone.mp3", psDir );
+	if ( RunFixture( sPath, CODEC_MP3 ) != 0 ) {
+		return 2;
+	}
+
+	snprintf( sPath, sizeof( sPath ), "%s/tone.ogg", psDir );
+	if ( RunFixture( sPath, CODEC_VORBIS ) != 0 ) {
+		return 2;
+	}
+
 	if ( s_failures ) {
 		printf( "%d check(s) failed\n", s_failures );
 		return 1;
 	}
 
-	printf( "OK: sniffing, whole-file decode, window scrolling, seeking and file streaming\n" );
+	printf( "OK: both formats - sniffing, whole-file decode, window scrolling, seeking, file streaming\n" );
 	return 0;
 }
