@@ -29,7 +29,6 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #include "../cgame/cg_local.h"
 #include "g_shared.h"
 
-#define	NUM_CROSSHAIRS		9
 
 typedef enum {
 	FOOTSTEP_STONEWALK,
@@ -125,7 +124,6 @@ typedef struct {
 	qhandle_t	charsetShader;
 	qhandle_t	whiteShader;
 
-	qhandle_t	crosshairShader[NUM_CROSSHAIRS];
 	qhandle_t	backTileShader;
 //	qhandle_t	noammoShader;
 

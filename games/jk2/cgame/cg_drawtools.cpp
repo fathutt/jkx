@@ -455,3 +455,95 @@ void CG_DrawProportionalString( int x, int y, const char* str, int style, vec4_t
 	//assert(!style);//call this directly if you need style (OR it into the font handle)
 	cgi_R_Font_DrawString (x, y, str, color, cgs.media.qhFontMedium, -1, 1.0f);
 }
+/*
+================
+The head-up display's space
+
+Two rectangles of the window can be drawn in. The frame keeps the 640x480 shape
+the interface was laid out at, fits it by whichever axis runs out first and
+centres it - that is where anything composed as a picture belongs. The screen is
+the whole window, and its horizontal extent is however many units wide the window
+is at 480 units tall; that is where anything that has to reach an edge, or sit at
+the true centre of the view, belongs.
+
+Jedi Academy has had these since the head-up display was widened. Jedi Outcast
+never got them, which is why the same two defects - the crosshair drifting left
+and the cinematic letterbox stopping part way across - are in both games.
+================
+*/
+float CG_UIScale( void )
+{
+	static vmCvar_t	uiScale;
+	static qboolean	registered = qfalse;
+
+	if ( !registered ) {
+		cgi_Cvar_Register( &uiScale, "r_uiScale", "1", CVAR_ARCHIVE );
+		registered = qtrue;
+	}
+	cgi_Cvar_Update( &uiScale );
+
+	if ( uiScale.value < 0.5f ) return 1.0f;		// unset or nonsense
+	if ( uiScale.value > 2.0f ) return 2.0f;
+	return uiScale.value;
+}
+
+float CG_ScreenWidth( void )
+{
+	const float width = ( cgs.glconfig.virtualWidth > 0.0f )
+		? cgs.glconfig.virtualWidth : (float)SCREEN_WIDTH;
+
+	return width / CG_UIScale();
+}
+
+float CG_ScreenHeight( void )
+{
+	return (float)SCREEN_HEIGHT / CG_UIScale();
+}
+
+void CG_HudSpace( void )
+{
+	cgi_R_Set2DSpace( 1, 0.0f );		// SPACE2D_SCREEN
+}
+
+void CG_FrameSpace( void )
+{
+	cgi_R_Set2DSpace( 0, 0.0f );		// SPACE2D_FRAME
+}
+
+/*
+================
+CG_DrawCrosshairDot
+
+A dot, from the white image, instead of one of the eight crosshair textures the
+retail games ship. Two quads: a dark one a unit larger in every direction, and
+the coloured one on top of it. The outline is what makes a dot readable against
+a bright wall - a white dot on white stone is not a crosshair, and every
+alternative that keeps the texture pays for it with a blurred magnified bitmap
+at any resolution the texture was not drawn for.
+
+The colour is the caller's, which is where the target identification already
+lives: white on the world, green on an ally, red on an enemy.
+
+Size is cg_crosshairSize, whose meaning changed with the shape - it was the side
+of a bitmap and is now the diameter of the dot, so its default came down with it.
+================
+*/
+void CG_DrawCrosshairDot( float x, float y, float size, const vec4_t colour )
+{
+	vec4_t	outline;
+
+	if ( size < 1.0f ) {
+		size = 1.0f;
+	}
+
+	outline[0] = outline[1] = outline[2] = 0.0f;
+	outline[3] = colour[3] * 0.8f;
+
+	cgi_R_SetColor( outline );
+	cgi_R_DrawStretchPic( x - size * 0.5f - 1.0f, y - size * 0.5f - 1.0f,
+		size + 2.0f, size + 2.0f, 0, 0, 1, 1, cgs.media.whiteShader );
+
+	cgi_R_SetColor( colour );
+	cgi_R_DrawStretchPic( x - size * 0.5f, y - size * 0.5f,
+		size, size, 0, 0, 1, 1, cgs.media.whiteShader );
+}

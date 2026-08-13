@@ -384,7 +384,7 @@ static cvarTable_t cvarTable[] = {
 	{ &cg_updatedDataPadForcePower3, "cg_updatedDataPadForcePower3", "0", 0},
 	{ &cg_updatedDataPadObjective, "cg_updatedDataPadObjective", "0", 0},
 
-	{ &cg_crosshairSize, "cg_crosshairSize", "24", CVAR_ARCHIVE },
+	{ &cg_crosshairSize, "cg_crosshairSize", "3", CVAR_ARCHIVE },	// the dot's diameter, not a bitmap's side
 	{ &cg_crosshairX, "cg_crosshairX", "0", CVAR_ARCHIVE },
 	{ &cg_crosshairY, "cg_crosshairY", "0", CVAR_ARCHIVE },
 	{ &cg_simpleItems, "cg_simpleItems", "0", CVAR_ARCHIVE },
@@ -1380,9 +1380,6 @@ static void CG_RegisterGraphics( void ) {
 	//cgi_R_RegisterShader( "gfx/effects/irid_shield" ); // for galak, but he doesn't have his own weapon so I can't register the shader there.
 
 	//interface
-	for ( i = 0 ; i < NUM_CROSSHAIRS ; i++ ) {
-		cgs.media.crosshairShader[i] = cgi_R_RegisterShaderNoMip( va("gfx/2d/crosshair%c", 'a'+i) );
-	}
 	cgs.media.backTileShader		= cgi_R_RegisterShader( "gfx/2d/backtile" );
 //	cgs.media.noammoShader			= cgi_R_RegisterShaderNoMip( "gfx/hud/noammo");
 	cgs.media.weaponIconBackground	= cgi_R_RegisterShaderNoMip( "gfx/hud/background");

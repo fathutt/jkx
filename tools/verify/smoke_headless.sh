@@ -238,6 +238,20 @@ fi
 SETTLE=200
 
 INMAP_STEP=( +wait 20 +map jkx_room +wait $SETTLE +screenshot_tga jkx_inmap )
+
+# The crosshair, twice: once absent, once drawn large enough that nothing else
+# in the frame can outweigh it. What is being measured is where it lands, and it
+# has to be measured this way because the crosshair is white and so is the
+# fixture's floor - no colour tells them apart, only the fact that one of the
+# two frames has it.
+#
+# Two consecutive frames from a standing position is the same construction the
+# fog stage uses, and the wait is what makes it stable: the shot is queued and
+# the file appears a frame later.
+INMAP_STEP+=( +cg_drawCrosshair 0 +wait 10 +screenshot_tga jkx_nocross
+              +cg_crosshairSize 48 +cg_drawCrosshair 1 +wait 10
+              +screenshot_tga jkx_cross
+              +cg_crosshairSize 3 )
 #
 # The weather, asked about a place rather than about the world. A wind zone is
 # created with a velocity of 800 along +Y over a box around the origin, and then
@@ -556,6 +570,21 @@ if [ "${JKX_SMOKE_PLAIN:-0}" != "1" ] && [ -f "$RUN/home/base/screenshots/jkx_in
         "$RUN/home/base/screenshots/jkx_inmap.tga" \
         "255,255,255@0.3,0.75,0.7,1.0"; then
         report "the map's floor is not where it should be in jkx_inmap.tga"
+    fi
+fi
+
+# The crosshair is at the centre of the window, on every shape of window. The
+# box is tight because there is nothing approximate about the answer: the
+# crosshair is either at the middle of the screen or it is at the middle of
+# something else.
+if [ "${JKX_SMOKE_PLAIN:-0}" != "1" ] \
+   && [ -f "$RUN/home/base/screenshots/jkx_cross.tga" ] \
+   && [ -f "$RUN/home/base/screenshots/jkx_nocross.tga" ]; then
+    if ! python3 "$HERE/tga_diff_where.py" \
+        "$RUN/home/base/screenshots/jkx_nocross.tga" \
+        "$RUN/home/base/screenshots/jkx_cross.tga" \
+        "0.47,0.47,0.53,0.53" 500; then
+        report "the crosshair is not at the centre of the window"
     fi
 fi
 

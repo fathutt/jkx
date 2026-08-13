@@ -1314,6 +1314,21 @@ void CGCam_DrawWideScreen( void )
 {
 	vec4_t	modulate;
 
+	// The letterbox and the fade cover the picture, and the picture is the whole
+	// window. This is called from CG_Draw2D, so the head-up display's space is
+	// already set - and in that space 640 is not the width of anything. The bars
+	// were 640 units wide in a space 1707 units wide on 21:9, so the black ran
+	// out a third of the way across and the scene reached the top of the screen
+	// beside it. The fade, being the same rectangle, covered the same third.
+	//
+	// cg.refdef.x and .y were added to those virtual units as well; they are
+	// window pixels, and the sum was harmless only because it is zero whenever
+	// cg_viewsize is 100.
+	const float width = CG_ScreenWidth();
+	const float height = CG_ScreenHeight();
+
+	CG_HudSpace();
+
 	//Only draw if visible
 	if ( client_camera.bar_alpha )
 	{
@@ -1322,15 +1337,17 @@ void CGCam_DrawWideScreen( void )
 		modulate[0] = modulate[1] = modulate[2] = 0.0f;
 		modulate[3] = client_camera.bar_alpha;
 
-		CG_FillRect( cg.refdef.x, cg.refdef.y, 640, client_camera.bar_height, modulate  );
-		CG_FillRect( cg.refdef.x, cg.refdef.y + 480 - client_camera.bar_height, 640, client_camera.bar_height, modulate  );
+		CG_FillRect( 0, 0, width, client_camera.bar_height, modulate  );
+		CG_FillRect( 0, height - client_camera.bar_height, width, client_camera.bar_height, modulate  );
 	}
 
 	//NOTENOTE: Camera always draws the fades unless the alpha is 0
-	if ( client_camera.fade_color[3] == 0.0f )
-		return;
+	if ( client_camera.fade_color[3] != 0.0f )
+	{
+		CG_FillRect( 0, 0, width, height, client_camera.fade_color );
+	}
 
-	CG_FillRect( cg.refdef.x, cg.refdef.y, 640, 480, client_camera.fade_color );
+	CG_FrameSpace();
 }
 
 /*

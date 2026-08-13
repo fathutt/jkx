@@ -1542,6 +1542,9 @@ void CG_SaberClashFlare( void )
 
 	v = ( 1.0f - ((float)t / maxTime )) * ((1.0f - ( len / 800.0f )) * 2.0f + 0.35f);
 
+	// Screen-space coordinates from the projection, so the space has to match.
+	CG_HudSpace();
+
 	CG_WorldCoordToScreenCoord( g_saberFlashPos, &x, &y );
 
 	VectorSet( color, 0.8f, 0.8f, 0.8f );
@@ -1550,6 +1553,8 @@ void CG_SaberClashFlare( void )
 	CG_DrawPic( x - ( v * 300 ), y - ( v * 300 ),
 				v * 600, v * 600,
 				cgi_R_RegisterShader( "gfx/effects/saberFlare" ));
+
+	CG_FrameSpace();
 }
 
 /*

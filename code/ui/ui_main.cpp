@@ -2069,11 +2069,9 @@ static qboolean UI_Crosshair_HandleKey(int flags, float *special, int key)
 			uiInfo.currentCrosshair++;
 		}
 
-		if (uiInfo.currentCrosshair >= NUM_CROSSHAIRS) {
-			uiInfo.currentCrosshair = 0;
-		} else if (uiInfo.currentCrosshair < 0) {
-			uiInfo.currentCrosshair = NUM_CROSSHAIRS - 1;
-		}
+		// One crosshair, so the cycler is on or off. It used to run 0..8 over
+		// nine bitmaps, of which none were ever registered.
+		uiInfo.currentCrosshair = uiInfo.currentCrosshair ? 0 : 1;
 		Cvar_Set("cg_drawCrosshair", va("%d", uiInfo.currentCrosshair));
 		return qtrue;
 	}
@@ -3658,12 +3656,6 @@ void AssetCache(void)
 	uiInfo.uiDC.Assets.sliderThumb = ui.R_RegisterShaderNoMip( "menu/new/sliderthumb");
 
 
-	/*
-	for( n = 0; n < NUM_CROSSHAIRS; n++ )
-	{
-		uiInfo.uiDC.Assets.crosshairShader[n] = ui.R_RegisterShaderNoMip( va("gfx/2d/crosshair%c", 'a' + n ) );
-	}
-	*/
 }
 
 /*
@@ -3846,13 +3838,42 @@ static void UI_DataPad_ForcePowers(rectDef_t *rect, float scale, vec4_t color, i
 }
 */
 
+/*
+================
+UI_DrawCrosshair
+
+The preview beside the setting. There is one crosshair now - a dot the game
+draws from the white image - so this draws the same thing rather than one of
+nine bitmaps.
+
+It drew nothing at all before: the loop that registered gfx/2d/crosshair[a-i]
+is commented out a few hundred lines above, so every handle in that array was
+zero. The picker cycled 0..8 through an empty preview, and index 0 means "no
+crosshair", so choosing the first one in the menu switched the crosshair off.
+================
+*/
 static void UI_DrawCrosshair(rectDef_t *rect, float scale, vec4_t color) {
- 	trap_R_SetColor( color );
-	if (uiInfo.currentCrosshair < 0 || uiInfo.currentCrosshair >= NUM_CROSSHAIRS) {
-		uiInfo.currentCrosshair = 0;
+	const float size = rect->h * 0.18f;
+	const float cx = rect->x + rect->w * 0.5f;
+	const float cy = rect->y + rect->h * 0.5f;
+	vec4_t outline;
+
+	if ( !uiInfo.currentCrosshair ) {
+		return;
 	}
-	UI_DrawHandlePic( rect->x, rect->y, rect->w, rect->h, uiInfo.uiDC.Assets.crosshairShader[uiInfo.currentCrosshair]);
- 	trap_R_SetColor( NULL );
+
+	outline[0] = outline[1] = outline[2] = 0.0f;
+	outline[3] = color[3];
+
+	trap_R_SetColor( outline );
+	trap_R_DrawStretchPic( cx - size * 0.5f - 1.0f, cy - size * 0.5f - 1.0f,
+		size + 2.0f, size + 2.0f, 0, 0, 0, 0, uiInfo.uiDC.whiteShader );
+
+	trap_R_SetColor( color );
+	trap_R_DrawStretchPic( cx - size * 0.5f, cy - size * 0.5f,
+		size, size, 0, 0, 0, 0, uiInfo.uiDC.whiteShader );
+
+	trap_R_SetColor( NULL );
 }
 
 

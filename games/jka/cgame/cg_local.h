@@ -727,6 +727,7 @@ Ghoul2 Insert End
 
 void CG_DrawRect( float x, float y, float width, float height, float size, const float *color );
 void CG_FillRect( float x, float y, float width, float height, const float *color );
+void	CG_DrawCrosshairDot( float x, float y, float size, const vec4_t colour );
 void CG_Scissor( float x, float y, float width, float height);
 void CG_DrawPic( float x, float y, float width, float height, qhandle_t hShader );
 void CG_DrawPic2( float x, float y, float width, float height, float s1, float t1, float s2, float t2, qhandle_t hShader );

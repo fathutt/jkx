@@ -712,6 +712,12 @@ Ghoul2 Insert End
 
 
 void CG_FillRect( float x, float y, float width, float height, const float *color );
+void	CG_DrawCrosshairDot( float x, float y, float size, const vec4_t colour );
+float	CG_UIScale( void );
+float	CG_ScreenWidth( void );
+float	CG_ScreenHeight( void );
+void	CG_HudSpace( void );
+void	CG_FrameSpace( void );
 void CG_Scissor( float x, float y, float width, float height);
 void CG_DrawPic( float x, float y, float width, float height, qhandle_t hShader );
 void CG_DrawPic2( float x, float y, float width, float height, float s1, float t1, float s2, float t2, qhandle_t hShader );
@@ -1038,6 +1044,7 @@ void	cgi_R_DrawRotatePic2( float x, float y, float w, float h,
 	float s1, float t1, float s2, float t2,float a, qhandle_t hShader );
 void	cgi_R_LAGoggles( void );
 void	cgi_R_Scissor( float x, float y, float w, float h);
+void	cgi_R_Set2DSpace( int space, float offsetX );
 
 // The glconfig_t will not change during the life of a cgame.
 // If it needs to change, the entire cgame will be restarted, because

@@ -24,7 +24,6 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #ifndef __CG_MEDIA_H_
 #define __CG_MEDIA_H_
 
-#define	NUM_CROSSHAIRS		9
 
 typedef enum {
 	FOOTSTEP_NORMAL,
@@ -78,7 +77,6 @@ typedef struct {
 	qhandle_t	whiteShader;
 
 	qhandle_t	selectShader;
-	qhandle_t	crosshairShader[NUM_CROSSHAIRS];
 	qhandle_t	backTileShader;
 	qhandle_t	noammoShader;
 

@@ -114,7 +114,6 @@ typedef struct multiDef_s {
 
 #define STRING_POOL_SIZE (2*1024*1024)
 
-#define	NUM_CROSSHAIRS			9
 
 typedef struct {
 	qhandle_t	qhMediumFont;
@@ -160,7 +159,6 @@ typedef struct {
   // player settings
 //	qhandle_t	fxBasePic;
 //	qhandle_t	fxPic[7];
-	qhandle_t	crosshairShader[NUM_CROSSHAIRS];
 
 } cachedAssets_t;
 

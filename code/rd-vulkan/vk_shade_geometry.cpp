@@ -103,8 +103,13 @@ void vk_get_2d_viewport( float *x, float *y, float *w, float *h, float *virtualW
 		*y = 0.0f;
 		*w = targetW;
 		*h = targetH;
-		*virtualW = ( glConfig.virtualWidth > 0.0f )
-			? glConfig.virtualWidth : (float)SCREEN_WIDTH;
+		// r_uiScale applies to both axes or the picture is not magnified, it is
+		// stretched. Only the vertical extent was divided by it below, so at
+		// r_uiScale 2 the head-up display came out twice as tall as it was wide
+		// - and the client's own idea of the width (CG_ScreenWidth) already
+		// divided, so the two disagreed about where the right-hand edge was.
+		*virtualW = ( ( glConfig.virtualWidth > 0.0f )
+			? glConfig.virtualWidth : (float)SCREEN_WIDTH ) / vk_ui_scale();
 		return;
 	}
 

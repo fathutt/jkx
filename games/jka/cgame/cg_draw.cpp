@@ -2514,6 +2514,10 @@ void CG_DrawHealthBars( void )
 	float chX=0, chY=0;
 	centity_t *cent;
 	vec3_t pos;
+
+	// The positions come out of the projection in the head-up display's space.
+	CG_HudSpace();
+
 	for ( int i = 0; i < cg_numHealthBarEnts; i++ )
 	{
 		cent = &cg_entities[cg_healthBarEnts[i]];
@@ -2527,6 +2531,8 @@ void CG_DrawHealthBars( void )
 			}
 		}
 	}
+
+	CG_FrameSpace();
 }
 
 #define HEALTHBARRANGE 422
@@ -2568,7 +2574,6 @@ CG_DrawCrosshair
 static void CG_DrawCrosshair( vec3_t worldPoint )
 {
 	float		w, h;
-	qhandle_t	hShader;
 	qboolean	corona = qfalse;
 	vec4_t		ecolor;
 	float		f;
@@ -2760,15 +2765,35 @@ static void CG_DrawCrosshair( vec3_t worldPoint )
 		h *= ( 1 + f );
 	}
 
+	// The centre of the view, and the view is the whole window.
+	//
+	// CG_Draw2D already works in the head-up display's space, which is as many
+	// units wide as the window is at 480 units tall - 1707 of them on 21:9. The
+	// crosshair was placed at 0.5 * (640 - w) in it: half of the frame's width,
+	// measured in a space that is not the frame. So it sat 320 units from the
+	// left edge of a space almost three times that wide, which is a fifth of the
+	// way across, which is where it was. cg.refdef.x was being added to the same
+	// sum - window pixels on top of virtual units - and contributed nothing only
+	// because it is zero whenever cg_viewsize is 100.
+	//
+	// Said explicitly here rather than left to the caller, because the answer
+	// depends on which space is set and a reader should not have to go and find
+	// out.
+	CG_HudSpace();
+
+	const float centreX = CG_ScreenWidth() * 0.5f;
+	const float centreY = CG_ScreenHeight() * 0.5f;
+
 	if ( worldPoint && VectorLength( worldPoint ) )
 	{
 		if ( !CG_WorldCoordToScreenCoordFloat( worldPoint, &x, &y ) )
 		{//off screen, don't draw it
 			cgi_R_SetColor( NULL );
+			CG_FrameSpace();
 			return;
 		}
-		x -= 320;//????
-		y -= 240;//????
+		x -= centreX;
+		y -= centreY;
 	}
 	else
 	{
@@ -2781,19 +2806,14 @@ static void CG_DrawCrosshair( vec3_t worldPoint )
 		if ( !Q_stricmp( "misc_panel_turret", g_entities[cg.snap->ps.viewEntity].classname ))
 		{
 			// draws a custom crosshair that is twice as large as normal
-			cgi_R_DrawStretchPic( x + cg.refdef.x + 320 - w,
-				y + cg.refdef.y + 240 - h,
+			cgi_R_DrawStretchPic( x + centreX - w, y + centreY - h,
 				w * 2, h * 2, 0, 0, 1, 1, cgs.media.turretCrossHairShader );
 
 		}
 	}
 	else
 	{
-		hShader = cgs.media.crosshairShader[ cg_drawCrosshair.integer % NUM_CROSSHAIRS ];
-
-		cgi_R_DrawStretchPic( x + cg.refdef.x + 0.5 * (640 - w),
-			y + cg.refdef.y + 0.5 * (480 - h),
-			w, h, 0, 0, 1, 1, hShader );
+		CG_DrawCrosshairDot( x + centreX, y + centreY, w, ecolor );
 	}
 
 	if ( cg.forceCrosshairStartTime && cg_crosshairForceHint.integer ) // drawing extra bits
@@ -2806,13 +2826,14 @@ static void CG_DrawCrosshair( vec3_t worldPoint )
 		w *= 2.0f;
 		h *= 2.0f;
 
-		cgi_R_DrawStretchPic( x + cg.refdef.x + 0.5f * ( 640 - w ), y + cg.refdef.y + 0.5f * ( 480 - h ),
+		cgi_R_DrawStretchPic( x + centreX - w * 0.5f, y + centreY - h * 0.5f,
 								w, h,
 								0, 0, 1, 1,
 								cgs.media.forceCoronaShader );
 	}
 
 	cgi_R_SetColor( NULL );
+	CG_FrameSpace();
 }
 
 /*
@@ -2832,8 +2853,12 @@ qboolean CG_WorldCoordToScreenCoordFloat(vec3_t worldCoord, float *x, float *y)
 
     VectorSubtract(worldCoord, cg.refdef.vieworg, trans);
 
-    xc = 640 / 2.0;
-    yc = 480 / 2.0;
+    // The half-extent of the space the result is expressed in. The projection
+    // is over the view's own field of view, and the view is the whole window,
+    // so the space that matches it is the head-up display's - not the 640-unit
+    // frame. Every caller draws the result with CG_HudSpace set.
+    xc = CG_ScreenWidth() * 0.5f;
+    yc = CG_ScreenHeight() * 0.5f;
 
 	// z = how far is the object in our forward direction
     z = DotProduct(trans, cg.refdef.viewaxis[0]);
@@ -3287,6 +3312,10 @@ static void CG_DrawRocketLocking( int lockEntNum, int lockTime )
 	VectorCopy( gent->currentOrigin, org );
 	org[2] += (gent->mins[2] + gent->maxs[2]) * 0.5f;
 
+	// The projection answers in the head-up display's space, which is also the
+	// only space whose centre is the centre of the view.
+	CG_HudSpace();
+
 	if ( CG_WorldCoordToScreenCoord( org, &cx, &cy ))
 	{
 		// we care about distance from enemy to eye, so this is good enough
@@ -3325,6 +3354,7 @@ static void CG_DrawRocketLocking( int lockEntNum, int lockTime )
 		if ( dif < 0 )
 		{
 			oldDif = 0;
+			CG_FrameSpace();
 			return;
 		}
 		else if ( dif > 8 )
@@ -3371,6 +3401,8 @@ static void CG_DrawRocketLocking( int lockEntNum, int lockTime )
 			CG_DrawPic( cx - sz, cy - sz * 2, sz * 2, sz * 2, cgi_R_RegisterShaderNoMip( "gfx/2d/lock" ));
 		}
 	}
+
+	CG_FrameSpace();
 }
 
 
