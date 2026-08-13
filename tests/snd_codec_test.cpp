@@ -265,20 +265,26 @@ static int RunFixture( const char *psFixture, soundCodec_t expectCodec )
 	CHECK( S_CodecStreamRewind( pStream ) == qtrue, "rewind failed" );
 
 	{
-		// Seek to half a second and read from there. The window has to be
-		// positioned at the target, not at zero, or the next read looks like a
-		// request from before the start of the stream and returns silence.
+		// A seek restarts the offsets the caller passes, exactly as a rewind
+		// does. This is asserted from zero rather than from the seek target
+		// because getting it the other way round is what stopped the music:
+		// MusicInfo_t::SeekTo seeks the stream and then resets its own counter
+		// to the start of the track, so every read after a dynamic-music state
+		// change asked for sample zero while the stream believed it was thirty
+		// seconds in. A request from before the window returns silence, and the
+		// track went quiet on the first state change and stayed quiet.
 		const float fSeek = 0.5f;
 		CHECK( S_CodecStreamSeekSeconds( pStream, fSeek ) == qtrue, "seek failed" );
 
-		const int iFirst = (int)( fSeek * kRate );
 		const int iWant = 8192;
 		std::vector<short> after( iWant );
-		const qboolean bOk = S_CodecStreamRead( pStream, iFirst, iWant, after.data() );
-		CHECK( bOk == qtrue, "read after seek reported end of stream" );
+		const qboolean bOk = S_CodecStreamRead( pStream, 0, iWant, after.data() );
+		CHECK( bOk == qtrue, "the first read after a seek reported end of stream" );
 
 		const float fRms = Rms( after.data(), iWant );
-		CHECK( fRms > 1000.0f, "read after seek is silent, rms %.1f - the window is misplaced", fRms );
+		CHECK( fRms > 1000.0f,
+			   "the first read after a seek is silent, rms %.1f - the window and the "
+			   "caller disagree about where zero is", fRms );
 
 		const float fHz = MeasureFrequency( after.data(), iWant, kRate );
 		CHECK( fabsf( fHz - kToneHz ) < 5.0f, "tone after seek measured at %.1f Hz", fHz );

@@ -622,13 +622,21 @@ qboolean S_CodecStreamSeekSeconds( soundStream_t *pStream, float fSeconds )
 		return qfalse;
 	}
 
-	const int iBytesPerFrame = (int)sizeof( short )
-							 * ( ( pStream->wantStereo && pStream->channels == 2 ) ? 2 : 1 );
-
-	// The window is now positioned at the seek target rather than at zero, so
-	// that the next read does not look like a request from the past.
+	// The window restarts at zero, exactly as it does after a rewind, because
+	// the offsets a caller passes to S_CodecStreamRead are counted from the
+	// last seek and not from the beginning of the file.
+	//
+	// This used to leave the window standing at the seek target, on the
+	// reasoning that the next read would otherwise look like a request from the
+	// past. The one caller is MusicInfo_t::SeekTo, and the line after the seek
+	// resets its own counter to the start of the track - so every read after a
+	// state change in the dynamic music asked for sample zero while the stream
+	// said it was thirty seconds in, S_CodecStreamRead saw a request from
+	// before its window, and the music stopped. MusicInfo_t::Rewind is the same
+	// pair of operations and has always agreed on zero; this is the seek being
+	// brought in line with it.
 	pStream->writePos	= 0;
-	pStream->windowPos	= (int)iFrame * iBytesPerFrame;
+	pStream->windowPos	= 0;
 	return qtrue;
 }
 
