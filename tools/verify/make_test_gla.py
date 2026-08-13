@@ -16,7 +16,7 @@ So this writes a real one. MDXA version 6, one frame, a chain of named bones.
     make_test_gla.py --check
 
 The default bone list is not invented. It is the set of names the game asks for
-by name across code/ and codeJK2/, arranged into the hierarchy the real
+by name across code/ and games/jk2/, arranged into the hierarchy the real
 _humanoid has: every "WARNING: Failed to add bone X" the bench printed is a line
 in this list.
 

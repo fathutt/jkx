@@ -26,6 +26,9 @@ on:
     branches: [main]
     paths:
       - 'code/**'
+      # games/** was missing here while it was called codeJK2, so a change
+      # confined to the Jedi Outcast gamecode built nothing on push.
+      - 'games/**'
       - 'shared/**'
       - 'cmake/**'
       - 'CMakeLists.txt'

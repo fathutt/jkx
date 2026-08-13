@@ -310,7 +310,7 @@ set(SharedLib "shared")
 #
 #=============================================================================
 set(SPDir "${CMAKE_SOURCE_DIR}/code")
-set(JK2SPDir "${CMAKE_SOURCE_DIR}/codeJK2")
+set(JK2SPDir "${CMAKE_SOURCE_DIR}/games/jk2")
 set(SharedDir ${CMAKE_SOURCE_DIR}/shared)
 set(OpenJKLibDir "${CMAKE_SOURCE_DIR}/lib")
 set(GSLIncludeDirectory "${OpenJKLibDir}/gsl-lite/include")

@@ -32,7 +32,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 // it starts a sound. q_shared.h has always been the file that included it, and
 // q_shared.h is the bottom of the tree.
 //
-// codeJK2 carried its own copy, and the two had drifted: this list has
+// games/jk2 carried its own copy, and the two had drifted: this list has
 // CHAN_VOICE_GLOBAL fifth and CHAN_MUSIC last, that one had CHAN_MENU1 and
 // CHAN_VOICE_GLOBAL last, so every channel from the sixth onwards was a
 // different number in the two files. Nothing included it - both games reach

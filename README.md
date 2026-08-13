@@ -104,12 +104,13 @@ Design documents are in Russian; code is not. See rule 1.
 
 ```
 code/qcommon      engine core            code/rd-vulkan   Vulkan renderer (phase 1)
-code/client       client                 code/rd-vanilla  legacy OpenGL reference renderer
-code/server       server                 code/rd-common   shared renderer code
-code/game         JKA gameplay           code/ghoul2      skeletal animation
-code/cgame        client-side gameplay   codeJK2/game     JK2 gameplay
-code/icarus       scripting VM           shared/          platform, SDL, safe utilities
-tools/ci          policy checks          docs/            the coding standards
+code/client       client                 code/rd-common   shared renderer code
+code/server       server                 code/ghoul2      skeletal animation
+code/api          the engine-game        code/ui          menus, compiled into the engine
+                  contract, three        code/icarus      scripting VM
+                  headers                shared/          platform, SDL, safe utilities
+code/game         JKA gameplay           games/jk2/       JK2 gameplay: game, cgame, icarus
+code/cgame        JKA client-side        tools/ci         policy checks
 ```
 
 The `engine/ render/ game/` reorganisation described in the roadmap lands at the end of phase 2, once

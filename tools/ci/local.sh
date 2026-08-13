@@ -27,8 +27,8 @@
 #               against the picture: at 4:3 the fitted frame is the whole window
 #               and a wrong mapping looks exactly like a right one
 #   smokejk2    the same run as jkx_jo, which is the same engine built with
-#               -DJK2_MODE against codeJK2/game. Not a duplicate of the run
-#               above: the string packages, the whole of codeJK2/cgame and every
+#               -DJK2_MODE against games/jk2/game. Not a duplicate of the run
+#               above: the string packages, the whole of games/jk2/cgame and every
 #               JK2_MODE branch in shared code are only reached here, and the
 #               first time it was run it found a new[]/delete mismatch that
 #               corrupted the heap on every JK2 shutdown. It reaches the map,
@@ -250,7 +250,7 @@ stage_smokewide() {
         bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
 }
 
-# The other game. jkx_jo is code/ built with -DJK2_MODE plus codeJK2/game, so
+# The other game. jkx_jo is code/ built with -DJK2_MODE plus games/jk2/game, so
 # this is a second configuration of the same engine rather than a second copy of
 # the test - and half the project had nothing looking at it until this stage
 # existed.

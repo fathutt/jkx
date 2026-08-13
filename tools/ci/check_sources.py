@@ -11,7 +11,7 @@ volk.
 The renderer was checked from the start. The gamecode was not, and it had
 drifted the same way: code/game/g_vehicleLoad.cpp - a 435-line predecessor of
 the 1715-line bg_vehicleLoad.cpp that is actually built - plus three files in
-codeJK2/icarus, all four in no source list and included by nothing. Deleting a
+games/jk2/icarus, all four in no source list and included by nothing. Deleting a
 file that nothing compiles cannot change a binary, which is exactly why nobody
 noticed them for years.
 
@@ -74,11 +74,11 @@ WATCHED = [
     Watched("code/game/CMakeLists.txt", "code/game", "${SPDir}"),
     Watched("code/game/CMakeLists.txt", "code/cgame", "${SPDir}"),
     Watched("code/game/CMakeLists.txt", "code/icarus", "${SPDir}"),
-    Watched("codeJK2/game/CMakeLists.txt", "codeJK2/game", "${JK2SPDir}"),
-    Watched("codeJK2/game/CMakeLists.txt", "codeJK2/cgame", "${JK2SPDir}"),
-    Watched("codeJK2/game/CMakeLists.txt", "codeJK2/icarus", "${JK2SPDir}"),
+    Watched("games/jk2/game/CMakeLists.txt", "games/jk2/game", "${JK2SPDir}"),
+    Watched("games/jk2/game/CMakeLists.txt", "games/jk2/cgame", "${JK2SPDir}"),
+    Watched("games/jk2/game/CMakeLists.txt", "games/jk2/icarus", "${JK2SPDir}"),
     Watched(["code/CMakeLists.txt", "code/rd-vulkan/CMakeLists.txt",
-             "code/game/CMakeLists.txt", "codeJK2/game/CMakeLists.txt"],
+             "code/game/CMakeLists.txt", "games/jk2/game/CMakeLists.txt"],
             "code/qcommon", "${SPDir}"),
 ]
 

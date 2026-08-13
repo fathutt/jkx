@@ -49,7 +49,7 @@ MP = [os.path.join(UPSTREAM, "codemp/rd-vanilla", f) for f in
 
 # Where the single-player gamecode asks for things.
 CALLERS = ["code/game", "code/cgame", "code/ui", "code/server",
-           "codeJK2/game", "codeJK2/cgame"]
+           "games/jk2/game", "games/jk2/cgame"]
 
 CALL = re.compile(r"\b(?:gi|cgi|ui|re)\.(G2API_[A-Za-z_0-9]+)")
 

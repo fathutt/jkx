@@ -52,14 +52,14 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 ARCH="$(uname -m)"
 
 # Which of the two games. They are the same engine built twice - jkx_jo is
-# code/ with -DJK2_MODE plus codeJK2/game - so the second one is not a copy of
+# code/ with -DJK2_MODE plus games/jk2/game - so the second one is not a copy of
 # this test, it is a second configuration of the same code. Enough of it differs
-# to be worth running: the string packages, the whole of codeJK2/cgame, and
+# to be worth running: the string packages, the whole of games/jk2/cgame, and
 # every JK2_MODE branch in shared code.
 GAME_ID="${JKX_SMOKE_GAME:-ja}"
 case "$GAME_ID" in
     ja) ENGINE="$BUILD/jkx_ja.$ARCH"; GAME="$BUILD/code/game/jagame$ARCH.so" ;;
-    jo) ENGINE="$BUILD/jkx_jo.$ARCH"; GAME="$BUILD/codeJK2/game/jospgame$ARCH.so" ;;
+    jo) ENGINE="$BUILD/jkx_jo.$ARCH"; GAME="$BUILD/games/jk2/game/jospgame$ARCH.so" ;;
     *)  echo "JKX_SMOKE_GAME must be ja or jo, not $GAME_ID" >&2; exit 2 ;;
 esac
 

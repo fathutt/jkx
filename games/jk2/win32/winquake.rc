@@ -7,7 +7,7 @@
 //
 // Generated from the TEXTINCLUDE 2 resource.
 //
-#include "afxres.h"
+#include <windows.h>
 
 /////////////////////////////////////////////////////////////////////////////
 #undef APSTUDIO_READONLY_SYMBOLS
@@ -34,13 +34,12 @@ END
 
 2 TEXTINCLUDE
 BEGIN
-    "#include ""afxres.h""\r\n"
+    "#include ""winres.h""\r\n"
     "\0"
 END
 
 3 TEXTINCLUDE
 BEGIN
-    "\r\n"
     "\0"
 END
 
@@ -49,9 +48,18 @@ END
 
 /////////////////////////////////////////////////////////////////////////////
 //
+// Icon
+//
+
+// Icon with lowest ID value placed first to ensure application icon
+// remains consistent on all systems.
+IDI_ICON1               ICON                    "icons/OpenJO.ico"
+
+/////////////////////////////////////////////////////////////////////////////
+//
 // Version
 //
-#include "../../code/qcommon/game_version.h"
+#include "qcommon/game_version.h"
 
 VS_VERSION_INFO VERSIONINFO
  FILEVERSION VERSION_MAJOR_RELEASE,VERSION_MINOR_RELEASE,VERSION_EXTERNAL_BUILD,VERSION_INTERNAL_BUILD
@@ -63,7 +71,7 @@ VS_VERSION_INFO VERSIONINFO
  FILEFLAGS 0x0L
 #endif
  FILEOS 0x4L
- FILETYPE 0x2L
+ FILETYPE 0x1L
  FILESUBTYPE 0x0L
 BEGIN
     BLOCK "StringFileInfo"
@@ -72,13 +80,13 @@ BEGIN
         BEGIN
             VALUE "Comments", "Raven Software"
             VALUE "CompanyName", "Activision Inc"
-            VALUE "FileDescription", "OpenJK JK2 Mode DLL"
-            VALUE "FileVersion", VERSION_STRING
-            VALUE "InternalName", "jk2 game.dll"
-            VALUE "LegalCopyright", "Copyright (C) 2003"
-            VALUE "OriginalFilename", "jk2gamex86.dll"
-            VALUE "ProductName", "OpenJK Singleplayer"
-            VALUE "ProductVersion", VERSION_STRING
+            VALUE "FileDescription", "OpenJO"
+            VALUE "FileVersion",  VERSION_STRING
+            VALUE "InternalName", "JASP"
+            VALUE "LegalCopyright", "Copyright (C) 2013"
+            VALUE "OriginalFilename", "jasp.exe"
+            VALUE "ProductName", "OpenJO"
+            VALUE "ProductVersion",  VERSION_STRING
         END
     END
     BLOCK "VarFileInfo"
@@ -90,15 +98,4 @@ END
 #endif    // English (U.S.) resources
 /////////////////////////////////////////////////////////////////////////////
 
-
-
-#ifndef APSTUDIO_INVOKED
-/////////////////////////////////////////////////////////////////////////////
-//
-// Generated from the TEXTINCLUDE 3 resource.
-//
-
-
-/////////////////////////////////////////////////////////////////////////////
-#endif    // not APSTUDIO_INVOKED
 

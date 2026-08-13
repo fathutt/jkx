@@ -235,7 +235,7 @@ Ghoul2 Insert End
 //
 // The translation existed for a retail Jedi Outcast game library that cannot
 // load here anyway - GAME_API_VERSION and game_import_t have both moved - and
-// codeJK2 now builds against this list, so there is only one set of numbers.
+// games/jk2 now builds against this list, so there is only one set of numbers.
 
 //----------------------------------------------
 

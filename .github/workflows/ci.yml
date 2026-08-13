@@ -344,7 +344,7 @@ jobs:
           if-no-files-found: ignore
 
       # The other game: jkx_jo is code/ built with -DJK2_MODE against
-      # codeJK2/game. Half the project had nothing looking at it until this
+      # games/jk2/game. Half the project had nothing looking at it until this
       # step existed, and the first run of it found a new[] paired with delete
       # that corrupted the heap on every JK2 shutdown.
       - name: The same frames, as Jedi Outcast

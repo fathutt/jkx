@@ -26,8 +26,8 @@ set(JK2SPGameDefines ${SharedDefines} "JK2_MODE" "JKX_GAME_MODULE")
 # ${SPDir} is on this list so that this tree can name what it includes from the
 # engine instead of counting directory levels back to it. Thirty-seven includes
 # here reached across as "../../code/qcommon/q_shared.h" or, worse,
-# "../code/qcommon/..." - which resolved only because codeJK2 itself is an
-# include directory, so the path went codeJK2/../code. Two spellings of the same
+# "../code/qcommon/..." - which resolved only because games/jk2 itself is an
+# include directory, so the path went games/jk2/../code. Two spellings of the same
 # thing, both of them depending on how deeply this tree happens to sit, and they
 # would have broken differently the moment it moved.
 set(JK2SPGameIncludeDirectories
