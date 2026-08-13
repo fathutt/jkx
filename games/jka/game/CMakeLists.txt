@@ -30,397 +30,397 @@ endif(NOT InOpenJK)
 # module, which has nothing to do with either.
 #
 # Its counterpart is JKX_ENGINE; see the note in code/CMakeLists.txt.
-set(SPGameDefines ${SharedDefines} "JKX_GAME_MODULE")
-# ${JKASPDir} sits ahead of ${SPDir} here, the same way ${JK2SPDir} does in the
+set(JKAGameDefines ${SharedDefines} "JKX_GAME_MODULE")
+# ${JKADir} sits ahead of ${CodeDir} here, the same way ${JK2Dir} does in the
 # other game's list. It is what makes "game/g_shared.h" and "cgame/cg_local.h"
-# resolve into this tree: they used to resolve through ${SPDir} because this
+# resolve into this tree: they used to resolve through ${CodeDir} because this
 # gamecode was inside code/, and shared/qcommon/safe/files.cpp still writes the
 # first of those - it is compiled into both game libraries and has to reach
 # whichever gamecode it is being built into.
-set(SPGameIncludeDirectories
+set(JKAGameIncludeDirectories
 	${SharedDir}
-	"${JKASPDir}"
-	${SPDir}
-	"${JKASPDir}/game"
+	"${JKADir}"
+	${CodeDir}
+	"${JKADir}/game"
 	"${GSLIncludeDirectory}"
 	"${CMAKE_BINARY_DIR}/shared"
 	)
 
 if(WIN32)
-	set(SPGameLibraries "winmm")
+	set(JKAGameLibraries "winmm")
 endif(WIN32)
 
-set(SPGameGameFiles
-	"${JKASPDir}/game/AI_Animal.cpp"
-	"${JKASPDir}/game/AI_AssassinDroid.cpp"
-	"${JKASPDir}/game/AI_Atst.cpp"
-	"${JKASPDir}/game/AI_BobaFett.cpp"
-	"${JKASPDir}/game/AI_Civilian.cpp"
-	"${JKASPDir}/game/AI_Default.cpp"
-	"${JKASPDir}/game/AI_Droid.cpp"
-	"${JKASPDir}/game/AI_GalakMech.cpp"
-	"${JKASPDir}/game/AI_Grenadier.cpp"
-	"${JKASPDir}/game/AI_HazardTrooper.cpp"
-	"${JKASPDir}/game/AI_Howler.cpp"
-	"${JKASPDir}/game/AI_ImperialProbe.cpp"
-	"${JKASPDir}/game/AI_Interrogator.cpp"
-	"${JKASPDir}/game/AI_Jedi.cpp"
-	"${JKASPDir}/game/AI_Mark1.cpp"
-	"${JKASPDir}/game/AI_Mark2.cpp"
-	"${JKASPDir}/game/AI_MineMonster.cpp"
-	"${JKASPDir}/game/AI_Rancor.cpp"
-	"${JKASPDir}/game/AI_Remote.cpp"
-	"${JKASPDir}/game/AI_RocketTrooper.cpp"
-	"${JKASPDir}/game/AI_SaberDroid.cpp"
-	"${JKASPDir}/game/AI_SandCreature.cpp"
-	"${JKASPDir}/game/AI_Seeker.cpp"
-	"${JKASPDir}/game/AI_Sentry.cpp"
-	"${JKASPDir}/game/AI_Sniper.cpp"
-	"${JKASPDir}/game/AI_Stormtrooper.cpp"
-	"${JKASPDir}/game/AI_Tusken.cpp"
-	"${JKASPDir}/game/AI_Utils.cpp"
-	"${JKASPDir}/game/AI_Wampa.cpp"
-	"${JKASPDir}/game/g_active.cpp"
-	"${JKASPDir}/game/g_breakable.cpp"
-	"${JKASPDir}/game/g_camera.cpp"
-	"${JKASPDir}/game/g_client.cpp"
-	"${JKASPDir}/game/g_cmds.cpp"
-	"${JKASPDir}/game/g_combat.cpp"
-	"${JKASPDir}/game/g_emplaced.cpp"
-	"${JKASPDir}/game/g_functions.cpp"
-	"${JKASPDir}/game/g_fx.cpp"
-	"${JKASPDir}/game/g_inventory.cpp"
-	"${JKASPDir}/game/g_itemLoad.cpp"
-	"${JKASPDir}/game/g_items.cpp"
-	"${JKASPDir}/game/g_main.cpp"
-	"${JKASPDir}/game/g_mem.cpp"
-	"${JKASPDir}/game/g_misc.cpp"
-	"${JKASPDir}/game/g_misc_model.cpp"
-	"${JKASPDir}/game/g_missile.cpp"
-	"${JKASPDir}/game/g_mover.cpp"
-	"${JKASPDir}/game/g_nav.cpp"
-	"${JKASPDir}/game/g_navigator.cpp"
-	"${JKASPDir}/game/g_navnew.cpp"
-	"${JKASPDir}/game/g_object.cpp"
-	"${JKASPDir}/game/g_objectives.cpp"
-	"${JKASPDir}/game/g_rail.cpp"
-	"${JKASPDir}/game/g_ref.cpp"
-	"${JKASPDir}/game/g_roff.cpp"
-	"${JKASPDir}/game/g_savegame.cpp"
-	"${JKASPDir}/game/g_session.cpp"
-	"${JKASPDir}/game/g_spawn.cpp"
-	"${JKASPDir}/game/g_svcmds.cpp"
-	"${JKASPDir}/game/g_target.cpp"
-	"${JKASPDir}/game/G_Timer.cpp"
-	"${JKASPDir}/game/g_trigger.cpp"
-	"${JKASPDir}/game/g_turret.cpp"
-	"${JKASPDir}/game/g_usable.cpp"
-	"${JKASPDir}/game/g_utils.cpp"
-	"${JKASPDir}/game/g_weapon.cpp"
-	"${JKASPDir}/game/g_weaponLoad.cpp"
-	"${SPDir}/qcommon/GenericParser2.cpp"
-	"${JKASPDir}/game/NPC.cpp"
-	"${JKASPDir}/game/NPC_behavior.cpp"
-	"${JKASPDir}/game/NPC_combat.cpp"
-	"${JKASPDir}/game/NPC_goal.cpp"
-	"${JKASPDir}/game/NPC_misc.cpp"
-	"${JKASPDir}/game/NPC_move.cpp"
-	"${JKASPDir}/game/NPC_reactions.cpp"
-	"${JKASPDir}/game/NPC_senses.cpp"
-	"${JKASPDir}/game/NPC_sounds.cpp"
-	"${JKASPDir}/game/NPC_spawn.cpp"
-	"${JKASPDir}/game/NPC_stats.cpp"
-	"${JKASPDir}/game/NPC_utils.cpp"
-	"${JKASPDir}/game/Q3_Interface.h"
-	"${JKASPDir}/game/wp_atst.cpp"
-	"${JKASPDir}/game/wp_blaster_pistol.cpp"
-	"${JKASPDir}/game/wp_blaster_rifle.cpp"
-	"${JKASPDir}/game/wp_bot_laser.cpp"
-	"${JKASPDir}/game/wp_bowcaster.cpp"
-	"${JKASPDir}/game/wp_concussion.cpp"
-	"${JKASPDir}/game/wp_demp2.cpp"
-	"${JKASPDir}/game/wp_det_pack.cpp"
-	"${JKASPDir}/game/wp_disruptor.cpp"
-	"${JKASPDir}/game/wp_emplaced_gun.cpp"
-	"${JKASPDir}/game/wp_flechette.cpp"
-	"${JKASPDir}/game/wp_melee.cpp"
-	"${JKASPDir}/game/wp_noghri_stick.cpp"
-	"${JKASPDir}/game/wp_repeater.cpp"
-	"${JKASPDir}/game/wp_rocket_launcher.cpp"
-	"${JKASPDir}/game/wp_saber.cpp"
-	"${JKASPDir}/game/wp_saberLoad.cpp"
-	"${JKASPDir}/game/wp_stun_baton.cpp"
-	"${JKASPDir}/game/wp_thermal.cpp"
-	"${JKASPDir}/game/wp_trip_mine.cpp"
-	"${JKASPDir}/game/wp_tusken.cpp"
-	"${JKASPDir}/game/Q3_Interface.cpp"
-	"${JKASPDir}/game/bg_misc.cpp"
-	"${JKASPDir}/game/bg_pangles.cpp"
-	"${JKASPDir}/game/bg_panimate.cpp"
-	"${JKASPDir}/game/bg_pmove.cpp"
-	"${JKASPDir}/game/bg_slidemove.cpp"
-	"${JKASPDir}/game/AnimalNPC.cpp"
-	"${JKASPDir}/game/bg_vehicleLoad.cpp"
-	"${JKASPDir}/game/FighterNPC.cpp"
-	"${JKASPDir}/game/g_vehicles.cpp"
-	"${JKASPDir}/game/SpeederNPC.cpp"
-	"${JKASPDir}/game/WalkerNPC.cpp"
-	"${JKASPDir}/game/ai.h"
-	"${JKASPDir}/game/anims.h"
-	"${JKASPDir}/game/b_local.h"
-	"${JKASPDir}/game/b_public.h"
-	"${JKASPDir}/game/bg_local.h"
-	"${JKASPDir}/game/bg_public.h"
-	"${JKASPDir}/game/bset.h"
-	"${JKASPDir}/game/bstate.h"
-	"${JKASPDir}/game/common_headers.h"
-	"${JKASPDir}/game/dmstates.h"
-	"${JKASPDir}/game/events.h"
-	"${JKASPDir}/game/fields.h"
-	"${JKASPDir}/game/g_functions.h"
-	"${JKASPDir}/game/g_items.h"
-	"${JKASPDir}/game/g_local.h"
-	"${JKASPDir}/game/g_nav.h"
-	"${JKASPDir}/game/g_navigator.h"
-	"${JKASPDir}/game/g_roff.h"
-	"${JKASPDir}/game/g_shared.h"
-	"${SPDir}/qcommon/GenericParser2.h"
-	"${JKASPDir}/game/hitlocs.h"
-	"${JKASPDir}/game/npc_headers.h"
-	"${JKASPDir}/game/objectives.h"
-	"${JKASPDir}/game/say.h"
-	"${JKASPDir}/game/teams.h"
-	"${JKASPDir}/game/weapons.h"
-	"${JKASPDir}/game/w_local.h"
-	"${JKASPDir}/game/wp_saber.h"
-	"${JKASPDir}/game/g_vehicles.h"
+set(JKAGameGameFiles
+	"${JKADir}/game/AI_Animal.cpp"
+	"${JKADir}/game/AI_AssassinDroid.cpp"
+	"${JKADir}/game/AI_Atst.cpp"
+	"${JKADir}/game/AI_BobaFett.cpp"
+	"${JKADir}/game/AI_Civilian.cpp"
+	"${JKADir}/game/AI_Default.cpp"
+	"${JKADir}/game/AI_Droid.cpp"
+	"${JKADir}/game/AI_GalakMech.cpp"
+	"${JKADir}/game/AI_Grenadier.cpp"
+	"${JKADir}/game/AI_HazardTrooper.cpp"
+	"${JKADir}/game/AI_Howler.cpp"
+	"${JKADir}/game/AI_ImperialProbe.cpp"
+	"${JKADir}/game/AI_Interrogator.cpp"
+	"${JKADir}/game/AI_Jedi.cpp"
+	"${JKADir}/game/AI_Mark1.cpp"
+	"${JKADir}/game/AI_Mark2.cpp"
+	"${JKADir}/game/AI_MineMonster.cpp"
+	"${JKADir}/game/AI_Rancor.cpp"
+	"${JKADir}/game/AI_Remote.cpp"
+	"${JKADir}/game/AI_RocketTrooper.cpp"
+	"${JKADir}/game/AI_SaberDroid.cpp"
+	"${JKADir}/game/AI_SandCreature.cpp"
+	"${JKADir}/game/AI_Seeker.cpp"
+	"${JKADir}/game/AI_Sentry.cpp"
+	"${JKADir}/game/AI_Sniper.cpp"
+	"${JKADir}/game/AI_Stormtrooper.cpp"
+	"${JKADir}/game/AI_Tusken.cpp"
+	"${JKADir}/game/AI_Utils.cpp"
+	"${JKADir}/game/AI_Wampa.cpp"
+	"${JKADir}/game/g_active.cpp"
+	"${JKADir}/game/g_breakable.cpp"
+	"${JKADir}/game/g_camera.cpp"
+	"${JKADir}/game/g_client.cpp"
+	"${JKADir}/game/g_cmds.cpp"
+	"${JKADir}/game/g_combat.cpp"
+	"${JKADir}/game/g_emplaced.cpp"
+	"${JKADir}/game/g_functions.cpp"
+	"${JKADir}/game/g_fx.cpp"
+	"${JKADir}/game/g_inventory.cpp"
+	"${JKADir}/game/g_itemLoad.cpp"
+	"${JKADir}/game/g_items.cpp"
+	"${JKADir}/game/g_main.cpp"
+	"${JKADir}/game/g_mem.cpp"
+	"${JKADir}/game/g_misc.cpp"
+	"${JKADir}/game/g_misc_model.cpp"
+	"${JKADir}/game/g_missile.cpp"
+	"${JKADir}/game/g_mover.cpp"
+	"${JKADir}/game/g_nav.cpp"
+	"${JKADir}/game/g_navigator.cpp"
+	"${JKADir}/game/g_navnew.cpp"
+	"${JKADir}/game/g_object.cpp"
+	"${JKADir}/game/g_objectives.cpp"
+	"${JKADir}/game/g_rail.cpp"
+	"${JKADir}/game/g_ref.cpp"
+	"${JKADir}/game/g_roff.cpp"
+	"${JKADir}/game/g_savegame.cpp"
+	"${JKADir}/game/g_session.cpp"
+	"${JKADir}/game/g_spawn.cpp"
+	"${JKADir}/game/g_svcmds.cpp"
+	"${JKADir}/game/g_target.cpp"
+	"${JKADir}/game/G_Timer.cpp"
+	"${JKADir}/game/g_trigger.cpp"
+	"${JKADir}/game/g_turret.cpp"
+	"${JKADir}/game/g_usable.cpp"
+	"${JKADir}/game/g_utils.cpp"
+	"${JKADir}/game/g_weapon.cpp"
+	"${JKADir}/game/g_weaponLoad.cpp"
+	"${CodeDir}/qcommon/GenericParser2.cpp"
+	"${JKADir}/game/NPC.cpp"
+	"${JKADir}/game/NPC_behavior.cpp"
+	"${JKADir}/game/NPC_combat.cpp"
+	"${JKADir}/game/NPC_goal.cpp"
+	"${JKADir}/game/NPC_misc.cpp"
+	"${JKADir}/game/NPC_move.cpp"
+	"${JKADir}/game/NPC_reactions.cpp"
+	"${JKADir}/game/NPC_senses.cpp"
+	"${JKADir}/game/NPC_sounds.cpp"
+	"${JKADir}/game/NPC_spawn.cpp"
+	"${JKADir}/game/NPC_stats.cpp"
+	"${JKADir}/game/NPC_utils.cpp"
+	"${JKADir}/game/Q3_Interface.h"
+	"${JKADir}/game/wp_atst.cpp"
+	"${JKADir}/game/wp_blaster_pistol.cpp"
+	"${JKADir}/game/wp_blaster_rifle.cpp"
+	"${JKADir}/game/wp_bot_laser.cpp"
+	"${JKADir}/game/wp_bowcaster.cpp"
+	"${JKADir}/game/wp_concussion.cpp"
+	"${JKADir}/game/wp_demp2.cpp"
+	"${JKADir}/game/wp_det_pack.cpp"
+	"${JKADir}/game/wp_disruptor.cpp"
+	"${JKADir}/game/wp_emplaced_gun.cpp"
+	"${JKADir}/game/wp_flechette.cpp"
+	"${JKADir}/game/wp_melee.cpp"
+	"${JKADir}/game/wp_noghri_stick.cpp"
+	"${JKADir}/game/wp_repeater.cpp"
+	"${JKADir}/game/wp_rocket_launcher.cpp"
+	"${JKADir}/game/wp_saber.cpp"
+	"${JKADir}/game/wp_saberLoad.cpp"
+	"${JKADir}/game/wp_stun_baton.cpp"
+	"${JKADir}/game/wp_thermal.cpp"
+	"${JKADir}/game/wp_trip_mine.cpp"
+	"${JKADir}/game/wp_tusken.cpp"
+	"${JKADir}/game/Q3_Interface.cpp"
+	"${JKADir}/game/bg_misc.cpp"
+	"${JKADir}/game/bg_pangles.cpp"
+	"${JKADir}/game/bg_panimate.cpp"
+	"${JKADir}/game/bg_pmove.cpp"
+	"${JKADir}/game/bg_slidemove.cpp"
+	"${JKADir}/game/AnimalNPC.cpp"
+	"${JKADir}/game/bg_vehicleLoad.cpp"
+	"${JKADir}/game/FighterNPC.cpp"
+	"${JKADir}/game/g_vehicles.cpp"
+	"${JKADir}/game/SpeederNPC.cpp"
+	"${JKADir}/game/WalkerNPC.cpp"
+	"${JKADir}/game/ai.h"
+	"${JKADir}/game/anims.h"
+	"${JKADir}/game/b_local.h"
+	"${JKADir}/game/b_public.h"
+	"${JKADir}/game/bg_local.h"
+	"${JKADir}/game/bg_public.h"
+	"${JKADir}/game/bset.h"
+	"${JKADir}/game/bstate.h"
+	"${JKADir}/game/common_headers.h"
+	"${JKADir}/game/dmstates.h"
+	"${JKADir}/game/events.h"
+	"${JKADir}/game/fields.h"
+	"${JKADir}/game/g_functions.h"
+	"${JKADir}/game/g_items.h"
+	"${JKADir}/game/g_local.h"
+	"${JKADir}/game/g_nav.h"
+	"${JKADir}/game/g_navigator.h"
+	"${JKADir}/game/g_roff.h"
+	"${JKADir}/game/g_shared.h"
+	"${CodeDir}/qcommon/GenericParser2.h"
+	"${JKADir}/game/hitlocs.h"
+	"${JKADir}/game/npc_headers.h"
+	"${JKADir}/game/objectives.h"
+	"${JKADir}/game/say.h"
+	"${JKADir}/game/teams.h"
+	"${JKADir}/game/weapons.h"
+	"${JKADir}/game/w_local.h"
+	"${JKADir}/game/wp_saber.h"
+	"${JKADir}/game/g_vehicles.h"
 	)
-source_group("game" FILES ${SPGameGameFiles})
-set(SPGameFiles ${SPGameFiles} ${SPGameGameFiles})
+source_group("game" FILES ${JKAGameGameFiles})
+set(JKAGameFiles ${JKAGameFiles} ${JKAGameGameFiles})
 
-set(SPGameCGameFiles
-	"${JKASPDir}/cgame/cg_camera.cpp"
-	"${JKASPDir}/cgame/cg_consolecmds.cpp"
-	"${JKASPDir}/cgame/cg_credits.cpp"
-	"${JKASPDir}/cgame/cg_draw.cpp"
-	"${JKASPDir}/cgame/cg_drawtools.cpp"
-	"${JKASPDir}/cgame/cg_effects.cpp"
-	"${JKASPDir}/cgame/cg_ents.cpp"
-	"${JKASPDir}/cgame/cg_event.cpp"
-	"${JKASPDir}/cgame/cg_headers.cpp"
-	"${JKASPDir}/cgame/cg_info.cpp"
-	"${JKASPDir}/cgame/cg_lights.cpp"
-	"${JKASPDir}/cgame/cg_localents.cpp"
-	"${JKASPDir}/cgame/cg_main.cpp"
-	"${JKASPDir}/cgame/cg_marks.cpp"
-	"${JKASPDir}/cgame/cg_players.cpp"
-	"${JKASPDir}/cgame/cg_playerstate.cpp"
-	"${JKASPDir}/cgame/cg_predict.cpp"
-	"${JKASPDir}/cgame/cg_scoreboard.cpp"
-	"${JKASPDir}/cgame/cg_servercmds.cpp"
-	"${JKASPDir}/cgame/cg_snapshot.cpp"
-	"${JKASPDir}/cgame/cg_syscalls.cpp"
-	"${JKASPDir}/cgame/cg_text.cpp"
-	"${JKASPDir}/cgame/cg_view.cpp"
-	"${JKASPDir}/cgame/cg_weapons.cpp"
-	"${JKASPDir}/cgame/FX_ATSTMain.cpp"
-	"${JKASPDir}/cgame/FX_Blaster.cpp"
-	"${JKASPDir}/cgame/FX_Bowcaster.cpp"
-	"${JKASPDir}/cgame/FX_BryarPistol.cpp"
-	"${JKASPDir}/cgame/FX_Concussion.cpp"
-	"${JKASPDir}/cgame/FX_DEMP2.cpp"
-	"${JKASPDir}/cgame/FX_Disruptor.cpp"
-	"${JKASPDir}/cgame/FX_Emplaced.cpp"
-	"${JKASPDir}/cgame/FX_Flechette.cpp"
-	"${JKASPDir}/cgame/FX_HeavyRepeater.cpp"
-	"${JKASPDir}/cgame/FX_NoghriShot.cpp"
-	"${JKASPDir}/cgame/FX_RocketLauncher.cpp"
-	"${JKASPDir}/cgame/FX_TuskenShot.cpp"
-	"${JKASPDir}/cgame/FxPrimitives.cpp"
-	"${JKASPDir}/cgame/FxScheduler.cpp"
-	"${JKASPDir}/cgame/FxSystem.cpp"
-	"${JKASPDir}/cgame/FxTemplate.cpp"
-	"${JKASPDir}/cgame/FxUtil.cpp"
-	"${JKASPDir}/cgame/cg_camera.h"
-	"${JKASPDir}/cgame/animtable.h"
-	"${JKASPDir}/cgame/cg_headers.h"
-	"${JKASPDir}/cgame/cg_local.h"
-	"${JKASPDir}/cgame/cg_media.h"
-	"${JKASPDir}/cgame/common_headers.h"
-	"${JKASPDir}/cgame/FxPrimitives.h"
-	"${JKASPDir}/cgame/FxScheduler.h"
-	"${JKASPDir}/cgame/FxSystem.h"
-	"${JKASPDir}/cgame/FxUtil.h"
-	"${JKASPDir}/cgame/strip_objectives.h"
+set(JKAGameCGameFiles
+	"${JKADir}/cgame/cg_camera.cpp"
+	"${JKADir}/cgame/cg_consolecmds.cpp"
+	"${JKADir}/cgame/cg_credits.cpp"
+	"${JKADir}/cgame/cg_draw.cpp"
+	"${JKADir}/cgame/cg_drawtools.cpp"
+	"${JKADir}/cgame/cg_effects.cpp"
+	"${JKADir}/cgame/cg_ents.cpp"
+	"${JKADir}/cgame/cg_event.cpp"
+	"${JKADir}/cgame/cg_headers.cpp"
+	"${JKADir}/cgame/cg_info.cpp"
+	"${JKADir}/cgame/cg_lights.cpp"
+	"${JKADir}/cgame/cg_localents.cpp"
+	"${JKADir}/cgame/cg_main.cpp"
+	"${JKADir}/cgame/cg_marks.cpp"
+	"${JKADir}/cgame/cg_players.cpp"
+	"${JKADir}/cgame/cg_playerstate.cpp"
+	"${JKADir}/cgame/cg_predict.cpp"
+	"${JKADir}/cgame/cg_scoreboard.cpp"
+	"${JKADir}/cgame/cg_servercmds.cpp"
+	"${JKADir}/cgame/cg_snapshot.cpp"
+	"${JKADir}/cgame/cg_syscalls.cpp"
+	"${JKADir}/cgame/cg_text.cpp"
+	"${JKADir}/cgame/cg_view.cpp"
+	"${JKADir}/cgame/cg_weapons.cpp"
+	"${JKADir}/cgame/FX_ATSTMain.cpp"
+	"${JKADir}/cgame/FX_Blaster.cpp"
+	"${JKADir}/cgame/FX_Bowcaster.cpp"
+	"${JKADir}/cgame/FX_BryarPistol.cpp"
+	"${JKADir}/cgame/FX_Concussion.cpp"
+	"${JKADir}/cgame/FX_DEMP2.cpp"
+	"${JKADir}/cgame/FX_Disruptor.cpp"
+	"${JKADir}/cgame/FX_Emplaced.cpp"
+	"${JKADir}/cgame/FX_Flechette.cpp"
+	"${JKADir}/cgame/FX_HeavyRepeater.cpp"
+	"${JKADir}/cgame/FX_NoghriShot.cpp"
+	"${JKADir}/cgame/FX_RocketLauncher.cpp"
+	"${JKADir}/cgame/FX_TuskenShot.cpp"
+	"${JKADir}/cgame/FxPrimitives.cpp"
+	"${JKADir}/cgame/FxScheduler.cpp"
+	"${JKADir}/cgame/FxSystem.cpp"
+	"${JKADir}/cgame/FxTemplate.cpp"
+	"${JKADir}/cgame/FxUtil.cpp"
+	"${JKADir}/cgame/cg_camera.h"
+	"${JKADir}/cgame/animtable.h"
+	"${JKADir}/cgame/cg_headers.h"
+	"${JKADir}/cgame/cg_local.h"
+	"${JKADir}/cgame/cg_media.h"
+	"${JKADir}/cgame/common_headers.h"
+	"${JKADir}/cgame/FxPrimitives.h"
+	"${JKADir}/cgame/FxScheduler.h"
+	"${JKADir}/cgame/FxSystem.h"
+	"${JKADir}/cgame/FxUtil.h"
+	"${JKADir}/cgame/strip_objectives.h"
 	)
-source_group("cgame" FILES ${SPGameCGameFiles})
-set(SPGameFiles ${SPGameFiles} ${SPGameCGameFiles})
+source_group("cgame" FILES ${JKAGameCGameFiles})
+set(JKAGameFiles ${JKAGameFiles} ${JKAGameCGameFiles})
 
-set(SPGameUIFiles
-	"${SPDir}/ui/gameinfo.cpp"
-	"${SPDir}/ui/gameinfo.h"
+set(JKAGameUIFiles
+	"${CodeDir}/ui/gameinfo.cpp"
+	"${CodeDir}/ui/gameinfo.h"
 	)
-source_group("ui" FILES ${SPGameUIFiles})
-set(SPGameFiles ${SPGameFiles} ${SPGameUIFiles})
+source_group("ui" FILES ${JKAGameUIFiles})
+set(JKAGameFiles ${JKAGameFiles} ${JKAGameUIFiles})
 
-set(SPGameCommonFiles
-	"${SPDir}/qcommon/tri_coll_test.cpp"
-	"${SPDir}/qcommon/sstring.h"
-	"${SPDir}/qcommon/tags.h"
-	"${SPDir}/qcommon/timing.h"
-	"${SPDir}/qcommon/q_shared.cpp"
-	"${SPDir}/qcommon/q_shared.h"
-	"${SPDir}/qcommon/ojk_i_saved_game.h"
-	"${SPDir}/qcommon/ojk_saved_game_class_archivers.h"
-	"${SPDir}/qcommon/ojk_saved_game_helper.h"
-	"${SPDir}/qcommon/ojk_saved_game_helper_fwd.h"
-	"${SPDir}/qcommon/ojk_scope_guard.h"
+set(JKAGameCommonFiles
+	"${CodeDir}/qcommon/tri_coll_test.cpp"
+	"${CodeDir}/qcommon/sstring.h"
+	"${CodeDir}/qcommon/tags.h"
+	"${CodeDir}/qcommon/timing.h"
+	"${CodeDir}/qcommon/q_shared.cpp"
+	"${CodeDir}/qcommon/q_shared.h"
+	"${CodeDir}/qcommon/ojk_i_saved_game.h"
+	"${CodeDir}/qcommon/ojk_saved_game_class_archivers.h"
+	"${CodeDir}/qcommon/ojk_saved_game_helper.h"
+	"${CodeDir}/qcommon/ojk_saved_game_helper_fwd.h"
+	"${CodeDir}/qcommon/ojk_scope_guard.h"
 	${SharedCommonFiles}
 	)
-source_group("common" FILES ${SPGameCommonFiles})
-set(SPGameFiles ${SPGameFiles} ${SPGameCommonFiles})
+source_group("common" FILES ${JKAGameCommonFiles})
+set(JKAGameFiles ${JKAGameFiles} ${JKAGameCommonFiles})
 
-set(SPGameCommonSafeFiles
+set(JKAGameCommonSafeFiles
 	${SharedCommonSafeFiles}
 	"${SharedDir}/qcommon/safe/files.h"
 	"${SharedDir}/qcommon/safe/files.cpp"
-	"${SPDir}/qcommon/safe/memory.h"
+	"${CodeDir}/qcommon/safe/memory.h"
 	)
-source_group("common/safe" FILES ${SPGameCommonSafeFiles})
-set(SPGameFiles ${SPGameFiles} ${SPGameCommonSafeFiles})
+source_group("common/safe" FILES ${JKAGameCommonSafeFiles})
+set(JKAGameFiles ${JKAGameFiles} ${JKAGameCommonSafeFiles})
 
-set(SPGameIcarusFiles
-	"${SPDir}/icarus/BlockStream.cpp"
-	"${SPDir}/icarus/IcarusImplementation.cpp"
-	"${SPDir}/icarus/Sequence.cpp"
-	"${SPDir}/icarus/Sequencer.cpp"
-	"${SPDir}/icarus/TaskManager.cpp"
-	"${SPDir}/icarus/blockstream.h"
-	"${SPDir}/icarus/IcarusImplementation.h"
-	"${SPDir}/icarus/IcarusInterface.h"
-	"${SPDir}/icarus/sequence.h"
-	"${SPDir}/icarus/sequencer.h"
-	"${SPDir}/icarus/StdAfx.h"
-	"${SPDir}/icarus/taskmanager.h"
+set(JKAGameIcarusFiles
+	"${CodeDir}/icarus/BlockStream.cpp"
+	"${CodeDir}/icarus/IcarusImplementation.cpp"
+	"${CodeDir}/icarus/Sequence.cpp"
+	"${CodeDir}/icarus/Sequencer.cpp"
+	"${CodeDir}/icarus/TaskManager.cpp"
+	"${CodeDir}/icarus/blockstream.h"
+	"${CodeDir}/icarus/IcarusImplementation.h"
+	"${CodeDir}/icarus/IcarusInterface.h"
+	"${CodeDir}/icarus/sequence.h"
+	"${CodeDir}/icarus/sequencer.h"
+	"${CodeDir}/icarus/StdAfx.h"
+	"${CodeDir}/icarus/taskmanager.h"
 	)
-source_group("icarus" FILES ${SPGameIcarusFiles})
-set(SPGameFiles ${SPGameFiles} ${SPGameIcarusFiles})
+source_group("icarus" FILES ${JKAGameIcarusFiles})
+set(JKAGameFiles ${JKAGameFiles} ${JKAGameIcarusFiles})
 
-set(SPGameRatlFiles
-	"${SPDir}/Ratl/ratl.cpp"
-	"${SPDir}/Ratl/array_vs.h"
-	"${SPDir}/Ratl/bits_vs.h"
-	"${SPDir}/Ratl/grid_vs.h"
-	"${SPDir}/Ratl/handle_pool_vs.h"
-	"${SPDir}/Ratl/hash_pool_vs.h"
-	"${SPDir}/Ratl/heap_vs.h"
-	"${SPDir}/Ratl/list_vs.h"
-	"${SPDir}/Ratl/map_vs.h"
-	"${SPDir}/Ratl/pool_vs.h"
-	"${SPDir}/Ratl/queue_vs.h"
-	"${SPDir}/Ratl/ratl_common.h"
-	"${SPDir}/Ratl/scheduler_vs.h"
-	"${SPDir}/Ratl/stack_vs.h"
-	"${SPDir}/Ratl/string_vs.h"
-	"${SPDir}/Ratl/vector_vs.h"
+set(JKAGameRatlFiles
+	"${CodeDir}/Ratl/ratl.cpp"
+	"${CodeDir}/Ratl/array_vs.h"
+	"${CodeDir}/Ratl/bits_vs.h"
+	"${CodeDir}/Ratl/grid_vs.h"
+	"${CodeDir}/Ratl/handle_pool_vs.h"
+	"${CodeDir}/Ratl/hash_pool_vs.h"
+	"${CodeDir}/Ratl/heap_vs.h"
+	"${CodeDir}/Ratl/list_vs.h"
+	"${CodeDir}/Ratl/map_vs.h"
+	"${CodeDir}/Ratl/pool_vs.h"
+	"${CodeDir}/Ratl/queue_vs.h"
+	"${CodeDir}/Ratl/ratl_common.h"
+	"${CodeDir}/Ratl/scheduler_vs.h"
+	"${CodeDir}/Ratl/stack_vs.h"
+	"${CodeDir}/Ratl/string_vs.h"
+	"${CodeDir}/Ratl/vector_vs.h"
 	)
-source_group("ratl" FILES ${SPGameRatlFiles})
-set(SPGameFiles ${SPGameFiles} ${SPGameRatlFiles})
+source_group("ratl" FILES ${JKAGameRatlFiles})
+set(JKAGameFiles ${JKAGameFiles} ${JKAGameRatlFiles})
 
-set(SPGameRavlFiles
-	"${SPDir}/Ravl/CBounds.cpp"
-	"${SPDir}/Ravl/CVec.cpp"
-	"${SPDir}/Ravl/CBounds.h"
-	"${SPDir}/Ravl/CMatrix.h"
-	"${SPDir}/Ravl/CVec.h"
+set(JKAGameRavlFiles
+	"${CodeDir}/Ravl/CBounds.cpp"
+	"${CodeDir}/Ravl/CVec.cpp"
+	"${CodeDir}/Ravl/CBounds.h"
+	"${CodeDir}/Ravl/CMatrix.h"
+	"${CodeDir}/Ravl/CVec.h"
 	)
-source_group("ravl" FILES ${SPGameRavlFiles})
-set(SPGameFiles ${SPGameFiles} ${SPGameRavlFiles})
+source_group("ravl" FILES ${JKAGameRavlFiles})
+set(JKAGameFiles ${JKAGameFiles} ${JKAGameRavlFiles})
 
-set(SPGameRuflFiles
-	"${SPDir}/Rufl/hfile.cpp"
-	"${SPDir}/Rufl/hstring.cpp"
-	"${SPDir}/Rufl/hfile.h"
-	"${SPDir}/Rufl/hstring.h"
+set(JKAGameRuflFiles
+	"${CodeDir}/Rufl/hfile.cpp"
+	"${CodeDir}/Rufl/hstring.cpp"
+	"${CodeDir}/Rufl/hfile.h"
+	"${CodeDir}/Rufl/hstring.h"
 	)
-source_group("rufl" FILES ${SPGameRuflFiles})
-set(SPGameFiles ${SPGameFiles} ${SPGameRuflFiles})
+source_group("rufl" FILES ${JKAGameRuflFiles})
+set(JKAGameFiles ${JKAGameFiles} ${JKAGameRuflFiles})
 
-set(SPGameRaglFiles
-	"${SPDir}/Ragl/graph_region.h"
-	"${SPDir}/Ragl/graph_triangulate.h"
-	"${SPDir}/Ragl/graph_vs.h"
-	"${SPDir}/Ragl/kdtree_vs.h"
-	"${SPDir}/Ragl/ragl_common.h"
+set(JKAGameRaglFiles
+	"${CodeDir}/Ragl/graph_region.h"
+	"${CodeDir}/Ragl/graph_triangulate.h"
+	"${CodeDir}/Ragl/graph_vs.h"
+	"${CodeDir}/Ragl/kdtree_vs.h"
+	"${CodeDir}/Ragl/ragl_common.h"
 	)
-source_group("ragl" FILES ${SPGameRaglFiles})
-set(SPGameFiles ${SPGameFiles} ${SPGameRaglFiles})
+source_group("ragl" FILES ${JKAGameRaglFiles})
+set(JKAGameFiles ${JKAGameFiles} ${JKAGameRaglFiles})
 
-set(SPGameG2Files
-	"${SPDir}/ghoul2/G2.h"
-	"${SPDir}/ghoul2/ghoul2_gore.h"
+set(JKAGameG2Files
+	"${CodeDir}/ghoul2/G2.h"
+	"${CodeDir}/ghoul2/ghoul2_gore.h"
 	)
-source_group("ghoul2" FILES ${SPGameG2Files})
-set(SPGameFiles ${SPGameFiles} ${SPGameG2Files})
+source_group("ghoul2" FILES ${JKAGameG2Files})
+set(JKAGameFiles ${JKAGameFiles} ${JKAGameG2Files})
 
-set(SPGameRendererFiles
-	"${SPDir}/rd-common/mdx_format.h"
-	"${SPDir}/rd-common/tr_types.h"
+set(JKAGameRendererFiles
+	"${CodeDir}/rd-common/mdx_format.h"
+	"${CodeDir}/rd-common/tr_types.h"
 	)
-source_group("renderer" FILES ${SPGameRendererFiles})
-set(SPGameFiles ${SPGameFiles} ${SPGameRendererFiles})
+source_group("renderer" FILES ${JKAGameRendererFiles})
+set(JKAGameFiles ${JKAGameFiles} ${JKAGameRendererFiles})
 
-set(SPGameClientFiles
-	"${SPDir}/client/vmachine.h"
+set(JKAGameClientFiles
+	"${CodeDir}/client/vmachine.h"
 	)
-source_group("client" FILES ${SPGameClientFiles})
-set(SPGameFiles ${SPGameFiles} ${SPGameClientFiles})
+source_group("client" FILES ${JKAGameClientFiles})
+set(JKAGameFiles ${JKAGameFiles} ${JKAGameClientFiles})
 
 if(WIN32)
-	set(SPGameWin32Files
-		"${SPDir}/win32/game.rc")
-	source_group("win32" FILES ${SPGameWin32Files})
-	set(SPGameFiles ${SPGameFiles} ${SPGameWin32Files})
+	set(JKAGameWin32Files
+		"${CodeDir}/win32/game.rc")
+	source_group("win32" FILES ${JKAGameWin32Files})
+	set(JKAGameFiles ${JKAGameFiles} ${JKAGameWin32Files})
 endif(WIN32)
 
-add_library(${SPGame} SHARED ${SPGameFiles})
+add_library(${JKAGame} SHARED ${JKAGameFiles})
 # cgame and icarus are compiled into this library, so the whole of the legacy
 # gamecode is covered here. See jkx_legacy_string_literals in the root
 # CMakeLists for why, and for what it would take to drop this line.
-jkx_legacy_string_literals(${SPGame})
-jkx_no_undefined_symbols(${SPGame})
+jkx_legacy_string_literals(${JKAGame})
+jkx_no_undefined_symbols(${JKAGame})
 
 # Hide symbols not explicitly marked public.
-set_property(TARGET ${SPGame} APPEND PROPERTY COMPILE_OPTIONS ${OPENJK_VISIBILITY_FLAGS})
+set_property(TARGET ${JKAGame} APPEND PROPERTY COMPILE_OPTIONS ${OPENJK_VISIBILITY_FLAGS})
 
 if(NOT MSVC)
 	# remove "lib" prefix for .so/.dylib files
-	set_target_properties(${SPGame} PROPERTIES PREFIX "")
+	set_target_properties(${JKAGame} PROPERTIES PREFIX "")
 endif()
 
 if(WIN32)
-	install(TARGETS ${SPGame}
+	install(TARGETS ${JKAGame}
 		RUNTIME
 		DESTINATION "${JKAInstallDir}"
-		COMPONENT ${JKASPClientComponent})
+		COMPONENT ${JKAClientComponent})
 else(WIN32)
-	if(MakeApplicationBundles AND BuildSPEngine)
-		install(TARGETS ${SPGame}
+	if(MakeApplicationBundles AND BuildJKAEngine)
+		install(TARGETS ${JKAGame}
 			LIBRARY
-			DESTINATION "${JKAInstallDir}/${SPEngine}.app/Contents/MacOS"
-			COMPONENT ${JKASPClientComponent})
+			DESTINATION "${JKAInstallDir}/${EngineJKA}.app/Contents/MacOS"
+			COMPONENT ${JKAClientComponent})
 	else()
-		install(TARGETS ${SPGame}
+		install(TARGETS ${JKAGame}
 			LIBRARY
 			DESTINATION "${JKAInstallDir}"
-			COMPONENT ${JKASPClientComponent})
+			COMPONENT ${JKAClientComponent})
 	endif()
 endif()
 
-set_target_properties(${SPGame} PROPERTIES COMPILE_DEFINITIONS "${SPGameDefines}")
-set_target_properties(${SPGame} PROPERTIES INCLUDE_DIRECTORIES "${SPGameIncludeDirectories}")
-set_target_properties(${SPGame} PROPERTIES PROJECT_LABEL "SP Game Library")
+set_target_properties(${JKAGame} PROPERTIES COMPILE_DEFINITIONS "${JKAGameDefines}")
+set_target_properties(${JKAGame} PROPERTIES INCLUDE_DIRECTORIES "${JKAGameIncludeDirectories}")
+set_target_properties(${JKAGame} PROPERTIES PROJECT_LABEL "SP Game Library")
 # no libraries used
-if(SPGameLibraries)
-	target_link_libraries(${SPGame} ${SPGameLibraries})
-endif(SPGameLibraries)
+if(JKAGameLibraries)
+	target_link_libraries(${JKAGame} ${JKAGameLibraries})
+endif(JKAGameLibraries)

@@ -155,16 +155,15 @@ endif()
 option(BuildPortableVersion "Build portable version (does not read or write files from your user/home directory" OFF)
 
 
-option(BuildSPEngine "Whether to create projects for the SP engine (openjk_sp.exe)" ON)
-option(BuildSPGame "Whether to create projects for the SP gamecode (jagamex86.dll)" ON)
+option(BuildJKAEngine "Build the Jedi Academy engine" ON)
+option(BuildJKAGame "Build the Jedi Academy gamecode" ON)
 # The one renderer. rd-vanilla was kept through phase 2 as something to compare
 # against; it is gone, and with it the module boundary that existed only so two
 # renderers could be swapped at runtime.
-option(BuildSPRdVulkan "Whether to create the SP Vulkan renderer project" ON)
+option(BuildRdVulkan "Build the Vulkan renderer" ON)
 
-option(BuildJK2SPEngine "Build the JK2 SP engine" ON)
-option(BuildJK2SPGame "Build the JK2 SP gamecode" ON)
-option(BuildJK2SPRdVanilla "Build the JK2 SP reference renderer" ON)
+option(BuildJK2Engine "Build the Jedi Outcast engine" ON)
+option(BuildJK2Game "Build the Jedi Outcast gamecode" ON)
 
 option(BuildTests "Whether to build automatic unit tests (requires Boost)" OFF)
 option(UseAddressSanitizer "Whether to enable runtime address sanitizer" OFF)
@@ -288,17 +287,17 @@ endif()
 # Binary names
 #
 #=============================================================================
-set(SPEngine "jkx_ja.${Architecture}")
-set(SPGame "jagame${Architecture}")
-set(SPRDVulkanRenderer "rdsp-vulkan_${Architecture}")
+set(EngineJKA "jkx_ja.${Architecture}")
+set(JKAGame "jagame${Architecture}")
+set(RDVulkanRenderer "rdsp-vulkan_${Architecture}")
 set(MPEngine "openjk.${Architecture}")
 set(MPDed "openjkded.${Architecture}")
 set(MPGame "jampgame${Architecture}")
 set(MPCGame "cgame${Architecture}")
 set(MPUI "ui${Architecture}")
 set(MPRend2 "rd-rend2_${Architecture}")
-set(JK2SPEngine "jkx_jo.${Architecture}")
-set(JK2SPGame "jospgame${Architecture}")
+set(EngineJK2 "jkx_jo.${Architecture}")
+set(JK2Game "jospgame${Architecture}")
 set(AssetsPk3 "openjk-${Architecture}.pk3")
 # Library names
 set(MPBotLib "botlib")
@@ -309,9 +308,9 @@ set(SharedLib "shared")
 # Paths
 #
 #=============================================================================
-set(SPDir "${CMAKE_SOURCE_DIR}/code")
-set(JKASPDir "${CMAKE_SOURCE_DIR}/games/jka")
-set(JK2SPDir "${CMAKE_SOURCE_DIR}/games/jk2")
+set(CodeDir "${CMAKE_SOURCE_DIR}/code")
+set(JKADir "${CMAKE_SOURCE_DIR}/games/jka")
+set(JK2Dir "${CMAKE_SOURCE_DIR}/games/jk2")
 set(SharedDir ${CMAKE_SOURCE_DIR}/shared)
 set(OpenJKLibDir "${CMAKE_SOURCE_DIR}/lib")
 set(GSLIncludeDirectory "${OpenJKLibDir}/gsl-lite/include")
@@ -608,12 +607,12 @@ jkx_add_fonts(fonts)
 add_subdirectory(lib/minizip)
 
 # Add projects
-add_subdirectory(${SPDir})
-if(BuildSPGame)
-	add_subdirectory("${JKASPDir}/game")
+add_subdirectory(${CodeDir})
+if(BuildJKAGame)
+	add_subdirectory("${JKADir}/game")
 endif()
-if(BuildJK2SPGame)
-	add_subdirectory("${JK2SPDir}/game")
+if(BuildJK2Game)
+	add_subdirectory("${JK2Dir}/game")
 endif()
 
 

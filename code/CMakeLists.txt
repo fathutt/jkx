@@ -27,13 +27,13 @@ endif(NOT InOpenJK)
 # code/ any more.
 
 #    Add Modular Renderer project
-add_subdirectory("${SPDir}/rd-vulkan")
+add_subdirectory("${CodeDir}/rd-vulkan")
 
 #    Add Engine Project
-if(BuildSPEngine OR BuildJK2SPEngine)
+if(BuildJKAEngine OR BuildJK2Engine)
 	# Libraries
 	if(WIN32)
-		set(SPEngineLibraries "winmm")
+		set(EngineLibraries "winmm")
 	endif(WIN32)
 	# Defines
 	# Defined when the engine executable is being compiled, as opposed to a game
@@ -46,13 +46,13 @@ if(BuildSPEngine OR BuildJK2SPEngine)
 	#
 	# It reads in shared/sys/sys_main.cpp, in sdl_icon.h and in ghoul2_shared.h -
 	# places where a reader has every reason to take "JK2" at face value.
-	set(SPEngineDefines ${SharedDefines} "JKX_ENGINE")
+	set(EngineDefines ${SharedDefines} "JKX_ENGINE")
 
-	set(SPEngineIncludeDirectories
-		${SPEngineIncludeDirectories}
+	set(EngineIncludeDirectories
+		${EngineIncludeDirectories}
 		${SharedDir}
 		${CMAKE_BINARY_DIR}/shared
-		${SPDir}
+		${CodeDir}
 		"${GSLIncludeDirectory}")
 
 	#    Dependencies
@@ -60,8 +60,8 @@ if(BuildSPEngine OR BuildJK2SPEngine)
 	if (NOT WIN32)
 		# OpenGL
 		find_package(OpenGL REQUIRED)
-		set(SPEngineIncludeDirectories ${SPEngineIncludeDirectories} ${OPENGL_INCLUDE_DIR})
-		set(SPEngineLibraries ${SPEngineLibraries} ${OPENGL_LIBRARIES})
+		set(EngineIncludeDirectories ${EngineIncludeDirectories} ${OPENGL_INCLUDE_DIR})
+		set(EngineLibraries ${EngineLibraries} ${OPENGL_LIBRARIES})
 	endif()
 
 	# OpenAL (is optionally included for Windows)
@@ -73,38 +73,38 @@ if(BuildSPEngine OR BuildJK2SPEngine)
 			if(NOT OpenALLibrary)
 				message(FATAL_ERROR "UseInternalOpenAL enabled, but lib/OpenAL32.lib not found!")
 			endif(NOT OpenALLibrary)
-			set(SPEngineLibraries ${SPEngineLibraries} ${OpenALLibrary})
+			set(EngineLibraries ${EngineLibraries} ${OpenALLibrary})
 		else(UseInternalOpenAL)
 			find_package(OpenAL REQUIRED)
-			set(SPEngineIncludeDirectories ${SPEngineIncludeDirectories} ${OPENAL_INCLUDE_DIR})
-			set(SPEngineLibraries ${SPEngineLibraries} ${OPENAL_LIBRARY})
+			set(EngineIncludeDirectories ${EngineIncludeDirectories} ${OPENAL_INCLUDE_DIR})
+			set(EngineLibraries ${EngineLibraries} ${OPENAL_LIBRARY})
 		endif(UseInternalOpenAL)
 
-		set(SPEngineEAXFiles
-			"${SPDir}/client/eax/eax.h"
-			"${SPDir}/client/eax/EaxMan.h"
+		set(EngineEAXFiles
+			"${CodeDir}/client/eax/eax.h"
+			"${CodeDir}/client/eax/EaxMan.h"
 			)
-		source_group("eax" FILES ${SPEngineEAXFiles})
-		set(SPEngineFiles ${SPEngineFiles} ${SPEngineEAXFiles})
+		source_group("eax" FILES ${EngineEAXFiles})
+		set(EngineFiles ${EngineFiles} ${EngineEAXFiles})
 	endif()
 
 	if(UseInternalSDL2)
 		if(CMAKE_SIZEOF_VOID_P EQUAL 4)
-			set(SPEngineLibraries
-				${SPEngineLibraries}
+			set(EngineLibraries
+				${EngineLibraries}
 				${OpenJKLibDir}/SDL2/lib/x86/SDL2main.lib
 				${OpenJKLibDir}/SDL2/lib/x86/SDL2.lib
 				)
 		else()
-			set(SPEngineLibraries
-				${SPEngineLibraries}
+			set(EngineLibraries
+				${EngineLibraries}
 				${OpenJKLibDir}/SDL2/lib/x64/SDL2main.lib
 				${OpenJKLibDir}/SDL2/lib/x64/SDL2.lib
 				)
 		endif()
 
-		set(SPEngineIncludeDirectories
-			${SPEngineIncludeDirectories}
+		set(EngineIncludeDirectories
+			${EngineIncludeDirectories}
 			${OpenJKLibDir}/SDL2/include
 			)
 	else()
@@ -128,9 +128,9 @@ if(BuildSPEngine OR BuildJK2SPEngine)
 			# - the worst possible place to find out.
 			if (WIN32 AND NOT CMAKE_VERSION VERSION_LESS 3.21)
 				install(IMPORTED_RUNTIME_ARTIFACTS SDL2::SDL2
-					RUNTIME DESTINATION ${JKAInstallDir} COMPONENT ${JKASPClientComponent})
+					RUNTIME DESTINATION ${JKAInstallDir} COMPONENT ${JKAClientComponent})
 				install(IMPORTED_RUNTIME_ARTIFACTS SDL2::SDL2
-					RUNTIME DESTINATION ${JK2InstallDir} COMPONENT ${JK2SPClientComponent})
+					RUNTIME DESTINATION ${JK2InstallDir} COMPONENT ${JK2ClientComponent})
 			endif()
 		else()
 			# Some SDL2Config.cmake versions hand back a path with whitespace
@@ -138,127 +138,127 @@ if(BuildSPEngine OR BuildJK2SPEngine)
 			# target list above.
 			string(STRIP "${SDL2_LIBRARIES}" SDL2_LIBRARIES)
 		endif()
-		set(SPEngineIncludeDirectories ${SPEngineIncludeDirectories} ${SDL2_INCLUDE_DIRS})
-		set(SPEngineLibraries ${SPEngineLibraries} ${SDL2_LIBRARIES})
+		set(EngineIncludeDirectories ${EngineIncludeDirectories} ${SDL2_INCLUDE_DIRS})
+		set(EngineLibraries ${EngineLibraries} ${SDL2_LIBRARIES})
 	endif()
 
 	#    Source Files
 
 	# Client files
-	set(SPEngineClientFiles
-		"${SPDir}/client/keys.h"
-		"${SPDir}/client/keycodes.h"
+	set(EngineClientFiles
+		"${CodeDir}/client/keys.h"
+		"${CodeDir}/client/keycodes.h"
 
-		"${SPDir}/client/cl_cgame.cpp"
-		"${SPDir}/client/cl_cin.cpp"
-		"${SPDir}/client/cl_console.cpp"
-		"${SPDir}/client/cl_input.cpp"
-		"${SPDir}/client/cl_keys.cpp"
-		"${SPDir}/client/cl_main.cpp"
-		"${SPDir}/client/cl_mp3.cpp"
-		"${SPDir}/client/cl_parse.cpp"
-		"${SPDir}/client/cl_scrn.cpp"
-		"${SPDir}/client/cl_ui.cpp"
-		"${SPDir}/client/cl_mp3.h"
-		"${SPDir}/client/client.h"
-		"${SPDir}/client/client_ui.h"
+		"${CodeDir}/client/cl_cgame.cpp"
+		"${CodeDir}/client/cl_cin.cpp"
+		"${CodeDir}/client/cl_console.cpp"
+		"${CodeDir}/client/cl_input.cpp"
+		"${CodeDir}/client/cl_keys.cpp"
+		"${CodeDir}/client/cl_main.cpp"
+		"${CodeDir}/client/cl_mp3.cpp"
+		"${CodeDir}/client/cl_parse.cpp"
+		"${CodeDir}/client/cl_scrn.cpp"
+		"${CodeDir}/client/cl_ui.cpp"
+		"${CodeDir}/client/cl_mp3.h"
+		"${CodeDir}/client/client.h"
+		"${CodeDir}/client/client_ui.h"
 
-		"${SPDir}/client/snd_ambient.cpp"
-		"${SPDir}/client/snd_dma.cpp"
-		"${SPDir}/client/snd_mem.cpp"
-		"${SPDir}/client/snd_mix.cpp"
-		"${SPDir}/client/snd_music.cpp"
-		"${SPDir}/client/snd_ambient.h"
-		"${SPDir}/client/snd_local.h"
-		"${SPDir}/client/snd_music.h"
-		"${SPDir}/client/snd_public.h"
+		"${CodeDir}/client/snd_ambient.cpp"
+		"${CodeDir}/client/snd_dma.cpp"
+		"${CodeDir}/client/snd_mem.cpp"
+		"${CodeDir}/client/snd_mix.cpp"
+		"${CodeDir}/client/snd_music.cpp"
+		"${CodeDir}/client/snd_ambient.h"
+		"${CodeDir}/client/snd_local.h"
+		"${CodeDir}/client/snd_music.h"
+		"${CodeDir}/client/snd_public.h"
 
-		"${SPDir}/client/vmachine.cpp"
-		"${SPDir}/client/vmachine.h"
+		"${CodeDir}/client/vmachine.cpp"
+		"${CodeDir}/client/vmachine.h"
 		)
-	source_group("client" FILES ${SPEngineClientFiles})
-	set(SPEngineFiles ${SPEngineFiles} ${SPEngineClientFiles})
+	source_group("client" FILES ${EngineClientFiles})
+	set(EngineFiles ${EngineFiles} ${EngineClientFiles})
 
 
 	# qcommon files
-	set(SPEngineCommonFiles
-		"${SPDir}/qcommon/cm_load.cpp"
-		"${SPDir}/qcommon/cm_patch.cpp"
-		"${SPDir}/qcommon/cm_polylib.cpp"
-		"${SPDir}/qcommon/cm_test.cpp"
-		"${SPDir}/qcommon/cm_trace.cpp"
-		"${SPDir}/qcommon/cm_local.h"
-		"${SPDir}/qcommon/cm_patch.h"
-		"${SPDir}/qcommon/cm_polylib.h"
-		"${SPDir}/qcommon/cm_public.h"
+	set(EngineCommonFiles
+		"${CodeDir}/qcommon/cm_load.cpp"
+		"${CodeDir}/qcommon/cm_patch.cpp"
+		"${CodeDir}/qcommon/cm_polylib.cpp"
+		"${CodeDir}/qcommon/cm_test.cpp"
+		"${CodeDir}/qcommon/cm_trace.cpp"
+		"${CodeDir}/qcommon/cm_local.h"
+		"${CodeDir}/qcommon/cm_patch.h"
+		"${CodeDir}/qcommon/cm_polylib.h"
+		"${CodeDir}/qcommon/cm_public.h"
 
-		"${SPDir}/qcommon/cmd.cpp"
-		"${SPDir}/qcommon/common.cpp"
-		"${SPDir}/qcommon/cvar.cpp"
+		"${CodeDir}/qcommon/cmd.cpp"
+		"${CodeDir}/qcommon/common.cpp"
+		"${CodeDir}/qcommon/cvar.cpp"
 
-		"${SPDir}/qcommon/files.cpp"
+		"${CodeDir}/qcommon/files.cpp"
 
-		"${SPDir}/qcommon/md4.cpp"
-		"${SPDir}/qcommon/msg.cpp"
-		"${SPDir}/qcommon/net_chan.cpp"
+		"${CodeDir}/qcommon/md4.cpp"
+		"${CodeDir}/qcommon/msg.cpp"
+		"${CodeDir}/qcommon/net_chan.cpp"
 
-		"${SPDir}/qcommon/q_shared.cpp"
-		"${SPDir}/qcommon/q_shared.h"
+		"${CodeDir}/qcommon/q_shared.cpp"
+		"${CodeDir}/qcommon/q_shared.h"
 
-		"${SPDir}/qcommon/sstring.h"
-		"${SPDir}/qcommon/stringed_ingame.cpp"
-		"${SPDir}/qcommon/stringed_interface.cpp"
-		"${SPDir}/qcommon/stringed_ingame.h"
-		"${SPDir}/qcommon/stringed_interface.h"
+		"${CodeDir}/qcommon/sstring.h"
+		"${CodeDir}/qcommon/stringed_ingame.cpp"
+		"${CodeDir}/qcommon/stringed_interface.cpp"
+		"${CodeDir}/qcommon/stringed_ingame.h"
+		"${CodeDir}/qcommon/stringed_interface.h"
 
-		"${SPDir}/qcommon/strip.cpp"
-		"${SPDir}/qcommon/persistence.cpp"
-		"${SPDir}/qcommon/tags.h"
-		"${SPDir}/qcommon/z_memman_pc.cpp"
-		"${SPDir}/qcommon/qfiles.h"
-		"${SPDir}/qcommon/qcommon.h"
-		"${SPDir}/qcommon/game_version.h"
-		"${SPDir}/qcommon/timing.h"
-		"${SPDir}/qcommon/MiniHeap.h"
+		"${CodeDir}/qcommon/strip.cpp"
+		"${CodeDir}/qcommon/persistence.cpp"
+		"${CodeDir}/qcommon/tags.h"
+		"${CodeDir}/qcommon/z_memman_pc.cpp"
+		"${CodeDir}/qcommon/qfiles.h"
+		"${CodeDir}/qcommon/qcommon.h"
+		"${CodeDir}/qcommon/game_version.h"
+		"${CodeDir}/qcommon/timing.h"
+		"${CodeDir}/qcommon/MiniHeap.h"
 
-		"${SPDir}/qcommon/ojk_i_saved_game.h"
-		"${SPDir}/qcommon/ojk_saved_game.h"
-		"${SPDir}/qcommon/ojk_saved_game.cpp"
-		"${SPDir}/qcommon/ojk_saved_game_helper.h"
-		"${SPDir}/qcommon/ojk_saved_game_helper_fwd.h"
-		"${SPDir}/qcommon/ojk_scope_guard.h"
+		"${CodeDir}/qcommon/ojk_i_saved_game.h"
+		"${CodeDir}/qcommon/ojk_saved_game.h"
+		"${CodeDir}/qcommon/ojk_saved_game.cpp"
+		"${CodeDir}/qcommon/ojk_saved_game_helper.h"
+		"${CodeDir}/qcommon/ojk_saved_game_helper_fwd.h"
+		"${CodeDir}/qcommon/ojk_scope_guard.h"
 
 		${SharedCommonFiles}
 		)
-	source_group("common" FILES ${SPEngineCommonFiles})
-	set(SPEngineFiles ${SPEngineFiles} ${SPEngineCommonFiles})
+	source_group("common" FILES ${EngineCommonFiles})
+	set(EngineFiles ${EngineFiles} ${EngineCommonFiles})
 
-	set(SPEngineCommonSafeFiles
+	set(EngineCommonSafeFiles
 		"${SharedDir}/qcommon/safe/files.cpp"
 		"${SharedDir}/qcommon/safe/files.h"
 		${SharedCommonSafeFiles}
-		"${SPDir}/qcommon/safe/memory.h"
+		"${CodeDir}/qcommon/safe/memory.h"
 		)
-	source_group("common/safe" FILES ${SPEngineCommonSafeFiles})
-	set(SPEngineFiles ${SPEngineFiles} ${SPEngineCommonSafeFiles})
+	source_group("common/safe" FILES ${EngineCommonSafeFiles})
+	set(EngineFiles ${EngineFiles} ${EngineCommonSafeFiles})
 
 
 	# Server files
-	set(SPEngineServerFiles
-		"${SPDir}/server/exe_headers.cpp"
-		"${SPDir}/server/sv_ccmds.cpp"
-		"${SPDir}/server/sv_client.cpp"
-		"${SPDir}/server/sv_game.cpp"
-		"${SPDir}/server/sv_init.cpp"
-		"${SPDir}/server/sv_main.cpp"
-		"${SPDir}/server/sv_savegame.cpp"
-		"${SPDir}/server/sv_snapshot.cpp"
-		"${SPDir}/server/sv_world.cpp"
-		"${SPDir}/server/exe_headers.h"
-		"${SPDir}/server/server.h"
+	set(EngineServerFiles
+		"${CodeDir}/server/exe_headers.cpp"
+		"${CodeDir}/server/sv_ccmds.cpp"
+		"${CodeDir}/server/sv_client.cpp"
+		"${CodeDir}/server/sv_game.cpp"
+		"${CodeDir}/server/sv_init.cpp"
+		"${CodeDir}/server/sv_main.cpp"
+		"${CodeDir}/server/sv_savegame.cpp"
+		"${CodeDir}/server/sv_snapshot.cpp"
+		"${CodeDir}/server/sv_world.cpp"
+		"${CodeDir}/server/exe_headers.h"
+		"${CodeDir}/server/server.h"
 		)
-	source_group("server" FILES ${SPEngineServerFiles})
-	set(SPEngineFiles ${SPEngineFiles} ${SPEngineServerFiles})
+	source_group("server" FILES ${EngineServerFiles})
+	set(EngineFiles ${EngineFiles} ${EngineServerFiles})
 
 
 	# The gamecode headers the engine actually includes.
@@ -271,85 +271,85 @@ if(BuildSPEngine OR BuildJK2SPEngine)
 	# nothing else - so nothing ever noticed when the includes went away or the
 	# files moved. What is left is what the engine includes today, and the four
 	# headers are the whole of the engine-to-game interface.
-	set(SPEngineGameFiles
-		"${SPDir}/qcommon/GenericParser2.cpp"
-		"${SPDir}/qcommon/pc_parse.cpp"
-		"${SPDir}/qcommon/GenericParser2.h"
-		"${SPDir}/api/g_public.h"
-		"${SPDir}/api/cg_public.h"
-		"${SPDir}/api/ui_public.h"
-		"${SPDir}/ui/ui_shared.h"
+	set(EngineGameFiles
+		"${CodeDir}/qcommon/GenericParser2.cpp"
+		"${CodeDir}/qcommon/pc_parse.cpp"
+		"${CodeDir}/qcommon/GenericParser2.h"
+		"${CodeDir}/api/g_public.h"
+		"${CodeDir}/api/cg_public.h"
+		"${CodeDir}/api/ui_public.h"
+		"${CodeDir}/ui/ui_shared.h"
 		)
-	source_group("game" FILES ${SPEngineGameFiles})
-	set(SPEngineFiles ${SPEngineFiles} ${SPEngineGameFiles})
+	source_group("game" FILES ${EngineGameFiles})
+	set(EngineFiles ${EngineFiles} ${EngineGameFiles})
 
 
 	# MP3 files
-	set(SPEngineMP3Files
-		"${SPDir}/mp3code/cdct.c"
-		"${SPDir}/mp3code/csbt.c"
-		"${SPDir}/mp3code/csbtb.c"
-		"${SPDir}/mp3code/csbtl3.c"
-		"${SPDir}/mp3code/cup.c"
-		"${SPDir}/mp3code/cupini.c"
-		"${SPDir}/mp3code/cupl1.c"
-		"${SPDir}/mp3code/cupl3.c"
-		"${SPDir}/mp3code/cwin.c"
-		"${SPDir}/mp3code/cwinb.c"
-		"${SPDir}/mp3code/cwinm.c"
-		"${SPDir}/mp3code/hwin.c"
-		"${SPDir}/mp3code/l3dq.c"
-		"${SPDir}/mp3code/l3init.c"
-		"${SPDir}/mp3code/mdct.c"
-		"${SPDir}/mp3code/mhead.c"
-		"${SPDir}/mp3code/msis.c"
-		"${SPDir}/mp3code/towave.c"
-		"${SPDir}/mp3code/uph.c"
-		"${SPDir}/mp3code/upsf.c"
-		"${SPDir}/mp3code/wavep.c"
-		"${SPDir}/mp3code/config.h"
-		"${SPDir}/mp3code/htable.h"
-		"${SPDir}/mp3code/jdw.h"
-		"${SPDir}/mp3code/l3.h"
-		"${SPDir}/mp3code/mhead.h"
-		"${SPDir}/mp3code/mp3struct.h"
-		"${SPDir}/mp3code/port.h"
-		"${SPDir}/mp3code/small_header.h"
-		"${SPDir}/mp3code/tableawd.h"
+	set(EngineMP3Files
+		"${CodeDir}/mp3code/cdct.c"
+		"${CodeDir}/mp3code/csbt.c"
+		"${CodeDir}/mp3code/csbtb.c"
+		"${CodeDir}/mp3code/csbtl3.c"
+		"${CodeDir}/mp3code/cup.c"
+		"${CodeDir}/mp3code/cupini.c"
+		"${CodeDir}/mp3code/cupl1.c"
+		"${CodeDir}/mp3code/cupl3.c"
+		"${CodeDir}/mp3code/cwin.c"
+		"${CodeDir}/mp3code/cwinb.c"
+		"${CodeDir}/mp3code/cwinm.c"
+		"${CodeDir}/mp3code/hwin.c"
+		"${CodeDir}/mp3code/l3dq.c"
+		"${CodeDir}/mp3code/l3init.c"
+		"${CodeDir}/mp3code/mdct.c"
+		"${CodeDir}/mp3code/mhead.c"
+		"${CodeDir}/mp3code/msis.c"
+		"${CodeDir}/mp3code/towave.c"
+		"${CodeDir}/mp3code/uph.c"
+		"${CodeDir}/mp3code/upsf.c"
+		"${CodeDir}/mp3code/wavep.c"
+		"${CodeDir}/mp3code/config.h"
+		"${CodeDir}/mp3code/htable.h"
+		"${CodeDir}/mp3code/jdw.h"
+		"${CodeDir}/mp3code/l3.h"
+		"${CodeDir}/mp3code/mhead.h"
+		"${CodeDir}/mp3code/mp3struct.h"
+		"${CodeDir}/mp3code/port.h"
+		"${CodeDir}/mp3code/small_header.h"
+		"${CodeDir}/mp3code/tableawd.h"
 		)
-	source_group("mp3" FILES ${SPEngineMP3Files})
-	set(SPEngineFiles ${SPEngineFiles} ${SPEngineMP3Files})
+	source_group("mp3" FILES ${EngineMP3Files})
+	set(EngineFiles ${EngineFiles} ${EngineMP3Files})
 
-	set(SPEngineRendererFiles
-		"${SPDir}/rd-common/mdx_format.h"
-		"${SPDir}/rd-common/tr_public.h"
-		"${SPDir}/rd-common/tr_types.h"
+	set(EngineRendererFiles
+		"${CodeDir}/rd-common/mdx_format.h"
+		"${CodeDir}/rd-common/tr_public.h"
+		"${CodeDir}/rd-common/tr_types.h"
 		)
-	source_group("renderer" FILES ${SPEngineRendererFiles})
-	set(SPEngineFiles ${SPEngineFiles} ${SPEngineRendererFiles})
+	source_group("renderer" FILES ${EngineRendererFiles})
+	set(EngineFiles ${EngineFiles} ${EngineRendererFiles})
 
 	# UI files
-	set(SPEngineUIFiles
-		"${SPDir}/ui/ui_atoms.cpp"
-		"${SPDir}/ui/ui_connect.cpp"
-		"${SPDir}/ui/ui_main.cpp"
-		"${SPDir}/ui/ui_saber.cpp"
-		"${SPDir}/ui/ui_shared.cpp"
-		"${SPDir}/ui/ui_syscalls.cpp"
-		"${SPDir}/ui/gameinfo.h"
-		"${SPDir}/ui/menudef.h"
-		"${SPDir}/ui/ui_local.h"
-		"${SPDir}/ui/ui_shared.h"
+	set(EngineUIFiles
+		"${CodeDir}/ui/ui_atoms.cpp"
+		"${CodeDir}/ui/ui_connect.cpp"
+		"${CodeDir}/ui/ui_main.cpp"
+		"${CodeDir}/ui/ui_saber.cpp"
+		"${CodeDir}/ui/ui_shared.cpp"
+		"${CodeDir}/ui/ui_syscalls.cpp"
+		"${CodeDir}/ui/gameinfo.h"
+		"${CodeDir}/ui/menudef.h"
+		"${CodeDir}/ui/ui_local.h"
+		"${CodeDir}/ui/ui_shared.h"
 		)
-	source_group("ui" FILES ${SPEngineUIFiles})
-	set(SPEngineFiles ${SPEngineFiles} ${SPEngineUIFiles})
+	source_group("ui" FILES ${EngineUIFiles})
+	set(EngineFiles ${EngineFiles} ${EngineUIFiles})
 
 
 	# Ghoul2 files
-	set(SPEngineGhoul2Files
-		"${SPDir}/ghoul2/G2.h"
-		"${SPDir}/ghoul2/g2_local.h"
-		"${SPDir}/ghoul2/ghoul2_gore.h"
+	set(EngineGhoul2Files
+		"${CodeDir}/ghoul2/G2.h"
+		"${CodeDir}/ghoul2/g2_local.h"
+		"${CodeDir}/ghoul2/ghoul2_gore.h"
 		)
 
 	# Phase 2.3: the skeleton, bolt, bone and surface halves of Ghoul2 live in
@@ -358,28 +358,28 @@ if(BuildSPEngine OR BuildJK2SPEngine)
 	# Ghoul2 arrived as one piece. G2_misc.cpp is still over there, held by gore,
 	# which genuinely is drawing.
 	#
-	# Attached to the target below rather than to SPEngineFiles, because they ask
+	# Attached to the target below rather than to EngineFiles, because they ask
 	# the model registry four questions and the answers come from the renderer
 	# linked in beside them. The JK2 engine still loads its renderer at runtime
 	# and gets its Ghoul2 from there, exactly as it did.
-	set(SPEngineGhoul2Sources
-		"${SPDir}/ghoul2/G2_API.cpp"
-		"${SPDir}/ghoul2/G2_bolts.cpp"
-		"${SPDir}/ghoul2/G2_bones.cpp"
-		"${SPDir}/ghoul2/G2_surfaces.cpp"
+	set(EngineGhoul2Sources
+		"${CodeDir}/ghoul2/G2_API.cpp"
+		"${CodeDir}/ghoul2/G2_bolts.cpp"
+		"${CodeDir}/ghoul2/G2_bones.cpp"
+		"${CodeDir}/ghoul2/G2_surfaces.cpp"
 		)
-	source_group("ghoul2" FILES ${SPEngineGhoul2Files})
-	set(SPEngineFiles ${SPEngineFiles} ${SPEngineGhoul2Files})
+	source_group("ghoul2" FILES ${EngineGhoul2Files})
+	set(EngineFiles ${EngineFiles} ${EngineGhoul2Files})
 
 
 	# Server files
-	set(SPEngineCGameFiles
-		"${JKASPDir}/cgame/animtable.h"
+	set(EngineCGameFiles
+		"${JKADir}/cgame/animtable.h"
 		)
-	source_group("cgame" FILES ${SPEngineCGameFiles})
-	set(SPEngineFiles ${SPEngineFiles} ${SPEngineCGameFiles})
+	source_group("cgame" FILES ${EngineCGameFiles})
+	set(EngineFiles ${EngineFiles} ${EngineCGameFiles})
 
-	set(SPEngineSysFiles
+	set(EngineSysFiles
 		"${SharedDir}/sys/sys_main.cpp"
 		"${SharedDir}/sys/sys_event.cpp"
 		"${SharedDir}/sys/sys_local.h"
@@ -395,64 +395,66 @@ if(BuildSPEngine OR BuildJK2SPEngine)
 		)
 
 	if(WIN32)
-		set(SPEngineSysFiles
-			${SPEngineSysFiles}
+		set(EngineSysFiles
+			${EngineSysFiles}
 			"${SharedDir}/sys/sys_win32.cpp"
 			"${SharedDir}/sys/con_passive.cpp"
 			)
 	else()
-		set(SPEngineSysFiles
-			${SPEngineSysFiles}
+		set(EngineSysFiles
+			${EngineSysFiles}
 			"${SharedDir}/sys/sys_unix.cpp"
 			"${SharedDir}/sys/con_tty.cpp"
 			)
 	endif()
 
-	source_group("sys" FILES ${SPEngineSysFiles})
-	set(SPEngineFiles ${SPEngineFiles} ${SPEngineSysFiles})
+	source_group("sys" FILES ${EngineSysFiles})
+	set(EngineFiles ${EngineFiles} ${EngineSysFiles})
 
     # Transparently use our bundled minizip.
-    list(APPEND SPEngineIncludeDirectories ${MINIZIP_INCLUDE_DIRS})
-    list(APPEND SPEngineLibraries          ${MINIZIP_LIBRARIES})
+    list(APPEND EngineIncludeDirectories ${MINIZIP_INCLUDE_DIRS})
+    list(APPEND EngineLibraries          ${MINIZIP_LIBRARIES})
 
     # Transparently use either bundled or system zlib.
-    list(APPEND SPEngineIncludeDirectories ${ZLIB_INCLUDE_DIR})
-    list(APPEND SPEngineLibraries          ${ZLIB_LIBRARIES})
+    list(APPEND EngineIncludeDirectories ${ZLIB_INCLUDE_DIR})
+    list(APPEND EngineLibraries          ${ZLIB_LIBRARIES})
 
-	# project macro so we can invoke it twice: for jk2 and for ja
-	function(add_sp_project ProjectName Label SPDirName InstallDir Component)
+	# One macro, invoked twice: once for Jedi Academy and once for Jedi Outcast.
+	# The two engines are the same sources with a different define and a different
+	# set of Windows resources.
+	function(add_engine_project ProjectName Label GameDirName InstallDir Component)
 		if(WIN32)
-			set(SPEngineWin32Files
-				"${SPDirName}/win32/resource.h"
-				"${SPDirName}/win32/winquake.rc"
+			set(EngineWin32Files
+				"${GameDirName}/win32/resource.h"
+				"${GameDirName}/win32/winquake.rc"
 				"${SharedDir}/sys/win_manifest.manifest"
 				)
-			source_group("win32" FILES ${SPEngineWin32Files})
-			set(SPEngineFiles ${SPEngineFiles} ${SPEngineWin32Files})
+			source_group("win32" FILES ${EngineWin32Files})
+			set(EngineFiles ${EngineFiles} ${EngineWin32Files})
 			
-			add_executable(${ProjectName} WIN32 ${SPEngineFiles})
+			add_executable(${ProjectName} WIN32 ${EngineFiles})
 			if(UseInternalSDL2)
 				if(CMAKE_SIZEOF_VOID_P EQUAL 4)
-					set(SPEngineExtraInstallFiles
+					set(EngineExtraInstallFiles
 						${OpenJKLibDir}/SDL2/bin/x86/SDL2.dll
 						)
 				else()
-					set(SPEngineExtraInstallFiles
+					set(EngineExtraInstallFiles
 						${OpenJKLibDir}/SDL2/bin/x64/SDL2.dll
 						)
 				endif()
 			endif()
 		else(WIN32)
 			if(MakeApplicationBundles)
-				set_source_files_properties(${SPDirName}/macosx/OpenJK.icns PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
-				set(SPEngineFiles ${SPEngineFiles} ${SPDirName}/macosx/OpenJK.icns)
-				set_source_files_properties(${SPDirName}/macosx/English.lproj/InfoPlist.strings PROPERTIES MACOSX_PACKAGE_LOCATION Resources/English.lproj)
-				set(SPEngineFiles ${SPEngineFiles} ${SPDirName}/macosx/English.lproj/InfoPlist.strings)
+				set_source_files_properties(${GameDirName}/macosx/OpenJK.icns PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
+				set(EngineFiles ${EngineFiles} ${GameDirName}/macosx/OpenJK.icns)
+				set_source_files_properties(${GameDirName}/macosx/English.lproj/InfoPlist.strings PROPERTIES MACOSX_PACKAGE_LOCATION Resources/English.lproj)
+				set(EngineFiles ${EngineFiles} ${GameDirName}/macosx/English.lproj/InfoPlist.strings)
 				
-				add_executable(${ProjectName} MACOSX_BUNDLE ${SPEngineFiles})
-				set_target_properties(${ProjectName} PROPERTIES MACOSX_BUNDLE_INFO_PLIST "${SPDirName}/macosx/OpenJKInfo.plist")
+				add_executable(${ProjectName} MACOSX_BUNDLE ${EngineFiles})
+				set_target_properties(${ProjectName} PROPERTIES MACOSX_BUNDLE_INFO_PLIST "${GameDirName}/macosx/OpenJKInfo.plist")
 			else(MakeApplicationBundles)
-				add_executable(${ProjectName} ${SPEngineFiles})
+				add_executable(${ProjectName} ${EngineFiles})
 			endif(MakeApplicationBundles)
 		endif(WIN32)
 
@@ -472,48 +474,48 @@ if(BuildSPEngine OR BuildJK2SPEngine)
 				RUNTIME
 				DESTINATION ${InstallDir}
 				COMPONENT ${Component})
-			if(SPEngineExtraInstallFiles)
-				install(FILES ${SPEngineExtraInstallFiles}
+			if(EngineExtraInstallFiles)
+				install(FILES ${EngineExtraInstallFiles}
 					DESTINATION ${InstallDir}
 					COMPONENT ${Component})
 			endif()
 		endif(MakeApplicationBundles)
 
-		set_target_properties(${ProjectName} PROPERTIES COMPILE_DEFINITIONS "${SPEngineDefines}")
+		set_target_properties(${ProjectName} PROPERTIES COMPILE_DEFINITIONS "${EngineDefines}")
 
 		# Hide symbols not explicitly marked public.
 		set_property(TARGET ${ProjectName} APPEND PROPERTY COMPILE_OPTIONS ${OPENJK_VISIBILITY_FLAGS})
 
-		set_target_properties(${ProjectName} PROPERTIES INCLUDE_DIRECTORIES "${SPEngineIncludeDirectories}")
+		set_target_properties(${ProjectName} PROPERTIES INCLUDE_DIRECTORIES "${EngineIncludeDirectories}")
 		set_target_properties(${ProjectName} PROPERTIES PROJECT_LABEL ${Label})
-		if(SPEngineLibraries)
-			target_link_libraries(${ProjectName} ${SPEngineLibraries})
-		endif(SPEngineLibraries)
-	endfunction(add_sp_project)
-	if(BuildSPEngine)
-		add_sp_project(${SPEngine} "SP Client" ${SPDir} ${JKAInstallDir} ${JKASPClientComponent})
+		if(EngineLibraries)
+			target_link_libraries(${ProjectName} ${EngineLibraries})
+		endif(EngineLibraries)
+	endfunction(add_engine_project)
+	if(BuildJKAEngine)
+		add_engine_project(${EngineJKA} "SP Client" ${CodeDir} ${JKAInstallDir} ${JKAClientComponent})
 
 		# The renderer is part of the engine, not a module beside it. GetRefAPI
 		# is then an ordinary function call and the client says so at compile
 		# time rather than looking for a file at runtime.
-		if(BuildSPRdVulkan)
-			target_link_libraries(${SPEngine} ${SPRDVulkanRenderer})
-			target_sources(${SPEngine} PRIVATE ${SPEngineGhoul2Sources})
-			source_group("ghoul2" FILES ${SPEngineGhoul2Sources})
+		if(BuildRdVulkan)
+			target_link_libraries(${EngineJKA} ${RDVulkanRenderer})
+			target_sources(${EngineJKA} PRIVATE ${EngineGhoul2Sources})
+			source_group("ghoul2" FILES ${EngineGhoul2Sources})
 		endif()
-	endif(BuildSPEngine)
-	if(BuildJK2SPEngine)
-		set(SPEngineDefines ${SPEngineDefines} "JK2_MODE")
-		add_sp_project(${JK2SPEngine} "JK2 SP Client" ${JK2SPDir} ${JK2InstallDir} ${JK2SPClientComponent})
+	endif(BuildJKAEngine)
+	if(BuildJK2Engine)
+		set(EngineDefines ${EngineDefines} "JK2_MODE")
+		add_engine_project(${EngineJK2} "JK2 SP Client" ${JK2Dir} ${JK2InstallDir} ${JK2ClientComponent})
 
 		# The same renderer, linked the same way. It used to be the one place
 		# the two engines diverged: JK2 loaded a renderer module while JKA had
 		# one inside it, which was a stopgap and is now not even possible - the
 		# loader is gone. The renderer does not know which game it is drawing.
-		if(BuildSPRdVulkan)
-			target_link_libraries(${JK2SPEngine} ${SPRDVulkanRenderer})
-			target_sources(${JK2SPEngine} PRIVATE ${SPEngineGhoul2Sources})
+		if(BuildRdVulkan)
+			target_link_libraries(${EngineJK2} ${RDVulkanRenderer})
+			target_sources(${EngineJK2} PRIVATE ${EngineGhoul2Sources})
 		endif()
-	endif(BuildJK2SPEngine)
+	endif(BuildJK2Engine)
 
-endif(BuildSPEngine OR BuildJK2SPEngine)
+endif(BuildJKAEngine OR BuildJK2Engine)

@@ -24,8 +24,8 @@ set(JK2InstallDir "JediOutcast")
 set(JKAMPCoreComponent "JKAMPCore")
 set(JKAMPServerComponent "JKAMPServer")
 set(JKAMPClientComponent "JKAMPClient")
-set(JKASPClientComponent "JKASPClient")
-set(JK2SPClientComponent "JK2SPClient")
+set(JKAClientComponent "JKASPClient")
+set(JK2ClientComponent "JK2Client")
 
 # Component display names
 include(CPackComponent)
@@ -45,7 +45,7 @@ set(CPACK_COMPONENTS_ALL
 	${JKAMPCoreComponent}
 	${JKAMPClientComponent}
 	${JKAMPServerComponent}
-	${JKASPClientComponent})
+	${JKAClientComponent})
 
 set(CPACK_ARCHIVE_COMPONENT_INSTALL ON)
 
@@ -79,12 +79,12 @@ if(WIN32)
 	# The multiplayer tree is not built here and BuildMPEngine does not exist,
 	# so its block went with it.
 
-	if(BuildSPEngine)
-		string(REPLACE "/" "\\\\" ICON "${SPDir}/win32/starwars.ico")
+	if(BuildEngine)
+		string(REPLACE "/" "\\\\" ICON "${CodeDir}/win32/starwars.ico")
 		set(CPACK_NSIS_CREATE_ICONS_EXTRA
 			"${CPACK_NSIS_CREATE_ICONS_EXTRA}
 			CreateShortCut '$SMPROGRAMS\\\\$STARTMENU_FOLDER\\\\Jedi Academy SP.lnk' \\\\
-				'$INSTDIR\\\\${SPEngine}.exe' \\\\
+				'$INSTDIR\\\\${EngineJKA}.exe' \\\\
 				'' \\\\
 				'${ICON}'")
 
@@ -100,16 +100,16 @@ if(WIN32)
 
 		install(PROGRAMS ${CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS}
 				DESTINATION ${JKAInstallDir}
-				COMPONENT ${JKASPClientComponent})
+				COMPONENT ${JKAClientComponent})
 	endif()
 
 	# Don't run this for now until we have JK2 SP working
-	if(BuildJK2SPEngine)
-		string(REPLACE "/" "\\\\" ICON "${JK2SPDir}/win32/starwars.ico")
+	if(BuildJK2Engine)
+		string(REPLACE "/" "\\\\" ICON "${JK2Dir}/win32/starwars.ico")
 		set(CPACK_NSIS_CREATE_ICONS_EXTRA
 			"${CPACK_NSIS_CREATE_ICONS_EXTRA}
 			CreateShortCut '$SMPROGRAMS\\\\$STARTMENU_FOLDER\\\\Jedi Outcast SP.lnk' \\\\
-				'$INSTDIR\\\\${JK2SPEngine}.exe' \\\\
+				'$INSTDIR\\\\${EngineJK2}.exe' \\\\
 				'' \\\\
 				'${ICON}'")
 
@@ -121,7 +121,7 @@ if(WIN32)
 
 		install(PROGRAMS ${CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS}
 				DESTINATION ${JK2InstallDir}
-				COMPONENT ${JK2SPClientComponent})
+				COMPONENT ${JK2ClientComponent})
 	endif()
 endif()
 

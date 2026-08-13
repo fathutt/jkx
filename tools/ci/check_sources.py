@@ -69,17 +69,17 @@ SOURCE_SUFFIXES = {".cpp", ".c"}
 
 # shaders/ is built by tools/shadergen and checked by its own gate.
 WATCHED = [
-    Watched("code/rd-vulkan/CMakeLists.txt", "code/rd-vulkan", "${SPDir}",
+    Watched("code/rd-vulkan/CMakeLists.txt", "code/rd-vulkan", "${CodeDir}",
             skip={"shaders"}),
-    Watched("games/jka/game/CMakeLists.txt", "games/jka/game", "${JKASPDir}"),
-    Watched("games/jka/game/CMakeLists.txt", "games/jka/cgame", "${JKASPDir}"),
-    Watched("games/jka/game/CMakeLists.txt", "code/icarus", "${SPDir}"),
-    Watched("games/jk2/game/CMakeLists.txt", "games/jk2/game", "${JK2SPDir}"),
-    Watched("games/jk2/game/CMakeLists.txt", "games/jk2/cgame", "${JK2SPDir}"),
-    Watched("games/jk2/game/CMakeLists.txt", "games/jk2/icarus", "${JK2SPDir}"),
+    Watched("games/jka/game/CMakeLists.txt", "games/jka/game", "${JKADir}"),
+    Watched("games/jka/game/CMakeLists.txt", "games/jka/cgame", "${JKADir}"),
+    Watched("games/jka/game/CMakeLists.txt", "code/icarus", "${CodeDir}"),
+    Watched("games/jk2/game/CMakeLists.txt", "games/jk2/game", "${JK2Dir}"),
+    Watched("games/jk2/game/CMakeLists.txt", "games/jk2/cgame", "${JK2Dir}"),
+    Watched("games/jk2/game/CMakeLists.txt", "games/jk2/icarus", "${JK2Dir}"),
     Watched(["code/CMakeLists.txt", "code/rd-vulkan/CMakeLists.txt",
              "games/jka/game/CMakeLists.txt", "games/jk2/game/CMakeLists.txt"],
-            "code/qcommon", "${SPDir}"),
+            "code/qcommon", "${CodeDir}"),
 ]
 
 

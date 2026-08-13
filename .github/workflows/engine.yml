@@ -156,13 +156,12 @@ jobs:
           -DCMAKE_BUILD_TYPE=${{ matrix.config }}
           -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/package"
           -DBuildPortableVersion=OFF
-          -DBuildSPEngine=ON
-          -DBuildSPGame=ON
-          -DBuildSPRdVanilla=ON
-          -DBuildSPRdVulkan=ON
-          -DBuildJK2SPEngine=OFF
-          -DBuildJK2SPGame=OFF
-          -DBuildJK2SPRdVanilla=OFF
+          -DBuildJKAEngine=ON
+          -DBuildJKAGame=ON
+          -DBuildRdVulkan=ON
+          -DBuildJK2Engine=OFF
+          -DBuildJK2Game=OFF
+         
           -DJKX_VK_TRACE=${{ inputs.trace && 'ON' || 'OFF' }}
           -DCMAKE_C_COMPILER_LAUNCHER=sccache
           -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
