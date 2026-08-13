@@ -42,8 +42,34 @@ USER INTERFACE MAIN
 
 #include "../ghoul2/G2.h"
 
-#include "../../games/jka/game/bg_public.h"
-#include "../../games/jka/game/anims.h"
+#ifdef JK2_MODE
+	#include "../../games/jk2/game/bg_public.h"
+#else
+	#include "../../games/jka/game/bg_public.h"
+#endif
+
+// The animation vocabulary is an asset-format contract, not a private detail of
+// the gamecode: .menu files name animations as strings, models/players/<skel>/
+// animation.cfg names them again, and the engine's menu code has to resolve
+// both. It is also *per game* - Jedi Academy's table begins with FACE_TALK0 and
+// Jedi Outcast's with BOTH_1CRUFTFORGIL, and the two enums agree on nothing
+// beyond some of the names.
+//
+// This used to include Jedi Academy's copy unconditionally, in both engines.
+// The mistake was invisible because the engine parses animation.cfg through the
+// same table it later looks names up in, so it stayed consistent with itself;
+// what it lost was every animation whose name exists in Jedi Outcast and not in
+// Jedi Academy, which is silently dropped at parse and then not found at use.
+//
+// This belongs in code/api. It is here, spelled out, until that move is made,
+// because moving it changes what the interface ratchet measures and that is a
+// decision about the shape of the tree rather than a bug fix.
+#ifdef JK2_MODE
+	#include "../../games/jk2/game/anims.h"
+#else
+	#include "../../games/jka/game/anims.h"
+#endif
+
 extern stringID_table_t animTable [MAX_ANIMATIONS+1];
 
 #include "../qcommon/stringed_ingame.h"

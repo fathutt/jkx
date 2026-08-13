@@ -33,14 +33,38 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 //rww - added for ui ghoul2 models
 #define UI_SHARED_CPP
 
-// These two point out of the engine and into Jedi Academy's gamecode, and they
-// are written the long way on purpose. The interface is compiled into the
-// engine, so this is the engine reaching up a layer for an animation table -
-// the last such reach left, now that the contract lives in code/api. Putting
-// games/jka on this target's include path would have hidden it behind a short
-// name; leaving it spelled out keeps it visible until it is gone.
-#include "../../games/jka/game/anims.h"
-#include "../../games/jka/cgame/animtable.h"
+// These point out of the engine and into a game's code, and they are written the
+// long way on purpose. Putting games/* on this target's include path would hide
+// them behind a short name; spelled out, they stay visible until they are gone.
+//
+// The animation vocabulary is an asset-format contract, not a private detail of
+// the gamecode: .menu files name animations as strings, models/players/<skel>/
+// animation.cfg names them again, and the engine's menu code has to resolve
+// both. It is also *per game* - Jedi Academy's table begins with FACE_TALK0 and
+// Jedi Outcast's with BOTH_1CRUFTFORGIL, and the two enums agree on nothing
+// beyond some of the names.
+//
+// This used to include Jedi Academy's copy unconditionally, in both engines.
+// The mistake was invisible because the engine parses animation.cfg through the
+// same table it later looks names up in, so it stayed consistent with itself;
+// what it lost was every animation whose name exists in Jedi Outcast and not in
+// Jedi Academy, which is silently dropped at parse and then not found at use.
+//
+// This belongs in code/api. It is here, spelled out, until that move is made,
+// because moving it changes what the interface ratchet measures and that is a
+// decision about the shape of the tree rather than a bug fix.
+#ifdef JK2_MODE
+	#include "../../games/jk2/game/bg_public.h"
+	#include "../../games/jk2/game/anims.h"
+#else
+	#include "../../games/jka/game/bg_public.h"
+	#include "../../games/jka/game/anims.h"
+#endif
+#ifdef JK2_MODE
+	#include "../../games/jk2/cgame/animtable.h"
+#else
+	#include "../../games/jka/cgame/animtable.h"
+#endif
 
 #include "ui_shared.h"
 #include "menudef.h"
@@ -6982,19 +7006,27 @@ void UI_TalkingHead(itemDef_t *item)
 	}
 */
 
+	// By name rather than by enum constant, because the two games do not have
+	// the same face animations: Jedi Outcast has FACE_TALK1 through FACE_TALK4
+	// and no FACE_TALK0 at all. A name that a game does not have resolves to
+	// -1, which is the value this function already treats as "play nothing".
+	const int iFaceTalk1 = GetIDForString( animTable, "FACE_TALK1" );
+	const int iFaceTalk4 = GetIDForString( animTable, "FACE_TALK4" );
+	const int iFaceTalk0 = GetIDForString( animTable, "FACE_TALK0" );
+
 	if (s_entityWavVol[0] > 0)	// if we aren't talking, then it will be 0, -1 for talking but paused
 	{
-		anim = FACE_TALK1 + s_entityWavVol[0]-1;
-		if( anim > FACE_TALK4 )
+		anim = iFaceTalk1 + s_entityWavVol[0]-1;
+		if( anim > iFaceTalk4 )
 		{
-			anim = FACE_TALK4;
+			anim = iFaceTalk4;
 		}
 		// reset timers so we don't start right away after talking
 		facial_timer = DC->realTime + Q_flrand(2000.0, 7000.0);
 	}
 	else if (s_entityWavVol[0] == -1)
 	{// talking, but silent
-		anim = FACE_TALK0;
+		anim = iFaceTalk0;
 		// reset timers so we don't start right away after talking
 		facial_timer = DC->realTime + Q_flrand(2000.0, 7000.0);
 	}
