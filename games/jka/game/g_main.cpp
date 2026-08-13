@@ -651,7 +651,12 @@ void G_InitCvars( void ) {
 	g_inactivity = gi.cvar ("g_inactivity", "0", 0);
 	g_debugMove = gi.cvar ("g_debugMove", "0", CVAR_CHEAT );
 	g_debugDamage = gi.cvar ("g_debugDamage", "0", CVAR_CHEAT );
-	g_ICARUSDebug = gi.cvar( "g_ICARUSDebug", "0", CVAR_CHEAT );
+	// Level 1 is WL_ERROR, and DebugPrint drops everything above the level this
+	// holds - so at 0 the script system said nothing at all, including "the
+	// script for this entity could not be loaded". The entity then simply never
+	// does anything, which is indistinguishable from a level designed that way.
+	// Errors are not debugging output; the quieter levels still are.
+	g_ICARUSDebug = gi.cvar( "g_ICARUSDebug", "1", CVAR_CHEAT );
 	g_timescale = gi.cvar( "timescale", "1", 0 );
 	g_npcdebug = gi.cvar( "g_npcdebug", "0", 0 );
 	g_navSafetyChecks = gi.cvar( "g_navSafetyChecks", "0", 0 );

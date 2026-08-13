@@ -7774,7 +7774,11 @@ void CQuake3GameInterface::RunScript( const gentity_t *pEntity, const char *strS
 	{
 		// If could not be loaded, leave!
 		case SCRIPT_COULDNOTREGISTER:
-			DebugPrint( WL_WARNING, "RunScript: Script was not found and could not be loaded!!! %s\n", strScriptName);
+			// WL_WARNING here against WL_ERROR in PrecacheScript for the same
+			// failure of the same function. A script that cannot be loaded when
+			// something asks to run it is the more serious of the two: the
+			// behaviour was wanted right now and will not happen.
+			DebugPrint( WL_ERROR, "RunScript: Script was not found and could not be loaded!!! %s\n", strScriptName);
 			return;
 
 		// We loaded the script and registered it, so run it!
@@ -11296,7 +11300,9 @@ void	CQuake3GameInterface::PrecacheScript( const char *name )
 				return;
 			}
 			Quake3Game()->DebugPrint( IGameInterface::WL_ERROR, "PrecacheScript: Failed to load %s!\n", newname );
-			assert(SCRIPT_COULDNOTREGISTER);
+			// There was an assert(SCRIPT_COULDNOTREGISTER) here. That enumerator is
+			// 2, so the assertion read as a check on the failure it sits inside and
+			// was in fact assert(2) - true in every build that ever ran it.
 			return;
 		case SCRIPT_ALREADYREGISTERED:
 			return;

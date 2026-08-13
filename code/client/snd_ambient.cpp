@@ -820,30 +820,41 @@ void AS_ParseSets( void )
 
 	AS_Init();
 
-	//Parse all the sets
+	// The file named here is not sound. It is a small language describing which
+	// waves make up each ambient set and how often they play, so a missing file
+	// costs the player the background layer of a level and nothing else. It used
+	// to be ERR_FATAL, which meant an installation with its data in the wrong
+	// place died here rather than in the menu where the message could be read.
+	// The compiled-in default is the empty set group AS_Init just built: every
+	// lookup misses, and every miss is silence.
 	if ( AS_ParseFile( AMBIENT_SET_FILENAME, aSets ) == qfalse )
 	{
-		Com_Error ( ERR_FATAL, S_COLOR_RED"ERROR: Couldn't load ambient sound sets from %s", AMBIENT_SET_FILENAME );
+		Com_Printf( S_COLOR_YELLOW"WARNING: no ambient sound sets in %s - levels will play no ambient audio\n",
+			AMBIENT_SET_FILENAME );
+		return;
 	}
 
 	//Com_Printf( "AS_ParseFile: Loaded %d of %d ambient set(s)\n", pMap.size(), numSets );
 
-	int iErrorsOccured = 0;
+	// A set the map asks for that the file does not define is a hole in the data,
+	// and the consequence of the hole is that one soundscape is silent. Being
+	// thrown out of the level is a strictly worse outcome than that, so this
+	// names every missing set once and carries on.
+	int iMissing = 0;
 	for (namePrecache_m::iterator it = pMap->begin(); it != pMap->end(); ++it)
 	{
 		const char* str = (*it).first.c_str();
 		ambientSet_t *aSet = aSets->GetSet( str );
 		if (!aSet)
 		{
-			// I print these red instead of yellow because they're going to cause an ERR_DROP if they occur
-			Com_Printf( S_COLOR_RED"ERROR: AS_ParseSets: Unable to find ambient soundset \"%s\"!\n",str);
-			iErrorsOccured++;
+			Com_Printf( S_COLOR_YELLOW"WARNING: ambient soundset \"%s\" is not in %s\n", str, AMBIENT_SET_FILENAME );
+			iMissing++;
 		}
 	}
 
-	if (iErrorsOccured)
+	if (iMissing)
 	{
-		Com_Error( ERR_DROP, "....%d missing sound sets! (see above)\n", iErrorsOccured);
+		Com_Printf( S_COLOR_YELLOW"WARNING: %d ambient set(s) missing (see above) - those areas will be silent\n", iMissing );
 	}
 
 //	//Done with the precache info, it will be rebuilt on a restart

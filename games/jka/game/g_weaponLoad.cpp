@@ -1476,9 +1476,19 @@ void WP_LoadWeaponParms (void)
 
 	len = gi.FS_ReadFile("ext_data/weapons.dat",(void **) &buffer);
 
+	// The loop below fills in six damage fields and nothing else, so this is not
+	// a table with defaults - it is a table with six defaults. Rate of fire,
+	// range, ammo index, icons and missile models all come from the file, and a
+	// weapon whose fireTime is zero fires every frame. There is nothing to fall
+	// back on, so say what is missing and where it comes from instead of naming
+	// the path and stopping.
 	if (len == -1)
 	{
-		Com_Error(ERR_FATAL,"Cannot find ext_data/weapons.dat!\n");
+		Com_Error(ERR_FATAL,
+			"ext_data/weapons.dat is missing.\n"
+			"It is the weapon table - rate of fire, range, ammo, icons and models -\n"
+			"and the game has no compiled-in copy of it. It ships inside the retail\n"
+			"assets, so check that fs_basepath points at an installation of Jedi Academy.");
 	}
 
 	// initialise the data area

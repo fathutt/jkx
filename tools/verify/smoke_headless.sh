@@ -111,6 +111,19 @@ if [ "${JKX_SMOKE_NO_SHADERS:-0}" = "1" ]; then
     JKX_SMOKE_PLAIN=1
     export JKX_SMOKE_PLAIN
 fi
+
+# The sound subsystem has never been started by this bench: every run so far has
+# passed s_initsound 0, so a whole client subsystem - mixer, codecs, ambient sets,
+# dynamic music - was outside everything it checks. SDL's dummy audio driver gives
+# us a device that consumes samples and produces nothing, which is enough to run
+# the code. The fixture deliberately has no sound/sound.txt, so this also exercises
+# the missing-ambient-sets path.
+SOUND_STEP=( +set s_initsound 0 )
+if [ "${JKX_SMOKE_SOUND:-0}" = "1" ]; then
+    SOUND_STEP=( +set s_initsound 1 )
+    export SDL_AUDIODRIVER=dummy
+fi
+
 cp "$ENGINE" "$RUN/"
 [ -n "$RENDERER" ] && cp "$RENDERER" "$RUN/"
 
@@ -426,7 +439,7 @@ set +e
   VK_ICD_FILENAMES="${VK_ICD_FILENAMES:-/usr/share/vulkan/icd.d/lvp_icd.json}" \
   timeout -k 10 "${JKX_SMOKE_TIMEOUT:-600}" "./$(basename "$ENGINE")" \
       +set fs_basepath "$RUN" +set fs_homepath "$RUN/home" \
-      +set s_initsound 0 +set com_errorDialog 0 +set con_notifytime 0 \
+      "${SOUND_STEP[@]}" +set com_errorDialog 0 +set con_notifytime 0 \
       +set cg_hudFiles ui/jkx_hud.txt +set g_char_model jkx \
       +set helpUsObi 1 +set r_drawfog 0 \
       "${SET_STEP[@]}" \
@@ -487,6 +500,14 @@ require 'selected presentation mode'
 require 'Common Initialization Complete'
 if [ "${JKX_SMOKE_NO_SHADERS:-0}" = "1" ]; then
     require 'no .shader files found'
+fi
+if [ "${JKX_SMOKE_SOUND:-0}" = "1" ]; then
+    # The device opened. SNDDMA_Init prints this only after SDL_OpenAudioDevice
+    # returned a handle, so a driver that failed to come up would not reach it.
+    require 'SDL audio driver is "dummy"'
+    # And the ambient set language, absent from the fixture, is a warning rather
+    # than the ERR_FATAL it was: the run has to get past it to reach the map.
+    require 'no ambient sound sets in sound/sound.txt'
 fi
 require 'Wrote screenshots/jkx_smoke.tga'
 [ "${JKX_SMOKE_PLAIN:-0}" = "1" ] || require 'Wrote screenshots/jkx_console.tga'

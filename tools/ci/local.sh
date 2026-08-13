@@ -274,9 +274,11 @@ stage_fog() {
 # The engine with no material definitions at all - which is what an installation
 # with its game data in the wrong place looks like. It was a three-word fatal
 # error until now, so this stage is asserting that starting and explaining is
-# possible, not that the picture is right.
+# possible, not that the picture is right. Sound is on here for the same reason:
+# the fixture has no sound/sound.txt either, and that used to be ERR_FATAL.
 stage_noassets() {
     JKX_SMOKE_NO_SHADERS=1 \
+    JKX_SMOKE_SOUND=1 \
     JKX_SMOKE_NO_VALIDATION=1 \
     JKX_SMOKE_DISPLAY="${JKX_SMOKE_NOASSETS_DISPLAY:-:90}" \
         bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
@@ -320,9 +322,15 @@ stage_smokesave() {
 # what it freed, which is a different accounting from the one LeakSanitizer does,
 # and the noise would bury the errors worth reading. The validation layer is off
 # too - one slow thing at a time, and the release run above already ran it.
+#
+# Sound is on here and nowhere else in the fast stages. Every run before this one
+# passed s_initsound 0, so the mixer, the codecs and the ambient set code had
+# never executed under a sanitizer at all - which is the cheapest place to look
+# at a subsystem the bench has been walking past.
 stage_smokesan() {
     JKX_SMOKE_DISPLAY="${JKX_SMOKE_DISPLAY:-:98}" \
     JKX_SMOKE_NO_VALIDATION=1 \
+    JKX_SMOKE_SOUND=1 \
     ASAN_OPTIONS=detect_leaks=0 \
     UBSAN_OPTIONS=print_stacktrace=1 \
         bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/san"

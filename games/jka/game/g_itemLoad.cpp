@@ -694,7 +694,21 @@ void IT_LoadItemParms (void)
 {
 	char *buffer;
 
-	gi.FS_ReadFile("ext_data/items.dat",(void **) &buffer);
+	// bg_itemlist is declared empty and filled entirely from this file, so an
+	// absent file leaves every item without a classname. Nothing checked: the
+	// NULL buffer went to COM_Parse and the game crashed, or survived long enough
+	// for cgame to say "Need to update Items.dat!" about a table that was never
+	// read. There is no compiled-in item list to fall back on.
+	int len = gi.FS_ReadFile("ext_data/items.dat",(void **) &buffer);
+
+	if (len == -1)
+	{
+		Com_Error(ERR_FATAL,
+			"ext_data/items.dat is missing.\n"
+			"It is the item table - every pickup's classname, model, icon and name -\n"
+			"and the game has no compiled-in copy of it. It ships inside the retail\n"
+			"assets, so check that fs_basepath points at an installation of Jedi Academy.");
+	}
 
 	IT_ParseParms(buffer);
 

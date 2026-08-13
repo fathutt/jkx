@@ -1384,7 +1384,21 @@ void WP_LoadWeaponParms (void)
 {
 	char *buffer;
 
-	gi.FS_ReadFile("ext_data/weapons.dat",(void **) &buffer);
+	int len = gi.FS_ReadFile("ext_data/weapons.dat",(void **) &buffer);
+
+	// There was no check here at all. FS_ReadFile sets the buffer to NULL when
+	// the file is not there, WP_ParseParms hands that NULL straight to COM_Parse,
+	// and the game dereferences it - so the symptom of a misplaced installation
+	// was a crash with no message. Jedi Academy checked and said six words; both
+	// now say the same thing, and say what the file is.
+	if (len == -1)
+	{
+		Com_Error(ERR_FATAL,
+			"ext_data/weapons.dat is missing.\n"
+			"It is the weapon table - rate of fire, range, ammo, icons and models -\n"
+			"and the game has no compiled-in copy of it. It ships inside the retail\n"
+			"assets, so check that fs_basepath points at an installation of Jedi Outcast.");
+	}
 
 	// initialise the data area
 	memset(weaponData, 0, sizeof(weaponData));
