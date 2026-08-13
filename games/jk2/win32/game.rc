@@ -72,12 +72,12 @@ BEGIN
         BEGIN
             VALUE "Comments", "Raven Software"
             VALUE "CompanyName", "Activision Inc"
-            VALUE "FileDescription", "OpenJK JK2 Mode DLL"
+            VALUE "FileDescription", "JKX: Jedi Outcast gamecode"
             VALUE "FileVersion", VERSION_STRING
-            VALUE "InternalName", "jk2 game.dll"
+            VALUE "InternalName", "jk2game"
             VALUE "LegalCopyright", "Copyright (C) 2003"
-            VALUE "OriginalFilename", "jk2gamex86.dll"
-            VALUE "ProductName", "OpenJK Singleplayer"
+            VALUE "OriginalFilename", "jk2gamex86_64.dll"
+            VALUE "ProductName", "JKX"
             VALUE "ProductVersion", VERSION_STRING
         END
     END

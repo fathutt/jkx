@@ -51,16 +51,16 @@ fi
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ARCH="$(uname -m)"
 
-# Which of the two games. They are the same engine built twice - jkx_jo is
+# Which of the two games. They are the same engine built twice - jkx_jk2 is
 # code/ with -DJK2_MODE plus games/jk2/game - so the second one is not a copy of
 # this test, it is a second configuration of the same code. Enough of it differs
 # to be worth running: the string packages, the whole of games/jk2/cgame, and
 # every JK2_MODE branch in shared code.
-GAME_ID="${JKX_SMOKE_GAME:-ja}"
+GAME_ID="${JKX_SMOKE_GAME:-jka}"
 case "$GAME_ID" in
-    ja) ENGINE="$BUILD/jkx_ja.$ARCH"; GAME="$BUILD/games/jka/game/jagame$ARCH.so" ;;
-    jo) ENGINE="$BUILD/jkx_jo.$ARCH"; GAME="$BUILD/games/jk2/game/jospgame$ARCH.so" ;;
-    *)  echo "JKX_SMOKE_GAME must be ja or jo, not $GAME_ID" >&2; exit 2 ;;
+    jka) ENGINE="$BUILD/jkx_jka.$ARCH"; GAME="$BUILD/games/jka/game/jkagame$ARCH.so" ;;
+    jk2) ENGINE="$BUILD/jkx_jk2.$ARCH"; GAME="$BUILD/games/jk2/game/jk2game$ARCH.so" ;;
+    *)  echo "JKX_SMOKE_GAME must be jka or jk2, not $GAME_ID" >&2; exit 2 ;;
 esac
 
 RENDERER="$BUILD/code/rd-vulkan/rdsp-vulkan_$ARCH.so"
@@ -636,7 +636,7 @@ SHOTS+=( "jkx_inmap 20" )
 # itself out of gfx/hud/* rather than through the two menus this fixture
 # provides, so those two fills are not in its frame and their absence says
 # nothing.
-if [ "$GAME_ID" = "ja" ]; then
+if [ "$GAME_ID" = "jka" ]; then
     HUD_SHOTS=( jkx_inmap )
 fi
 if [ "${JKX_SMOKE_SAVELOAD:-0}" = "1" ]; then
@@ -647,7 +647,7 @@ if [ "${JKX_SMOKE_SAVELOAD:-0}" = "1" ]; then
     # Backlog section 21. Raise this to 100 when that is fixed; it sits here so
     # that a blank frame or a crash still fails.
     SHOTS+=( "jkx_loaded 20" )
-    if [ "$GAME_ID" = "ja" ]; then
+    if [ "$GAME_ID" = "jka" ]; then
         HUD_SHOTS+=( jkx_loaded )
     fi
 fi

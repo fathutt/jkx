@@ -322,8 +322,8 @@ jobs:
           cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache \
             -DBuildRdVulkan=ON
-          cmake --build build --target jkx_ja.x86_64 jagamex86_64 \
-            jkx_jo.x86_64 jospgamex86_64 rdsp-vulkan_x86_64 --parallel
+          cmake --build build --target jkx_jka.x86_64 jkagamex86_64 \
+            jkx_jk2.x86_64 jk2gamex86_64 rdsp-vulkan_x86_64 --parallel
 
       # No GPU and no retail assets, and neither is needed to answer what this
       # asks: does the engine still draw frames on this renderer, and does the
@@ -343,13 +343,13 @@ jobs:
           path: jkx_smoke.tga
           if-no-files-found: ignore
 
-      # The other game: jkx_jo is code/ built with -DJK2_MODE against
+      # The other game: jkx_jk2 is code/ built with -DJK2_MODE against
       # games/jk2/game. Half the project had nothing looking at it until this
       # step existed, and the first run of it found a new[] paired with delete
       # that corrupted the heap on every JK2 shutdown.
       - name: The same frames, as Jedi Outcast
         env:
-          JKX_SMOKE_GAME: jo
+          JKX_SMOKE_GAME: jk2
           JKX_SMOKE_DISPLAY: ':96'
           JKX_SMOKE_NO_VALIDATION: '1'
         run: bash tools/verify/smoke_headless.sh build
@@ -363,7 +363,7 @@ jobs:
             -DJKX_ENABLE_ASAN=ON -DJKX_ENABLE_UBSAN=ON \
             -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache \
             -DBuildRdVulkan=ON -DBuildJK2Engine=OFF -DBuildJK2Game=OFF
-          cmake --build build-san --target jkx_ja.x86_64 jagamex86_64 \
+          cmake --build build-san --target jkx_jka.x86_64 jkagamex86_64 \
             rdsp-vulkan_x86_64 --parallel
 
       - name: The same frames, under the sanitizers

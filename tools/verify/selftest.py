@@ -176,8 +176,8 @@ def test_binary() -> None:
     check(verify.find_binary(game, None) == game / "eternaljk.x86_64.exe",
           "an engine of ours is preferred over the retail executables")
 
-    (game / "jkx_ja.x86_64.exe").write_text("", encoding="ascii")
-    check(verify.find_binary(game, None) == game / "jkx_ja.x86_64.exe",
+    (game / "jkx_jka.x86_64.exe").write_text("", encoding="ascii")
+    check(verify.find_binary(game, None) == game / "jkx_jka.x86_64.exe",
           "JKX wins over EternalJK when both are present")
 
     explicit = game / "custom.exe"
@@ -223,7 +223,7 @@ def test_renderer_present() -> None:
     # A build kept elsewhere, with --binary pointing into it, ships its own copy.
     build = tmp / "build"
     build.mkdir()
-    other = build / "jkx_ja.x86_64"
+    other = build / "jkx_jka.x86_64"
     other.write_text("", encoding="ascii")
     (build / "rd-vulkan_x86_64.so").write_text("", encoding="ascii")
     check(len(verify.renderer_libraries(game, other)) == 2,
@@ -425,7 +425,7 @@ def test_intermittent_crash_triage() -> None:
     tmp = Path(tempfile.mkdtemp())
 
     class Args:
-        binary = "jkx_ja.x86_64.exe"
+        binary = "jkx_jka.x86_64.exe"
         resolved_game = "/games/GameData"
         map = "mp/ffa3"
         runs = 3
@@ -462,7 +462,7 @@ def test_trace_timings_are_flagged() -> None:
     tmp = Path(tempfile.mkdtemp())
 
     class Args:
-        binary = "jkx_ja.x86_64.exe"
+        binary = "jkx_jka.x86_64.exe"
         resolved_game = "/games/GameData"
         map = "mp/ffa3"
         runs = 3
@@ -522,7 +522,7 @@ def test_crash_stack() -> None:
     tmp = Path(tempfile.mkdtemp())
 
     class Args:
-        binary = "jkx_ja.x86_64.exe"
+        binary = "jkx_jka.x86_64.exe"
         resolved_game = "/games/GameData"
         map = "mp/ffa3"
         runs = 1
@@ -563,7 +563,7 @@ def test_fault_handler_reported() -> None:
     tmp = Path(tempfile.mkdtemp())
 
     class Args:
-        binary = "jkx_ja.x86_64.exe"
+        binary = "jkx_jka.x86_64.exe"
         resolved_game = "/games/GameData"
         map = "mp/ffa3"
         runs = 1
@@ -622,7 +622,7 @@ def test_report() -> None:
     tmp = Path(tempfile.mkdtemp())
 
     class Args:
-        binary = "jkx_ja.x86_64"
+        binary = "jkx_jka.x86_64"
         resolved_game = "/games/GameData"
         map = "mp/ffa3"
         runs = 3
@@ -786,7 +786,7 @@ def test_end_to_end() -> None:
     game = tmp / "Jedi Academy"
     (game / "base").mkdir(parents=True)
 
-    engine = game / "jkx_ja.x86_64"
+    engine = game / "jkx_jka.x86_64"
     engine.write_text(FAKE_ENGINE, encoding="ascii")
     engine.chmod(0o755)
     (game / "rd-vulkan_x86_64.so").write_text("", encoding="ascii")

@@ -224,7 +224,7 @@ jobs:
           cp pak/shaders.pak "$tree/base/shaders.pak"
           while IFS= read -r gamedir; do
               cp pak/shaders.pak "$gamedir/shaders.pak"
-          done < <(find "$tree" -mindepth 2 -maxdepth 2 \( -name 'jagame*' -o -name 'jospgame*' \) -printf '%h\n' | sort -u)
+          done < <(find "$tree" -mindepth 2 -maxdepth 2 \( -name 'jkagame*' -o -name 'jk2game*' \) -printf '%h\n' | sort -u)
 
           # The renderer already ships under a name of our own - rdsp-vulkan_
           # rather than upstream's rd-vulkan_ - so a package unpacked over an

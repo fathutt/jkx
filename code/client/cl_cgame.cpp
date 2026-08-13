@@ -71,9 +71,9 @@ qboolean CL_InitCGameVM( void *gameLibrary )
 
 	if ( !cgvm.entryPoint || !dllEntry ) {
 #ifdef JK2_MODE
-		const char *gamename = "jospgame";
+		const char *gamename = "jk2game";
 #else
-		const char *gamename = "jagame";
+		const char *gamename = "jkagame";
 #endif
 
 		Com_Printf( "CL_InitCGameVM: client game entry point not found in %s" ARCH_STRING DLL_EXT ": %s\n",

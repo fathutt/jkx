@@ -239,7 +239,7 @@ endif()
 #
 #=============================================================================
 # ${Architecture} must match ARCH_STRING in q_platform.h,
-# and is used in DLL names (jagamex86.dll, jagamex86.dylib, jagamei386.so).
+# and is used in DLL names (jkagamex86.dll, jkagamex86.dylib, jkagamei386.so).
 if(WIN32)
 	set(X86 ON)
 	if(CMAKE_SIZEOF_VOID_P MATCHES "8")
@@ -287,8 +287,8 @@ endif()
 # Binary names
 #
 #=============================================================================
-set(EngineJKA "jkx_ja.${Architecture}")
-set(JKAGame "jagame${Architecture}")
+set(EngineJKA "jkx_jka.${Architecture}")
+set(JKAGame "jkagame${Architecture}")
 set(RDVulkanRenderer "rdsp-vulkan_${Architecture}")
 set(MPEngine "openjk.${Architecture}")
 set(MPDed "openjkded.${Architecture}")
@@ -296,8 +296,8 @@ set(MPGame "jampgame${Architecture}")
 set(MPCGame "cgame${Architecture}")
 set(MPUI "ui${Architecture}")
 set(MPRend2 "rd-rend2_${Architecture}")
-set(EngineJK2 "jkx_jo.${Architecture}")
-set(JK2Game "jospgame${Architecture}")
+set(EngineJK2 "jkx_jk2.${Architecture}")
+set(JK2Game "jk2game${Architecture}")
 set(AssetsPk3 "openjk-${Architecture}.pk3")
 # Library names
 set(MPBotLib "botlib")
@@ -360,7 +360,7 @@ if(MSVC)
 	# every frame in every report came out as "GetRefAPI+0x...", which is a
 	# number, not an answer:
 	#
-	#     0  0x00007ff6bbe0f699  jkx_ja.x86_64+0x9f699  GetRefAPI+0x4fc9
+	#     0  0x00007ff6bbe0f699  jkx_jka.x86_64+0x9f699  GetRefAPI+0x4fc9
 	#
 	# Two halves. The compiler has to emit the information, and the linker has
 	# to write the file.

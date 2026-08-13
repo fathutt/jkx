@@ -1,10 +1,16 @@
-# OpenJK "Jedi Outcast" Singleplayer Code #
+# Jedi Outcast gamecode
 
-This folder contains the partial source required to build the JK2 shared library.  Set BuildJK2SPGame to ON in the main CMakeLists.txt file in the root of the repository to the feature on.
+The single-player gamecode for Jedi Knight II: Jedi Outcast - game, cgame and
+its own copy of ICARUS. It builds into `jk2gameARCH`, which the engine loads
+from beside itself.
 
-Turn BuildJK2SPEngine and BuildJK2SPRdVanilla to ON to build the JK2 version of the engine with renderer.
+    -DBuildJK2Game=ON     this library
+    -DBuildJK2Engine=ON   the engine to run it, jkx_jk2
 
-Output will be openjo_sp.ARCH(.exe on windows) rdjosp-vanilla_ARCH.[dll/so/dylib] for the engine and renderer.
-These should go alongside in GameData next to jk2sp.
+Both are ON by default. The engine is not a second engine: it is code/ built
+with -DJK2_MODE, so the only thing in this directory is what the two games
+disagree about.
 
-The game binary jospgameARCH.[dll/so/dylib] should be placed in the "base" folder.  The original jk2gamex86.dll (Windows-x86) within the root GameData folder is no longer supported, same as with Jedi Academy's jagamex86.dll.
+The retail `jk2gamex86.dll` is not supported and cannot be, the same as Jedi
+Academy's - GAME_API_VERSION and the whole of game_import_t have moved out from
+under it. See code/api.

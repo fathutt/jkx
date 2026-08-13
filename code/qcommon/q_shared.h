@@ -84,21 +84,27 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 // Moving the name moves the directory. Anyone who has played this build before
 // this change will find their settings and saves under the old name and can move
 // the folder across; nothing reads both.
+//
+// The second pass over these took the SP out - there is one of each game here,
+// not a single-player half of one - and made the two games agree on what they
+// are called. The tree says jka and jk2 everywhere else now: games/jka,
+// games/jk2, JKADir, JK2Dir, BuildJKAGame. It used to say ja and jo here, which
+// is the same two games under two more names.
 #if JK2_MODE
-#define PRODUCT_NAME			"jkx_jo_sp"
+#define PRODUCT_NAME			"jkx_jk2"
 
-#define CLIENT_WINDOW_TITLE "JKX: Jedi Outcast (SP)"
+#define CLIENT_WINDOW_TITLE "JKX: Jedi Outcast"
 #define CLIENT_CONSOLE_TITLE "JKX Console (Outcast)"
-#define HOMEPATH_NAME_UNIX "jkxjo"
-#define HOMEPATH_NAME_WIN "JKXJO"
+#define HOMEPATH_NAME_UNIX "jkx_jk2"
+#define HOMEPATH_NAME_WIN "JKX_JK2"
 #define HOMEPATH_NAME_MACOSX HOMEPATH_NAME_WIN
 #else
-#define PRODUCT_NAME			"jkx_ja_sp"
+#define PRODUCT_NAME			"jkx_jka"
 
-#define CLIENT_WINDOW_TITLE "JKX: Jedi Academy (SP)"
+#define CLIENT_WINDOW_TITLE "JKX: Jedi Academy"
 #define CLIENT_CONSOLE_TITLE "JKX Console (Academy)"
-#define HOMEPATH_NAME_UNIX "jkx"
-#define HOMEPATH_NAME_WIN "JKX"
+#define HOMEPATH_NAME_UNIX "jkx_jka"
+#define HOMEPATH_NAME_WIN "JKX_JKA"
 #define HOMEPATH_NAME_MACOSX HOMEPATH_NAME_WIN
 #endif
 
