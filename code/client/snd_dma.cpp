@@ -1104,10 +1104,6 @@ void S_CIN_StopSound(sfxHandle_t sfxHandle)
 			SND_FreeSFXMem(ch->thesfx);	// heh, may as well...
 			ch->thesfx = NULL;
 			memset(&ch->MP3StreamHeader, 0, sizeof(MP3STREAM));
-			ch->bLooping = false;
-			ch->bProcessed = false;
-			ch->bPlaying = false;
-			ch->bStreaming = false;
 			break;
 		}
 	}
@@ -1973,127 +1969,16 @@ void S_Update_(void) {
 }
 
 
-int S_MP3PreProcessLipSync(channel_t *ch, short *data)
-{
-	int i;
-	int sample;
-	int sampleTotal = 0;
-
-	for (i = 0; i < 576; i += 100)
-	{
-		sample = LittleShort(data[i]);
-		sample = sample >> 8;
-		sampleTotal += sample * sample;
-	}
-
-	sampleTotal /= 6;
-
-	if (sampleTotal < ch->thesfx->fVolRange * s_lip_threshold_1->value)
-		sample = -1;
-	else if (sampleTotal < ch->thesfx->fVolRange * s_lip_threshold_2->value)
-		sample = 1;
-	else if (sampleTotal < ch->thesfx->fVolRange * s_lip_threshold_3->value)
-		sample = 2;
-	else if (sampleTotal < ch->thesfx->fVolRange * s_lip_threshold_4->value)
-		sample = 3;
-	else
-		sample = 4;
-
-	return sample;
-}
-
-
-void S_SetLipSyncs()
-{
-	int i;
-	unsigned int samples;
-	int currentTime, timePlayed;
-	channel_t *ch;
-#ifdef _DEBUG
-#ifdef _MSC_VER
-	char szString[256];
-#endif
-#endif
-
-#ifdef _WIN32
-	currentTime = timeGetTime();
-#else
-    // FIXME: alternative to timeGetTime ?
-    currentTime = 0;
-#endif
-
-	memset(s_entityWavVol, 0, sizeof(s_entityWavVol));
-
-	ch = s_channels + 1;
-	for (i = 1; i < s_numChannels; i++, ch++)
-	{
-		if ((!ch->thesfx)||(!ch->bPlaying))
-			continue;
-
-		if ( ch->entchannel == CHAN_VOICE || ch->entchannel == CHAN_VOICE_ATTEN || ch->entchannel == CHAN_VOICE_GLOBAL )
-		{
-			// Calculate how much time has passed since the sample was started
-			timePlayed = currentTime - ch->iStartTime;
-
-			if (ch->thesfx->eSoundCompressionMethod==ct_16)
-			{
-				// There is a new computed lip-sync value every 1000 samples - so find out how many samples
-				// have been played and lookup the value in the lip-sync table
-				samples = (timePlayed * 22050) / 1000;
-
-				if (ch->thesfx->lipSyncData == NULL)
-				{
-#ifdef _DEBUG
-#ifdef _MSC_VER
-					sprintf(szString, "Missing lip-sync info. for %s\n", ch->thesfx->sSoundName);
-					OutputDebugString(szString);
-#endif
-#endif
-				}
-
-				if ((ch->thesfx->lipSyncData) && (samples < (unsigned)ch->thesfx->iSoundLengthInSamples))
-				{
-					s_entityWavVol[ ch->entnum ] = ch->thesfx->lipSyncData[samples / 1000];
-
-//					Com_Printf("%s,  total samples = %d, current sample = %d, lip type = %d \n", ch->thesfx->sSoundName, ch->thesfx->iSoundLengthInSamples, samples, s_entityWavVol[ ch->entnum ] );
-					if ( s_show->integer == 3 )
-					{
-						Com_Printf( "(%i)%i %s vol = %i\n", ch->entnum, i, ch->thesfx->sSoundName, s_entityWavVol[ ch->entnum ] );
-					}
-				}
-			}
-			else
-			{
-				// MP3
-
-				// There is a new computed lip-sync value every 576 samples - so find out how many samples
-				// have been played and lookup the value in the lip-sync table
-				samples = (timePlayed * 22050) / 1000;
-
-				if (ch->thesfx->lipSyncData == NULL)
-				{
-#ifdef _DEBUG
-#ifdef _MSC_VER
-					sprintf(szString, "Missing lip-sync info. for %s\n", ch->thesfx->sSoundName);
-					OutputDebugString(szString);
-#endif
-#endif
-				}
-
-				if ((ch->thesfx->lipSyncData) && (samples < (unsigned)ch->thesfx->iSoundLengthInSamples))
-				{
-					s_entityWavVol[ ch->entnum ] = ch->thesfx->lipSyncData[(samples / 576) % 16];
-
-					if ( s_show->integer == 3 )
-					{
-						Com_Printf( "(%i)%i %s vol = %i\n", ch->entnum, i, ch->thesfx->sSoundName, s_entityWavVol[ ch->entnum ] );
-					}
-				}
-			}
-		}
-	}
-}
-
+// S_MP3PreProcessLipSync and S_SetLipSyncs lived here, and both were the
+// OpenAL half of lip synchronisation: S_SetLipSyncs read how long an AL source
+// had been playing and looked the amplitude up in a table that
+// S_MP3PreProcessLipSync had filled during decoding. Its only call site was
+// inside if (s_UseOpenAL), so removing that path left the two functions with no
+// callers - and channel_t::bPlaying, which the loop tested, was only ever set
+// true next to alSourcePlay.
+//
+// The live path is untouched: S_DoLipSynchs calls S_CheckAmplitude, which
+// measures the mixer's own output, and it runs every frame as it always has.
 
 /*
 ===============================================================================

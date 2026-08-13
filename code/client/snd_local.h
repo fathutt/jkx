@@ -75,7 +75,6 @@ typedef struct sfx_s {
 	float			fVolRange;				// used to set the highest volume this sample has at load time - used for lipsynching
 
 	// Open AL
-	char		*lipSyncData;
 
 	struct sfx_s	*next;					// only used because of hash table when registering
 } sfx_t;
@@ -125,15 +124,6 @@ typedef struct
 	int			iMP3SlidingDecodeWritePos;
 	int			iMP3SlidingDecodeWindowPos;
 
-
-	// Open AL specific
-	bool	bLooping;	// Signifies if this channel / source is playing a looping sound
-//	bool	bAmbient;	// Signifies if this channel / source is playing a looping ambient sound
-	bool	bProcessed;	// Signifies if this channel / source has been processed
-	bool	bStreaming;	// Set to true if the data needs to be streamed (MP3 or dialogue)
-	bool		bPlaying;		// Set to true when a sound is playing on this channel / source
-	int			iStartTime;		// Time playback of Source begins
-	int			lSlotID;		// ID of Slot rendering Source's environment (enables a send to this FXSlot)
 } channel_t;
 
 
