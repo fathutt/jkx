@@ -43,8 +43,8 @@ ENGINE = ("code/qcommon", "code/server", "code/client", "shared")
 # here has not changed: how much of the game side can the engine see.
 GAME = ("code/api", "code/game", "code/cgame", "code/ui", "code/icarus", "codeJK2")
 
-# shared/qcommon/safe/files.cpp includes game/g_shared.h under SP_GAME - that is,
-# when it is compiled into the game library rather than into the engine. It is
+# shared/qcommon/safe/files.cpp includes game/g_shared.h under JKX_GAME_MODULE - that
+# is, when it is compiled into the game library rather than into the engine. It is
 # one file built twice, not the engine reaching upwards, and counting it would
 # put the whole gamecode in the total and hide every real change underneath it.
 EXEMPT = ("shared/qcommon/safe/files.cpp",)

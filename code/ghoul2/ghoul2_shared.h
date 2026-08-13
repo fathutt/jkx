@@ -591,7 +591,7 @@ public:
 
 #ifdef RENDERER
 IGhoul2InfoArray &TheGhoul2InfoArray();
-#elif _JK2EXE
+#elif JKX_ENGINE
 IGhoul2InfoArray &_TheGhoul2InfoArray();
 #else
 IGhoul2InfoArray &TheGameGhoul2InfoArray();
@@ -605,7 +605,7 @@ class CGhoul2Info_v
 	{
 #ifdef RENDERER
 		return TheGhoul2InfoArray();
-#elif _JK2EXE
+#elif JKX_ENGINE
 		return _TheGhoul2InfoArray();
 #else
 		return TheGameGhoul2InfoArray();

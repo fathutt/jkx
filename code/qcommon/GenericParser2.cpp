@@ -28,7 +28,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 // qcommon/safe/memory.h, which had the same problem and had to be fixed first.
 #include "../qcommon/q_shared.h"
 
-#ifdef _JK2EXE
+#ifdef JKX_ENGINE
 	#include "../qcommon/qcommon.h"
 #endif
 

@@ -655,15 +655,7 @@ void BG_VehicleSetDefaults( vehicleInfo_t *vehicle )
 {
 	memset(vehicle, 0, sizeof(vehicleInfo_t));
 /*
-#if _JK2MP
-	if (!vehicle->name)
-	{
-		vehicle->name = (char *)BG_Alloc(1024);
-	}
-	strcpy(vehicle->name, "default");
-#else
 	vehicle->name = G_NewString( "default" );
-#endif
 
 	//general data
 	vehicle->type = VH_SPEEDER;				//what kind of vehicle

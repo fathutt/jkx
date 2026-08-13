@@ -21,7 +21,16 @@ if(NOT InOpenJK)
 	message(FATAL_ERROR "Use the top-level cmake script!")
 endif(NOT InOpenJK)
 
-set(SPGameDefines ${SharedDefines} "SP_GAME")
+# Defined when a game library is being compiled, as opposed to the engine. It
+# was called SP_GAME, which named the wrong thing: SP in this tree means three
+# different things, and only one of them is single-player. The other two are
+# spawn functions - SP_worldspawn, SP_trigger_push, two hundred of them - and
+# the STRIP string package, SP_GetStringText and the .sp files on disk. This
+# one was the odd one out, and the distinction it draws is engine or game
+# module, which has nothing to do with either.
+#
+# Its counterpart is JKX_ENGINE; see the note in code/CMakeLists.txt.
+set(SPGameDefines ${SharedDefines} "JKX_GAME_MODULE")
 set(SPGameIncludeDirectories
 	${SharedDir}
 	${SPDir}

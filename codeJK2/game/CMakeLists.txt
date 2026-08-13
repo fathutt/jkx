@@ -21,7 +21,7 @@ if(NOT InOpenJK)
 	message(FATAL_ERROR "Use the top-level cmake script!")
 endif(NOT InOpenJK)
 
-set(JK2SPGameDefines ${SharedDefines} "JK2_MODE" "SP_GAME")
+set(JK2SPGameDefines ${SharedDefines} "JK2_MODE" "JKX_GAME_MODULE")
 
 set(JK2SPGameIncludeDirectories
 	"${JK2SPDir}"

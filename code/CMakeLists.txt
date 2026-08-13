@@ -36,7 +36,17 @@ if(BuildSPEngine OR BuildJK2SPEngine)
 		set(SPEngineLibraries "winmm")
 	endif(WIN32)
 	# Defines
-	set(SPEngineDefines ${SharedDefines} "_JK2EXE") # it's called JK2EXE but it really just means Singleplayer Exe
+	# Defined when the engine executable is being compiled, as opposed to a game
+	# library. It was called _JK2EXE, and the comment sitting beside it here said
+	# "it's called JK2EXE but it really just means Singleplayer Exe" - a name that
+	# managed to be wrong twice over. It is set for both engines, Academy and
+	# Outcast alike, so the JK2 in it named the wrong game half the time; and the
+	# thing it distinguishes is not single-player from multiplayer, which this
+	# tree does not have, but the engine from the game module.
+	#
+	# It reads in shared/sys/sys_main.cpp, in sdl_icon.h and in ghoul2_shared.h -
+	# places where a reader has every reason to take "JK2" at face value.
+	set(SPEngineDefines ${SharedDefines} "JKX_ENGINE")
 
 	set(SPEngineIncludeDirectories
 		${SPEngineIncludeDirectories}

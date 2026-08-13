@@ -51,7 +51,7 @@ set(SPRDVulkanIncludeDirectories
 	${OpenJKLibDir}
 	)
 
-set(SPRDVulkanDefines ${SharedDefines} "RENDERER" "_JK2EXE" "VK_NO_PROTOTYPES")
+set(SPRDVulkanDefines ${SharedDefines} "RENDERER" "JKX_ENGINE" "VK_NO_PROTOTYPES")
 
 set(SPRDVulkanFiles
 	"${SPDir}/rd-vulkan/G2_gore_r2.cpp"

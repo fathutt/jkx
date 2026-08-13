@@ -59,7 +59,7 @@ namespace FS
 
 	// FileList only available in Client; Library exclusively uses FS_GetFileList(), which by supplying a buffer avoids dynamic allocations.
 	// TODO: investigate making FS_ListFiles available in Library Code?
-#if !defined( SP_GAME )
+#if !defined( JKX_GAME_MODULE )
 	class FileList
 	{
 		friend FileList ListFiles( const char*, const char* );

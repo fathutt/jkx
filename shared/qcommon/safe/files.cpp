@@ -1,6 +1,6 @@
 #include "files.h"
 
-#if defined( SP_GAME )
+#if defined( JKX_GAME_MODULE )
 # define GAME_INCLUDE // so centity_t is defined in g_shared.h (alternatively include g_public.h?)
 # include "game/g_shared.h" // gi
 #else
@@ -15,7 +15,7 @@ namespace FS
 	{
 		if( buffer )
 		{
-#if defined( SP_GAME )
+#if defined( JKX_GAME_MODULE )
 			gi.FS_FreeFile( buffer );
 #else
 			FS_FreeFile( buffer );
@@ -60,7 +60,7 @@ namespace FS
 	FileBuffer ReadFile( gsl::czstring path )
 	{
 		void* buffer;
-#if defined( SP_GAME )
+#if defined( JKX_GAME_MODULE )
 		const long size = gi.FS_ReadFile( path, &buffer );
 #else
 		const long size = FS_ReadFile( path, &buffer );
@@ -68,7 +68,7 @@ namespace FS
 		return size >= 0 ? FileBuffer{ buffer, size } : FileBuffer{};
 	}
 
-#if !defined( SP_GAME )
+#if !defined( JKX_GAME_MODULE )
 	//    FileList
 
 	FileList::FileList( char** files, int numFiles ) NOEXCEPT

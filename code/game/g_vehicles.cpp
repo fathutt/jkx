@@ -803,14 +803,12 @@ bool Eject( Vehicle_t *pVeh, bgEntity_t *pEnt, qboolean forceEject )
 		}
 	}
 
-/*#ifndef _JK2MP //rwwFIXMEFIXMEFIXME
-	if (ent->s.number<MAX_CLIENTS)
-	{
-		CG_ChangeWeapon(WP_NONE);
-	}
-	ent->client->ps.weapon = WP_NONE;
-	G_RemoveWeaponModels( ent );
-#endif*/
+	// Raven left a note here, commented out, marked FIXME three times over: on
+	// boarding a vehicle the rider's weapon should be put away - CG_ChangeWeapon
+	// to WP_NONE and G_RemoveWeaponModels. It was fenced off behind _JK2MP as
+	// well as commented out, so it was dead twice. The fence is gone; the note
+	// is worth keeping as a note, and whether the rider should holster is a
+	// question about the game rather than about the build.
 
 	parent = (gentity_t *)pVeh->m_pParentEntity;
 

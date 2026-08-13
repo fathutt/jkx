@@ -1,6 +1,6 @@
 #pragma once
 
-#ifdef _JK2EXE
+#ifdef JKX_ENGINE
 # include "qcommon/qcommon.h"
 #else
 # include "game/g_shared.h"
@@ -15,7 +15,7 @@ namespace Zone
 	{
 		inline void* Malloc( int iSize, memtag_t eTag, qboolean bZeroit = qfalse )
 		{
-#ifdef _JK2EXE
+#ifdef JKX_ENGINE
 			return Z_Malloc( iSize, eTag, bZeroit );
 #else
 			return gi.Malloc( iSize, eTag, bZeroit );
@@ -23,7 +23,7 @@ namespace Zone
 		}
 		inline int Free( void* pvAddress )
 		{
-#ifdef _JK2EXE
+#ifdef JKX_ENGINE
 			return Z_Free( pvAddress );
 #else
 			return gi.Free( pvAddress );

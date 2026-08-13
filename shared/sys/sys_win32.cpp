@@ -528,7 +528,7 @@ UnpackDLLResult Sys_UnpackDLL(const char *name)
 
 bool Sys_DLLNeedsUnpacking()
 {
-#if defined(_JK2EXE)
+#if defined(JKX_ENGINE)
 	return false;
 #else
 	return Cvar_VariableIntegerValue("sv_pure") != 0;

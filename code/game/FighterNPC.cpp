@@ -1180,18 +1180,10 @@ static void ProcessOrientCommands( Vehicle_t *pVeh )
 
 /*
 //NOTE: all this is redundant now since we have the FighterDamageRoutine func...
-#ifdef _JK2MP //...yeah. Need to send armor across net for prediction to work.
-	if ( isDead )
-#else
 	if ( pVeh->m_iArmor <= 0 )
-#endif
 	{//going to explode
 		//FIXME: maybe make it erratically jerk or spin or start and stop?
-#ifndef _JK2MP
 		if ( g_speederControlScheme->value > 0 || !rider || rider->s.number )
-#else
-		if (1)
-#endif
 		{
 			pVeh->m_ucmd.rightmove = Q_irand( -64, 64 );
 		}

@@ -158,7 +158,7 @@ void Sys_Init( void ) {
 
 	com_unfocused = Cvar_Get( "com_unfocused", "0", CVAR_ROM );
 	com_minimized = Cvar_Get( "com_minimized", "0", CVAR_ROM );
-#ifdef _JK2EXE
+#ifdef JKX_ENGINE
 	com_maxfps = Cvar_Get ("com_maxfps", "125", CVAR_ARCHIVE );
 #else
 	com_maxfps = Cvar_Get( "com_maxfps", "125", CVAR_ARCHIVE, "Maximum frames per second" );
@@ -376,7 +376,7 @@ void *Sys_LoadDll( const char *name, qboolean useSystemLib )
 	return NULL;
 }
 
-#if defined(MACOS_X) && !defined(_JK2EXE)
+#if defined(MACOS_X) && !defined(JKX_ENGINE)
 void *Sys_LoadMachOBundle( const char *name )
 {
 	if ( !FS_LoadMachOBundle(name) )
@@ -517,7 +517,7 @@ void *Sys_LoadLegacyGameDll( const char *name, VMMainProc **vmMain, SystemCallPr
 
 		if ( !libHandle )
 		{
-#if defined(MACOS_X) && !defined(_JK2EXE)
+#if defined(MACOS_X) && !defined(JKX_ENGINE)
 			//First, look for the old-style mac .bundle that's inside a pk3
 			//It's actually zipped, and the zipfile has the same name as 'name'
 			libHandle = Sys_LoadMachOBundle( name );
@@ -575,7 +575,7 @@ void *Sys_LoadSPGameDll( const char *name, GetGameAPIProc **GetGameAPI )
 
 	Com_sprintf (filename, sizeof(filename), "%s" ARCH_STRING DLL_EXT, name);
 
-#if defined(MACOS_X) && !defined(_JK2EXE)
+#if defined(MACOS_X) && !defined(JKX_ENGINE)
     //First, look for the old-style mac .bundle that's inside a pk3
     //It's actually zipped, and the zipfile has the same name as 'name'
     libHandle = Sys_LoadMachOBundle( filename );
@@ -650,7 +650,7 @@ void *Sys_LoadGameDll( const char *name, GetModuleAPIProc **moduleAPI )
 
 		if ( !libHandle )
 		{
-#if defined(MACOS_X) && !defined(_JK2EXE)
+#if defined(MACOS_X) && !defined(JKX_ENGINE)
 			//First, look for the old-style mac .bundle that's inside a pk3
 			//It's actually zipped, and the zipfile has the same name as 'name'
 			libHandle = Sys_LoadMachOBundle( name );
@@ -845,7 +845,7 @@ int main ( int argc, char* argv[] )
 		{
 			bool shouldSleep = false;
 
-#if !defined(_JK2EXE)
+#if !defined(JKX_ENGINE)
 			if ( com_dedicated->integer )
 			{
 				shouldSleep = true;

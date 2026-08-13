@@ -326,18 +326,10 @@ static void ProcessOrientCommands( Vehicle_t *pVeh )
 			//FIXME: or ramp up to max turnSpeed?
 			turnSpeed = 0.0f;
 		}
-#ifdef _JK2MP
-		if (rider->s.eType == ET_NPC)
-#else
 		if ( !rider || rider->NPC )
-#endif
 		{//help NPCs out some
 			turnSpeed *= 2.0f;
-#ifdef _JK2MP
-			if (parentPS->speed > 200.0f)
-#else
 			if ( parent->client->ps.speed > 200.0f )
-#endif
 			{
 				turnSpeed += turnSpeed * parentPS->speed/200.0f*0.05f;
 			}
@@ -381,21 +373,6 @@ static void AnimalTailSwipe(Vehicle_t* pVeh, gentity_t *parent, gentity_t *pilot
 	VectorSet(angles, 0, parent->currentAngles[YAW], 0);
 	VectorSet(lMins, parent->mins[0]-1, parent->mins[1]-1, 0);
 	VectorSet(lMaxs, parent->maxs[0]+1, parent->maxs[1]+1, 1);
-#ifdef _JK2MP
-	iRootBone = trap_G2API_AddBolt( parent->ghoul2, 0, "tail_01" );
-	iRootTail = trap_G2API_AddBolt( parent->ghoul2, 0, "tail_04" );
-
-	// Get the positions of the root of the tail and the tail end of it.
-	trap_G2API_GetBoltMatrix( parent->ghoul2, 0, iRootBone,
-				&boltMatrix, angles, parent->currentOrigin, level.time,
-				NULL, parent->modelScale );
-	BG_GiveMeVectorFromMatrix( &boltMatrix, ORIGIN, vRoot );
-
-	trap_G2API_GetBoltMatrix( parent->ghoul2, 0, iRootTail,
-				&boltMatrix, angles, parent->currentOrigin, level.time,
-				NULL, parent->modelScale );
-	BG_GiveMeVectorFromMatrix( &boltMatrix, ORIGIN, vTail );
-#else
 	iRootBone = gi.G2API_GetBoneIndex( &parent->ghoul2[parent->playerModel], "tail_01", qtrue );
 	iRootTail = gi.G2API_GetBoneIndex( &parent->ghoul2[parent->playerModel], "tail_04", qtrue );
 
@@ -409,18 +386,13 @@ static void AnimalTailSwipe(Vehicle_t* pVeh, gentity_t *parent, gentity_t *pilot
 				&boltMatrix, angles, parent->currentOrigin, (cg.time?cg.time:level.time),
 				NULL, parent->s.modelScale );
 	gi.G2API_GiveMeVectorFromMatrix( boltMatrix, ORIGIN, vTail );
-#endif
 
 	// Trace from the root of the tail to the very end.
 	G_VehicleTrace( &trace, vRoot, lMins, lMaxs, vTail, parent->s.number, MASK_NPCSOLID );
 	if ( trace.fraction < 1.0f )
 	{
 		if ( ENTITYNUM_NONE != trace.entityNum && g_entities[trace.entityNum].client &&
-#ifndef _JK2MP //no rancor in jk2mp (at least not currently)
 			g_entities[trace.entityNum].client->NPC_class != CLASS_RANCOR &&
-#else //and in mp want to check inuse
-			g_entities[trace.entityNum].inuse &&
-#endif
 			g_entities[trace.entityNum].client->NPC_class != CLASS_VEHICLE )
 		{
 			vec3_t pushDir;
@@ -436,35 +408,14 @@ static void AnimalTailSwipe(Vehicle_t* pVeh, gentity_t *parent, gentity_t *pilot
 			pushDir[YAW] = -pushDir[YAW];
 
 			// Smack this ho down.
-#ifdef _JK2MP
-			G_Sound( &g_entities[trace.entityNum], CHAN_AUTO, G_SoundIndex( "sound/chars/rancor/swipehit.wav" ) );
-#else
 			G_Sound( &g_entities[trace.entityNum], G_SoundIndex( "sound/chars/rancor/swipehit.wav" ) );
-#endif
 			G_Throw( &g_entities[trace.entityNum], pushDir, 50 );
 
 			if ( g_entities[trace.entityNum].health > 0 )
 			{
 				// Knock down and dish out some hurt.
 				gentity_t *hit = &g_entities[trace.entityNum];
-#ifdef _JK2MP
-				if (BG_KnockDownable(&hit->client->ps))
-				{
-					hit->client->ps.forceHandExtend = HANDEXTEND_KNOCKDOWN;
-					hit->client->ps.forceHandExtendTime = pm->cmd.serverTime + 1100;
-					hit->client->ps.forceDodgeAnim = 0; //this toggles between 1 and 0, when it's 1 we should play the get up anim
-
-					hit->client->ps.otherKiller = pilot->s.number;
-					hit->client->ps.otherKillerTime = level.time + 5000;
-					hit->client->ps.otherKillerDebounceTime = level.time + 100;
-
-					hit->client->ps.velocity[0] = pushDir[0]*80;
-					hit->client->ps.velocity[1] = pushDir[1]*80;
-					hit->client->ps.velocity[2] = 100;
-				}
-#else
 				G_Knockdown( hit, parent, pushDir, 300, qtrue );
-#endif
 				G_Damage( hit, parent, parent, NULL, NULL, iDamage, DAMAGE_NO_KNOCKBACK | DAMAGE_IGNORE_TEAM, MOD_MELEE );
 				//G_PlayEffect( pVeh->m_pVehicleInfo->explodeFX, parent->currentOrigin );
 			}// Not Dead
@@ -630,11 +581,7 @@ static void AnimateRiders( Vehicle_t *pVeh )
 	fSpeedPercToMax = parent->client->ps.speed / pVeh->m_pVehicleInfo->speedMax;
 
 /*	// Going in reverse...
-#ifdef _JK2MP //handled in pmove in mp
-	if (0)
-#else
 	if ( fSpeedPercToMax < -0.01f )
-#endif
 	{
 		Anim = BOTH_VT_WALK_REV;
 		iBlend = 600;

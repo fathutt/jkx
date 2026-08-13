@@ -608,11 +608,7 @@ void AnimateRiders( Vehicle_t *pVeh )
 	//fSpeedPercToMax = parentPS->speed / pVeh->m_pVehicleInfo->speedMax;
 
 /*	// Going in reverse...
-#ifdef _JK2MP
-	if ( pVeh->m_ucmd.forwardmove < 0 && !(pVeh->m_ulFlags & VEH_SLIDEBREAKING))
-#else
 	if ( fSpeedPercToMax < -0.018f && !(pVeh->m_ulFlags & VEH_SLIDEBREAKING))
-#endif
 	{
 		Anim = BOTH_VS_REV;
 		iBlend = 500;
