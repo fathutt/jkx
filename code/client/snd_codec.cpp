@@ -272,10 +272,39 @@ int S_CodecFrameCount( const void *pvData, int iDataLen )
 		return 0;
 	}
 
-	// For a constant bitrate file this is arithmetic. For a variable one with
-	// no Xing header dr_mp3 walks the frames, which costs a pass over the file
-	// but no decoding, and is still far cheaper than unpacking it.
-	const drmp3_uint64 iFrames = drmp3_get_pcm_frame_count( &dec );
+	// Every .mp3 the retail games ship carries a Xing header whose frame count
+	// is zero. dr_mp3 reads that header at init and believes it, so asking for
+	// the length gives zero, and a sound of zero length is one that does not
+	// load - which is what happened to all four hundred and eighty seven of
+	// them, including every line of dialogue.
+	//
+	// A file with no audio in it is not a file anyone shipped, so a zero here
+	// means the header is wrong rather than the file empty. Clearing the field
+	// puts dr_mp3 on the branch it takes when there is no header at all: a walk
+	// over the frames, which reads the headers without decoding and gets the
+	// real answer. The hand-written decoder this replaced never looked at Xing,
+	// which is why the defect arrived with us rather than being found earlier.
+	drmp3_uint64 iFrames;
+
+	if ( dec.totalPCMFrameCount == 0 ) {
+		dec.totalPCMFrameCount = DRMP3_UINT64_MAX;
+
+		// The walk counts every frame the encoder wrote, and the encoder wrote
+		// more than there is audio: a start-up delay at the front and padding to
+		// a whole frame at the back. dr_mp3 skips the delay whatever it knows
+		// about the file, but it can only drop the padding when it has a length
+		// to subtract it from - which here it does not. So the delay comes off
+		// and the padding stays, and this answers the same question the decode
+		// answers rather than one eleven hundred frames away from it.
+		iFrames = drmp3_get_pcm_frame_count( &dec );
+
+		const drmp3_uint64 iDelay = (drmp3_uint64)dec.delayInPCMFrames;
+		iFrames = ( iFrames > iDelay ) ? iFrames - iDelay : 0;
+	} else {
+		// A truthful header, so this is arithmetic and dr_mp3 does the trimming.
+		iFrames = drmp3_get_pcm_frame_count( &dec );
+	}
+
 	drmp3_uninit( &dec );
 
 	return (int)iFrames;
@@ -326,6 +355,16 @@ qboolean S_CodecStreamOpen( soundStream_t *pStream, const void *pvData, int iDat
 
 	if ( !drmp3_init_memory( &pStream->mp3, pvData, (size_t)iDataLen, &s_codecAlloc ) ) {
 		return qfalse;
+	}
+
+	// The same lying Xing header as in S_CodecFrameCount, and here it costs a
+	// length rather than a load: S_CodecStreamLengthSeconds reads this field, so
+	// every streamed line of dialogue would report as zero seconds long. Counted
+	// once, at open, because the walk restores the read position and nothing
+	// else in the stream's life is a good moment for a pass over the file.
+	if ( pStream->mp3.totalPCMFrameCount == 0 ) {
+		pStream->mp3.totalPCMFrameCount = DRMP3_UINT64_MAX;
+		pStream->mp3.totalPCMFrameCount = drmp3_get_pcm_frame_count( &pStream->mp3 );
 	}
 
 	pStream->codec		= CODEC_MP3;

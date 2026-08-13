@@ -335,6 +335,21 @@ int main( int argc, char **argv )
 		return 2;
 	}
 
+	// The same tone again, carrying a Xing header whose frame count says zero.
+	// Every .mp3 the retail games ship is like this, and the decoder reads that
+	// header and believes it - so the length came back as zero and the sound did
+	// not load. Four hundred and eighty seven of them in one run of the campaign,
+	// including every line of dialogue.
+	//
+	// It runs the whole fixture rather than just the count, because a length
+	// that has to be recovered by walking the frames is a length the streaming
+	// path reports too, and that is the half that decides how long a line of
+	// dialogue is on screen.
+	snprintf( sPath, sizeof( sPath ), "%s/tone_zerocount.mp3", psDir );
+	if ( RunFixture( sPath, CODEC_MP3 ) != 0 ) {
+		return 2;
+	}
+
 	if ( s_failures ) {
 		printf( "%d check(s) failed\n", s_failures );
 		return 1;
