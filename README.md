@@ -5,8 +5,8 @@ Vulkan 1.3.
 
 Forked from [OpenJK](https://github.com/JACoders/OpenJK) with the Vulkan renderer from
 [JKSunny/EternalJK](https://github.com/JKSunny/EternalJK) (`pbr` branch), which in turn derives from
-[Quake3e](https://github.com/ec-/Quake3e). Multiplayer is removed; the OpenGL renderers are on their
-way out; the game data stays untouched.
+[Quake3e](https://github.com/ec-/Quake3e). Multiplayer is removed; the OpenGL renderers are gone; the
+game data stays untouched.
 
 You need the original game files. This is an engine, not a game.
 
@@ -14,18 +14,20 @@ You need the original game files. This is an engine, not a game.
 
 ## Status
 
-Phase 0 of the plan.
-
 | | |
 |---|---|
-| Builds | JKA SP + JK2 SP engines, gamecode, and the legacy `rd-vanilla` renderer |
+| Builds | both engines and both game libraries, on Linux and Windows |
+| Renderer | Vulkan only. `rd-vanilla` and the runtime renderer loader are both gone |
 | Language | C++20, `-Wall -Wextra` |
 | Platforms | Windows x64, Linux x64 |
-| Vulkan renderer | Imported, **not yet buildable** — waiting on the cross-platform shader toolchain (phase 1) |
-| Multiplayer | Removed (~509k lines) |
+| Under test | both games reach a loaded map, draw a frame with a head-up display and quit, on every commit - with no GPU and no retail assets. See `tools/verify` |
+| Not yet checked on real hardware | the PBR lighting path. The software rasteriser CI runs on reports a Vulkan limit that switches it off, so it has never executed there |
 
-`rd-vanilla` is kept deliberately: it is the visual reference the Vulkan port is compared against, and
-it is deleted only once both campaigns are playable on Vulkan.
+The engine builds twice, once per game. It is the same code both times: `code/` with `-DJK2_MODE`
+selects Jedi Outcast, and the gamecode that comes with it is the only part that differs.
+
+    jkx_jka.x86_64  +  jkagamex86_64      Jedi Academy
+    jkx_jk2.x86_64  +  jk2gamex86_64      Jedi Outcast
 
 ---
 
@@ -40,25 +42,32 @@ cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build --parallel
 ```
 
+Shaders are compiled into `base/shaders.pak` when `glslc` is on the path - it ships with the Vulkan
+SDK. Without it the build still completes and the engine has no shaders to load, which it will say.
+
 ### Windows
 
 Visual Studio 2022, x64. Dependencies via vcpkg:
 
 ```
-vcpkg install sdl2:x64-windows libjpeg-turbo:x64-windows libpng:x64-windows zlib:x64-windows
+vcpkg install sdl2[core,vulkan]:x64-windows libjpeg-turbo:x64-windows libpng:x64-windows zlib:x64-windows
 cmake -B build -DCMAKE_TOOLCHAIN_FILE=<vcpkg>/scripts/buildsystems/vcpkg.cmake
 cmake --build build --config Release
 ```
 
-### Useful options
+### Options
+
+Everything is ON by default; these are for building less than all of it.
 
 | Option | Default | What it does |
 |---|---|---|
+| `BuildJKAEngine` / `BuildJKAGame` | `ON` | Jedi Academy: engine, gamecode |
+| `BuildJK2Engine` / `BuildJK2Game` | `ON` | Jedi Outcast: engine, gamecode |
+| `BuildRdVulkan` | `ON` | the renderer, which is linked into the engine rather than loaded |
+| `BuildTests` | `OFF` | the unit tests |
+| `JKX_BUILD_SHADERS` | auto | on when `glslc` is found |
 | `JKX_WARNINGS_AS_ERRORS` | `OFF` | `-Werror` / `/WX` |
-| `JKX_ENABLE_ASAN` | `OFF` | AddressSanitizer |
-| `JKX_ENABLE_UBSAN` | `OFF` | UndefinedBehaviorSanitizer |
-| `JKX_ENABLE_TSAN` | `OFF` | ThreadSanitizer |
-| `JKX_BUILD_VULKAN_RENDERER` | `OFF` | Vulkan renderer (needs the phase-1 shader toolchain) |
+| `JKX_ENABLE_ASAN` / `_UBSAN` / `_TSAN` | `OFF` | sanitizers |
 
 ---
 
@@ -70,17 +79,32 @@ The rule people trip over most:
 
 > **Rule 1 — code and comments are Latin-only. Cyrillic belongs in documentation.**
 
-Run the same gates CI runs, before pushing:
+Before pushing, run what CI runs:
 
 ```sh
-python3 tools/ci/check_ascii.py              # rule 1
-python3 tools/ci/check_layering.py .         # layer dependencies (ratchet)
-python3 tools/ci/check_vulkan_baseline.py    # Vulkan 1.3 feature baseline
-clang-format --dry-run --Werror <changed files>
+tools/ci/local.sh              # everything, thirteen stages, ~35 minutes cold
+tools/ci/local.sh policy       # just the gates, ~10 seconds
 ```
 
-`check_layering.py` is a ratchet: the tree starts with 44 inherited violations recorded in
-`tools/ci/layering-baseline.txt`. That file may shrink, never grow.
+`policy` is the one worth running constantly. It is seven checks, and each exists because something
+got through once:
+
+| Check | Refuses |
+|---|---|
+| `check_ascii.py` | non-Latin characters in code (rule 1) |
+| `check_layering.py` | a new include that points up a layer - engine into game, render into game |
+| `check_interface.py` | the engine seeing more of the gamecode than it does today |
+| `check_sources.py` | a source on disk that no CMake list builds, and project files for any build system that is not CMake |
+| `check_msvc.py` | declaration shapes that only MSVC accepts |
+| `check_commits.py` | a commit message that points at a conversation |
+| `actionlint` | broken workflows. **Install `shellcheck` too** - without it actionlint reads the YAML and skips every `run:` block, silently |
+
+Two of those are ratchets rather than gates: `check_layering.py` carries 25 inherited violations in
+`tools/ci/layering-baseline.txt` and `check_interface.py` carries a line count. Both files may shrink
+and never grow.
+
+The rest of `local.sh` is builds - Release, Debug, Windows cross, sanitizers - the unit tests, and six
+headless runs of the engine itself. The one thing it cannot cover is MSVC, which only GitHub has.
 
 ---
 
@@ -89,6 +113,8 @@ clang-format --dry-run --Werror <changed files>
 | Document | What it is |
 |---|---|
 | [`docs/CODING-STANDARDS.md`](docs/CODING-STANDARDS.md) | How we write code, and which defect each rule prevents |
+| [`code/api/README.md`](code/api/README.md) | What the engine and the games promise each other, and what does not belong there |
+| [`tools/verify/README.md`](tools/verify/README.md) | The headless bench: what it covers and what it has caught |
 
 The working documents - the backlog, the roadmaps, the phase reports and the
 upstream survey - are not in this repository. They were, and a copy of a document
@@ -103,20 +129,20 @@ Design documents are in Russian; code is not. See rule 1.
 ## Layout
 
 ```
-code/qcommon      engine core            code/rd-vulkan   Vulkan renderer (phase 1)
-code/client       client                 code/rd-common   shared renderer code
+code/qcommon      engine core            code/rd-vulkan   the renderer
+code/client       client                 code/rd-common   renderer code shared with the engine
 code/server       server                 code/ghoul2      skeletal animation
-code/api          the engine-game        code/ui          menus, compiled into the engine
-                  contract, three        code/icarus      scripting VM
-                  headers                shared/          platform, SDL, safe utilities
-games/jka/        JKA gameplay: game, cgame
-games/jk2/        JK2 gameplay: game, cgame, icarus
-tools/ci          policy checks
+code/api          what the engine and    code/ui          menus, compiled into the engine
+                  the games promise      code/icarus      scripting VM
+                  each other             shared/          platform, SDL, safe utilities
+games/jka/        Jedi Academy: game, cgame
+games/jk2/        Jedi Outcast: game, cgame, icarus
+tools/ci          the gates              tools/verify     the headless bench
 ```
 
-The `engine/ render/ game/` reorganisation described in the roadmap lands at the end of phase 2, once
-the Vulkan renderer is wired into the SP tree. Doing it earlier would make cherry-picking upstream
-renderer fixes needlessly painful.
+`code/api` is three headers and it is the whole of what the engine may see of a game. It was 13,139
+lines through 13 include sites when that was first measured, and `check_interface.py` is what keeps it
+from growing back.
 
 ---
 

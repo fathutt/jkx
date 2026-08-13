@@ -64,7 +64,6 @@ option(JKX_ENABLE_UBSAN       "Build with UndefinedBehaviorSanitizer" OFF)
 option(JKX_ENABLE_TSAN        "Build with ThreadSanitizer" OFF)
 # Vulkan renderer is imported but not yet buildable: the shader toolchain
 # (phase 1) must land first. Generated SPIR-V is deliberately not in git.
-option(JKX_BUILD_VULKAN_RENDERER "Build the Vulkan renderer (needs shader toolchain)" OFF)
 
 if(MSVC)
     add_compile_options(/utf-8 /permissive- /W4)
@@ -582,7 +581,13 @@ find_program(GLSLC_EXECUTABLE
     HINTS "$ENV{VULKAN_SDK}/bin" "$ENV{VULKAN_SDK}/Bin"
     DOC "glslc from shaderc (ships with the Vulkan SDK)")
 
-if(GLSLC_EXECUTABLE OR JKX_BUILD_VULKAN_RENDERER)
+# JKX_BUILD_VULKAN_RENDERER used to be the second half of this condition. It was
+# declared three hundred lines above with the help string "Build the Vulkan
+# renderer (needs shader toolchain)", which stopped being true when the renderer
+# became the only one and BuildRdVulkan became the option that decides. All it
+# did by the end was force the shaders on, and JKX_BUILD_SHADERS says that
+# without the misdirection.
+if(GLSLC_EXECUTABLE)
     set(JKX_SHADERS_DEFAULT ON)
 else()
     set(JKX_SHADERS_DEFAULT OFF)
