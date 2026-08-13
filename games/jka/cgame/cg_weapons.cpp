@@ -135,7 +135,7 @@ void CG_RegisterWeapon( int weaponNum ) {
 		{
 			//char	crap[50];
 			//Com_sprintf(crap, sizeof(crap), "_barrel%d.md3", i+1 );
-			//strcat ( path, crap );
+			//Q_strcat( path, crap );
 			Q_strcat( path, sizeof(path), va("_barrel%d.md3", i+1) );
 		}
 		else

@@ -1980,7 +1980,7 @@ void CG_CreateMiscEntFromGent(gentity_t *ent, const vec3_t scale, float zOff)
 	cgMiscEntData_t	*MiscEnt = &MiscEnts[NumMiscEnts++];
 	memset(MiscEnt, 0, sizeof(*MiscEnt));
 
-	strcpy(MiscEnt->model, ent->model);
+	Q_strncpyz(MiscEnt->model, ent->model);
 	VectorCopy(ent->s.angles,	MiscEnt->angles);
 	VectorCopy(scale,			MiscEnt->scale);
 	VectorCopy(ent->s.origin,	MiscEnt->origin);

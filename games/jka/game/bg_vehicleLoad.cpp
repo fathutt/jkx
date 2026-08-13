@@ -701,7 +701,7 @@ void BG_VehicleSetDefaults( vehicleInfo_t *vehicle )
 	{
 		vehicle->model = (char *)BG_Alloc(1024);
 	}
-	strcpy(vehicle->model, "models/map_objects/ships/swoop.md3");
+	Q_strncpyz(vehicle->model, "models/map_objects/ships/swoop.md3");
 
 	vehicle->modelIndex = 0;							//set internally, not until this vehicle is spawned into the level
 	vehicle->skin = NULL;								//what skin to use - if make it an NPC's primary model, don't need this?
@@ -1323,9 +1323,10 @@ void BG_VehWeaponLoadParms( void )
 			tempReadBuffer[len] = 0;
 
 			// Don't let it end on a } because that should be a stand-alone token.
-			if ( totallen && *(marker-1) == '}' )
+			if ( totallen && *(marker-1) == '}' && totallen + 1 < MAX_VEH_WEAPON_DATA_SIZE )
 			{
-				strcat( marker, " " );
+				marker[0] = ' ';	// one byte plus the terminator, inside the same bound
+				marker[1] = '\0';
 				totallen++;
 				marker++;
 			}
@@ -1333,7 +1334,8 @@ void BG_VehWeaponLoadParms( void )
 			if ( totallen + len >= MAX_VEH_WEAPON_DATA_SIZE ) {
 				Com_Error(ERR_DROP, "Vehicle Weapon extensions (*.vwp) are too large" );
 			}
-			strcat( marker, tempReadBuffer );
+			// the check above leaves room for len characters and the terminator
+			memcpy( marker, tempReadBuffer, len + 1 );
 			gi.FS_FCloseFile( f );
 
 			totallen += len;
@@ -1390,9 +1392,10 @@ void BG_VehicleLoadParms( void )
 			tempReadBuffer[len] = 0;
 
 			// Don't let it end on a } because that should be a stand-alone token.
-			if ( totallen && *(marker-1) == '}' )
+			if ( totallen && *(marker-1) == '}' && totallen + 1 < MAX_VEHICLE_DATA_SIZE )
 			{
-				strcat( marker, " " );
+				marker[0] = ' ';	// one byte plus the terminator, inside the same bound
+				marker[1] = '\0';
 				totallen++;
 				marker++;
 			}
@@ -1400,7 +1403,8 @@ void BG_VehicleLoadParms( void )
 			if ( totallen + len >= MAX_VEHICLE_DATA_SIZE ) {
 				Com_Error(ERR_DROP, "Vehicle extensions (*.veh) are too large" );
 			}
-			strcat( marker, tempReadBuffer );
+			// the check above leaves room for len characters and the terminator
+			memcpy( marker, tempReadBuffer, len + 1 );
 			gi.FS_FCloseFile( f );
 
 			totallen += len;
@@ -1427,44 +1431,8 @@ int BG_VehicleGetIndex( const char *vehicleName )
 	return (VEH_VehicleIndexForName( vehicleName ));
 }
 
-//We get the vehicle name passed in as modelname
-//with a $ in front of it.
-//we are expected to then get the model for the
-//vehicle and stomp over modelname with it.
-void BG_GetVehicleModelName(char *modelname)
-{
-	char *vehName = &modelname[1];
-	int vIndex = BG_VehicleGetIndex(vehName);
-	assert(modelname[0] == '$');
-
-	if (vIndex == VEHICLE_NONE)
-	{
-		Com_Error(ERR_DROP, "BG_GetVehicleModelName:  couldn't find vehicle %s", vehName);
-	}
-
-    strcpy(modelname, g_vehicleInfo[vIndex].model);
-}
-
-void BG_GetVehicleSkinName(char *skinname)
-{
-	char *vehName = &skinname[1];
-	int vIndex = BG_VehicleGetIndex(vehName);
-	assert(skinname[0] == '$');
-
-	if (vIndex == VEHICLE_NONE)
-	{
-		Com_Error(ERR_DROP, "BG_GetVehicleSkinName:  couldn't find vehicle %s", vehName);
-	}
-
-    if ( !g_vehicleInfo[vIndex].skin
-		|| !g_vehicleInfo[vIndex].skin[0] )
-	{
-		skinname[0] = 0;
-	}
-	else
-	{
-		strcpy(skinname, g_vehicleInfo[vIndex].skin);
-	}
-}
+// BG_GetVehicleModelName and BG_GetVehicleSkinName lived here. Both wrote an
+// unbounded string into a caller's buffer, neither was declared in any header,
+// and nothing in either game called them.
 
 

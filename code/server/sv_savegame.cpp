@@ -95,7 +95,7 @@ static const char *GetString_FailedToOpenSaveGame(const char *psFilename, qboole
 {
 	static char sTemp[256];
 
-	strcpy(sTemp,S_COLOR_RED);
+	Q_strncpyz(sTemp,S_COLOR_RED);
 
 #ifdef JK2_MODE
 	const char *psReference = bOpen ? "MENUS3_FAILED_TO_OPEN_SAVEGAME" : "MENUS3_FAILED_TO_CREATE_SAVEGAME";
@@ -103,7 +103,7 @@ static const char *GetString_FailedToOpenSaveGame(const char *psFilename, qboole
 	const char *psReference = bOpen ? "MENUS_FAILED_TO_OPEN_SAVEGAME" : "MENUS3_FAILED_TO_CREATE_SAVEGAME";
 #endif
 	Q_strncpyz(sTemp + strlen(sTemp), va( SE_GetString(psReference), psFilename),sizeof(sTemp));
-	strcat(sTemp,"\n");
+	Q_strcat(sTemp,"\n");
 	return sTemp;
 }
 

@@ -87,7 +87,7 @@ qboolean UI_ParseLiteral( const char **data, const char *string )
 	return qfalse;
 }
 
-qboolean UI_SaberParseParm( const char *saberName, const char *parmname, char *saberData )
+qboolean UI_SaberParseParm( const char *saberName, const char *parmname, char *saberData, size_t sizeSaberData )
 {
 	const char	*token;
 	const char	*value;
@@ -153,7 +153,7 @@ qboolean UI_SaberParseParm( const char *saberName, const char *parmname, char *s
 			{
 				continue;
 			}
-			strcpy( saberData, value );
+			Q_strncpyz( saberData, value, (int)sizeSaberData );
 			COM_EndParseSession(  );
 			return qtrue;
 		}
@@ -166,30 +166,30 @@ qboolean UI_SaberParseParm( const char *saberName, const char *parmname, char *s
 	return qfalse;
 }
 
-qboolean UI_SaberProperNameForSaber( const char *saberName, char *saberProperName )
+qboolean UI_SaberProperNameForSaber( const char *saberName, char *saberProperName, size_t sizeSaberProperName )
 {
-	return UI_SaberParseParm( saberName, "name", saberProperName );
+	return UI_SaberParseParm( saberName, "name", saberProperName, sizeSaberProperName );
 }
 
-qboolean UI_SaberModelForSaber( const char *saberName, char *saberModel )
+qboolean UI_SaberModelForSaber( const char *saberName, char *saberModel, size_t sizeSaberModel )
 {
-	return UI_SaberParseParm( saberName, "saberModel", saberModel );
+	return UI_SaberParseParm( saberName, "saberModel", saberModel, sizeSaberModel );
 }
 
-qboolean UI_SaberSkinForSaber( const char *saberName, char *saberSkin )
+qboolean UI_SaberSkinForSaber( const char *saberName, char *saberSkin, size_t sizeSaberSkin )
 {
-	return UI_SaberParseParm( saberName, "customSkin", saberSkin );
+	return UI_SaberParseParm( saberName, "customSkin", saberSkin, sizeSaberSkin );
 }
 
-qboolean UI_SaberTypeForSaber( const char *saberName, char *saberType )
+qboolean UI_SaberTypeForSaber( const char *saberName, char *saberType, size_t sizeSaberType )
 {
-	return UI_SaberParseParm( saberName, "saberType", saberType );
+	return UI_SaberParseParm( saberName, "saberType", saberType, sizeSaberType );
 }
 
 int UI_SaberNumBladesForSaber( const char *saberName )
 {
 	char	numBladesString[8]={0};
-	UI_SaberParseParm( saberName, "numBlades", numBladesString );
+	UI_SaberParseParm( saberName, "numBlades", numBladesString, sizeof(numBladesString) );
 	int numBlades = atoi( numBladesString );
 	if ( numBlades < 1 )
 	{
@@ -207,7 +207,7 @@ qboolean UI_SaberShouldDrawBlade( const char *saberName, int bladeNum )
 	int bladeStyle2Start = 0, noBlade = 0;
 	char	bladeStyle2StartString[8]={0};
 	char	noBladeString[8]={0};
-	UI_SaberParseParm( saberName, "bladeStyle2Start", bladeStyle2StartString );
+	UI_SaberParseParm( saberName, "bladeStyle2Start", bladeStyle2StartString, sizeof(bladeStyle2StartString) );
 	if ( bladeStyle2StartString[0] )
 	{
 		bladeStyle2Start = atoi( bladeStyle2StartString );
@@ -215,7 +215,7 @@ qboolean UI_SaberShouldDrawBlade( const char *saberName, int bladeNum )
 	if ( bladeStyle2Start
 		&& bladeNum >= bladeStyle2Start )
 	{//use second blade style
-		UI_SaberParseParm( saberName, "noBlade2", noBladeString );
+		UI_SaberParseParm( saberName, "noBlade2", noBladeString, sizeof(noBladeString) );
 		if ( noBladeString[0] )
 		{
 			noBlade = atoi( noBladeString );
@@ -223,7 +223,7 @@ qboolean UI_SaberShouldDrawBlade( const char *saberName, int bladeNum )
 	}
 	else
 	{//use first blade style
-		UI_SaberParseParm( saberName, "noBlade", noBladeString );
+		UI_SaberParseParm( saberName, "noBlade", noBladeString, sizeof(noBladeString) );
 		if ( noBladeString[0] )
 		{
 			noBlade = atoi( noBladeString );
@@ -236,7 +236,7 @@ float UI_SaberBladeLengthForSaber( const char *saberName, int bladeNum )
 {
 	char	lengthString[8]={0};
 	float	length = 40.0f;
-	UI_SaberParseParm( saberName, "saberLength", lengthString );
+	UI_SaberParseParm( saberName, "saberLength", lengthString, sizeof(lengthString) );
 	if ( lengthString[0] )
 	{
 		length = atof( lengthString );
@@ -246,7 +246,7 @@ float UI_SaberBladeLengthForSaber( const char *saberName, int bladeNum )
 		}
 	}
 
-	UI_SaberParseParm( saberName, va("saberLength%d", bladeNum+1), lengthString );
+	UI_SaberParseParm( saberName, va("saberLength%d", bladeNum+1), lengthString, sizeof(lengthString) );
 	if ( lengthString[0] )
 	{
 		length = atof( lengthString );
@@ -263,7 +263,7 @@ float UI_SaberBladeRadiusForSaber( const char *saberName, int bladeNum )
 {
 	char	radiusString[8]={0};
 	float	radius = 3.0f;
-	UI_SaberParseParm( saberName, "saberRadius", radiusString );
+	UI_SaberParseParm( saberName, "saberRadius", radiusString, sizeof(radiusString) );
 	if ( radiusString[0] )
 	{
 		radius = atof( radiusString );
@@ -273,7 +273,7 @@ float UI_SaberBladeRadiusForSaber( const char *saberName, int bladeNum )
 		}
 	}
 
-	UI_SaberParseParm( saberName, va("saberRadius%d", bladeNum+1), radiusString );
+	UI_SaberParseParm( saberName, va("saberRadius%d", bladeNum+1), radiusString, sizeof(radiusString) );
 	if ( radiusString[0] )
 	{
 		radius = atof( radiusString );
@@ -318,9 +318,10 @@ void UI_SaberLoadParms( void )
 		}
 		else
 		{
-			if ( totallen && *(marker-1) == '}' )
+			if ( totallen && *(marker-1) == '}' && totallen + 1 < MAX_SABER_DATA_SIZE )
 			{//don't let it end on a } because that should be a stand-alone token
-				strcat( marker, " " );
+				marker[0] = ' ';	// one byte plus the terminator, inside the same bound
+				marker[1] = '\0';
 				totallen++;
 				marker++;
 			}
@@ -329,7 +330,8 @@ void UI_SaberLoadParms( void )
 			if ( totallen + len >= MAX_SABER_DATA_SIZE ) {
 				Com_Error( ERR_FATAL, "UI_SaberLoadParms: ran out of space before reading %s\n(you must make the .npc files smaller)", holdChar );
 			}
-			strcat( marker, buffer );
+			// the check above leaves room for len characters and the terminator
+			memcpy( marker, buffer, len + 1 );
 			ui.FS_FreeFile( buffer );
 
 			totallen += len;
@@ -809,7 +811,7 @@ void UI_GetSaberForMenu( char *saber, int saberNum )
 		DC->getCVarString( "g_saber2", saber, MAX_QPATH );
 	}
 	//read this from the sabers.cfg
-	UI_SaberTypeForSaber( saber, saberTypeString );
+	UI_SaberTypeForSaber( saber, saberTypeString, sizeof(saberTypeString) );
 	if ( saberTypeString[0] )
 	{
 		saberType = TranslateSaberType( saberTypeString );
@@ -884,7 +886,7 @@ void UI_SaberDrawBlades( itemDef_t *item, vec3_t origin, float curYaw )
 			if ( numBlades )
 			{//okay, here we go, time to draw each blade...
 				char	saberTypeString[MAX_QPATH]={0};
-				UI_SaberTypeForSaber( saber, saberTypeString );
+				UI_SaberTypeForSaber( saber, saberTypeString, sizeof(saberTypeString) );
 				saberType_t saberType = TranslateSaberType( saberTypeString );
 				for ( int curBlade = 0; curBlade < numBlades; curBlade++ )
 				{
@@ -926,13 +928,13 @@ void UI_SaberAttachToChar( itemDef_t *item )
 
 		UI_GetSaberForMenu( saber, saberNum );
 
-		if ( UI_SaberModelForSaber( saber, modelPath ) )
+		if ( UI_SaberModelForSaber( saber, modelPath, sizeof(modelPath) ) )
 		{//successfully found a model
 			int g2Saber = DC->g2_InitGhoul2Model(item->ghoul2, modelPath, 0, 0, 0, 0, 0); //add the model
 			if (g2Saber)
 			{
 				//get the customSkin, if any
-				if ( UI_SaberSkinForSaber( saber, skinPath ) )
+				if ( UI_SaberSkinForSaber( saber, skinPath, sizeof(skinPath) ) )
 				{
 					int g2skin = DC->registerSkin(skinPath);
 					DC->g2_SetSkin( &item->ghoul2[g2Saber], 0, g2skin );//this is going to set the surfs on/off matching the skin file

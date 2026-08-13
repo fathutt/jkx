@@ -970,8 +970,11 @@ void Info_SetValueForKey( char *s, const char *key, const char *value ) {
 		return;
 	}
 
-	strcat (newi, s);
-	strcpy (s, newi);
+	Q_strcat(newi, s);
+	// s is a char * and its size is a contract rather than a type: the function
+	// opens by erroring out if it is not shorter than MAX_INFO_STRING, and the
+	// length check above proves the result fits. That is the size to pass.
+	Q_strncpyz(s, newi, MAX_INFO_STRING);
 }
 
 /*

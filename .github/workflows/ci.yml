@@ -42,6 +42,14 @@ jobs:
       - name: Renderer source list matches the directory
         run: python3 tools/ci/check_sources.py
 
+      # These two ran only in tools/ci/local.sh, which means they ran only when
+      # someone remembered. A gate nobody is forced through is a suggestion.
+      - name: Engine-to-game interface (ratchet, may shrink but never grow)
+        run: python3 tools/ci/check_interface.py .
+
+      - name: String functions with no destination size
+        run: python3 tools/ci/check_strings.py .
+
       # This one fails here in two seconds instead of failing in the Windows
       # job twenty minutes in, with an error message that names the wrong
       # token. Everything it looks for compiles cleanly on every compiler this

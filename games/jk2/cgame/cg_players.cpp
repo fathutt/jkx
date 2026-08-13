@@ -204,7 +204,7 @@ static const char *GetCustomSound_VariantCapped(const char *ppsTable[], int iEnt
 
 						int iRandom = bForceVariant1 ? 1 : (!i ? Q_irand(1,iVariantCap) : 1);
 
-						strcat(sName,va("%d.wav",iRandom));
+						Q_strcat(sName,va("%d.wav",iRandom));
 
 						// does this exist in the entries before the original one?...
 						//

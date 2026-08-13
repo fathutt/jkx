@@ -312,7 +312,7 @@ void SEffectTemplate::operator=(const SEffectTemplate &that)
 {
 	mCopy = true;
 
-	strcpy( mEffectName, that.mEffectName );
+	Q_strncpyz( mEffectName, that.mEffectName );
 
 	mPrimitiveCount = that.mPrimitiveCount;
 
@@ -612,7 +612,7 @@ SEffectTemplate *CFxScheduler::GetNewEffectTemplate( int *id, const char *file )
 			if ( file )
 			{
 				mEffectIDs[file] = i;
-				strcpy( effect->mEffectName, file );
+				Q_strncpyz( effect->mEffectName, file );
 			}
 
 			effect->mInUse = true;

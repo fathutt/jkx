@@ -327,7 +327,7 @@ void SpewDebugStuffToFile(animation_t *bgGlobalAnimations)
 
 	while (i < MAX_ANIMATIONS)
 	{
-		strcat(BGPAFtext, va("%i %i\n", i, bgGlobalAnimations[i].frameLerp));
+		Q_strcat(BGPAFtext, va("%i %i\n", i, bgGlobalAnimations[i].frameLerp));
 		i++;
 	}
 
@@ -688,9 +688,9 @@ void NPC_PrecacheWeapons( team_t playerTeam, int spawnflags, char *NPCtype )
 				*spot = 0;
 				spot = strstr(weaponModel, "_w");//i'm using the in view weapon array instead of scanning the item list, so put the _w back on
 				if (!spot) {
-					strcat (weaponModel, "_w");
+					Q_strcat(weaponModel, "_w");
 				}
-				strcat (weaponModel, ".glm");	//and change to ghoul2
+				Q_strcat(weaponModel, ".glm");	//and change to ghoul2
 			}
 			gi.G2API_PrecacheGhoul2Model( weaponModel ); // correct way is item->world_model
 		}
@@ -2264,7 +2264,8 @@ void NPC_LoadParms( void )
 			if ( totallen + len >= MAX_NPC_DATA_SIZE ) {
 				G_Error( "NPC extensions (*.npc) are too large" );
 			}
-			strcat( marker, buffer );
+			// the check above leaves room for len characters and the terminator
+			memcpy( marker, buffer, len + 1 );
 			gi.FS_FreeFile( buffer );
 
 			totallen += len;

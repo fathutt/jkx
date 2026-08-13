@@ -456,7 +456,7 @@ void ClientUserinfoChanged( int clientNum ) {
 
 	// check for malformed or illegal info strings
 	/*if ( !Info_Validate(userinfo) ) {
-		strcpy (userinfo, "\\name\\badinfo");
+		Q_strncpyz(userinfo, "\\name\\badinfo");
 	}*/
 
 	// set name
@@ -1998,7 +1998,7 @@ void G_ChangePlayerModel( gentity_t *ent, const char *newModel )
 	if ( strchr(newModel,'|') )
 	{
 		char name[MAX_QPATH];
-		strcpy(name, newModel);
+		Q_strncpyz(name, newModel);
 		char *p = strchr(name, '|');
 		*p=0;
 		p++;

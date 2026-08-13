@@ -91,7 +91,7 @@ void CPrimitiveTemplate::operator=(const CPrimitiveTemplate &that)
 {
 	// I'm assuming that doing a memcpy wouldn't work here
 	// If you are looking at this and know a better way to do this, please tell me.
-	strcpy( mName, that.mName );
+	Q_strncpyz( mName, that.mName );
 
 	mType				= that.mType;
 

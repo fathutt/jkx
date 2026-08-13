@@ -380,7 +380,7 @@ void SpewDebugStuffToFile(animation_t *bgGlobalAnimations)
 
 	while (i < MAX_ANIMATIONS)
 	{
-		strcat(BGPAFtext, va("%i %i\n", i, bgGlobalAnimations[i].frameLerp));
+		Q_strcat(BGPAFtext, va("%i %i\n", i, bgGlobalAnimations[i].frameLerp));
 		i++;
 	}
 
@@ -565,7 +565,7 @@ static void ParseAnimationEvtBlock(int glaIndex, unsigned short modelIndex, cons
 			{
 				break;
 			}
-			strcpy(stringData, token);
+			Q_strncpyz(stringData, token);
 			//get lowest value
 			token = COM_Parse( text_p );
 			if ( !token )
@@ -1060,7 +1060,7 @@ int		G_ParseAnimFileSet(const char *skeletonName, const char *modelName=0)
 		//---------------------------------------------------------
 		fileIndex = level.numKnownAnimFileSets;
 		level.numKnownAnimFileSets++;
-		strcpy(level.knownAnimFileSets[fileIndex].filename, skeletonName);
+		Q_strncpyz(level.knownAnimFileSets[fileIndex].filename, skeletonName);
 
 		level.knownAnimFileSets[fileIndex].torsoAnimEventCount = 0;
 		level.knownAnimFileSets[fileIndex].legsAnimEventCount = 0;
@@ -1373,14 +1373,14 @@ void NPC_PrecacheWeapons( team_t playerTeam, int spawnflags, char *NPCtype )
 
 			char weaponModel[64];
 
-			strcpy (weaponModel, weaponData[curWeap].weaponMdl);
+			Q_strncpyz(weaponModel, weaponData[curWeap].weaponMdl);
 			if (char *spot = strstr(weaponModel, ".md3") ) {
 				*spot = 0;
 				spot = strstr(weaponModel, "_w");//i'm using the in view weapon array instead of scanning the item list, so put the _w back on
 				if (!spot) {
-					strcat (weaponModel, "_w");
+					Q_strcat(weaponModel, "_w");
 				}
-				strcat (weaponModel, ".glm");	//and change to ghoul2
+				Q_strcat(weaponModel, ".glm");	//and change to ghoul2
 			}
 			gi.G2API_PrecacheGhoul2Model( weaponModel ); // correct way is item->world_model
 		}
@@ -1588,7 +1588,7 @@ void CG_NPC_Precache ( gentity_t *spawner )
 		return;
 	}
 
-	strcpy(customSkin,"default");
+	Q_strncpyz(customSkin,"default");
 
 	p = NPCParms;
 	COM_BeginParseSession();
@@ -1943,7 +1943,7 @@ qboolean NPC_ParseParms( const char *NPCName, gentity_t *NPC )
 	char	surfOn[1024]={0};
 	qboolean parsingPlayer = qfalse;
 
-	strcpy(customSkin,"default");
+	Q_strncpyz(customSkin,"default");
 	if ( !NPCName || !NPCName[0])
 	{
 		NPCName = "Player";
@@ -4012,7 +4012,7 @@ Ghoul2 Insert Start
 			if ( NPC->client->NPC_class == CLASS_VEHICLE )
 			{
 				int iVehIndex = BG_VehicleGetIndex( NPC->NPC_type );
-				strcpy(customSkin, "default");	// Ignore any custom skin that may have come from the NPC File
+				Q_strncpyz(customSkin, "default");	// Ignore any custom skin that may have come from the NPC File
 				Q_strncpyz( playerModel, g_vehicleInfo[iVehIndex].model, sizeof(playerModel));
 				if ( g_vehicleInfo[iVehIndex].skin && g_vehicleInfo[iVehIndex].skin[0] )
 				{
@@ -4102,9 +4102,10 @@ void NPC_LoadParms( void )
 		}
 		else
 		{
-			if ( totallen && *(marker-1) == '}' )
+			if ( totallen && *(marker-1) == '}' && totallen + 1 < MAX_NPC_DATA_SIZE )
 			{//don't let previous file end on a } because that must be a stand-alone token
-				strcat( marker, " " );
+				marker[0] = ' ';	// one byte plus the terminator, inside the same bound
+				marker[1] = '\0';
 				totallen++;
 				marker++;
 			}
@@ -4113,7 +4114,8 @@ void NPC_LoadParms( void )
 			if ( totallen + len >= MAX_NPC_DATA_SIZE ) {
 				G_Error( "NPC_LoadParms: ran out of space before reading %s\n(you must make the .npc files smaller)", holdChar );
 			}
-			strcat( marker, buffer );
+			// the check above leaves room for len characters and the terminator
+			memcpy( marker, buffer, len + 1 );
 			gi.FS_FreeFile( buffer );
 
 			totallen += len;

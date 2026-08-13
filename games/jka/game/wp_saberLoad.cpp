@@ -2311,9 +2311,10 @@ void WP_SaberLoadParms( void )
 		}
 		else
 		{
-			if ( totallen && *(marker-1) == '}' )
+			if ( totallen && *(marker-1) == '}' && totallen + 1 < MAX_SABER_DATA_SIZE )
 			{//don't let it end on a } because that should be a stand-alone token
-				strcat( marker, " " );
+				marker[0] = ' ';	// one byte plus the terminator, inside the same bound
+				marker[1] = '\0';
 				totallen++;
 				marker++;
 			}
@@ -2322,7 +2323,8 @@ void WP_SaberLoadParms( void )
 			if ( totallen + len >= MAX_SABER_DATA_SIZE ) {
 				G_Error( "WP_SaberLoadParms: ran out of space before reading %s\n(you must make the .sab files smaller)", holdChar  );
 			}
-			strcat( marker, buffer );
+			// the check above leaves room for len characters and the terminator
+			memcpy( marker, buffer, len + 1 );
 			gi.FS_FreeFile( buffer );
 
 			totallen += len;

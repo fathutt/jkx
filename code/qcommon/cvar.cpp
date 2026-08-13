@@ -1393,8 +1393,13 @@ static void Cvar_Realloc(char **string, char *memPool, int &memPoolUsed)
 	if(string && *string)
 	{
 		char *temp = memPool + memPoolUsed;
-		strcpy(temp, *string);
-		memPoolUsed += strlen(*string) + 1;
+		// The destination is a bump pointer, so its size is not in its type -
+		// it is the very number the next line advances the pool by. Copying
+		// that many bytes rather than "as many as fit" makes the two
+		// impossible to disagree, and costs one strlen instead of two.
+		const size_t len = strlen(*string) + 1;
+		memcpy(temp, *string, len);
+		memPoolUsed += len;
 		Cvar_FreeString(*string);
 		*string = temp;
 	}

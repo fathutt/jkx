@@ -353,8 +353,8 @@ void GetLine(char *&Data, int &Size, int &token, char *&data)
 		return;
 	}
 
-//	strcpy(temp_data, "   DATA \"test of the data\ntest test\ndfa dfd");
-//	strcpy(temp_data, "   DATA");
+//	Q_strncpyz(temp_data, "   DATA \"test of the data\ntest test\ndfa dfd");
+//	Q_strncpyz(temp_data, "   DATA");
 
 	pos = temp_data;
 	while((*pos) && strchr(" \n\r", *pos))
@@ -415,7 +415,7 @@ void GetLine(char *&Data, int &Size, int &token, char *&data)
 		}
 		*pos = 0;
 
-		strcpy(save_data, test_token);
+		Q_strncpyz(save_data, test_token);
 	}
 }
 
@@ -503,8 +503,9 @@ void cStrings::SetReference(char *newReference)
 		return;
 	}
 
-	Reference = new char[strlen(newReference)+1];
-	strcpy(Reference, newReference);
+	const size_t uiSize = strlen(newReference)+1;
+	Reference = new char[uiSize];
+	memcpy(Reference, newReference, uiSize);	// the same length that was allocated
 }
 
 bool cStrings::UnderstandToken(int token, char *data )
@@ -631,14 +632,16 @@ void cStringsSingle::SetText(const char *newText)
 	{
 		const char sDebugString[]="SP:";
 		Dest = Text = new char[length + strlen(sDebugString)];
-		strcpy(Dest,sDebugString);
-		Dest += strlen(Dest);
+		memcpy(Dest, sDebugString, strlen(sDebugString));
+		Dest += strlen(sDebugString);
 	}
 	else
 	{
 		Dest = Text = new char[length];
 	}
-	strcpy(Dest, newText);
+	// length counts the terminator, and the allocation above reserved exactly
+	// that much after whatever prefix Dest was advanced past
+	memcpy(Dest, newText, length);
 }
 
 
@@ -803,8 +806,9 @@ void cStringPackage::SetReference(char *newReference)
 		return;
 	}
 
-	Reference = new char[strlen(newReference)+1];
-	strcpy(Reference, newReference);
+	const size_t uiSize = strlen(newReference)+1;
+	Reference = new char[uiSize];
+	memcpy(Reference, newReference, uiSize);	// the same length that was allocated
 }
 
 

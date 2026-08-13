@@ -27,6 +27,38 @@ char *Q_strrchr( const char* string, int c );
 void Q_strncpyz( char *dest, const char *src, int destsize );
 void Q_strcat( char *dest, int size, const char *src );
 
+#if defined(__cplusplus)
+}   // extern "C" - the overloads below are C++ and cannot have C linkage
+
+// The same two, with the size taken from the type instead of from the caller.
+//
+// "Buffer size safe" is what the comment above says, and it is true only as far
+// as the number the caller passes. Nothing checks that the number describes the
+// buffer, and the two ways of getting it wrong are the two that happen:
+// sizeof() of a pointer rather than the array, and a literal that was right
+// when it was written.
+//
+// Where the destination is an array - which it is at most of the call sites
+// this tree has - the compiler knows how big it is. These overloads ask it.
+// They are not a new API to learn: the call is the same one with the size left
+// off, and if the destination is a pointer rather than an array there is no
+// overload to match and the size has to be passed as before.
+//
+// This exists so that replacing a strcpy is not itself a place to introduce a
+// bug. There were 91 of those outside the vendored trees when this was written.
+template<size_t N>
+inline void Q_strncpyz( char (&dest)[N], const char *src ) {
+    Q_strncpyz( dest, src, static_cast<int>( N ) );
+}
+
+template<size_t N>
+inline void Q_strcat( char (&dest)[N], const char *src ) {
+    Q_strcat( dest, static_cast<int>( N ), src );
+}
+
+extern "C" {
+#endif
+
 const char *Q_stristr( const char *s, const char *find);
 
 // strlen that discounts Quake color sequences

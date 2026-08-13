@@ -1194,18 +1194,18 @@ void SP_misc_model_breakable( gentity_t *ent )
 	if (ent->takedamage) {
 		//Dead/damaged model
 		if( !(ent->spawnflags & 8) ) {	//no dmodel
-			strcat( damageModel, "_d1.md3" );
+			Q_strcat( damageModel, "_d1.md3" );
 			ent->s.modelindex2 = G_ModelIndex( damageModel );
 		}
 
 		//Chunk model
-		strcat( chunkModel, "_c1.md3" );
+		Q_strcat( chunkModel, "_c1.md3" );
 		ent->s.modelindex3 = G_ModelIndex( chunkModel );
 	}
 
 	//Use model
 	if( ent->spawnflags & 32 ) {	//has umodel
-		strcat( useModel, "_u1.md3" );
+		Q_strcat( useModel, "_u1.md3" );
 		ent->sound1to2 = G_ModelIndex( useModel );
 	}
 	if ( !ent->mins[0] && !ent->mins[1] && !ent->mins[2] )

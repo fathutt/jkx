@@ -543,7 +543,7 @@ set(SharedCommonFiles
 	"${SharedDir}/qcommon/q_math.h"
 	"${SharedDir}/qcommon/q_math.c"
 	"${SharedDir}/qcommon/q_string.h"
-	"${SharedDir}/qcommon/q_string.c"
+	"${SharedDir}/qcommon/q_string.cpp"
 	"${SharedDir}/qcommon/q_platform.h"
 	"${SharedDir}/qcommon/channels.h"
 	"${SharedDir}/qcommon/statindex.h"

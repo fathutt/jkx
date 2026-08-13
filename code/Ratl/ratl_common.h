@@ -204,19 +204,12 @@ namespace str
 		return strlen(src);
 	}
 
-	inline void	cpy(char *dest,const char *src)
-	{
-		strcpy(dest,src);
-	}
-
+	// There is deliberately no unbounded cpy() or cat() here. Every destination in
+	// RATL is a fixed-size array whose capacity the caller already knows, so the
+	// bounded forms below are the only ones that can be written correctly.
 	inline void	ncpy(char *dest,const char *src,size_t destBufferLen)
 	{
-		strncpy(dest,src,destBufferLen);
-	}
-
-	inline void	cat(char *dest,const char *src)
-	{
-		strcat(dest,src);
+		Q_strncpyz(dest,src,(int)destBufferLen);
 	}
 
 	inline void	ncat(char *dest,const char *src,size_t destBufferLen)

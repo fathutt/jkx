@@ -282,7 +282,7 @@ char *Filename_WithoutPath(const char *psFilename)
   	if (!p++)
 		p=psFilename;
 
-	strcpy(sString,p);
+	Q_strncpyz(sString,p);
 
 	return sString;
 
@@ -294,7 +294,7 @@ char *Filename_WithoutExt(const char *psFilename)
 {
 	static char sString[MAX_QPATH];	// !
 
-	strcpy(sString,psFilename);
+	Q_strncpyz(sString,psFilename);
 
 	char *p = strrchr(sString,'.');
 	char *p2= strrchr(sString,'\\');
@@ -425,7 +425,7 @@ void R_CheckMP3s( const char *psDir )
 
 								// now set our temp SFX struct back to default name so nothing else accidentally uses it...
 								//
-								strcpy(pSFX->sSoundName, sReservedSFXEntrynameForMP3);
+								Q_strncpyz(pSFX->sSoundName, sReservedSFXEntrynameForMP3);
 								pSFX->bDefaultSound = false;
 							}
 
@@ -559,7 +559,7 @@ void S_MP3_CalcVols_f( void )
 			}
 			continue;
 		}
-		strcpy(sStartDir,Cmd_Argv(i));
+		Q_strncpyz(sStartDir,Cmd_Argv(i));
 	}
 
 	Com_Printf(va("Starting Scan for Updates in Dir: %s\n",sStartDir));
@@ -582,6 +582,13 @@ void S_MP3_CalcVols_f( void )
 // returns qfalse if failed to load, else fills in *pData
 //
 extern	cvar_t	*com_buildScript;
+// The extension swaps below write three characters and a terminator over the
+// last three characters of the name, so the destination is four bytes wide and
+// the size is sizeof("mp3") rather than anything about psFilename. That is
+// worth spelling out: this function takes a char * and cannot know how big the
+// buffer is, which is why these are the only six string copies in the tree that
+// the size-carrying overloads in q_string.h could not take. The arithmetic is
+// what makes them safe, not the buffer.
 static qboolean S_LoadSound_FileLoadAndNameAdjuster(char *psFilename, byte **pData, int *piSize, int iNameStrlen)
 {
 	char *psVoice = strstr(psFilename,"chars");
@@ -597,42 +604,42 @@ static qboolean S_LoadSound_FileLoadAndNameAdjuster(char *psFilename, byte **pDa
 			FS_FOpenFileRead(psFilename, &hFile, qfalse);		//cache the wav
 			if (!hFile)
 			{
-				strcpy(&psFilename[iNameStrlen-3],"mp3");		//not there try mp3
+				Q_strncpyz(&psFilename[iNameStrlen-3],"mp3",sizeof("mp3"));		//not there try mp3
 				FS_FOpenFileRead(psFilename, &hFile, qfalse);	//cache the mp3
 			}
 			if (hFile)
 			{
 				FS_FCloseFile(hFile);
 			}
-			strcpy(&psFilename[iNameStrlen-3],"wav");	//put it back to wav
+			Q_strncpyz(&psFilename[iNameStrlen-3],"wav",sizeof("wav"));	//put it back to wav
 
 			//French
 			strncpy(psVoice,"chr_f",5);	// same number of letters as "chars"
 			FS_FOpenFileRead(psFilename, &hFile, qfalse);		//cache the wav
 			if (!hFile)
 			{
-				strcpy(&psFilename[iNameStrlen-3],"mp3");		//not there try mp3
+				Q_strncpyz(&psFilename[iNameStrlen-3],"mp3",sizeof("mp3"));		//not there try mp3
 				FS_FOpenFileRead(psFilename, &hFile, qfalse);	//cache the mp3
 			}
 			if (hFile)
 			{
 				FS_FCloseFile(hFile);
 			}
-			strcpy(&psFilename[iNameStrlen-3],"wav");	//put it back to wav
+			Q_strncpyz(&psFilename[iNameStrlen-3],"wav",sizeof("wav"));	//put it back to wav
 
 			//Spanish
 			strncpy(psVoice,"chr_e",5);	// same number of letters as "chars"
 			FS_FOpenFileRead(psFilename, &hFile, qfalse);		//cache the wav
 			if (!hFile)
 			{
-				strcpy(&psFilename[iNameStrlen-3],"mp3");		//not there try mp3
+				Q_strncpyz(&psFilename[iNameStrlen-3],"mp3",sizeof("mp3"));		//not there try mp3
 				FS_FOpenFileRead(psFilename, &hFile, qfalse);	//cache the mp3
 			}
 			if (hFile)
 			{
 				FS_FCloseFile(hFile);
 			}
-			strcpy(&psFilename[iNameStrlen-3],"wav");	//put it back to wav
+			Q_strncpyz(&psFilename[iNameStrlen-3],"wav",sizeof("wav"));	//put it back to wav
 
 			strncpy(psVoice,"chars",5);	//put it back to chars
 		}

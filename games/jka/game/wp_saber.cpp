@@ -385,15 +385,15 @@ void G_CreateG2AttachedWeaponModel( gentity_t *ent, const char *psWeaponModel, i
 	}
 	char weaponModel[64];
 
-	strcpy (weaponModel, psWeaponModel);
+	Q_strncpyz(weaponModel, psWeaponModel);
 	if (char *spot = strstr(weaponModel, ".md3") ) {
 		*spot = 0;
 		spot = strstr(weaponModel, "_w");//i'm using the in view weapon array instead of scanning the item list, so put the _w back on
 		if (!spot&&!strstr(weaponModel, "noweap"))
 		{
-			strcat (weaponModel, "_w");
+			Q_strcat(weaponModel, "_w");
 		}
-		strcat (weaponModel, ".glm");	//and change to ghoul2
+		Q_strcat(weaponModel, ".glm");	//and change to ghoul2
 	}
 
 	// give us a saber model

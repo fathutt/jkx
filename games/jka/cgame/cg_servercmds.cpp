@@ -75,27 +75,27 @@ void CG_ParseServerinfo( void ) {
 		!stricmp(cgs.stripLevelName[0],"KEJIM_POST")
 		)
 	{
-		strcpy( cgs.stripLevelName[1], "ARTUS_MINE" );
+		Q_strncpyz( cgs.stripLevelName[1], "ARTUS_MINE" );
 	}
 	if (!stricmp(cgs.stripLevelName[0],"DOOM_DETENTION") ||
 		!stricmp(cgs.stripLevelName[0],"DOOM_SHIELDS")
 		)
 	{
-		strcpy( cgs.stripLevelName[1], "DOOM_COMM" );
+		Q_strncpyz( cgs.stripLevelName[1], "DOOM_COMM" );
 	}
 	if (!stricmp(cgs.stripLevelName[0],"DOOM_COMM"))
 	{
-		strcpy( cgs.stripLevelName[1], "CAIRN_BAY" );
+		Q_strncpyz( cgs.stripLevelName[1], "CAIRN_BAY" );
 	}
 	if (!stricmp(cgs.stripLevelName[0],"NS_STARPAD"))
 	{
-		strcpy( cgs.stripLevelName[1], "ARTUS_TOPSIDE" );	// for dream sequence...
+		Q_strncpyz( cgs.stripLevelName[1], "ARTUS_TOPSIDE" );	// for dream sequence...
 
-		strcpy( cgs.stripLevelName[2], "BESPIN_UNDERCITY" );	// for dream sequence...
+		Q_strncpyz( cgs.stripLevelName[2], "BESPIN_UNDERCITY" );	// for dream sequence...
 	}
 	if (!stricmp(cgs.stripLevelName[0],"BESPIN_PLATFORM"))
 	{
-		strcpy( cgs.stripLevelName[1], "BESPIN_UNDERCITY" );
+		Q_strncpyz( cgs.stripLevelName[1], "BESPIN_UNDERCITY" );
 	}
 */
 }

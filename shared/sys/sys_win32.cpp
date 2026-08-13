@@ -142,11 +142,11 @@ const char *Sys_GetCurrentUser( void )
 	DWORD size = sizeof( s_userName );
 
 	if ( !GetUserName( s_userName, &size ) )
-		strcpy( s_userName, "player" );
+		Q_strncpyz( s_userName, "player" );
 
 	if ( !s_userName[0] )
 	{
-		strcpy( s_userName, "player" );
+		Q_strncpyz( s_userName, "player" );
 	}
 
 	return s_userName;

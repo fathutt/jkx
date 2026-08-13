@@ -82,7 +82,7 @@ void	ratl_base::ProfilePrint(const char * format, ...)
 
 	// Tack On The Standard Format Around The Given Format
 	//-----------------------------------------------------
-	sprintf(nFormat, "[PROFILE] %s\n", format);
+	Com_sprintf(nFormat, sizeof(nFormat), "[PROFILE] %s\n", format);
 
 
 	// Resolve Remaining Elipsis Parameters Into Newly Formated String
@@ -92,7 +92,7 @@ void	ratl_base::ProfilePrint(const char * format, ...)
 
 	va_list		argptr;
 	va_start (argptr, format);
-	vsprintf (buf, nFormat, argptr);
+	Q_vsnprintf (buf, sizeof(string[0]), nFormat, argptr);
 	va_end (argptr);
 
 	// Print It To Debug Output Console

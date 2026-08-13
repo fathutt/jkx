@@ -213,7 +213,7 @@ defaultoffsetposition:
 			}
 			teststr[r2] = '\0';
 
-			strcpy(argument, teststr);
+			Q_strncpyz(argument, teststr);
 		}
 
 		objectID = G_EffectIndex(argument);

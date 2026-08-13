@@ -1652,7 +1652,8 @@ qboolean NAV_WaypointsTooFar( gentity_t *wp1, gentity_t *wp2 )
 			Com_Error( ERR_DROP, "%s%s%dTOO MANY FATAL NAV ERRORS!!!\n", fatalErrorString, temp, fatalErrors );
 			return qtrue;
 		}
-		strcat( fatalErrorPointer, temp );
+		// the check above leaves room for len characters and the terminator
+		memcpy( fatalErrorPointer, temp, len + 1 );
 		fatalErrorPointer += len;
 		return qtrue;
 	}

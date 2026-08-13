@@ -1928,8 +1928,13 @@ static pack_t *FS_LoadZipFile( const char *zipfile, const char *basename )
 		Q_strlwr( filename_inzip );
 		hash = FS_HashFileName(filename_inzip, pack->hashSize);
 		buildBuffer[i].name = namePtr;
-		strcpy( buildBuffer[i].name, filename_inzip );
-		namePtr += strlen(filename_inzip) + 1;
+		// namePtr is a bump pointer into one allocation sized by a prior pass;
+		// the length below is what advances it, so it is also the size.
+		{
+			const size_t len = strlen(filename_inzip) + 1;
+			memcpy( buildBuffer[i].name, filename_inzip, len );
+			namePtr += len;
+		}
 		// store the file position in the zip
 		buildBuffer[i].pos = unzGetOffset(uf);
 		buildBuffer[i].len = file_info.uncompressed_size;
@@ -1988,7 +1993,7 @@ static int FS_ReturnPath( const char *zname, char *zpath, int *depth ) {
 		}
 		at++;
 	}
-	strcpy(zpath, zname);
+	Q_strncpyz(zpath, zname, len + 1);
 	zpath[len] = 0;
 	*depth = newdep;
 
@@ -2192,7 +2197,7 @@ int	FS_GetFileList(  const char *path, const char *extension, char *listbuf, int
 	for (i =0; i < nFiles; i++) {
 		nLen = strlen(pFiles[i]) + 1;
 		if (nTotal + nLen + 1 < bufsize) {
-			strcpy(listbuf, pFiles[i]);
+			memcpy(listbuf, pFiles[i], nLen);
 			listbuf += nLen;
 			nTotal += nLen;
 		}
@@ -2362,8 +2367,8 @@ int	FS_GetModList( char *listbuf, int bufsize ) {
 				// nLen is the length of the mod path
 				// we need to see if there is a description available
 				descPath[0] = '\0';
-				strcpy(descPath, name);
-				strcat(descPath, "/description.txt");
+				Q_strncpyz(descPath, name);
+				Q_strcat(descPath, "/description.txt");
 				nDescLen = FS_SV_FOpenFileRead( descPath, &descHandle );
 				if ( nDescLen > 0 && descHandle) {
 					FILE *file;
@@ -2375,19 +2380,23 @@ int	FS_GetModList( char *listbuf, int bufsize ) {
 					}
 					FS_FCloseFile(descHandle);
 				} else if ( isBase ) {
-					strcpy(descPath, SE_GetString("MENUS_JEDI_ACADEMY"));
+					Q_strncpyz(descPath, SE_GetString("MENUS_JEDI_ACADEMY"));
 				} else {
-					strcpy(descPath, name);
+					Q_strncpyz(descPath, name);
 				}
 				nDescLen = strlen(descPath) + 1;
 
 				if (nTotal + nLen + 1 + nDescLen + 1 < bufsize) {
+					// nLen and nDescLen were measured from these very
+					// strings a few lines up, and they are what advance the
+					// bump pointer. Copying by them keeps the write and the
+					// advance in step.
 					if ( isBase )
-						strcpy(listbuf, "");
+						*listbuf = '\0';
 					else
-						strcpy(listbuf, name);
+						memcpy(listbuf, name, nLen);
 					listbuf += nLen;
-					strcpy(listbuf, descPath);
+					memcpy(listbuf, descPath, nDescLen);
 					listbuf += nDescLen;
 					nTotal += nLen + nDescLen;
 					nMods++;

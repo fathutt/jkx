@@ -250,7 +250,7 @@ public:
 	{
 		if ( (str::len(mData)+o.length())<CAPACITY )		// Only If It Is Safe
 		{
-			str::cat(mData, o.c_str());
+			str::ncat(mData, o.c_str(), CAPACITY);
 		}
 		else
 		{
@@ -265,7 +265,7 @@ public:
 	{
 		if ( (str::len(mData)+str::len(s))<CAPACITY )		// Only If It Is Safe
 		{
-			str::cat(mData, s);
+			str::ncat(mData, s, CAPACITY);
 		}
 		else
 		{
@@ -323,7 +323,7 @@ public:
 		void		operator= (const tokenizer &t)
 		{
 			mLoc	= t.mLoc;
-			str::cpy(mGap, t.mGap);
+			str::ncpy(mGap, t.mGap, TOKEN_GAP_LEN);
 		}
 
 		// Equality Operators

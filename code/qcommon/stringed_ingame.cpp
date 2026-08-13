@@ -111,7 +111,14 @@ public:
 
 	void	Clear( SE_BOOL bChangingLanguages );
 	void	SetupNewFileParse( const char *psFileName, SE_BOOL bLoadDebug );
-	SE_BOOL	ReadLine( const char *&psParsePos, char *psDest );
+	SE_BOOL	ReadLine( const char *&psParsePos, char *psDest, size_t sizeDest );
+
+	template<size_t N>
+	SE_BOOL	ReadLine( const char *&psParsePos, char (&psDest)[N] )
+	{
+		return ReadLine( psParsePos, psDest, N );
+	}
+
 	const char *ParseLine( const char *psLine );
 	int		GetFlagMask( const char *psFlagName );
 	const char *ExtractLanguageFromPath( const char *psFileName );
@@ -180,7 +187,7 @@ char *CStringEdPackage::Filename_PathOnly(const char *psFilename)
 {
 	static char sString[ iSE_MAX_FILENAME_LENGTH ];
 
-	strcpy(sString,psFilename);
+	Q_strncpyz(sString,psFilename);
 
 	char *p1= strrchr(sString,'\\');
 	char *p2= strrchr(sString,'/');
@@ -202,7 +209,7 @@ char *CStringEdPackage::Filename_WithoutExt(const char *psFilename)
 {
 	static char sString[ iSE_MAX_FILENAME_LENGTH ];
 
-	strcpy(sString,psFilename);
+	Q_strncpyz(sString,psFilename);
 
 	char *p = strrchr(sString,'.');
 	char *p2= strrchr(sString,'\\');
@@ -238,7 +245,7 @@ char *CStringEdPackage::Filename_WithoutPath(const char *psFilename)
 		psFilename++;
 	}
 
-	strcpy(sString,psCopyPos);
+	Q_strncpyz(sString,psCopyPos);
 
 	return sString;
 }
@@ -254,7 +261,7 @@ void CStringEdPackage::SetupNewFileParse( const char *psFileName, SE_BOOL bLoadD
 {
 	char sString[ iSE_MAX_FILENAME_LENGTH ];
 
-	strcpy(sString, Filename_WithoutPath( Filename_WithoutExt( psFileName ) ));
+	Q_strncpyz(sString, Filename_WithoutPath( Filename_WithoutExt( psFileName ) ));
 	Q_strupr(sString);
 
 	m_strCurrentFileRef_ParseOnly = sString;	// eg "OBJECTIVES"
@@ -358,17 +365,21 @@ void CStringEdPackage::REMKill( char *psBuffer )
 
 // returns true while new lines available to be read...
 //
-SE_BOOL CStringEdPackage::ReadLine( const char *&psParsePos, char *psDest )
+// The destination size is a parameter because a .str line can be longer than any buffer we
+// pick: the copy is clamped, and the parse position still advances over the whole line so
+// that a long line truncates into a parse error instead of running off the end of psDest.
+SE_BOOL CStringEdPackage::ReadLine( const char *&psParsePos, char *psDest, size_t sizeDest )
 {
 	if (psParsePos[0])
 	{
 		const char *psLineEnd = strchr(psParsePos, '\n');
 		if (psLineEnd)
 		{
-			int iCharsToCopy = (psLineEnd - psParsePos);
-			strncpy(psDest, psParsePos, iCharsToCopy);
-					psDest[iCharsToCopy] = '\0';
-			psParsePos += iCharsToCopy;
+			size_t uiCharsInLine = (size_t)(psLineEnd - psParsePos);
+			size_t uiCharsToCopy = (uiCharsInLine < sizeDest) ? uiCharsInLine : sizeDest - 1;
+			memcpy(psDest, psParsePos, uiCharsToCopy);
+			psDest[uiCharsToCopy] = '\0';
+			psParsePos += uiCharsInLine;
 			while (*psParsePos && strchr("\r\n",*psParsePos))
 			{
 				psParsePos++;	// skip over CR or CR/LF pairs
@@ -378,7 +389,7 @@ SE_BOOL CStringEdPackage::ReadLine( const char *&psParsePos, char *psDest )
 		{
 			// last line...
 			//
-			strcpy(psDest, psParsePos);
+			Q_strncpyz(psDest, psParsePos, (int)sizeDest);
 			psParsePos += strlen(psParsePos);
 		}
 
@@ -933,15 +944,15 @@ const char *SE_Load( const char *psFileName, SE_BOOL bLoadDebug = SE_TRUE, SE_BO
 	char sTemp[1000]={0};
 	if (!strchr(psFileName,'/'))
 	{
-		strcpy(sTemp,sSE_STRINGS_DIR);
-		strcat(sTemp,"/");
+		Q_strncpyz(sTemp,sSE_STRINGS_DIR);
+		Q_strcat(sTemp,"/");
 		if (se_language)
 		{
-			strcat(sTemp,se_language->string);
-			strcat(sTemp,"/");
+			Q_strcat(sTemp,se_language->string);
+			Q_strcat(sTemp,"/");
 		}
 	}
-	strcat(sTemp,psFileName);
+	Q_strcat(sTemp,psFileName);
 	COM_DefaultExtension( sTemp, sizeof(sTemp), sSE_INGAME_FILE_EXTENSION);
 	psFileName = &sTemp[0];
 	//
@@ -955,12 +966,13 @@ const char *SE_Load( const char *psFileName, SE_BOOL bLoadDebug = SE_TRUE, SE_BO
 	if ( !psErrorMessage )
 	{
 		char sFileName[ iSE_MAX_FILENAME_LENGTH ];
-		strncpy( sFileName, psFileName, sizeof(sFileName)-1 );
-				 sFileName[ sizeof(sFileName)-1 ] = '\0';
+		Q_strncpyz( sFileName, psFileName );
 		char *p = strrchr( sFileName, '.' );
 		if (p && strlen(p) == strlen(sSE_EXPORT_FILE_EXTENSION))
 		{
-			strcpy( p, sSE_EXPORT_FILE_EXTENSION );
+			// the guard above is what makes this safe: the two extensions are the same
+			// length, so the replacement cannot pass the end of sFileName.
+			memcpy( p, sSE_EXPORT_FILE_EXTENSION, strlen(sSE_EXPORT_FILE_EXTENSION) + 1 );
 
 			psErrorMessage = SE_Load_Actual( sFileName, bLoadDebug, SE_TRUE );
 		}

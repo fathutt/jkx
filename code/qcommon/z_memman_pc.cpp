@@ -264,7 +264,7 @@ char *_D_Z_Filename_WithoutPath(const char *psFilename)
 		psFilename++;
 	}
 
-	strcpy(sString,psCopyPos);
+	Q_strncpyz(sString,psCopyPos);
 
 	return sString;
 }
@@ -1039,8 +1039,9 @@ char *CopyString( const char *in ) {
 		}
 	}
 
-	out = (char *) S_Malloc (strlen(in)+1);
-	strcpy (out, in);
+	const size_t uiSize = strlen(in) + 1;
+	out = (char *) S_Malloc (uiSize);
+	memcpy(out, in, uiSize);	// the same length that was allocated, so it fits by construction
 
 	Z_Label(out,in);
 

@@ -183,7 +183,7 @@ void SVC_Status( netadr_t from ) {
 	int		score;
 	char	infostring[MAX_INFO_STRING];
 
-	strcpy( infostring, Cvar_InfoString( CVAR_SERVERINFO ) );
+	Q_strncpyz( infostring, Cvar_InfoString( CVAR_SERVERINFO ) );
 
 	// echo back the parameter to status. so servers can use it as a challenge
 	// to prevent timed spoofed reply packets that add ghost servers
@@ -200,12 +200,16 @@ void SVC_Status( netadr_t from ) {
 			} else {
 				score = 0;
 			}
-			Com_sprintf( player, sizeof( player ), "%i %i \"%s\"\n", score, cl->name );
+			// the format had a second %i left over from multiplayer, where a ping
+			// followed the score. Single-player client_t has no ping, so cl->name
+			// was being printed as an integer and %s then read past the arguments.
+			Com_sprintf( player, sizeof( player ), "%i \"%s\"\n", score, cl->name );
 			playerLength = strlen(player);
 			if (statusLength + playerLength >= (int)sizeof(status) ) {
 				break;		// can't hold any more
 			}
-			strcpy (status + statusLength, player);
+			// the check above leaves room for playerLength characters and the terminator
+			memcpy(status + statusLength, player, playerLength + 1);
 			statusLength += playerLength;
 		}
 	}

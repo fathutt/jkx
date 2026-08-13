@@ -1335,7 +1335,8 @@ const char *String_Alloc(const char *p)
 	if (len + strPoolIndex + 1 < STRING_POOL_SIZE)
 	{
 		int ph = strPoolIndex;
-		strcpy(&strPool[strPoolIndex], p);
+		// the bound above is what makes this safe: len + 1 bytes were checked to fit
+		memcpy(&strPool[strPoolIndex], p, len + 1);
 		strPoolIndex += len + 1;
 
 		str = strHandle[hash];
@@ -8618,7 +8619,7 @@ void Item_Text_AutoWrapped_Paint(itemDef_t *item)
 					if ( *p && y + height + 4 > item->window.rect.h - height)
 					{
 						item->special = 1;
-						strcat(buff,"...");//uhh, let's render some ellipses
+						Q_strcat(buff,"...");//uhh, let's render some ellipses
 					}
 				DC->drawText(item->textRect.x, item->textRect.y, item->textscale, color, buff, 0, item->textStyle, item->font);
 			}
@@ -8631,7 +8632,7 @@ void Item_Text_AutoWrapped_Paint(itemDef_t *item)
 			}
 			else
 			{
-				strcpy(buff,"...");
+				Q_strncpyz(buff,"...");
 				len = 3;
 			}
 			if (*p == '\0')

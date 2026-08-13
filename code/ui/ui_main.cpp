@@ -53,8 +53,8 @@ extern stringID_table_t animTable [MAX_ANIMATIONS+1];
 extern qboolean ItemParse_model_g2anim_go( itemDef_t *item, const char *animName );
 extern qboolean ItemParse_asset_model_go( itemDef_t *item, const char *name );
 extern qboolean ItemParse_model_g2skin_go( itemDef_t *item, const char *skinName );
-extern qboolean UI_SaberModelForSaber( const char *saberName, char *saberModel );
-extern qboolean UI_SaberSkinForSaber( const char *saberName, char *saberSkin );
+extern qboolean UI_SaberModelForSaber( const char *saberName, char *saberModel, size_t sizeSaberModel );
+extern qboolean UI_SaberSkinForSaber( const char *saberName, char *saberSkin, size_t sizeSaberSkin );
 extern void UI_SaberAttachToChar( itemDef_t *item );
 
 extern qboolean PC_Script_Parse(const char **out);
@@ -978,7 +978,7 @@ static qboolean UI_RunMenuScript ( const char **args )
 //				s_savegame.yes.generic.flags	= QMF_HIGHLIGHT_IF_FOCUS;
 //				s_savegame.no.generic.flags		= QMF_HIGHLIGHT_IF_FOCUS;
 
-//				strcpy(fileName,s_savedata[s_savegame.currentLine].currentSaveFileName);
+//				Q_strncpyz(fileName,s_savedata[s_savegame.currentLine].currentSaveFileName);
 //				s_savegame.awaitingSave = qtrue;
 //				s_savegame.deletegame.generic.flags	= QMF_GRAYED;	// Turn off delete button
 //				break;
@@ -1671,12 +1671,12 @@ static void UI_CalcForceStatus(void)
 		index = FW_VERY_LIGHT;
 		if (who <50)
 		{
-			strcpy(value,"vlk");	// Very light Kyle
+			Q_strncpyz(value,"vlk");	// Very light Kyle
 			lukeFlag = qfalse;
 		}
 		else
 		{
-			strcpy(value,"vll");	// Very light Luke
+			Q_strncpyz(value,"vll");	// Very light Luke
 		}
 
 	}
@@ -1685,12 +1685,12 @@ static void UI_CalcForceStatus(void)
 		index = FW_SEMI_LIGHT;
 		if ( who<50 )
 		{
-			strcpy(value,"slk");	// Semi-light Kyle
+			Q_strncpyz(value,"slk");	// Semi-light Kyle
 			lukeFlag = qfalse;
 		}
 		else
 		{
-			strcpy(value,"sll");	// Semi-light light Luke
+			Q_strncpyz(value,"sll");	// Semi-light light Luke
 		}
 	}
 	else if (percent > 0.40f )
@@ -1698,12 +1698,12 @@ static void UI_CalcForceStatus(void)
 		index = FW_NEUTRAL;
 		if ( who<50 )
 		{
-			strcpy(value,"ntk");	// Neutral Kyle
+			Q_strncpyz(value,"ntk");	// Neutral Kyle
 			lukeFlag = qfalse;
 		}
 		else
 		{
-			strcpy(value,"ntl");	// Netural Luke
+			Q_strncpyz(value,"ntl");	// Netural Luke
 		}
 	}
 	else if (percent > 0.10f )
@@ -1711,12 +1711,12 @@ static void UI_CalcForceStatus(void)
 		index = FW_SEMI_DARK;
 		if ( who<50 )
 		{
-			strcpy(value,"sdk");	// Semi-dark Kyle
+			Q_strncpyz(value,"sdk");	// Semi-dark Kyle
 			lukeFlag = qfalse;
 		}
 		else
 		{
-			strcpy(value,"sdl");	// Semi-Dark Luke
+			Q_strncpyz(value,"sdl");	// Semi-Dark Luke
 		}
 	}
 	else
@@ -1724,12 +1724,12 @@ static void UI_CalcForceStatus(void)
 		index = FW_VERY_DARK;
 		if ( who<50 )
 		{
-			strcpy(value,"vdk");	// Very dark Kyle
+			Q_strncpyz(value,"vdk");	// Very dark Kyle
 			lukeFlag = qfalse;
 		}
 		else
 		{
-			strcpy(value,"vdl");	// Very Dark Luke
+			Q_strncpyz(value,"vdl");	// Very Dark Luke
 		}
 	}
 
@@ -3034,7 +3034,7 @@ void UI_Load(void)
 
 	if (menu && menu->window.name)
 	{
-		strcpy(lastName, menu->window.name);
+		Q_strncpyz(lastName, menu->window.name);
 	}
 	else
 	{
@@ -6376,13 +6376,13 @@ static void UI_UpdateSaberHilt( qboolean secondSaber )
 	}
 	DC->getCVarString( saberCvarName, model, sizeof(model) );
 	//read this from the sabers.cfg
-	if ( UI_SaberModelForSaber( model, modelPath ) )
+	if ( UI_SaberModelForSaber( model, modelPath, sizeof(modelPath) ) )
 	{//successfully found a model
 		ItemParse_asset_model_go( item, modelPath );//set the model
 		//get the customSkin, if any
 		//COM_StripExtension( modelPath, skinPath, sizeof(skinPath) );
 		//COM_DefaultExtension( skinPath, sizeof( skinPath ), ".skin" );
-		if ( UI_SaberSkinForSaber( model, skinPath ) )
+		if ( UI_SaberSkinForSaber( model, skinPath, sizeof(skinPath) ) )
 		{
 			ItemParse_model_g2skin_go( item, skinPath );//apply the skin
 		}
@@ -6577,7 +6577,7 @@ void ReadSaveDirectory (void)
 
 					struct tm *localTime;
 					localTime = localtime( &result );
-					strcpy(s_savedata[s_savegame.saveFileCnt].currentSaveFileDateTimeString,asctime( localTime ) );
+					Q_strncpyz(s_savedata[s_savegame.saveFileCnt].currentSaveFileDateTimeString,asctime( localTime ) );
 					s_savegame.saveFileCnt++;
 					if (s_savegame.saveFileCnt == MAX_SAVELOADFILES)
 					{

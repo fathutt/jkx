@@ -2826,12 +2826,12 @@ void G2_RagPrintMatrix(mdxaBone_t *mat)
 		int o = 0;
 		while (o < 4)
 		{
-            strcat(x, va("%f ", mat->matrix[n][o]));
+            Q_strcat(x, va("%f ", mat->matrix[n][o]));
 			o++;
 		}
 		n++;
 	}
-	strcat(x, "\n");
+	Q_strcat(x, "\n");
 	CL_RefPrintf( PRINT_ALL, x);
 }
 #endif
