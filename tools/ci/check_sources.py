@@ -20,6 +20,9 @@ hstring.cpp and hstring.h, 14 KB of a string-interning class that nothing
 compiles and nothing includes. The one every caller actually uses is
 code/Rufl/hstring.h, which is what all four source lists name.
 
+It also refuses project files for any build system that is not CMake, which is
+a different question asked for the same reason - see the note beside the list.
+
 The rule is one-directional where it has to be: every .cpp and .c under a
 watched directory must be listed, and every path listed must exist. Headers are
 not required to be listed - the lists carry them for IDE grouping, not for
@@ -67,6 +70,22 @@ class Watched:
 
 SOURCE_SUFFIXES = {".cpp", ".c"}
 
+# Project files for a build system this tree does not use.
+#
+# One of these was found by reading, not by any check: games/jka/game/game.vcproj,
+# 3906 lines of a Visual Studio 2008 project, referenced by nothing, still naming
+# an output called jagamex86.dll. It survived every rename in this project
+# because a rename sweeps sources and it is not one, and it survived the source
+# list gate above because that gate only looks at .cpp and .c.
+#
+# The failure mode is the same as an unbuilt source and worse: someone opens it,
+# it looks like how this is built, and it has not been since CMake arrived. This
+# tree builds with CMake and only CMake, so anything on this list is either a
+# second answer to that question or a leftover, and both are worth failing over.
+FOREIGN_BUILD_FILES = {".vcproj", ".vcxproj", ".sln", ".dsp", ".dsw", ".pro"}
+FOREIGN_BUILD_NAMES = {"Makefile.am", "configure.ac", "SConstruct", "meson.build"}
+SKIP_DIRS = {"lib", "third_party", ".git"}
+
 # shaders/ is built by tools/shadergen and checked by its own gate.
 WATCHED = [
     Watched("code/rd-vulkan/CMakeLists.txt", "code/rd-vulkan", "${CodeDir}",
@@ -83,9 +102,24 @@ WATCHED = [
 ]
 
 
+def foreign_build_files(root: Path) -> list[Path]:
+    """Build files for anything that is not CMake, anywhere but the vendored trees."""
+    found = []
+    for path in root.rglob("*"):
+        if not path.is_file() or SKIP_DIRS & set(path.parts):
+            continue
+        if path.suffix in FOREIGN_BUILD_FILES or path.name in FOREIGN_BUILD_NAMES:
+            found.append(path)
+    return sorted(found)
+
+
 def main() -> int:
     failed = 0
     checked = 0
+
+    foreign = foreign_build_files(Path("."))
+    for path in foreign:
+        print(f"error: {path} builds this tree with something that is not CMake")
 
     for watch in WATCHED:
         for cmake in watch.cmakes:
@@ -112,11 +146,19 @@ def main() -> int:
 
         checked += len(sources)
 
+    if foreign:
+        print()
+        print("This tree builds with CMake. A project file for anything else is")
+        print("either a second answer to how it is built or a leftover, and both")
+        print("read as instructions to whoever opens one.")
+
     if failed:
         print()
         print("A source file that is in no list is not compiled, so nothing else")
         print("would have told you. Either add it to the list or delete it -")
         print("leaving it on disk is the option that costs the next person time.")
+
+    if failed or foreign:
         return 1
 
     print(f"checked {checked} source(s) against {len(WATCHED)} source list(s)")
