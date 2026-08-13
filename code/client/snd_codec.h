@@ -89,6 +89,11 @@ qboolean		S_CodecStreamRead( soundStream_t *pStream, int iFirstFrame, int iFrame
 qboolean		S_CodecStreamRewind( soundStream_t *pStream );
 qboolean		S_CodecStreamSeekSeconds( soundStream_t *pStream, float fSeconds );
 
+// What the decoder said the stream is, for diagnostics that would otherwise
+// have to guess at it.
+int				S_CodecStreamRate( const soundStream_t *pStream );
+int				S_CodecStreamChannels( const soundStream_t *pStream );
+
 float			S_CodecStreamLengthSeconds( const soundStream_t *pStream );
 float			S_CodecStreamRemainingSeconds( const soundStream_t *pStream );
 

@@ -94,6 +94,7 @@ typedef struct MusicInfo_s
 	//
 	// Generic...
 	//
+	int			iDebugReads;		// reads since the last one that produced nothing
 	fileHandle_t s_backgroundFile;	// valid handle, else -1 if an MP3 (so that NZ compares still work)
 	wavinfo_t	s_backgroundInfo;
 	int			s_backgroundSamples;
@@ -3014,11 +3015,26 @@ static qboolean S_UpdateBackgroundTrack_Actual( MusicInfo_t *pMusicInfo, qboolea
 			// ended - it never started. Everything around here is silent about
 			// that: the open reports its own failures and this reports none, so
 			// music that decodes to nothing is indistinguishable from music
-			// nobody asked for. Once per track, because this loop runs every
-			// frame.
-			if ( qbForceFinish && iStartingSampleNum == 0 ) {
-				Com_Printf( S_COLOR_RED"Music track \"%s\" decoded nothing on its first read\n",
-							pMusicInfo->sfxMP3_Bgrnd.sSoundName );
+			// nobody asked for.
+			//
+			// The state comes with it because the codec layer has been cleared
+			// by measurement - this exact file plays end to end through both
+			// S_CodecStreamOpen and S_CodecStreamOpenFile, including across a
+			// rewind - so what is left to identify is which track, on which
+			// path, at what offset, and how far it got. A line without those is
+			// a line that costs another round trip.
+			if ( qbForceFinish ) {
+				Com_Printf( S_COLOR_RED"Music \"%s\": decoded nothing at sample %d "
+							"(asked for %d frames, %d Hz, %d ch, %s, %d read(s) so far)\n",
+							pMusicInfo->sfxMP3_Bgrnd.sSoundName,
+							iStartingSampleNum, fileBytes / 4,
+							S_CodecStreamRate( pMusicInfo->chMP3_Bgrnd.stream ),
+							S_CodecStreamChannels( pMusicInfo->chMP3_Bgrnd.stream ),
+							( pMusicInfo->s_backgroundFile == -1 ) ? "in memory" : "off the disk",
+							pMusicInfo->iDebugReads );
+				pMusicInfo->iDebugReads = 0;
+			} else {
+				pMusicInfo->iDebugReads++;
 			}
 		}
 		else

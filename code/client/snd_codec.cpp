@@ -632,6 +632,16 @@ qboolean S_CodecStreamSeekSeconds( soundStream_t *pStream, float fSeconds )
 	return qtrue;
 }
 
+int S_CodecStreamRate( const soundStream_t *pStream )
+{
+	return pStream->open ? pStream->rate : 0;
+}
+
+int S_CodecStreamChannels( const soundStream_t *pStream )
+{
+	return pStream->open ? pStream->channels : 0;
+}
+
 float S_CodecStreamLengthSeconds( const soundStream_t *pStream )
 {
 	if ( !pStream->open || pStream->rate <= 0 ) {
