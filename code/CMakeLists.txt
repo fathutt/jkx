@@ -265,9 +265,9 @@ if(BuildSPEngine OR BuildJK2SPEngine)
 		"${SPDir}/qcommon/GenericParser2.cpp"
 		"${SPDir}/qcommon/pc_parse.cpp"
 		"${SPDir}/qcommon/GenericParser2.h"
-		"${SPDir}/game/g_public.h"
-		"${SPDir}/cgame/cg_public.h"
-		"${SPDir}/ui/ui_public.h"
+		"${SPDir}/api/g_public.h"
+		"${SPDir}/api/cg_public.h"
+		"${SPDir}/api/ui_public.h"
 		"${SPDir}/ui/ui_shared.h"
 		)
 	source_group("game" FILES ${SPEngineGameFiles})
@@ -329,7 +329,6 @@ if(BuildSPEngine OR BuildJK2SPEngine)
 		"${SPDir}/ui/gameinfo.h"
 		"${SPDir}/ui/menudef.h"
 		"${SPDir}/ui/ui_local.h"
-		"${SPDir}/ui/ui_public.h"
 		"${SPDir}/ui/ui_shared.h"
 		)
 	source_group("ui" FILES ${SPEngineUIFiles})
@@ -365,7 +364,6 @@ if(BuildSPEngine OR BuildJK2SPEngine)
 
 	# Server files
 	set(SPEngineCGameFiles
-		"${SPDir}/cgame/cg_public.h"
 		"${SPDir}/cgame/animtable.h"
 		)
 	source_group("cgame" FILES ${SPEngineCGameFiles})

@@ -25,7 +25,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 #include "../qcommon/q_shared.h"
 #include "../qcommon/qcommon.h"
-#include "../game/g_public.h"
+#include "../api/g_public.h"
 
 #ifndef SERVER_H
 #define SERVER_H

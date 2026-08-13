@@ -24,11 +24,11 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #define __G_SHARED_H__
 
 #include "bg_public.h"
-#include "g_public.h"
+#include "../api/g_public.h"
 #include "b_public.h"
 #include "../icarus/StdAfx.h"	//need stl
 #include "../rd-common/tr_types.h"
-#include "../cgame/cg_public.h"
+#include "../api/cg_public.h"
 #include "g_vehicles.h"
 #include "hitlocs.h"
 #include "bset.h"

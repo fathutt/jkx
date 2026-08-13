@@ -25,7 +25,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #ifndef __CLIENTUI_H__
 #define __CLIENTUI_H__
 
-#include "../ui/ui_public.h"
+#include "../api/ui_public.h"
 
 void _UI_KeyEvent( int key, qboolean down );
 void UI_SetActiveMenu( const char* menuname,const char *menuID );

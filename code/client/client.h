@@ -29,7 +29,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #include "../rd-common/tr_public.h"
 #include "keys.h"
 #include "snd_public.h"
-#include "../cgame/cg_public.h"
+#include "../api/cg_public.h"
 
 // snapshots are a view of the server at a given time
 typedef struct {

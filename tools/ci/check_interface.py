@@ -35,7 +35,13 @@ from pathlib import Path
 CEILING = 935
 
 ENGINE = ("code/qcommon", "code/server", "code/client", "shared")
-GAME = ("code/game", "code/cgame", "code/ui", "code/icarus", "codeJK2")
+# code/api is counted on the game side on purpose. It is the contract - the
+# three headers both sides include - and moving it out of the gamecode is what
+# let the layering gate stop calling those three includes violations. If it were
+# also dropped from this count the number would fall to zero and the gate would
+# be measuring nothing, which is bookkeeping rather than progress. The question
+# here has not changed: how much of the game side can the engine see.
+GAME = ("code/api", "code/game", "code/cgame", "code/ui", "code/icarus", "codeJK2")
 
 # shared/qcommon/safe/files.cpp includes game/g_shared.h under SP_GAME - that is,
 # when it is compiled into the game library rather than into the engine. It is

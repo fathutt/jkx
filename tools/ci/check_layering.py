@@ -4,6 +4,13 @@
     game/  ->  render/  ->  engine/  ->  platform/
       \\-------------------> engine/
 
+    api/ sits across the engine/game line rather than on either side of it, and
+    everyone may include it. It is three headers - g_public.h, cg_public.h,
+    ui_public.h - and the rule for what may go there is in code/api/README.md.
+    Because it is a layer of its own, an engine file that includes the gamecode
+    is now a violation with nowhere to hide: the baseline no longer has an entry
+    for the three that used to be legitimate.
+
 The renderer must not include game headers. The engine must not include
 renderer or game headers. Removing the DLL boundary removes the compiler's
 help here, so this check replaces it.
@@ -34,6 +41,7 @@ from pathlib import Path
 LAYERS: dict[str, tuple[str, ...]] = {
     "platform": ("shared/sys", "shared/sdl"),
     "engine": ("code/qcommon", "code/server", "code/client", "shared/qcommon"),
+    "api": ("code/api",),
     "render": ("code/rd-vulkan", "code/rd-common"),
     "game": ("code/game", "code/cgame", "code/ui", "code/icarus", "codeJK2"),
 }
@@ -41,9 +49,10 @@ LAYERS: dict[str, tuple[str, ...]] = {
 # What each layer is allowed to include from (itself always allowed).
 ALLOWED: dict[str, set[str]] = {
     "platform": set(),
-    "engine": {"platform"},
-    "render": {"engine", "platform"},
-    "game": {"render", "engine", "platform"},
+    "engine": {"platform", "api"},
+    "api": {"engine", "platform"},
+    "render": {"engine", "platform", "api"},
+    "game": {"render", "engine", "platform", "api"},
 }
 
 # Known violations we inherit and are paying down. Every entry must name the
