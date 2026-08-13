@@ -180,6 +180,15 @@ stage_tests_cxx() {
     c++ -O2 -Wall -Werror -o "$out/sky_projection_test" \
         "$ROOT/tests/sky_projection_test.cpp" || return 1
     "$out/sky_projection_test" || return 1
+
+    # The sound codec, against a real compressed file. The headless bench never
+    # plays one, so without this the decoder is unverified.
+    c++ -O2 -std=c++20 -Wall -Werror -DARCH_STRING='"x86_64"' -DJKX_ENGINE \
+        -I "$ROOT/code" -I "$ROOT/code/client" -I "$ROOT/shared" \
+        -I "$ROOT/third_party" \
+        -o "$out/snd_codec_test" \
+        "$ROOT/tests/snd_codec_test.cpp" "$ROOT/code/client/snd_codec.cpp" || return 1
+    "$out/snd_codec_test" "$ROOT/tools/verify/fixtures/tone.mp3" || return 1
 }
 
 stage_smoke() {

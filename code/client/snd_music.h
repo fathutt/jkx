@@ -72,9 +72,10 @@ qboolean	Music_StateIsTransition		( MusicState_e eMusicState );
 qboolean	Music_StateCanBeInterrupted	( MusicState_e eMusicState, MusicState_e eProposedMusicState );
 float		Music_GetRandomEntryTime	( MusicState_e eMusicState );
 
-#ifdef		MP3STUFF_KNOWN
+// The guard used to be #ifdef MP3STUFF_KNOWN, a macro the old decoder's header
+// defined, so this declaration appeared only in translation units that had
+// included it. Nothing about a music transition depends on the audio format.
 qboolean	Music_AllowedToTransition	( float fPlayingTimeElapsed, MusicState_e eMusicState, MusicState_e	*peTransition = NULL, float *pfNewTrackEntryTime = NULL);
-#endif
 
 const char *Music_BaseStateToString		( MusicState_e eMusicState, qboolean bDebugPrintQuery = qfalse);
 

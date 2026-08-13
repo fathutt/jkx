@@ -26,6 +26,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #include "../server/exe_headers.h"
 
 #include "snd_local.h"
+#include "snd_codec.h"
 
 portable_samplepair_t paintbuffer[PAINTBUFFER_SIZE];
 int 	*snd_p, snd_linear_count, snd_vol;
@@ -198,7 +199,7 @@ void S_PaintChannelFromMP3( channel_t *ch, const sfx_t *sc, int count, int sampl
 	portable_samplepair_t	*samp;
 	static short tempMP3Buffer[PAINTBUFFER_SIZE];
 
-	MP3Stream_GetSamples( ch, sampleOffset, count, tempMP3Buffer, qfalse );	// qfalse = not stereo
+	S_CodecStreamRead( ch->stream, sampleOffset, count, tempMP3Buffer );
 
 	leftvol = ch->leftvol*snd_vol;
 	rightvol = ch->rightvol*snd_vol;

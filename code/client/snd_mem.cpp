@@ -25,7 +25,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #include "../server/exe_headers.h"
 
 #include "snd_local.h"
-#include "cl_mp3.h"
+#include "snd_codec.h"
 
 #include <string>
 
@@ -305,268 +305,45 @@ char *Filename_WithoutExt(const char *psFilename)
 
 
 
-int iFilesFound;
-int iFilesUpdated;
-int iErrors;
-qboolean qbForceRescan;
-qboolean qbForceStereo;
-std::string strErrors;
+// Keeping a sound compressed trades memory for CPU, and is only worth it when
+// the compressed file plus the decoder's own state is smaller than the PCM
+// would be. s_mp3overhead is what the decoder costs; the comparison is the same
+// one the old code made, with a real number in place of sizeof(MP3STREAM).
+cvar_t *s_compressedOverhead = NULL;
 
-void R_CheckMP3s( const char *psDir )
+void S_CodecInitCvars( void )
 {
-//	Com_Printf(va("Scanning Dir: %s\n",psDir));
-	Com_Printf(".");	// stops useful info scrolling off screen
-
-	char	**sysFiles, **dirFiles;
-	int		numSysFiles, i, numdirs;
-
-	dirFiles = FS_ListFiles( psDir, "/", &numdirs);
-	if (numdirs > 2)
-	{
-		for (i=2;i<numdirs;i++)
-		{
-			char	sDirName[MAX_QPATH];
-			sprintf(sDirName, "%s\\%s", psDir, dirFiles[i]);
-			R_CheckMP3s(sDirName);
-		}
-	}
-
-	sysFiles = FS_ListFiles( psDir, ".mp3", &numSysFiles );
-	for(i=0; i<numSysFiles; i++)
-	{
-		char	sFilename[MAX_QPATH];
-		sprintf(sFilename,"%s\\%s", psDir, sysFiles[i]);
-
-		Com_Printf("%sFound file: %s",!i?"\n":"",sFilename);
-
-		iFilesFound++;
-
-		// read it in...
-		//
-		byte *pbData = NULL;
-		int iSize = FS_ReadFile( sFilename, (void **)&pbData);
-
-		if (pbData)
-		{
-			id3v1_1* pTAG;
-
-			// do NOT check 'qbForceRescan' here as an opt, because we need to actually fill in 'pTAG' if there is one...
-			//
-			qboolean qbTagNeedsUpdating = (/* qbForceRescan || */ !MP3_ReadSpecialTagInfo(pbData, iSize, &pTAG))?qtrue:qfalse;
-
-			if (pTAG == NULL || qbTagNeedsUpdating || qbForceRescan)
-			{
-				Com_Printf(" ( Updating )\n");
-
-				// I need to scan this file to get the volume...
-				//
-				// For EF1 I used a temp sfx_t struct, but I can't do that now with this new alloc scheme,
-				//	I have to ask for it legally, so I'll keep re-using one, and restoring it's name after use.
-				//	(slightly dodgy, but works ok if no-one else changes stuff)
-				//
-				//sfx_t SFX = {0};
-				extern sfx_t *S_FindName( const char *name );
-				//
-				static sfx_t *pSFX = NULL;
-				const char sReservedSFXEntrynameForMP3[] = "reserved_for_mp3";	// ( strlen() < MAX_QPATH )
-
-				if (pSFX == NULL)	// once only
-				{
-					pSFX = S_FindName(sReservedSFXEntrynameForMP3);	// always returns, else ERR_FATAL
-				}
-
-				if (MP3_IsValid(sFilename,pbData, iSize, qbForceStereo))
-				{
-					wavinfo_t info;
-
-					int iRawPCMDataSize = MP3_GetUnpackedSize(sFilename, pbData, iSize, qtrue, qbForceStereo);
-
-					if (iRawPCMDataSize)	// should always be true, unless file is fucked, in which case, stop this conversion process
-					{
-						float fMaxVol = 128;	// any old default
-						int iActualUnpackedSize = iRawPCMDataSize;	// default, override later if not doing music
-
-						if (!qbForceStereo)	// no point for stereo files, which are for music and therefore no lip-sync
-						{
-							byte *pbUnpackBuffer = (byte *) Z_Malloc( iRawPCMDataSize+10, TAG_TEMP_WORKSPACE, qfalse );	// won't return if fails
-
-							iActualUnpackedSize = MP3_UnpackRawPCM( sFilename, pbData, iSize, pbUnpackBuffer );
-							if (iActualUnpackedSize != iRawPCMDataSize)
-							{
-								Com_Error(ERR_DROP, "******* Whoah! MP3 %s unpacked to %d bytes, but size calc said %d!\n",sFilename,iActualUnpackedSize,iRawPCMDataSize);
-							}
-
-							// fake up a WAV structure so I can use the other post-load sound code such as volume calc for lip-synching
-							//
-							MP3_FakeUpWAVInfo( sFilename, pbData, iSize, iActualUnpackedSize,
-												// these params are all references...
-												info.format, info.rate, info.width, info.channels, info.samples, info.dataofs
-												);
-
-							S_LoadSound_Finalize(&info, pSFX, pbUnpackBuffer);	// all this just for lipsynch. Oh well.
-
-							fMaxVol = pSFX->fVolRange;
-
-							// free sfx->data...
-							//
-							{
-								#ifndef INT_MIN
-								#define INT_MIN     (-2147483647 - 1) /* minimum (signed) int value */
-								#endif
-								//
-								pSFX->iLastTimeUsed = INT_MIN;		// force this to be oldest sound file, therefore disposable...
-								pSFX->bInMemory = true;
-								SND_FreeOldestSound();		// ... and do the disposal
-
-								// now set our temp SFX struct back to default name so nothing else accidentally uses it...
-								//
-								Q_strncpyz(pSFX->sSoundName, sReservedSFXEntrynameForMP3);
-								pSFX->bDefaultSound = false;
-							}
-
-//							OutputDebugString(va("File: \"%s\"   MaxVol %f\n",sFilename,pSFX->fVolRange));
-
-							// other stuff...
-							//
-							Z_Free(pbUnpackBuffer);
-						}
-
-						// well, time to update the file now...
-						//
-						fileHandle_t f = FS_FOpenFileWrite( sFilename );
-						if (f)
-						{
-							// write the file back out, but omitting the tag if there was one...
-							//
-							int iWritten = FS_Write(pbData, iSize-(pTAG?sizeof(*pTAG):0), f);
-
-							if (iWritten)
-							{
-								// make up a new tag if we didn't find one in the original file...
-								//
-								id3v1_1 TAG;
-								if (!pTAG)
-								{
-									pTAG = &TAG;
-									memset(&TAG,0,sizeof(TAG));
-									strncpy(pTAG->id,"TAG",3);
-								}
-
-								strncpy(pTAG->title,	Filename_WithoutPath(Filename_WithoutExt(sFilename)), sizeof(pTAG->title));
-								strncpy(pTAG->artist,	"Raven Software",						sizeof(pTAG->artist)	);
-								strncpy(pTAG->year,		"2002",									sizeof(pTAG->year)		);
-								strncpy(pTAG->comment,	va("%s %g",sKEY_MAXVOL,fMaxVol),		sizeof(pTAG->comment)	);
-								strncpy(pTAG->album,	va("%s %d",sKEY_UNCOMP,iActualUnpackedSize),sizeof(pTAG->album)	);
-
-								if (FS_Write( pTAG, sizeof(*pTAG), f ))	// NZ = success
-								{
-									iFilesUpdated++;
-								}
-								else
-								{
-									Com_Printf("*********** Failed write to file \"%s\"!\n",sFilename);
-									iErrors++;
-									strErrors += va("Failed to write: \"%s\"\n",sFilename);
-								}
-							}
-							else
-							{
-								Com_Printf("*********** Failed write to file \"%s\"!\n",sFilename);
-								iErrors++;
-								strErrors += va("Failed to write: \"%s\"\n",sFilename);
-							}
-							FS_FCloseFile( f );
-						}
-						else
-						{
-							Com_Printf("*********** Failed to re-open for write \"%s\"!\n",sFilename);
-							iErrors++;
-							strErrors += va("Failed to re-open for write: \"%s\"\n",sFilename);
-						}
-					}
-					else
-					{
-						Com_Error(ERR_DROP, "******* This MP3 should be deleted: \"%s\"\n",sFilename);
-					}
-				}
-				else
-				{
-					Com_Printf("*********** File was not a valid MP3!: \"%s\"\n",sFilename);
-					iErrors++;
-					strErrors += va("Not game-legal MP3 format: \"%s\"\n",sFilename);
-				}
-			}
-			else
-			{
-				Com_Printf(" ( OK )\n");
-			}
-
-			FS_FreeFile( pbData );
-		}
-	}
-	FS_FreeFileList( sysFiles );
-	FS_FreeFileList( dirFiles );
+	s_compressedOverhead = Cvar_Get( "s_mp3overhead",
+									 va( "%d", (int)( sizeof( soundStream_t ) + 5 * 1024 ) ),
+									 CVAR_ARCHIVE );
 }
 
-// this console-function is for development purposes, and makes sure that sound/*.mp3 /s have tags in them
-//	specifying stuff like their max volume (and uncompressed size) etc...
-//
-void S_MP3_CalcVols_f( void )
+static qboolean S_KeepCompressed( sfx_t *sfx, byte *pbSrcData, int iSrcDataLen, int iRawPCMDataSize )
 {
-	char sStartDir[MAX_QPATH] = {"sound"};
-	const char sUsage[] = "Usage: mp3_calcvols [-rescan] <startdir>\ne.g. mp3_calcvols sound/chars";
-
-	if (Cmd_Argc() == 1 || Cmd_Argc()>4)	// 3 optional arguments
-	{
-		Com_Printf(sUsage);
-		return;
+	if ( !s_compressedOverhead || iSrcDataLen + s_compressedOverhead->integer >= iRawPCMDataSize ) {
+		return qfalse;
 	}
 
-	S_StopAllSounds();
+	sfx->eSoundCompressionMethod	= ct_MP3;
+	sfx->iCompressedDataLen			= iSrcDataLen;
+	// 128 is the peak-volume default the old code used when a file carried no
+	// tag saying otherwise. Every file lacks that tag now, so it is simply the
+	// value: lip synching on a compressed sound uses the mixer's own amplitude
+	// (see S_CheckAmplitude), not this.
+	sfx->fVolRange					= 128;
+	sfx->iSoundLengthInSamples		= ( iRawPCMDataSize / (int)sizeof( short ) ) / ( 44100 / dma.speed );
 
-
-	qbForceRescan = qfalse;
-	qbForceStereo = qfalse;
-	iFilesFound		= 0;
-	iFilesUpdated	= 0;
-	iErrors			= 0;
-	strErrors		= "";
-
-	for (int i=1; i<Cmd_Argc(); i++)
-	{
-		if (Cmd_Argv(i)[0] == '-')
-		{
-			if (!Q_stricmp(Cmd_Argv(i),"-rescan"))
-			{
-				qbForceRescan = qtrue;
-			}
-			else
-			if (!Q_stricmp(Cmd_Argv(i),"-stereo"))
-			{
-				qbForceStereo = qtrue;
-			}
-			else
-			{
-				// unknown switch...
-				//
-				Com_Printf(sUsage);
-				return;
-			}
-			continue;
-		}
-		Q_strncpyz(sStartDir,Cmd_Argv(i));
-	}
-
-	Com_Printf(va("Starting Scan for Updates in Dir: %s\n",sStartDir));
-	R_CheckMP3s( sStartDir );
-
-	Com_Printf("\n%d files found/scanned, %d files updated      ( %d errors total)\n",iFilesFound,iFilesUpdated,iErrors);
-
-	if (iErrors)
-	{
-		Com_Printf("\nBad Files:\n%s\n",strErrors.c_str());
-	}
+	sfx->pSoundData = (short *) SND_malloc( iSrcDataLen, sfx );
+	memcpy( sfx->pSoundData, pbSrcData, iSrcDataLen );
+	return qtrue;
 }
+
+// R_CheckMP3s and S_MP3_CalcVols_f lived here: a console command that walked
+// sound/ and rewrote every .mp3 in place to carry an ID3v1 comment holding its
+// peak volume and unpacked size. Raven's own tool wrote that tag and this
+// re-created it, and nothing outside this project has ever read it. The
+// replacement decoder answers both questions directly, so the tag is gone and
+// so is the command that maintained it.
 
 
 
@@ -776,51 +553,62 @@ static qboolean S_LoadSound_Actual( sfx_t *sfx )
 
 	SND_TouchSFX(sfx);
 //=========
-	if (Q_stricmpn(psExt,".mp3",4)==0)
+	if (S_CodecSniff(data, size) != CODEC_NONE)
 	{
-		// load MP3 file instead...
+		// A compressed file. The extension is not consulted: it is what
+		// someone typed, and the header is what the data is.
 		//
-		if (MP3_IsValid(sLoadName,data, size, qfalse))
 		{
-			int iRawPCMDataSize = MP3_GetUnpackedSize(sLoadName,data,size,qfalse,qfalse);
+			const int iFrames = S_CodecFrameCount(data, size);
+			const int iRawPCMDataSize = iFrames * (int)sizeof(short);
+
+			if (iFrames == 0)
+			{
+				Com_Printf(S_COLOR_YELLOW"S_LoadSound: could not read \"%s\" as %s\n",
+							sLoadName, S_CodecName(S_CodecSniff(data, size)));
+				FS_FreeFile (data);
+				return qfalse;
+			}
 
 			if (S_LoadSound_DirIsAllowedToKeepMP3s(sfx->sSoundName)	// NOT sLoadName, this uses original un-languaged name
 				&&
-				MP3Stream_InitFromFile(sfx, data, size, sLoadName, iRawPCMDataSize + 2304 /* + 1 MP3 frame size, jic */,qfalse)
+				S_KeepCompressed(sfx, data, size, iRawPCMDataSize)
 				)
 			{
-//				Com_DPrintf("(Keeping file \"%s\" as MP3)\n",sLoadName);
+//				Com_DPrintf("(Keeping file \"%s\" compressed)\n",sLoadName);
 
 			}
 			else
 			{
 				// small file, not worth keeping as MP3 since it would increase in size (with MP3 header etc)...
 				//
-				Com_DPrintf("S_LoadSound: Unpacking MP3 file \"%s\" to wav.\n",sLoadName);
+				Com_DPrintf("S_LoadSound: Unpacking \"%s\" to wav.\n",sLoadName);
 				//
 				// unpack and convert into WAV...
 				//
 				{
-					byte *pbUnpackBuffer = (byte *) Z_Malloc( iRawPCMDataSize+10 +2304 /* <g> */, TAG_TEMP_WORKSPACE, qfalse );	// won't return if fails
+					short *psPcm = NULL;
+					int iDecodedFrames = 0, iDecodedRate = 0, iDecodedChannels = 0;
+
+					if (!S_CodecDecodeAll(data, size, qfalse, &psPcm, &iDecodedFrames, &iDecodedRate, &iDecodedChannels))
+					{
+						Com_Printf(S_COLOR_YELLOW"S_LoadSound: failed to decode \"%s\"\n",sLoadName);
+						FS_FreeFile (data);
+						return qfalse;
+					}
+
+					byte *pbUnpackBuffer = (byte *) psPcm;
 
 					{
-						int iResultBytes = MP3_UnpackRawPCM( sLoadName, data, size, pbUnpackBuffer, qfalse );
-
-						if (iResultBytes!= iRawPCMDataSize){
-							Com_Printf(S_COLOR_YELLOW"**** MP3 %s final unpack size %d different to previous value %d\n",sLoadName,iResultBytes,iRawPCMDataSize);
-							//assert (iResultBytes == iRawPCMDataSize);
-						}
-
-
-						// fake up a WAV structure so I can use the other post-load sound code such as volume calc for lip-synching
-						//
-						// (this is a bit crap really, but it lets me drop through into existing code)...
-						//
-						MP3_FakeUpWAVInfo( sLoadName, data, size, iResultBytes,
-											// these params are all references...
-											info.format, info.rate, info.width, info.channels, info.samples, info.dataofs,
-											qfalse
-										);
+						// A wavinfo_t so the rest of the load path - resampling
+						// and the peak-volume scan lip synching needs - does not
+						// have to know this arrived compressed.
+						info.format		= WAV_FORMAT_PCM;
+						info.dataofs	= 0;
+						info.rate		= iDecodedRate;
+						info.width		= (int)sizeof(short);
+						info.channels	= iDecodedChannels;
+						info.samples	= iDecodedFrames;
 
 						S_LoadSound_Finalize(&info,sfx,pbUnpackBuffer);
 
@@ -841,19 +629,10 @@ static qboolean S_LoadSound_Actual( sfx_t *sfx )
 						}
 #endif
 
-						// Open AL
-
 						Z_Free(pbUnpackBuffer);
 					}
 				}
 			}
-		}
-		else
-		{
-			// MP3_IsValid() will already have printed any errors via Com_Printf at this point...
-			//
-			FS_FreeFile (data);
-			return qfalse;
 		}
 	}
 	else

@@ -32,7 +32,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 #include "sdl/sdl_sound.h"
 #include "snd_local.h"
-#include "cl_mp3.h"
+#include "snd_codec.h"
 #include "snd_music.h"
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
@@ -58,9 +58,6 @@ extern qboolean Sys_LowPhysicalMemory();
 //
 // vars for bgrnd music track...
 //
-const int iMP3MusicStream_DiskBytesToRead = 10000;//4096;
-const int iMP3MusicStream_DiskBufferSize = iMP3MusicStream_DiskBytesToRead*2; //*10;
-
 typedef struct MusicInfo_s
 {
 	qboolean	bIsMP3;
@@ -68,15 +65,8 @@ typedef struct MusicInfo_s
 	// MP3 specific...
 	//
 	sfx_t		sfxMP3_Bgrnd;
-	MP3STREAM	streamMP3_Bgrnd;	// this one is pointed at by the sfx_t's ptr, and is NOT the one the decoder uses every cycle
-	channel_t	chMP3_Bgrnd;		// ... but the one in this struct IS.
+	channel_t	chMP3_Bgrnd;
 	soundStream_t streamState_Bgrnd;	// the decode slot chMP3_Bgrnd.stream points at
-	//
-	// MP3 disk streamer stuff... (if music is non-dynamic)
-	//
-	byte		byMP3MusicStream_DiskBuffer[iMP3MusicStream_DiskBufferSize];
-	int			iMP3MusicStream_DiskReadPos;
-	int			iMP3MusicStream_DiskWindowPos;
 	//
 	// MP3 disk-load stuff (for use during dynamic music, which is mem-resident)
 	//
@@ -110,15 +100,13 @@ typedef struct MusicInfo_s
 
 	void Rewind()
 	{
-		MP3Stream_Rewind( &chMP3_Bgrnd );
+		S_CodecStreamRewind( chMP3_Bgrnd.stream );
 		s_backgroundSamples = sfxMP3_Bgrnd.iSoundLengthInSamples;
 	}
 
 	void SeekTo(float fTime)
 	{
-		chMP3_Bgrnd.stream->windowPos = 0;
-		chMP3_Bgrnd.stream->writePos = 0;
-		MP3Stream_SeekTo( &chMP3_Bgrnd, fTime );
+		S_CodecStreamSeekSeconds( chMP3_Bgrnd.stream, fTime );
 		s_backgroundSamples = sfxMP3_Bgrnd.iSoundLengthInSamples;
 	}
 
@@ -170,9 +158,7 @@ static void S_WireChannelStreams( void )
 {
 	for ( int i = 0; i < MAX_CHANNELS; i++ ) {
 		s_channels[i].stream = &s_channelStreams[i];
-		memset( &s_channelStreams[i].header, 0, sizeof( s_channelStreams[i].header ) );
-		s_channelStreams[i].writePos = 0;
-		s_channelStreams[i].windowPos = 0;
+		S_CodecStreamClose( &s_channelStreams[i] );
 	}
 }
 
@@ -255,14 +241,12 @@ static inline void Channel_Clear(channel_t *ch)
 	memset(ch, 0, sizeof(*ch));
 	ch->stream = stream;
 
-	// The old two-memset version cleared the decoder header and both window
+	// The old two-memset version cleared the decoder state and both window
 	// positions and skipped only the 50 KB window itself. Keep exactly that:
 	// the window is overwritten before it is read, and clearing it every time
 	// a channel is picked is what the offsetof arithmetic existed to avoid.
 	if ( stream ) {
-		memset( &stream->header, 0, sizeof( stream->header ) );
-		stream->writePos = 0;
-		stream->windowPos = 0;
+		S_CodecStreamClose( stream );
 	}
 }
 
@@ -370,7 +354,7 @@ void S_Init( void ) {
 	s_volume            = Cvar_Get( "s_volume",            "0.5",     CVAR_ARCHIVE );
 	s_volumeVoice       = Cvar_Get( "s_volumeVoice",       "1.0",     CVAR_ARCHIVE );
 
-	MP3_InitCvars();
+	S_CodecInitCvars();
 
 	if ( !s_initsound->integer ) {
 		s_soundStarted = 0;	// needed in case you set s_initsound to 0 midgame then snd_restart (div0 err otherwise later)
@@ -385,7 +369,6 @@ void S_Init( void ) {
 	Cmd_AddCommand("soundlist", S_SoundList_f);
 	Cmd_AddCommand("soundinfo", S_SoundInfo_f);
 	Cmd_AddCommand("soundstop", S_StopAllSounds);
-	Cmd_AddCommand("mp3_calcvols", S_MP3_CalcVols_f);
 	Cmd_AddCommand("s_dynamic", S_SetDynamicMusic_f);
 
 		r = SNDDMA_Init(s_khz->integer);
@@ -453,7 +436,6 @@ void S_Shutdown( void )
 	Cmd_RemoveCommand("soundlist");
 	Cmd_RemoveCommand("soundinfo");
 	Cmd_RemoveCommand("soundstop");
-	Cmd_RemoveCommand("mp3_calcvols");
 	Cmd_RemoveCommand("s_dynamic");
 	AS_Free();
 }
@@ -942,15 +924,15 @@ void S_StartAmbientSound( const vec3_t origin, int entityNum, unsigned char volu
 	ch->leftvol = ch->master_vol;		// these will get calced at next spatialize
 	ch->rightvol = ch->master_vol;		// unless the game isn't running
 
-	if (sfx->pMP3StreamHeader)
+	if (sfx->eSoundCompressionMethod == ct_MP3)
 	{
-		memcpy(&ch->stream->header,sfx->pMP3StreamHeader,	sizeof(ch->stream->header));
+		S_CodecStreamOpen(ch->stream, sfx->pSoundData, sfx->iCompressedDataLen, qfalse);
 		//ch->stream->writePos = 0; // These will be zero from the memset in S_PickChannel(), but keep them here for reference...
 		//ch->stream->windowPos= 0; //
 	}
 	else
 	{
-		memset(&ch->stream->header,0,						sizeof(ch->stream->header));
+		S_CodecStreamClose(ch->stream);
 	}
 }
 
@@ -1021,15 +1003,15 @@ void S_StartSound(const vec3_t origin, int entityNum, soundChannel_t entchannel,
 		s_entityWavVol[ ch->entnum ] = -1;	//we've started the sound but it's silent for now
 	}
 
-	if (sfx->pMP3StreamHeader)
+	if (sfx->eSoundCompressionMethod == ct_MP3)
 	{
-		memcpy(&ch->stream->header,sfx->pMP3StreamHeader,	sizeof(ch->stream->header));
+		S_CodecStreamOpen(ch->stream, sfx->pSoundData, sfx->iCompressedDataLen, qfalse);
 		//ch->stream->writePos = 0; // These will be zero from the memset in S_PickChannel(), but keep them here for reference...
 		//ch->stream->windowPos= 0; //
 	}
 	else
 	{
-		memset(&ch->stream->header,0,						sizeof(ch->stream->header));
+		S_CodecStreamClose(ch->stream);
 	}
 }
 
@@ -1141,7 +1123,7 @@ void S_CIN_StopSound(sfxHandle_t sfxHandle)
 		{
 			SND_FreeSFXMem(ch->thesfx);	// heh, may as well...
 			ch->thesfx = NULL;
-			memset(&ch->stream->header, 0, sizeof(MP3STREAM));
+			S_CodecStreamClose(ch->stream);
 			break;
 		}
 	}
@@ -1240,7 +1222,7 @@ void S_AddLoopingSound( int entityNum, const vec3_t origin, const vec3_t velocit
 	if ( !sfx->iSoundLengthInSamples ) {
 		Com_Error( ERR_DROP, "%s has length 0", sfx->sSoundName );
 	}
-	assert(!sfx->pMP3StreamHeader);
+	assert(sfx->eSoundCompressionMethod != ct_MP3);
 	VectorCopy( origin, loopSounds[numLoopSounds].origin );
 //	VectorCopy( velocity, loopSounds[numLoopSounds].velocity );
 	loopSounds[numLoopSounds].sfx = sfx;
@@ -1282,7 +1264,7 @@ void S_AddAmbientLoopingSound( const vec3_t origin, unsigned char volume, sfxHan
 	}
 	VectorCopy( origin, loopSounds[numLoopSounds].origin );
 	loopSounds[numLoopSounds].sfx = sfx;
-	assert(!sfx->pMP3StreamHeader);
+	assert(sfx->eSoundCompressionMethod != ct_MP3);
 
 	//TODO: Calculate the distance falloff
 	loopSounds[numLoopSounds].volume = volume;
@@ -1348,13 +1330,13 @@ void S_AddLoopSounds (void)
 
 		// you cannot use MP3 files here because they offer only streaming access, not random
 		//
-		if (loop->sfx->pMP3StreamHeader)
+		if (loop->sfx->eSoundCompressionMethod == ct_MP3)
 		{
 			Com_Error( ERR_DROP, "S_AddLoopSounds(): Cannot use streamed MP3 files here for random access (%s)\n",loop->sfx->sSoundName );
 		}
 		else
 		{
-			memset(&ch->stream->header,0,						sizeof(ch->stream->header));
+			S_CodecStreamClose(ch->stream);
 		}
 	}
 }
@@ -1911,10 +1893,6 @@ void S_Update( void ) {
 				Com_Printf ("(%i) %3i %3i %s\n", ch->entnum, ch->leftvol, ch->rightvol, ch->thesfx->sSoundName);
 				//total++;
 				//totalMeg += Z_Size(ch->thesfx->pSoundData);
-				//if (ch->thesfx->pMP3StreamHeader)
-				//{
-				//	totalMeg += sizeof(*ch->thesfx->pMP3StreamHeader);
-				//}
 			}
 		}
 
@@ -2203,14 +2181,14 @@ void S_SoundList_f( void ) {
 
 	for (sfx=s_knownSfx, i=0 ; i<s_numSfx ; i++, sfx++)
 	{
-		extern cvar_t *cv_MP3overhead;
+		extern cvar_t *s_compressedOverhead;
 		qboolean bMP3DumpOverride = (qboolean)(
 			bShouldBeMP3 &&
-			cv_MP3overhead &&
+			s_compressedOverhead &&
 			!sfx->bDefaultSound &&
-			!sfx->pMP3StreamHeader &&
+			sfx->eSoundCompressionMethod != ct_MP3 &&
 			sfx->pSoundData &&
-			(Z_Size(sfx->pSoundData) > cv_MP3overhead->integer));
+			(Z_Size(sfx->pSoundData) > s_compressedOverhead->integer));
 
 		if (bMP3DumpOverride || (!bShouldBeMP3 && (!bWavOnly || sfx->eSoundCompressionMethod == ct_16)))
 		{
@@ -2254,7 +2232,6 @@ void S_SoundList_f( void ) {
 				if (bDumpThisOne)
 				{
 					iTotalBytes += (sfx->bInMemory && sfx->pSoundData) ? Z_Size(sfx->pSoundData) : 0;
-					iTotalBytes += (sfx->bInMemory && sfx->pMP3StreamHeader) ? sizeof(*sfx->pMP3StreamHeader) : 0;
 					total		+=  sfx->bInMemory ? size : 0;
 				}
 				Com_Printf("%5d %7i [%s] %s %2d %s", i, size, sSoundCompressionMethodStrings[sfx->eSoundCompressionMethod], sfx->bInMemory?"y":"n", sfx->iLastLevelUsedOn, sfx->sSoundName );
@@ -2347,48 +2324,11 @@ qboolean S_FileExists( const char *psFilename )
 
 // some stuff for streaming MP3 files from disk (not pleasant, but nothing about MP3 is, other than compression ratios...)
 //
-static void MP3MusicStream_Reset(MusicInfo_t *pMusicInfo)
-{
-	pMusicInfo->iMP3MusicStream_DiskReadPos		= 0;
-	pMusicInfo->iMP3MusicStream_DiskWindowPos	= 0;
-}
-
-//
-// return is where the decoder should read from...
-//
-static byte *MP3MusicStream_ReadFromDisk(MusicInfo_t *pMusicInfo, int iReadOffset, int iReadBytesNeeded)
-{
-	if (iReadOffset < pMusicInfo->iMP3MusicStream_DiskWindowPos)
-	{
-		assert(0);											// should never happen
-		return pMusicInfo->byMP3MusicStream_DiskBuffer;		// ...but return something safe anyway
-	}
-
-	while (iReadOffset + iReadBytesNeeded > pMusicInfo->iMP3MusicStream_DiskReadPos)
-	{
-		int iBytesRead = FS_Read( pMusicInfo->byMP3MusicStream_DiskBuffer + (pMusicInfo->iMP3MusicStream_DiskReadPos - pMusicInfo->iMP3MusicStream_DiskWindowPos), iMP3MusicStream_DiskBytesToRead, pMusicInfo->s_backgroundFile );
-
-		pMusicInfo->iMP3MusicStream_DiskReadPos += iBytesRead;
-
-		if (iBytesRead != iMP3MusicStream_DiskBytesToRead)	// quietly ignore any requests to read past file end
-		{
-			break;		// we need to do this because the disk read code can't know how much source data we need to
-						//	read for a given number of requested output bytes, so we'll always be asking for too many
-		}
-	}
-
-	// if reached halfway point in buffer (approx 20k), backscroll it...
-	//
-	if (pMusicInfo->iMP3MusicStream_DiskReadPos - pMusicInfo->iMP3MusicStream_DiskWindowPos > iMP3MusicStream_DiskBufferSize/2)
-	{
-		int iMoveSrcOffset = iReadOffset - pMusicInfo->iMP3MusicStream_DiskWindowPos;
-		int iMoveCount     = (pMusicInfo->iMP3MusicStream_DiskReadPos - pMusicInfo->iMP3MusicStream_DiskWindowPos ) - iMoveSrcOffset;
-		memmove( &pMusicInfo->byMP3MusicStream_DiskBuffer, &pMusicInfo->byMP3MusicStream_DiskBuffer[iMoveSrcOffset], iMoveCount);
-		pMusicInfo->iMP3MusicStream_DiskWindowPos += iMoveSrcOffset;
-	}
-
-	return pMusicInfo->byMP3MusicStream_DiskBuffer + (iReadOffset - pMusicInfo->iMP3MusicStream_DiskWindowPos);
-}
+// MP3MusicStream_Reset and MP3MusicStream_ReadFromDisk lived here: a second
+// sliding window, this one over the *compressed* bytes, kept in step by hand
+// with the decoder's own read index. The decoder now pulls what it needs
+// through the filesystem itself, so the window, its 20 KB buffer and the two
+// positions that had to agree with it are gone.
 
 
 // does NOT set s_rawend!...
@@ -2474,13 +2414,14 @@ static qboolean S_StartBackgroundTrack_Actual( MusicInfo_t *pMusicInfo, qboolean
 			return qfalse;
 		}
 
-		MP3MusicStream_Reset( pMusicInfo );
-
-		byte *pbMP3DataSegment	= NULL;
-		int iInitialMP3ReadSize = 8192;		// fairly arbitrary, whatever size this is then the decoder is allowed to
-											// scan up to halfway of it to find floating headers, so don't make it
-											// too small. 8k works fine.
 		qboolean bMusicSucceeded = qfalse;
+
+		// Dynamic music is held in memory because it is seeked around between
+		// states; ordinary music is streamed straight off the disk.
+		memset(&pMusicInfo->chMP3_Bgrnd,0,sizeof(pMusicInfo->chMP3_Bgrnd));
+				pMusicInfo->chMP3_Bgrnd.stream = &pMusicInfo->streamState_Bgrnd;
+
+		qboolean bOpened = qfalse;
 		if (qbDynamic)
 		{
 			if (!pMusicInfo->pLoadedData)
@@ -2492,42 +2433,24 @@ static qboolean S_StartBackgroundTrack_Actual( MusicInfo_t *pMusicInfo, qboolean
 				Q_strncpyz(pMusicInfo->sLoadedDataName, name, sizeof(pMusicInfo->sLoadedDataName));
 			}
 
-			// enable the rest of the code to work as before...
-			//
-			pbMP3DataSegment	= pMusicInfo->pLoadedData;
-			iInitialMP3ReadSize = pMusicInfo->iLoadedDataLen;
+			bOpened = S_CodecStreamOpen(pMusicInfo->chMP3_Bgrnd.stream, pMusicInfo->pLoadedData,
+										pMusicInfo->iLoadedDataLen, qtrue);
 		}
 		else
 		{
-			pbMP3DataSegment = MP3MusicStream_ReadFromDisk(pMusicInfo, 0, iInitialMP3ReadSize);
+			bOpened = S_CodecStreamOpenFile(pMusicInfo->chMP3_Bgrnd.stream,
+											pMusicInfo->s_backgroundFile, qtrue);
 		}
 
-		if (MP3_IsValid(name, pbMP3DataSegment, iInitialMP3ReadSize, qtrue /*bStereoDesired*/))
+		if (bOpened)
 		{
-			// init stream struct...
-			//
-			memset(&pMusicInfo->streamMP3_Bgrnd,0,sizeof(pMusicInfo->streamMP3_Bgrnd));
-			char *psError = C_MP3Stream_DecodeInit( &pMusicInfo->streamMP3_Bgrnd, pbMP3DataSegment, pMusicInfo->iLoadedDataLen,
-													dma.speed,
-													16,		// sfx->width * 8,
-													qtrue	// bStereoDesired
-													);
-
-
-			if (psError == NULL)
 			{
-				// init sfx struct & setup the few fields I actually need...
+				// init sfx struct & setup the few fields we actually need...
 				//
 				memset(	   &pMusicInfo->sfxMP3_Bgrnd,0,sizeof(pMusicInfo->sfxMP3_Bgrnd));
-				//			pMusicInfo->sfxMP3_Bgrnd.width					= 2;			// read by MP3_GetSamples()
 							pMusicInfo->sfxMP3_Bgrnd.iSoundLengthInSamples	= 0x7FFFFFFF;	// max possible +ve int, since music finishes when decoder stops
-							pMusicInfo->sfxMP3_Bgrnd.pMP3StreamHeader		= &pMusicInfo->streamMP3_Bgrnd;
+							pMusicInfo->sfxMP3_Bgrnd.eSoundCompressionMethod	= ct_MP3;
 				Q_strncpyz( pMusicInfo->sfxMP3_Bgrnd.sSoundName, name, sizeof(pMusicInfo->sfxMP3_Bgrnd.sSoundName) );
-
-				if (qbDynamic)
-				{
-					MP3Stream_InitPlayingTimeFields ( &pMusicInfo->streamMP3_Bgrnd, name, pbMP3DataSegment, pMusicInfo->iLoadedDataLen, qtrue);
-				}
 
 				pMusicInfo->s_backgroundInfo.format		= WAV_FORMAT_MP3;	// not actually used this way, but just ensures we don't match one of the legit formats
 				pMusicInfo->s_backgroundInfo.channels	= 2;		// always, for our MP3s when used for music (else 1 for FX)
@@ -2536,10 +2459,7 @@ static qboolean S_StartBackgroundTrack_Actual( MusicInfo_t *pMusicInfo, qboolean
 				pMusicInfo->s_backgroundInfo.samples	= pMusicInfo->sfxMP3_Bgrnd.iSoundLengthInSamples;
 				pMusicInfo->s_backgroundSamples			= pMusicInfo->sfxMP3_Bgrnd.iSoundLengthInSamples;
 
-				memset(&pMusicInfo->chMP3_Bgrnd,0,sizeof(pMusicInfo->chMP3_Bgrnd));
-						pMusicInfo->chMP3_Bgrnd.stream = &pMusicInfo->streamState_Bgrnd;
 						pMusicInfo->chMP3_Bgrnd.thesfx = &pMusicInfo->sfxMP3_Bgrnd;
-				memcpy(&pMusicInfo->chMP3_Bgrnd.stream->header, pMusicInfo->sfxMP3_Bgrnd.pMP3StreamHeader, sizeof(*pMusicInfo->sfxMP3_Bgrnd.pMP3StreamHeader));
 
 				if (qbDynamic)
 				{
@@ -2553,20 +2473,10 @@ static qboolean S_StartBackgroundTrack_Actual( MusicInfo_t *pMusicInfo, qboolean
 				pMusicInfo->bIsMP3 = qtrue;
 				bMusicSucceeded = qtrue;
 			}
-			else
-			{
-				Com_Printf(S_COLOR_RED"Error streaming file %s: %s\n", name, psError);
-				if (pMusicInfo->s_backgroundFile != -1)
-				{
-					FS_FCloseFile( pMusicInfo->s_backgroundFile );
-				}
-				pMusicInfo->s_backgroundFile = 0;
-			}
 		}
 		else
 		{
-			// MP3_IsValid() will already have printed any errors via Com_Printf at this point...
-			//
+			Com_Printf(S_COLOR_RED"Error streaming music file %s\n", name);
 			if (pMusicInfo->s_backgroundFile != -1)
 			{
 				FS_FCloseFile( pMusicInfo->s_backgroundFile );
@@ -2696,7 +2606,7 @@ static void S_HandleDynamicMusicStateChange( void )
 		//
 		if (Music_StateCanBeInterrupted( eMusic_StateActual, eMusic_StateRequest ))
 		{
-			LP_MP3STREAM pMP3StreamActual = &tMusic_Info[ eMusic_StateActual ].chMP3_Bgrnd.stream->header;
+			const soundStream_t *pStreamActual = tMusic_Info[ eMusic_StateActual ].chMP3_Bgrnd.stream;
 
 			switch (eMusic_StateRequest)
 			{
@@ -2709,7 +2619,7 @@ static void S_HandleDynamicMusicStateChange( void )
 							// find the transition track to play, and the entry point for explore when we get there,
 							//	and also see if we're at a permitted exit point to switch at all...
 							//
-							float fPlayingTimeElapsed = MP3Stream_GetPlayingTimeInSeconds( pMP3StreamActual ) - MP3Stream_GetRemainingTimeInSeconds( pMP3StreamActual );
+							float fPlayingTimeElapsed = S_CodecStreamLengthSeconds( pStreamActual ) - S_CodecStreamRemainingSeconds( pStreamActual );
 
 							// supply:
 							//
@@ -2765,7 +2675,7 @@ static void S_HandleDynamicMusicStateChange( void )
 							// find the transition track to play, and the entry point for explore when we get there,
 							//	and also see if we're at a permitted exit point to switch at all...
 							//
-							float fPlayingTimeElapsed = MP3Stream_GetPlayingTimeInSeconds( pMP3StreamActual ) - MP3Stream_GetRemainingTimeInSeconds( pMP3StreamActual );
+							float fPlayingTimeElapsed = S_CodecStreamLengthSeconds( pStreamActual ) - S_CodecStreamRemainingSeconds( pStreamActual );
 
 							MusicState_e	eTransition;
 							float			fNewTrackEntryTime = 0.0f;
@@ -2968,7 +2878,6 @@ void S_StartBackgroundTrack( const char *intro, const char *loop, qboolean bCall
 				pMusicInfo->iXFadeVolume		= 0;
 
 	//#ifdef _DEBUG
-	//			float fRemaining = MP3Stream_GetPlayingTimeInSeconds( &pMusicInfo->chMP3_Bgrnd.stream->header);
 	//#endif
 			}
 			else
@@ -3095,25 +3004,11 @@ static qboolean S_UpdateBackgroundTrack_Actual( MusicInfo_t *pMusicInfo, qboolea
 			// Com_Printf(S_COLOR_YELLOW "Requesting MP3 samples: sample %d\n",iStartingSampleNum);
 
 
-			if (pMusicInfo->s_backgroundFile == -1)
-			{
-				// in-mem...
-				//
-				qbForceFinish = (MP3Stream_GetSamples( &pMusicInfo->chMP3_Bgrnd, iStartingSampleNum, fileBytes/2, (short*) raw, qtrue ))?qfalse:qtrue;
-
-				//Com_Printf(S_COLOR_YELLOW "Music time remaining: %f seconds\n", MP3Stream_GetRemainingTimeInSeconds( &pMusicInfo->chMP3_Bgrnd.stream->header ));
-			}
-			else
-			{
-				// streaming an MP3 file instead... (note that the 'fileBytes' request size isn't that relevant for MP3s,
-				//										since code here can't know how much the MP3 needs to decompress)
-				//
-				byte *pbScrolledStreamData = MP3MusicStream_ReadFromDisk(pMusicInfo, pMusicInfo->chMP3_Bgrnd.stream->header.iSourceReadIndex, fileBytes);
-
-				pMusicInfo->chMP3_Bgrnd.stream->header.pbSourceData = pbScrolledStreamData - pMusicInfo->chMP3_Bgrnd.stream->header.iSourceReadIndex;
-
-				qbForceFinish = (MP3Stream_GetSamples( &pMusicInfo->chMP3_Bgrnd, iStartingSampleNum, fileBytes/2, (short*) raw, qtrue ))?qfalse:qtrue;
-			}
+			// In memory or off the disk: the decoder was told which when it was
+			// opened, and from here they are the same thing. fileBytes is a
+			// request in bytes of stereo output, so it is half that in frames.
+			qbForceFinish = S_CodecStreamRead( pMusicInfo->chMP3_Bgrnd.stream, iStartingSampleNum,
+											   fileBytes/4, (short*) raw ) ? qfalse : qtrue;
 		}
 		else
 		{
@@ -3313,7 +3208,7 @@ static void S_UpdateBackgroundTrack( void )
 					}
 				}
 
-				float fRemainingTimeInSeconds = MP3Stream_GetRemainingTimeInSeconds( &pMusicInfoCurrent->chMP3_Bgrnd.stream->header );
+				float fRemainingTimeInSeconds = S_CodecStreamRemainingSeconds( pMusicInfoCurrent->chMP3_Bgrnd.stream );
 				// Com_Printf("Remaining: %3.3f\n",fRemainingTimeInSeconds);
 
 				if ( fRemainingTimeInSeconds < fDYNAMIC_XFADE_SECONDS*2 )
@@ -3431,10 +3326,6 @@ static int SND_MemUsed(sfx_t *sfx)
 		iSize += Z_Size(sfx->pSoundData);
 	}
 
-	if (sfx->pMP3StreamHeader) {
-		iSize += Z_Size(sfx->pMP3StreamHeader);
-	}
-
 	return iSize;
 }
 
@@ -3453,11 +3344,6 @@ static int SND_FreeSFXMem(sfx_t *sfx)
 	}
 
 	sfx->bInMemory = false;
-
-	if (						sfx->pMP3StreamHeader) {
-		iBytesFreed +=	Z_Free(	sfx->pMP3StreamHeader );
-								sfx->pMP3StreamHeader = NULL;
-	}
 
 	return iBytesFreed;
 }

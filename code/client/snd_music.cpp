@@ -33,7 +33,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #include <sstream>
 
 #include "snd_local.h"
-#include "cl_mp3.h"
+#include "snd_codec.h"
 
 //
 #include "snd_music.h"

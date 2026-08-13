@@ -239,6 +239,13 @@ jobs:
           g++ -std=c++20 -Wall -Wextra -fsanitize=address,undefined \
               -o pak_test tests/shader_pak_test.cpp code/rd-vulkan/vk_shader_pak.cpp
           ./pak_test
+      - name: sound codec
+        run: |
+          c++ -O2 -std=c++20 -Wall -Werror -DARCH_STRING='"x86_64"' -DJKX_ENGINE \
+              -I code -I code/client -I shared -I third_party \
+              -o snd_codec_test tests/snd_codec_test.cpp code/client/snd_codec.cpp
+          ./snd_codec_test tools/verify/fixtures/tone.mp3
+
       - name: render graph core
         run: |
           g++ -std=c++20 -Wall -Wextra -fsanitize=address,undefined -I third_party/volk \

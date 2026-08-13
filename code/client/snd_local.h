@@ -27,9 +27,12 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #define SND_LOCAL_H
 
 #include "../qcommon/q_shared.h"
+
+// Declarations only - the implementation is compiled once, in snd_codec.cpp.
+#define DR_MP3_NO_STDIO
+#include "dr_libs/dr_mp3.h"
 #include "../qcommon/qcommon.h"
 #include "snd_public.h"
-#include "../mp3code/mp3struct.h"
 
 // Added for Open AL to know when to mute all sounds (e.g when app. loses focus)
 void S_AL_MuteAllSounds(qboolean bMute);
@@ -68,13 +71,16 @@ typedef struct sfx_s {
 	bool			bInMemory;				// not in Memory, set qtrue when loaded, and qfalse when its buffers are freed up because of being old, so can be reloaded
 	short			iLastLevelUsedOn;		// used for cacheing purposes
 	SoundCompressionMethod_t eSoundCompressionMethod;
-	MP3STREAM		*pMP3StreamHeader;		// NULL ptr unless this sfx_t is an MP3. Use Z_Malloc and Z_Free
+	// Non-zero only when eSoundCompressionMethod is ct_MP3, in which case
+	// pSoundData holds the compressed file rather than PCM and this is how
+	// many bytes of it there are. Each channel that plays this sound opens its
+	// own decoder over those bytes; there is no shared decoder state any more,
+	// which is what pMP3StreamHeader used to be.
+	int				iCompressedDataLen;
 	int 			iSoundLengthInSamples;	// length in samples, always kept as 16bit now so this is #shorts (watch for stereo later for music?)
 	char 			sSoundName[MAX_QPATH];
 	int				iLastTimeUsed;
 	float			fVolRange;				// used to set the highest volume this sample has at load time - used for lipsynching
-
-	// Open AL
 
 	struct sfx_s	*next;					// only used because of hash table when registering
 } sfx_t;
@@ -113,9 +119,17 @@ typedef struct {
 // MP3 does.
 typedef struct soundStream_s
 {
-	MP3STREAM	header;
-	// Typical back-request is -3072, so roughly double that is 6000 for
-	// safety, then doubled again so the 6K position sits in the middle.
+	int			codec;			// soundCodec_t; int so this header need not include snd_codec.h
+	qboolean	open;
+	qboolean	wantStereo;
+	int			channels;		// what the source has, not what the caller asked for
+	int			rate;
+	drmp3		mp3;			// valid while open and codec == CODEC_MP3
+
+	// The decode window. Typical back-request is -3072, so roughly double that
+	// is 6000 for safety, then doubled again so the 6K position sits in the
+	// middle. Byte offsets, not frames: writePos is how much of the window is
+	// filled, windowPos is where the window starts in the whole stream.
 	byte		window[50000];
 	int			writePos;
 	int			windowPos;
@@ -216,7 +230,6 @@ void S_memoryLoad(sfx_t *sfx);
 //
 //////////////////////////////////
 
-#include "cl_mp3.h"
 
 #endif	// #ifndef SND_LOCAL_H
 

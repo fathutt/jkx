@@ -53,6 +53,7 @@ if(BuildJKAEngine OR BuildJK2Engine)
 		${SharedDir}
 		${CMAKE_BINARY_DIR}/shared
 		${CodeDir}
+		"${ThirdPartyDir}"
 		"${GSLIncludeDirectory}")
 
 	#    Dependencies
@@ -131,20 +132,20 @@ if(BuildJKAEngine OR BuildJK2Engine)
 		"${CodeDir}/client/cl_input.cpp"
 		"${CodeDir}/client/cl_keys.cpp"
 		"${CodeDir}/client/cl_main.cpp"
-		"${CodeDir}/client/cl_mp3.cpp"
 		"${CodeDir}/client/cl_parse.cpp"
 		"${CodeDir}/client/cl_scrn.cpp"
 		"${CodeDir}/client/cl_ui.cpp"
-		"${CodeDir}/client/cl_mp3.h"
 		"${CodeDir}/client/client.h"
 		"${CodeDir}/client/client_ui.h"
 
 		"${CodeDir}/client/snd_ambient.cpp"
+		"${CodeDir}/client/snd_codec.cpp"
 		"${CodeDir}/client/snd_dma.cpp"
 		"${CodeDir}/client/snd_mem.cpp"
 		"${CodeDir}/client/snd_mix.cpp"
 		"${CodeDir}/client/snd_music.cpp"
 		"${CodeDir}/client/snd_ambient.h"
+		"${CodeDir}/client/snd_codec.h"
 		"${CodeDir}/client/snd_local.h"
 		"${CodeDir}/client/snd_music.h"
 		"${CodeDir}/client/snd_public.h"
@@ -260,41 +261,6 @@ if(BuildJKAEngine OR BuildJK2Engine)
 	set(EngineFiles ${EngineFiles} ${EngineGameFiles})
 
 
-	# MP3 files
-	set(EngineMP3Files
-		"${CodeDir}/mp3code/cdct.c"
-		"${CodeDir}/mp3code/csbt.c"
-		"${CodeDir}/mp3code/csbtb.c"
-		"${CodeDir}/mp3code/csbtl3.c"
-		"${CodeDir}/mp3code/cup.c"
-		"${CodeDir}/mp3code/cupini.c"
-		"${CodeDir}/mp3code/cupl1.c"
-		"${CodeDir}/mp3code/cupl3.c"
-		"${CodeDir}/mp3code/cwin.c"
-		"${CodeDir}/mp3code/cwinb.c"
-		"${CodeDir}/mp3code/cwinm.c"
-		"${CodeDir}/mp3code/hwin.c"
-		"${CodeDir}/mp3code/l3dq.c"
-		"${CodeDir}/mp3code/l3init.c"
-		"${CodeDir}/mp3code/mdct.c"
-		"${CodeDir}/mp3code/mhead.c"
-		"${CodeDir}/mp3code/msis.c"
-		"${CodeDir}/mp3code/towave.c"
-		"${CodeDir}/mp3code/uph.c"
-		"${CodeDir}/mp3code/upsf.c"
-		"${CodeDir}/mp3code/wavep.c"
-		"${CodeDir}/mp3code/config.h"
-		"${CodeDir}/mp3code/htable.h"
-		"${CodeDir}/mp3code/jdw.h"
-		"${CodeDir}/mp3code/l3.h"
-		"${CodeDir}/mp3code/mhead.h"
-		"${CodeDir}/mp3code/mp3struct.h"
-		"${CodeDir}/mp3code/port.h"
-		"${CodeDir}/mp3code/small_header.h"
-		"${CodeDir}/mp3code/tableawd.h"
-		)
-	source_group("mp3" FILES ${EngineMP3Files})
-	set(EngineFiles ${EngineFiles} ${EngineMP3Files})
 
 	set(EngineRendererFiles
 		"${CodeDir}/rd-common/mdx_format.h"
