@@ -1,21 +1,23 @@
-# Правила разработки и кодстайл
+# Coding standards
 
-**Проект:** SP-движок Jedi Outcast / Jedi Academy на Vulkan 1.3
-**Статус:** обязательно к исполнению. Изменения — только через обсуждение и правку этого документа.
+**Project:** a single-player Jedi Outcast / Jedi Academy engine on Vulkan 1.3
+**Status:** binding. Changes go through discussion and an edit to this document.
 
-Документ описывает, как мы пишем код. Он короче, чем хотелось бы, потому что правило, которое никто не помнит, не работает. Всё, что можно проверить автоматикой, проверяется автоматикой (`clang-format`, `clang-tidy`, CI) и в этом документе не дублируется.
+This describes how we write code. It is shorter than we would like, because a rule nobody remembers is not a rule. Anything a machine can check is checked by a machine (`clang-format`, `clang-tidy`, CI) and is not repeated here.
+
+This document is in English. The working documents - the backlog, the roadmaps, the phase reports - are in Russian and live in the project rather than in this repository. This one is the exception because it is the only document the build depends on: five CI scripts, the root README, `ci.yml` and `CMakeLists.txt` name it, and rules 1, 6.1 and 12.2 are enforced. A rule that is enforced should be readable by everyone who has to read the code.
 
 ---
 
-## 1. Язык — только латиница в коде
+## 1. Language - code is Latin-only
 
-**Весь код и все комментарии к нему — только на латинице. Кириллица допускается исключительно в документации.**
+**All code and all comments on it are Latin script only. Cyrillic is allowed in documentation and nowhere else.**
 
-Это правило номер один и оно не имеет исключений.
+This is rule number one and it has no exceptions.
 
-Под «кодом» понимается всё, что лежит в `engine/`, `render/`, `game/`, `tools/`, `third_party/`: исходники, заголовки, шейдеры, CMake, скрипты сборки, конфиги CI, имена файлов и каталогов, сообщения `git commit`, содержимое строковых литералов в коде, имена cvar'ов и консольных команд, текст `assert`, имена Vulkan-объектов в `VK_SET_OBJECT_NAME`.
+"Code" means everything under `code/`, `games/`, `shared/`, `tools/`, `third_party/`: sources, headers, shaders, CMake, build scripts, CI configuration, file and directory names, `git commit` messages, the contents of string literals, cvar and console command names, `assert` text, and Vulkan object names passed to `VK_SET_OBJECT_NAME`.
 
-Под «документацией» понимается: `docs/**`, `*.md` в корне репозитория, содержимое issue и pull request'ов, дизайн-документы, тексты решений.
+"Documentation" means `docs/**`, `*.md` in the root of the repository, issue and pull request text, design documents, decision records.
 
 ```cpp
 // GOOD
@@ -23,282 +25,290 @@
 // surfaces of the selected LOD are transformed.
 static void G2_TransformBone(int child, CBoneCache& bones);
 
-// BAD — кириллица в комментарии
+// BAD - Cyrillic in a comment
 // Иерархия костей считается лениво
 static void G2_TransformBone(int child, CBoneCache& bones);
 ```
 
-**Почему.** Кодировки в C++-тулчейне остаются источником боли: MSVC без `/utf-8` читает исходник в кодовой странице системы, `#pragma execution_character_set` живёт своей жизнью, отладчики и профайлеры регулярно ломают не-ASCII в именах символов. Плюс: `grep`/`rg` по коду перестаёт быть предсказуемым, diff'ы шумят, а привлечь стороннего контрибьютора к коду с кириллическими комментариями практически невозможно. Документацию всё это не касается — там кириллица допустима и уместна.
+**Why.** Encodings in a C++ toolchain are still a source of pain: MSVC without `/utf-8` reads a source file in the system code page, `#pragma execution_character_set` has a life of its own, and debuggers and profilers regularly mangle non-ASCII in symbol names. On top of that, `grep`/`rg` over the code stops being predictable, diffs get noisy, and bringing in an outside contributor to code with Cyrillic comments is close to impossible. None of this applies to documentation, where Cyrillic is fine and appropriate.
 
-**Локализуемые строки, которые видит игрок,** не хардкодятся вообще — они живут в `.str`-файлах ассетов и проходят через `SE_GetString()`. Это отдельное правило (§6.5), но оно снимает 90 % соблазна написать кириллицу в `.cpp`.
+**Player-visible strings are not hard-coded at all.** They live in `.str` asset files and go through `SE_GetString()`. That is a separate rule (§6.5), but it removes 90% of the temptation to write Cyrillic in a `.cpp`.
 
-**Исходники в UTF-8 без BOM.** `/utf-8` для MSVC и `-finput-charset=UTF-8 -fexec-charset=UTF-8` для GCC/Clang задаются в CMake глобально. Проверка на не-ASCII в коде — отдельная CI-джоба (`tools/ci/check-ascii.py`), падает на первом же нарушении.
+**Sources are UTF-8 without BOM.** `/utf-8` for MSVC and `-finput-charset=UTF-8 -fexec-charset=UTF-8` for GCC/Clang are set globally in CMake. The non-ASCII check is `tools/ci/check_ascii.py` and it fails on the first violation.
 
 ---
 
-## 2. Стандарт языка и подмножество
+## 2. Language standard and subset
 
-**C++20.** `CMAKE_CXX_STANDARD 20`, `CXX_STANDARD_REQUIRED ON`, `CXX_EXTENSIONS OFF`, `/std:c++20` для MSVC.
+**C++20.** `CMAKE_CXX_STANDARD 20`, `CXX_STANDARD_REQUIRED ON`, `CXX_EXTENSIONS OFF`, `/std:c++20` for MSVC.
 
-### Используем
+### We use
 
-`std::span`, `std::string_view`, `std::array`, `std::optional`, `std::bit_cast`, designated initializers (особенно полезны для `VkXxxCreateInfo`), `constexpr`/`consteval`, `if constexpr`, `[[nodiscard]]`, `[[likely]]`/`[[unlikely]]` в горячих путях, structured bindings, `enum class`, concepts для шаблонных хелперов RHI, `<format>` (или `fmt`, если `<format>` окажется дырявым в целевых компиляторах).
+`std::span`, `std::string_view`, `std::array`, `std::optional`, `std::bit_cast`, designated initializers (particularly useful for `VkXxxCreateInfo`), `constexpr`/`consteval`, `if constexpr`, `[[nodiscard]]`, `[[likely]]`/`[[unlikely]]` on hot paths, structured bindings, `enum class`, concepts for templated RHI helpers, `<format>` (or `fmt`, if `<format>` turns out to be patchy on the target compilers).
 
-### Не используем
+### We do not use
 
-| Что | Почему |
+| What | Why |
 |---|---|
-| **Исключения** | Компилируем с `-fno-exceptions` / `/EHs-c-`. Легаси-`throw int` из `Com_Error` убирается в фазе 3 (см. §7) |
-| **RTTI** | `-fno-rtti`. `dynamic_cast` и `typeid` не нужны |
-| **`std::shared_ptr`** | Владение должно быть явным и однозначным. `std::unique_ptr` — можно, но в горячих путях предпочитаем арены и индексы |
-| **`std::function` в горячем пути** | Аллокация + непредсказуемый вызов. В job system и render graph — только сырые указатели на функции + `void*` контекст, либо шаблонные лямбды по значению |
-| **Виртуальные вызовы в цикле по данным** | См. `CParticle::Update()` — 1200 виртуальных вызовов на кадр. Заменяется switch по тегу или SoA-проходом |
-| **`std::regex`, `std::iostream`, `std::locale`** | Раздувают бинарь, тянут локали, медленные |
-| **Множественное наследование, кроме pure-interface** | — |
-| **Макросы там, где хватает `constexpr` или шаблона** | Исключение: макросы для generated-кода шейдеров (`global.h`) и для платформенных `#ifdef` |
-| **`using namespace` в заголовках** | — |
+| **Exceptions** | We compile with `-fno-exceptions` / `/EHs-c-`. The legacy `throw int` in `Com_Error` goes in phase 3 (see §7) |
+| **RTTI** | `-fno-rtti`. `dynamic_cast` and `typeid` are not needed |
+| **`std::shared_ptr`** | Ownership must be explicit and unambiguous. `std::unique_ptr` is fine, but on hot paths prefer arenas and indices |
+| **`std::function` on a hot path** | An allocation plus an unpredictable call. In the job system and the render graph: raw function pointers plus a `void*` context, or templated lambdas by value |
+| **Virtual calls in a loop over data** | See `CParticle::Update()` - 1200 virtual calls per frame. Replace with a switch on a tag or an SoA pass |
+| **`std::regex`, `std::iostream`, `std::locale`** | Bloat the binary, drag in locales, slow |
+| **Multiple inheritance other than pure interfaces** | - |
+| **Macros where `constexpr` or a template would do** | Exception: macros for generated shader code (`global.h`) and for platform `#ifdef` |
+| **`using namespace` in a header** | - |
 
-### Про STL в целом
+### On the STL generally
 
-STL используем, но с пониманием. `std::vector` для данных уровня — нормально. `std::vector` в структуре, создаваемой тысячи раз за кадр, — нет. `std::map`/`std::unordered_map` в загрузке — нормально, в кадре — нет (открытая адресация или плоский массив + линейный поиск при N < 32).
+We use the STL, with judgement. `std::vector` for level data is fine. `std::vector` inside a struct built thousands of times per frame is not. `std::map`/`std::unordered_map` during loading is fine, in a frame is not - use open addressing, or a flat array with a linear scan when N < 32.
 
-### Самописные контейнеры Raven
+### Raven's own containers
 
-`Ratl`, `Ravl`, `Ragl`, `Rufl` — на удаление, но **не в первую очередь**. Порядок:
+`Ratl`, `Ravl`, `Ragl`, `Rufl` are on the way out, but **not first**. The order:
 
-1. `Ravl` (`CVec3`/`CMatrix`) → `q_math` и POD-типы.
-2. `Ratl` (`vector_vs`, `map_vs`, `pool_vs` — статическая ёмкость параметром шаблона) → `Q::LimitedVector` из `shared/qcommon/safe/limited_vector.h` (уже есть, с тестами) и `std::array`. Начинать с `tr_WorldEffects.cpp` — это единственная точка, где рендерер зависит от геймкодового дерева.
-3. `Rufl::hstring` конкурирует с `qcommon/hstring.cpp` — две реализации интернирования строк, одну убрать.
-4. `Ragl` (граф навигации) — переписывать вместе с `g_navigator`, отдельный проект, низкий приоритет.
+1. `Ravl` (`CVec3`/`CMatrix`) -> `q_math` and POD types.
+2. `Ratl` (`vector_vs`, `map_vs`, `pool_vs` - static capacity as a template parameter) -> `Q::LimitedVector` from `shared/qcommon/safe/limited_vector.h`, which already exists and has tests, and `std::array`. Start with `tr_WorldEffects.cpp`: it is the one place where the renderer depends on a gamecode tree.
+3. `Rufl::hstring` competes with `qcommon/hstring.cpp` - two string interning implementations, one of which goes.
+4. `Ragl` (the navigation graph) gets rewritten together with `g_navigator`. A separate project, low priority.
 
-`ratl_common.h` определяет `operator new(size_t, TRatlNew*)` **в глобальном namespace** — это загрязняет каждую TU, куда попадает любой Ratl-заголовок. Пока Ratl жив, его заголовки не должны попадать в `render/`.
+`ratl_common.h` defines `operator new(size_t, TRatlNew*)` **in the global namespace**, which pollutes every translation unit any Ratl header reaches. While Ratl lives, its headers must not reach the renderer.
 
 ---
 
-## 3. Именование и формат
+## 3. Naming and formatting
 
-Формат задан `.clang-format`, лежащим в корне. Спорить о нём в ревью запрещено — правь файл или молчи.
+Formatting is defined by the `.clang-format` in the root. Arguing about it in review is not allowed - edit the file or say nothing.
 
 ```
-Отступ         4 пробела, без табов (легаси-файлы конвертируются при первом касании)
-Ширина         120 колонок
-Скобки         Allman для функций и типов, K&R для управляющих конструкций
-Указатель      Type* name  (звёздочка к типу)
+Indent         4 spaces, no tabs (legacy files are converted on first touch)
+Width          120 columns
+Braces         Allman for functions and types, K&R for control flow
+Pointers       Type* name  (star binds to the type)
 ```
 
-| Сущность | Стиль | Пример |
+| Entity | Style | Example |
 |---|---|---|
-| Типы, классы, структуры | `PascalCase` | `RenderGraph`, `BoneCache`, `MediumParams` |
-| Функции и методы | `camelCase` | `buildWorldVbo()`, `evalRender()` |
-| Свободные функции публичного API рендерера | `R_PascalCase` | `R_PostFx_SetParams()`, `R_AddDecal()` |
-| Переменные, параметры | `camelCase` | `frameIndex`, `boneCount` |
-| Члены класса | `m_camelCase` | `m_boneCount` |
-| Глобалы (их должно быть мало) | `g_camelCase` | `g_levelArena` |
-| Статики файла | `s_camelCase` | `s_pipelineCache` |
-| Константы, `constexpr` | `kPascalCase` | `kMaxBones`, `kFramesInFlight` |
-| Макросы (минимум) | `UPPER_SNAKE` | `VK_CHECK` |
-| `enum class` и значения | `PascalCase` | `PostFxSlot::Underwater` |
-| Файлы | `snake_case.cpp/.h` | `render_graph.cpp`, `vk_device.cpp` |
-| Namespace | `lowercase` | `namespace render`, `namespace jobs` |
+| Types, classes, structs | `PascalCase` | `RenderGraph`, `BoneCache`, `MediumParams` |
+| Functions and methods | `camelCase` | `buildWorldVbo()`, `evalRender()` |
+| Free functions in the renderer's public API | `R_PascalCase` | `R_PostFx_SetParams()`, `R_AddDecal()` |
+| Variables, parameters | `camelCase` | `frameIndex`, `boneCount` |
+| Class members | `m_camelCase` | `m_boneCount` |
+| Globals (there should be few) | `g_camelCase` | `g_levelArena` |
+| File-scope statics | `s_camelCase` | `s_pipelineCache` |
+| Constants, `constexpr` | `kPascalCase` | `kMaxBones`, `kFramesInFlight` |
+| Macros (minimal) | `UPPER_SNAKE` | `VK_CHECK` |
+| `enum class` and its values | `PascalCase` | `PostFxSlot::Underwater` |
+| Files | `snake_case.cpp/.h` | `render_graph.cpp`, `vk_device.cpp` |
+| Namespaces | `lowercase` | `namespace render`, `namespace jobs` |
 
-**Легаси-имена не переименовываем массово.** `tr_`, `RB_`, `RE_`, `G2API_`, `qhandle_t`, `vec3_t` остаются как есть — они узнаваемы, гуглятся и связывают нас с 20 годами модовой документации. Новые сущности пишутся по таблице выше; старые приводятся к ней **только** когда файл и так переписывается целиком.
+**We do not mass-rename legacy identifiers.** `tr_`, `RB_`, `RE_`, `G2API_`, `qhandle_t`, `vec3_t` stay as they are: they are recognisable, they are searchable, and they connect us to twenty years of mod documentation. New entities follow the table above; old ones are brought into line **only** when the file is being rewritten anyway.
 
-**Венгерская нотация Raven** (`iSize`, `psFilename`, `bZeroit`, `pvAddress`, `gbUsingCachedMapDataRightNow`) — в новом коде запрещена, в старом не трогается до переписывания файла.
+**Raven's Hungarian notation** (`iSize`, `psFilename`, `bZeroit`, `pvAddress`, `gbUsingCachedMapDataRightNow`) is forbidden in new code and left alone in old code until that file is rewritten.
 
 ---
 
-## 4. Память
+## 4. Memory
 
-Правила отражают то, что мы чиним в этой кодовой базе, а не абстрактную теорию.
+These rules reflect what we are fixing in this codebase, not abstract theory.
 
-### 4.1 Области жизни явные
+### 4.1 Lifetimes are explicit
 
 ```cpp
-Arena  g_permanent;    // на весь процесс
-Arena  g_level;        // сбрасывается при смене карты
-Arena  g_frame[2];     // per-frame, double-buffered
+Arena  g_permanent;    // the life of the process
+Arena  g_level;        // reset on map change
+Arena  g_frame[2];     // per frame, double buffered
 ```
 
-Каждая аллокация принадлежит одной из областей. `Hunk_*` возвращает свой смысл: `g_level.reset()` — это O(1), а не линейный проход по глобальному списку, как нынешний `Z_TagFree`.
+Every allocation belongs to one of them. `Hunk_*` gets its meaning back: `g_level.reset()` is O(1), not a linear walk over a global list the way `Z_TagFree` is today.
 
-### 4.2 Ноль аллokаций в кадре
+### 4.2 Zero allocations in a frame
 
-В горячем пути (всё, что выполняется каждый кадр) запрещены `new`, `malloc`, `std::vector::push_back` с ростом, любые `std::string`. Только `g_frame[i]` (bump-аллокатор) и заранее выделенные пулы.
+On the hot path - everything that runs every frame - `new`, `malloc`, a growing `std::vector::push_back` and any `std::string` are forbidden. Only `g_frame[i]`, a bump allocator, and pools allocated up front.
 
-Это не эстетика: `new CBoneCache` на первое появление модели, `new CTrail` каждые 2 мс для сабли, 1200 отдельных `new` для частиц — конкретные измеримые проблемы этой кодовой базы.
+This is not aesthetics. `new CBoneCache` the first time a model appears, `new CTrail` every 2 ms for a sabre, 1200 separate `new` calls for particles - these are specific, measurable problems in this codebase.
 
-### 4.3 Выравнивание — всерьёз
+### 4.3 Alignment, seriously
 
-Аллокатор обязан уважать запрошенное выравнивание. В легаси `Z_Malloc(int iSize, ..., int iAlign)` параметр помечен `/*unusedAlign*/` и игнорируется, при том что глобально включён `-msse2`. Это мина. Новый аллокатор — `alignas`-корректный по умолчанию (16 байт), с явным параметром для большего.
+An allocator must honour the alignment it was asked for. In the legacy `Z_Malloc(int iSize, ..., int iAlign)` the parameter is marked `/*unusedAlign*/` and ignored, while `-msse2` is on globally. That is a mine. The new allocator is `alignas`-correct by default at 16 bytes, with an explicit parameter for more.
 
-### 4.4 Владение
+### 4.4 Ownership
 
-- Сырой указатель = **не владеет**, всегда.
-- Владение = `unique_ptr`, значение, или явная арена.
-- Хендлы вместо указателей там, где объект живёт в пуле: `struct TextureHandle { uint32_t index; uint32_t generation; };` — generation ловит use-after-free без ASan.
+- A raw pointer **does not own**. Always.
+- Ownership is a `unique_ptr`, a value, or an explicit arena.
+- Handles rather than pointers where the object lives in a pool: `struct TextureHandle { uint32_t index; uint32_t generation; };` - the generation catches use-after-free without ASan.
 
-### 4.5 Никаких сырых дампов структур в файлы
+### 4.5 No raw struct dumps to files
 
-Сейчас сейв-игра — это `memcpy` `gentity_t`/`gclient_t` в файл. Отсюда: несовместимость 32/64 бит, поломка от любого изменения layout, утечка адресов в файл (`EnumerateField` пишет `*(int*)pv` в 8-байтовое поле указателя — старшие 4 байта уезжают на диск).
+Today a save game is a `memcpy` of `gentity_t`/`gclient_t` into a file. Hence: 32/64-bit incompatibility, breakage from any layout change, and addresses leaking into the file - `EnumerateField` writes `*(int*)pv` into an 8-byte pointer field, so the top four bytes go to disk.
 
-Любая сериализация — явная, поле за полем, с версией формата в заголовке. Версионирование формата сейва делается **до** первого изменения игровых структур.
+All serialisation is explicit, field by field, with a format version in the header. The save format is versioned **before** the first change to a game struct.
 
 ---
 
-## 5. Ошибки и отказы
+## 5. Errors and failure
 
-### 5.1 Исключений нет
+### 5.1 There are no exceptions
 
-`-fno-exceptions`. Легаси `Com_Error` делает `throw code;` и ловит его в `Com_Frame` через `catch (int)`, при этом `Com_Error` экспортируется в геймкод и рендерер — то есть исключение раскручивает C-подобные кадры чужого модуля без всякого RAII. В монолите это уже безопаснее, но модель всё равно меняем.
+`-fno-exceptions`. The legacy `Com_Error` does `throw code;` and catches it in `Com_Frame` with `catch (int)`, while `Com_Error` is exported to the gamecode and the renderer - so an exception unwinds C-like frames of another module with no RAII anywhere. In a monolith that is already safer, but the model still changes.
 
-Целевая схема:
+The target:
 
 ```cpp
-[[noreturn]] void Sys_FatalError(const char* fmt, ...);   // не возвращается, пишет лог и падает
+[[noreturn]] void Sys_FatalError(const char* fmt, ...);   // does not return; logs and dies
 enum class LoadResult { Ok, NotFound, Corrupt, OutOfMemory };
 ```
 
-- **Программная ошибка** (нарушен инвариант, который мы контролируем) → `assert` в debug, UB-контракт в release. Не проверяем в release.
-- **Ошибка данных** (битый BSP, отсутствующая текстура, кривой `.shader`) → **всегда проверяется, всегда в release**, возвращается кодом, логируется с путём файла и смещением. Никогда не `assert`.
-- **Фатальный отказ окружения** (нет Vulkan-девайса, кончилась память) → `Sys_FatalError`.
+- A **programming error** - an invariant we control is broken - is an `assert` in debug and a UB contract in release. Not checked in release.
+- A **data error** - a corrupt BSP, a missing texture, a malformed `.shader` - is **always checked, including in release**, returned as a code, and logged with the file path and offset. Never an `assert`.
+- A **fatal environment failure** - no Vulkan device, out of memory - is `Sys_FatalError`.
 
-### 5.2 Валидация внешних данных — не обсуждается
+### 5.2 Validating external data is not up for discussion
 
-Всё, что пришло из файла или из сети, — враждебно. Это не паранойя: в аудите найдено 15 дефектов класса «индекс из BSP используется без проверки границ», включая стековый оверфлоу в `tr_bsp.cpp:489`, дающий RCE через кастомную карту.
+Everything that came from a file or from the network is hostile. This is not paranoia: the audit found 15 defects of the form "an index read from the BSP is used without a bounds check", including a stack overflow in `tr_bsp.cpp:489` that gives remote code execution through a custom map.
 
-Правило: **каждое поле, прочитанное из файла и используемое как размер, смещение или индекс, проверяется на месте чтения.** Не «где-то потом», не «оно же валидное». Хелперы:
+The rule: **every field read from a file and used as a size, an offset or an index is checked where it is read.** Not "somewhere later", not "it is valid anyway". Helpers:
 
 ```cpp
-class Reader {                       // читает из буфера с границами
+class Reader {                       // reads from a buffer, with bounds
 public:
     bool read(void* dst, size_t n);
     template <typename T> bool read(T& out);
     bool seek(size_t offset);
-    [[nodiscard]] bool ok() const;   // sticky-флаг ошибки
+    [[nodiscard]] bool ok() const;   // sticky error flag
 };
 bool checkLump(const lump_t& l, size_t fileSize, size_t elemSize, int maxCount);
 ```
 
-Загрузчики форматов (BSP, MD3, GLM, GLA, TGA, ROFF, RoQ, сейвы) обязаны иметь fuzz-таргет в `tests/fuzz/`. Без фаззера новый загрузчик не мержится.
+Format loaders - BSP, MD3, GLM, GLA, TGA, ROFF, RoQ, saves - must have a fuzz target in `tests/fuzz/`. A new loader without a fuzzer does not merge.
 
-### 5.3 Логи
+### 5.3 Logging
 
-Один канал, уровни `Trace/Debug/Info/Warn/Error`, категории (`Render`, `IO`, `Ghoul2`, `Fx`, ...). `Com_Printf` остаётся как совместимость, но новый код пишет через категорийный логгер. Форматирование — `<format>`, не `va()`.
+One channel, levels `Trace/Debug/Info/Warn/Error`, categories (`Render`, `IO`, `Ghoul2`, `Fx`, ...). `Com_Printf` stays for compatibility, but new code goes through the categorised logger. Formatting is `<format>`, not `va()`.
 
-**`va()` запрещён в новом коде.** Четыре статических буфера с `index++ & 3` — это гарантированная тихая порча строк при вложенных вызовах. Последний коммит апстрима на момент аудита (`1a6a643`, «Fix spawn item error va eval») — ровно про это. В коде 608 вызовов; убираются по мере касания файлов.
-
----
-
-## 6. Архитектурные правила
-
-### 6.1 Слои и направление зависимостей
-
-```
-game/  ──►  render/  ──►  engine/  ──►  platform/
-  └────────────────────►  engine/
-```
-
-- `render/` **не включает** заголовки из `game/`. Ни одного.
-- `engine/` не знает про `render/` и `game/`.
-- `game/` работает с рендерером через `namespace render` — плоский набор свободных функций в `render/api.h`. Никакого доступа к `tr.`, `backEnd.`, `glState`, `tess`.
-
-DLL-границы больше нет, и это создаёт соблазн. Логическая граница остаётся: без неё через полгода cgame начнёт лазить во внутренности рендерера, и рефакторинг станет невозможен. Нарушение направления зависимостей — блокер ревью.
-
-Три известных нарушения, которые чиним при переносе:
-
-| Нарушение | Где | Что делаем |
-|---|---|---|
-| `ghoul2_shared.h` (811 строк) лежит внутри `code/game/` | — | Переезжает в `engine/g2/` |
-| Рендерер трассирует мир: `ri.SV_Trace(...)` | `G2_bones.cpp:2679` | Пакетный запрос трасс до анимационной фазы |
-| Рендер-состояние сабли (`saberTrail_t`) внутри `playerState_t` | — | В рендерер; из сетевой/сейв-структуры убрать |
-
-### 6.2 Геймкод описывает намерение, рендерер решает как
-
-Геймкод говорит: «эта сущность дезинтегрируется, t = 0.4, точка входа P», «игрок под водой», «у сабли два клинка, синие, длина 32». Рендерер решает: сколько проходов, какой render-target, blob или stencil, CPU или compute.
-
-Признак нарушения — геймкод выбирает размер render-target'а (`cg_players.cpp:4126`), рисует fullscreen-квады (`CG_FillRect`), собирает `polyVert_t` вручную (`cg_marks.cpp`). Всё это переезжает.
-
-### 6.3 Данные вместо ветвлений
-
-Три `else if` по `CONTENTS_WATER/SLIME/LAVA` с захардкоженными цветами → таблица `MediumParams`. Шесть скопированных fade-машин на 12 глобальных переменных → один ADSR-envelope + данные. Это не рефакторинг ради красоты: 340 строк `CG_Draw2DScreenTints` схлопываются в 40.
-
-### 6.4 Никакого скрытого состояния в функциях
-
-`static` внутри функции или метода — запрещён, кроме `constexpr`-таблиц. Причина конкретная: `CBezier::DrawSegment()` держит `static vec3_t lastEnd[2]` внутри метода класса, поэтому два одновременных безье гарантированно портят друг другу шов. Ragdoll держит всё состояние в файловых статиках (`static mdxaBone_t ragBones[256]`, `static int numRags`) — это блокирует любую многопоточность анимации.
-
-### 6.5 Строки, видимые игроку
-
-Не хардкодятся. Живут в `.str`-ассетах, проходят через `SE_GetString()`. Это заодно снимает соблазн нарушить §1.
-
-### 6.6 Лимиты не молчат
-
-Сейчас при переполнении `MAX_DRAWSURFS` теряются поверхности молча; `MAX_RENDER_COMMANDS` молча дропает команды; `Pass::maxDrawItems` делает `assert` в debug и **тихий return в release**; `MAX_POLYS` дропает с комментарием «happens a lot with high fighting scenes».
-
-Правило: переполнение лимита либо обрабатывается корректно (рост, LRU-вытеснение), либо логируется с `Warn` **один раз за карту**. Молча — никогда.
+**`va()` is forbidden in new code.** Four static buffers with `index++ & 3` is guaranteed silent string corruption on nested calls. The last upstream commit at the time of the audit (`1a6a643`, "Fix spawn item error va eval") is about exactly this. There are 608 calls; they go as files are touched.
 
 ---
 
-## 7. Работа с легаси
+## 6. Architecture
 
-Кодовой базе 24 года. Половина её — рабочий код Raven, который никто не понимает целиком. Правила:
+### 6.1 Layers and the direction of dependencies
 
-### 7.1 Правило бойскаута — с ограничением
+```
+game  ──►  render  ──►  engine  ──►  platform
+ └───────────────────►  engine
+```
 
-Трогаешь функцию — приводи её в порядок: имена, `const`, границы массивов, убрать `va()`, убрать `static`. **Но не трогай соседние функции в том же файле.** Диффы должны быть читаемыми на ревью; «заодно причесал файл» — это диff на 2000 строк, который никто не проверит.
+The layers, as `tools/ci/check_layering.py` defines them:
 
-### 7.2 Массовые механические правки — отдельными коммитами
+| Layer | Directories |
+|---|---|
+| `platform` | `shared/sys`, `shared/sdl` |
+| `engine` | `code/qcommon`, `code/server`, `code/client`, `shared/qcommon` |
+| `api` | `code/api` |
+| `render` | `code/rd-vulkan`, `code/rd-common` |
+| `game` | `games/jka`, `games/jk2`, `code/ui` |
 
-`clang-format` на файл, переименование `qvk*` → `vk*`, замена `ri.` на прямые вызовы — каждое такое отдельным коммитом, без единого содержательного изменения внутри. Тогда `git blame` остаётся полезным, а ревьюер может проверить коммит одним взглядом на команду, которой он сделан.
+- `render` **does not include** a header from `game`. Not one.
+- `engine` does not know about `render` or `game`.
+- `game` reaches the renderer through `namespace render`, a flat set of free functions in `render/api.h`. No access to `tr.`, `backEnd.`, `glState`, `tess`.
 
-### 7.3 Не переписывай то, что работает и не мешает
+The DLL boundary is gone, and that is a temptation. The logical boundary stays: without it, in six months cgame will be reaching into the renderer's internals and refactoring becomes impossible. A dependency that points the wrong way blocks review.
 
-Математика Ghoul2 (`G2_bones.cpp`, скелетная иерархия) работает 24 года и не является узким местом. Дельта rend2/rd-vulkan к ней — 206 строк из 4889, то есть даже авторы современных рендереров её не трогали. Мы тоже не трогаем.
+`check_layering.py` carries the violations we inherited in `tools/ci/layering-baseline.txt`. That file may shrink and may not grow, and every entry must name the phase that removes it.
 
-Переписываем то, что: (а) блокирует архитектуру, (б) является измеренным узким местом, (в) представляет угрозу безопасности.
+### 6.2 Gamecode states intent, the renderer decides how
 
-### 7.4 Мёртвый код удаляем сразу
+Gamecode says: "this entity is disintegrating, t = 0.4, entry point P", "the player is underwater", "this sabre has two blades, blue, length 32". The renderer decides how many passes, which render target, blob or stencil, CPU or compute.
 
-`tr_arb.cpp`, `qglLockArraysEXT`, EAX-ветка, `code/mp3code`, `#if 0`-блоки, `RB_CalcFogTexCoords` (ни одного вызова), `Diff_Burley` (написан, не вызывается — либо подключить, либо удалить). Комментарий `// TODO: Eh...resize?` — это не документация, это баг-репорт; либо чиним, либо заводим issue и ссылаемся на него номером.
+The sign of a violation is gamecode choosing a render target size (`cg_players.cpp:4126`), drawing fullscreen quads (`CG_FillRect`), or assembling `polyVert_t` by hand (`cg_marks.cpp`). All of that moves.
 
-### 7.5 Атрибуция
+### 6.3 Data instead of branches
 
-Всё дерево — **GPLv2 без «or later»**. Заголовки файлов сохраняем и дополняем, а не заменяем. Файлы `vk_*.cpp` пришли из Quake3e через EternalJK при шапке id/Raven — при форке восстанавливаем корректную цепочку: id Software → Raven → OpenJK contributors → ec-/Quake3e → kennyalive → JKSunny → мы.
+Three `else if` on `CONTENTS_WATER/SLIME/LAVA` with hard-coded colours become a `MediumParams` table. Six copied fade state machines over 12 globals become one ADSR envelope plus data. This is not refactoring for beauty: 340 lines of `CG_Draw2DScreenTints` collapse to 40.
+
+### 6.4 No hidden state inside functions
+
+`static` inside a function or a method is forbidden, except for `constexpr` tables. The reason is specific: `CBezier::DrawSegment()` keeps `static vec3_t lastEnd[2]` inside a method, so two simultaneous beziers are guaranteed to corrupt each other's seam. The ragdoll keeps all its state in file-scope statics (`static mdxaBone_t ragBones[256]`, `static int numRags`), which blocks any multithreading of animation.
+
+### 6.5 Player-visible strings
+
+Not hard-coded. They live in `.str` assets and go through `SE_GetString()`. This also removes the temptation to break §1.
+
+### 6.6 Limits do not fail silently
+
+Today an overflow of `MAX_DRAWSURFS` loses surfaces silently; `MAX_RENDER_COMMANDS` silently drops commands; `Pass::maxDrawItems` asserts in debug and **returns silently in release**; `MAX_POLYS` drops with the comment "happens a lot with high fighting scenes".
+
+The rule: a limit overflow is either handled properly - growth, LRU eviction - or logged at `Warn` **once per map**. Never silently.
+
+---
+
+## 7. Working with the legacy
+
+The codebase is 24 years old. Half of it is working Raven code that nobody understands in full. So:
+
+### 7.1 The boy scout rule, with a limit
+
+If you touch a function, tidy it: names, `const`, array bounds, drop `va()`, drop `static`. **But do not touch the neighbouring functions in the same file.** Diffs have to be reviewable; "tidied the file while I was in there" is a 2000-line diff that nobody will check.
+
+### 7.2 Mechanical sweeps go in their own commits
+
+`clang-format` over a file, renaming `qvk*` to `vk*`, replacing `ri.` with direct calls - each of those is its own commit with no substantive change inside it. Then `git blame` stays useful and a reviewer can check the commit by looking at the command that produced it.
+
+### 7.3 Do not rewrite what works and is not in the way
+
+The Ghoul2 maths (`G2_bones.cpp`, the skeletal hierarchy) has worked for 24 years and is not a bottleneck. The rend2/rd-vulkan delta against it is 206 lines out of 4889 - even the authors of modern renderers left it alone. So do we.
+
+We rewrite what: (a) blocks the architecture, (b) is a measured bottleneck, (c) is a security problem.
+
+### 7.4 Dead code goes immediately
+
+`tr_arb.cpp`, `qglLockArraysEXT`, `code/mp3code`, `#if 0` blocks, `RB_CalcFogTexCoords` (no callers), `Diff_Burley` (written, never called - either wire it up or delete it). A comment reading `// TODO: Eh...resize?` is not documentation, it is a bug report: either fix it or open an issue and reference it by number.
+
+`tools/ci/check_sources.py` asks two questions here: is there a source on disk that no CMake list builds, and is there a directory holding sources that no `CMakeLists.txt` names at all. The second one found `ui/`, a whole top-level directory, and through it the OpenAL and EAX path - 2,806 lines that only ever compiled under 32-bit MSVC.
+
+### 7.5 Attribution
+
+The whole tree is **GPLv2 without "or later"**. File headers are kept and added to, never replaced. The `vk_*.cpp` files came from Quake3e by way of EternalJK under an id/Raven header; when forking, restore the real chain: id Software -> Raven -> OpenJK contributors -> ec-/Quake3e -> kennyalive -> JKSunny -> us.
+
+A practical consequence: public domain, MIT, MIT-0 and BSD are compatible with GPLv2 and can be vendored. **Apache-2.0 is not** - its patent clause is incompatible with GPLv2 specifically because we have no "or later".
 
 ---
 
 ## 8. Vulkan
 
-### 8.1 Обязательное
+### 8.1 Required
 
-- **Валидационные слои чистые.** CI-джоба гоняет сцену на lavapipe с `VK_LAYER_KHRONOS_validation` + sync-validation. Новое предупреждение валидатора = красный CI. Без этого правила sync2 и dynamic rendering закрепят существующие скрытые гонки, а не починят их.
-- **Каждый объект именован.** `VK_SET_OBJECT_NAME` через `VK_EXT_debug_utils` (не `debug_report`, он депрекейтнут). Безымянные объекты в RenderDoc — потерянный день отладки.
-- **Барьеры — только через render graph.** Ручной `vkCmdPipelineBarrier2` допустим лишь внутри самого графа и в загрузчиках ресурсов. Никаких `vk_record_image_layout_transition(..., oldLayout)` c layout'ом, который вызывающий «знает сам» — сейчас таких 32 сайта.
-- **Точные stage/access-маски.** `VK_PIPELINE_STAGE_ALL_COMMANDS_BIT` — только с комментарием, почему нельзя точнее. Сейчас в `vk_cubemap.cpp` передаётся `0, 0`, что хелпер разворачивает в `ALL_COMMANDS`, — это прямой простой конвейера.
-- **Никакого `vkQueueWaitIdle`/`vkDeviceWaitIdle` вне shutdown и resize.** Сейчас `vk_end_command_buffer()` делает полный stall на каждой одноразовой операции: создание аттачмента, загрузка каждой текстуры, бейк каждого кубмапа.
-- **Персистентный pipeline cache** обязателен, с проверкой `pipelineCacheUUID`/`vendorID`/`deviceID`.
-- **Ленивое создание — только вне кадра.** Ленивый `vk_gen_pipeline()` в середине кадра даёт хитчи; создание пайплайнов прогревается на загрузке.
+- **The validation layers are clean.** A CI job runs a scene on lavapipe with `VK_LAYER_KHRONOS_validation` plus sync validation. A new validator warning is a red CI. Without this rule, sync2 and dynamic rendering will entrench the existing hidden races rather than fix them.
+- **Every object is named.** `VK_SET_OBJECT_NAME` through `VK_EXT_debug_utils`, not `debug_report`, which is deprecated. Unnamed objects in RenderDoc are a lost day of debugging.
+- **Barriers only through the render graph.** A hand-written `vkCmdPipelineBarrier2` is acceptable only inside the graph itself and in resource loaders. No `vk_record_image_layout_transition(..., oldLayout)` where the caller "just knows" the layout - there are 32 such sites today.
+- **Precise stage and access masks.** `VK_PIPELINE_STAGE_ALL_COMMANDS_BIT` only with a comment saying why nothing tighter will do. Today `vk_cubemap.cpp` passes `0, 0`, which the helper expands to `ALL_COMMANDS` - a direct pipeline stall.
+- **No `vkQueueWaitIdle`/`vkDeviceWaitIdle` outside shutdown and resize.** Today `vk_end_command_buffer()` does a full stall on every one-shot operation: creating an attachment, uploading each texture, baking each cubemap.
+- **A persistent pipeline cache** is required, validated against `pipelineCacheUUID`/`vendorID`/`deviceID`.
+- **Lazy creation only outside a frame.** A lazy `vk_gen_pipeline()` mid-frame is a hitch; pipeline creation is warmed during loading.
 
-### 8.2 Фичи и fallback
+### 8.2 Features and fallbacks
 
-Baseline — Vulkan 1.3 core: dynamic rendering, synchronization2, descriptor indexing, timeline semaphores, `maintenance4`. На них fallback не пишем.
+The baseline is Vulkan 1.3 core: dynamic rendering, synchronization2, descriptor indexing, timeline semaphores, `maintenance4`. We write no fallbacks for those.
 
-Всё, что **не** core в 1.3 (`VK_EXT_extended_dynamic_state3`, `VK_EXT_vertex_input_dynamic_state`, mesh shaders, ray query), — опционально, детектируется пофичево, и обязательно имеет статический fallback. Ключ пайплайна маскируется по фактически поддержанным динамическим состояниям, а не по «мы решили, что EDS3 есть».
+Anything **not** core in 1.3 (`VK_EXT_extended_dynamic_state3`, `VK_EXT_vertex_input_dynamic_state`, mesh shaders, ray query) is optional, detected per feature, and must have a static fallback. The pipeline key is masked by the dynamic states actually supported, not by "we decided EDS3 is there".
 
-Запрет: молча деградировать качество. Сейчас при `maxBoundDescriptorSets < 11` **весь PBR выключается без единого сообщения** (`vk_init.cpp:517`). Любая деградация логируется на уровне `Warn` и видна в `/vkinfo`.
+Forbidden: degrading quality silently. Today, when `maxBoundDescriptorSets < 11`, **the whole of PBR switches off without a single message** (`vk_init.cpp:517`). Any degradation is logged at `Warn` and visible in `/vkinfo`.
 
-### 8.3 Ресурсы
+### 8.3 Resources
 
-Аллокатор один — **VMA**. Три самописных (chunk-аллокатор текстур bump-only без освобождения, ручные offset'ы аттачментов, ad-hoc `vkAllocateMemory` под буферы) удаляются.
+One allocator: **VMA**. The three hand-written ones - a bump-only texture chunk allocator that never frees, manual attachment offsets, ad-hoc `vkAllocateMemory` for buffers - go.
 
-Загрузка библиотеки — **volk**. Ручные `PFN_vk*` (107 штук) и вендоренные `vulkan/*.h` (~30k строк) удаляются.
+Loader: **volk**. The 107 manual `PFN_vk*` pointers and the ~30k lines of vendored `vulkan/*.h` go.
 
 ---
 
-## 9. Шейдеры
+## 9. Shaders
 
-### 9.1 Общий C/GLSL-заголовок — основной приём
+### 9.1 A shared C/GLSL header is the central technique
 
-`shaders/global.h` компилируется и как C++, и как GLSL, за счёт макросов-переключателей. Он взят из ветки `pbr` и это лучшее, что там есть:
+`shaders/global.h` compiles as both C++ and GLSL through switch macros. It came from the `pbr` branch and it is the best thing there:
 
 ```c
 STRUCT (
@@ -307,77 +317,78 @@ STRUCT (
 , UniformEntity )
 ```
 
-**Любая структура, которую видят и C++, и шейдер, объявляется только здесь.** Дублировать раскладку UBO/SSBO в двух местах запрещено — это целый класс ошибок, который так устраняется полностью. Правило распространяется на push-constants и bindless-индексы.
+**Any struct that both C++ and a shader can see is declared only here.** Duplicating a UBO/SSBO layout in two places is forbidden - it is a whole class of bug that this removes completely. The rule covers push constants and bindless indices as well.
 
-### 9.2 Specialization constants вместо `#define`-перестановок
+### 9.2 Specialization constants rather than `#define` permutations
 
-Перестановки — последнее средство. Сейчас 8 осей дают 600 SPIR-V-блобов и 61,7 МБ сгенерированного C в git. Целевое — ~25 блобов.
+Permutations are a last resort. Today 8 axes produce 600 SPIR-V blobs and 61.7 MB of generated C in git. The target is around 25 blobs.
 
-Ось остаётся перестановкой, только если она меняет **набор входов** (vertex input layout) или создаёт неприемлемое регистровое давление. Всё остальное — spec-constant. Решение задокументировать в комментарии рядом с осью.
+An axis stays a permutation only if it changes the **set of inputs** (the vertex input layout) or creates unacceptable register pressure. Everything else is a spec constant. Document the decision in a comment next to the axis.
 
-### 9.3 Тулчейн
+### 9.3 Toolchain
 
-`glslc` (shaderc), интегрированный в CMake через `add_custom_command` + `DEPFILE`, чтобы зависимости от `global.h` и `common/*.glsl` подхватывались автоматически. `--target-env=vulkan1.3`.
+`glslc` (shaderc), wired into CMake through `add_custom_command` plus `DEPFILE` so that dependencies on `global.h` and `common/*.glsl` are picked up automatically. `--target-env=vulkan1.3`.
 
-**Сгенерированные файлы в git не коммитятся.** Ни `shader_data.c`, ни `shader_binding.c`, ни `.spv`, ни `.exe`-тулы. Всё собирается. Это не стилистика: 61,7 МБ и 1,9 млн строк ломают `git bisect`, `git blame` и время сборки.
+**Generated files are not committed.** Not `shader_data.c`, not `shader_binding.c`, not `.spv`, not `.exe` tools. Everything is built. This is not style: 61.7 MB and 1.9 million lines break `git bisect`, `git blame` and build time.
 
-### 9.4 Прочее
+### 9.4 Other
 
 - GLSL 4.50, `#extension GL_GOOGLE_include_directive`.
-- Именование в шейдерах — как в C++ (§3), чтобы `global.h` читался одинаково с обеих сторон.
-- `VkShaderModule` создаются лениво при первом использовании, не 572 штуки на старте.
-- Никакой рантайм-конкатенации дефайнов в `char extradefines[1200]` (это подход rend2, мы его не берём).
+- Naming in shaders follows C++ (§3), so `global.h` reads the same from both sides.
+- `VkShaderModule` objects are created lazily on first use, not 572 of them at startup.
+- No runtime concatenation of defines into a `char extradefines[1200]` - that is rend2's approach and we are not taking it.
 
 ---
 
-## 10. Производительность
+## 10. Performance
 
-### 10.1 Сначала измерь
+### 10.1 Measure first
 
-Оптимизация без замера не мержится. В репозитории есть:
-- встроенный CPU-профайлер с зонами (`PROFILE_ZONE("R_AddWorldSurfaces")`), вывод в Tracy или свой overlay;
-- GPU-таймеры на каждую ноду render graph;
-- `bench`-режим: детерминированный прогон записанного demo с выводом фрейм-таймов в CSV.
+An optimisation without a measurement does not merge. In the repository:
 
-Регресс производительности на контрольных сценах — красный CI, так же как падение теста.
+- a built-in CPU profiler with zones (`PROFILE_ZONE("R_AddWorldSurfaces")`), output to Tracy or our own overlay;
+- GPU timers on each render graph node;
+- a `bench` mode: a deterministic run of a recorded demo with frame times in CSV.
 
-### 10.2 Что считается горячим путём
+A performance regression on the reference scenes is a red CI, the same as a failing test.
 
-Всё, что выполняется на кадр: frontend-сборка сцены, culling, сортировка, запись команд, обновление костей, симуляция частиц, обновление FX. Правила §4.2 (ноль аллокаций), §2 (никаких `std::function` и виртуальных вызовов в циклах) применяются здесь жёстко. В коде загрузки — мягко.
+### 10.2 What counts as a hot path
 
-### 10.3 Data-oriented там, где это окупается
+Everything that runs per frame: frontend scene assembly, culling, sorting, command recording, bone updates, particle simulation, FX updates. §4.2 (zero allocations) and §2 (no `std::function`, no virtual calls in loops) apply strictly here, and loosely in loading code.
 
-Не догма. Применяем к тому, что обрабатывается пачками: частицы (SoA, GPU), кости, drawsurf'ы, декали, кластеры света. Не применяем к тому, что существует в единственном экземпляре или обрабатывается по одному: cvar'ы, конфиг, UI-виджеты, игровые сущности.
+### 10.3 Data-oriented where it pays
 
-Ориентир — конкретный антипаттерн из этой базы: `CEffect` держит целый `refEntity_t` (200+ байт) inline и аллоцируется отдельным `new`; 1200 таких объектов, разбросанных по куче, обновляются каждый кадр виртуальным вызовом. Это худший возможный layout.
+Not a dogma. Apply it to what is processed in batches: particles (SoA, GPU), bones, drawsurfs, decals, light clusters. Do not apply it to what exists as a single instance or is handled one at a time: cvars, config, UI widgets, game entities.
+
+The reference point is a specific anti-pattern in this codebase: `CEffect` holds an entire `refEntity_t` (200+ bytes) inline and is allocated with its own `new`; 1200 such objects, scattered across the heap, are updated every frame through a virtual call. That is the worst possible layout.
 
 ---
 
-## 11. Тесты
+## 11. Tests
 
-Сейчас в проекте 222 строки тестов на ~500 kLOC, и они не запускаются в CI. Планка низкая, поднимаем её точечно, а не «покроем всё».
+The project has 222 lines of tests against roughly 500 kLOC. The bar is low; we raise it in specific places rather than "covering everything".
 
-**Обязательны тесты для:**
+**Tests are required for:**
 
-| Что | Вид |
+| What | Kind |
 |---|---|
-| Каждый загрузчик формата | fuzz-таргет (libFuzzer) + корпус из реальных ассетов |
-| Сериализация сейвов | round-trip: записать → прочитать → сравнить поле за полем |
-| Математика (`q_math`, кватернионы, декомпрессия костей) | unit |
-| Аллокаторы, арены, пулы | unit + ASan |
-| Job system | unit + TSan |
-| Render graph: топосорт, вычисление барьеров, алиасинг | unit (без GPU) |
-| Парсер `.shader`/`.mtr` | unit на наборе реальных шейдеров |
+| Every format loader | fuzz target (libFuzzer) plus a corpus of real assets |
+| Save serialisation | round trip: write, read, compare field by field |
+| Maths (`q_math`, quaternions, bone decompression) | unit |
+| Allocators, arenas, pools | unit plus ASan |
+| Job system | unit plus TSan |
+| Render graph: topological sort, barrier computation, aliasing | unit, no GPU |
+| The `.shader`/`.mtr` parser | unit over a set of real shaders |
 
-**Регресс-харнесс** (главный инструмент качества этого проекта): автопрохождение `t1_sour → t3_bounty` (JKA) и `kejim_post → doom` (JK2) с сейв/лоадом на каждом уровне, сбор крашей, скриншоты в контрольных точках для попиксельного сравнения с эталоном `rdsp-vanilla`. Гоняется ночью.
+**The regression harness** is this project's main quality instrument: an automated run of `t1_sour` to `t3_bounty` (JKA) and `kejim_post` to `doom` (JK2) with a save and load at each level, collecting crashes, and screenshots at checkpoints for pixel comparison against an `rdsp-vanilla` reference. It runs overnight.
 
-CI-гейты на PR: сборка Win + Linux, `-Wextra` без новых предупреждений, ASan + UBSan юнит-тесты, валидационные слои Vulkan на lavapipe, проверка на не-ASCII в коде, `clang-format --dry-run --Werror`.
+The gates on a pull request: build on Windows and Linux, `-Wextra` with no new warnings, ASan plus UBSan unit tests, the Vulkan validation layers on lavapipe, `clang-format --dry-run --Werror`, and the policy gates in §14.
 
 ---
 
 ## 12. Git
 
-### 12.1 Коммиты
+### 12.1 Commits
 
 ```
 <scope>: <imperative summary, <= 72 chars, English>
@@ -385,7 +396,7 @@ CI-гейты на PR: сборка Win + Linux, `-Wextra` без новых п�
 <body: why, not what. Reference issues by number.>
 ```
 
-`scope` — один из: `vk`, `rg`, `render`, `g2`, `fx`, `engine`, `jobs`, `io`, `game`, `cg`, `build`, `ci`, `docs`, `shaders`.
+`scope` is one of: `vk`, `rg`, `render`, `g2`, `fx`, `engine`, `jobs`, `io`, `game`, `cg`, `build`, `ci`, `docs`, `shaders`.
 
 ```
 vk: replace chunk allocator with VMA
@@ -394,113 +405,110 @@ The old allocator was bump-only and never reused freed sub-allocations,
 so texture memory grew monotonically until map change. Fixes #42.
 ```
 
-Один коммит — одно изменение. Механические правки (formatting, renames) — отдельно от содержательных (§7.2).
+One commit, one change. Mechanical edits - formatting, renames - stay separate from substantive ones (§7.2).
 
-### 12.2 Чего в сообщении коммита быть не должно
+### 12.2 What a commit message must not contain
 
-**Ссылок на сессию, чат или любой другой разговор, из которого родилось
-изменение.** Ни в теле, ни в трейлере.
+**A link to a session, a chat, or any other conversation the change came out of.** Not in the body and not in a trailer.
 
-Причина не в приватности, а в сроке годности. Сообщение коммита — это
-единственное объяснение, которое доезжает до человека, читающего `git log` через
-три года: оно версионируется вместе с кодом, переживает переезд хостинга и
-работает без сети. Ссылка не обладает ни одним из этих свойств. Она протухает
-молча и оставляет после себя обещание объяснения там, где объяснение должно было
-быть написано.
+The reason is not privacy, it is shelf life. A commit message is the only explanation that reaches the person reading `git log` three years from now: it is versioned with the code, it survives a change of hosting, and it works with no network. A link has none of those properties. It rots silently and leaves behind a promise of an explanation where the explanation was supposed to be written.
 
-Отсюда правило простое: если из разговора нужно что-то знать — **это пишется в
-сообщение**, а не даётся ссылкой на него. Если писать нечего, то и ссылка не
-нужна.
+So the rule is simple: if something from the conversation needs to be known, **write it into the message** rather than pointing at it. If there is nothing to write, the link is not needed either.
 
-`Co-Authored-By` остаётся: это атрибуция, а не указатель.
+`Co-Authored-By` stays: that is attribution, not a pointer.
 
-Проверяется `tools/ci/check_commits.py` в стадии `policy`.
+Checked by `tools/ci/check_commits.py` in the `policy` stage.
 
-### 12.3 Ветки
+### 12.3 Branches
 
-`main` всегда собирается и проходит регресс. Работа — в `feature/<scope>-<short>`, мерж через PR с ревью. Долгоживущие ветки ребейзятся на `main` еженедельно — иначе повторим историю `prototype-pbr-bindless`, которая отстала от `pbr` на год и стала неприменимой.
+`main` always builds and passes the regression run. Work happens in `feature/<scope>-<short>` and merges through a reviewed pull request. Long-lived branches rebase onto `main` weekly - otherwise we repeat the history of `prototype-pbr-bindless`, which fell a year behind `pbr` and became unusable.
 
-### 12.4 Что не коммитим
+### 12.4 What we do not commit
 
-Сгенерированные файлы (`shader_data.c`, `.spv`), бинарники (`.exe`, `.dll`, `.lib` — сейчас в репозитории лежат `EaxMan.dll`, `OpenAL32.dll`, `bin2hex.exe`, `bindshader.exe`), артефакты сборки, `data.spv` и подобный мусор, вендоренные зависимости, доступные через package manager или `FetchContent`.
+Generated files (`shader_data.c`, `.spv`), binaries (`.exe`, `.dll`, `.lib`), build artefacts, `data.spv` and similar rubbish, and vendored dependencies that a package manager or `FetchContent` can supply.
 
-Исключение: `third_party/` для header-only и мелких библиотек (VMA, volk, stb, MikkTSpace) — с зафиксированной версией и записью в `third_party/README.md`.
+Exception: `third_party/` for header-only and small libraries (VMA, volk, stb, MikkTSpace), with a pinned version and an entry in `third_party/README.md`.
 
 ---
 
-## 13. Ревью: чек-лист
+## 13. Review checklist
 
-Ревьюер обязан проверить и вправе заблокировать по любому пункту:
+A reviewer must check these and may block on any of them:
 
-1. **Нет кириллицы в коде и комментариях.** §1
-2. Направление зависимостей не нарушено: `render/` не включает `game/`. §6.1
-3. Все данные из файлов провалидированы на месте чтения. §5.2
-4. Нет аллокаций в горячем пути. §4.2
-5. Нет `static` внутри функций и методов. §6.4
-6. Нет `va()`, `strcpy`, `sprintf`, `strcat` в новом коде.
-7. Лимиты не переполняются молча. §6.6
-8. Структуры, общие с шейдером, объявлены только в `global.h`. §9.1
-9. Vulkan-объекты именованы; барьеры идут через граф; нет `QueueWaitIdle`. §8.1
-10. Изменение производительности подтверждено замером. §10.1
-11. Новый загрузчик формата имеет fuzz-таргет. §11
-12. Диff читаемый: механические правки отделены от содержательных. §7.2
+1. **No Cyrillic in code or comments.** §1
+2. Dependencies point the right way: `render` does not include `game`. §6.1
+3. All data from files is validated where it is read. §5.2
+4. No allocations on the hot path. §4.2
+5. No `static` inside functions or methods. §6.4
+6. No `va()`, `strcpy`, `sprintf`, `strcat` in new code.
+7. No limit overflows in silence. §6.6
+8. Structs shared with a shader are declared only in `global.h`. §9.1
+9. Vulkan objects are named, barriers go through the graph, no `QueueWaitIdle`. §8.1
+10. A performance change is backed by a measurement. §10.1
+11. A new format loader has a fuzz target. §11
+12. The diff is readable: mechanical edits separated from substantive ones. §7.2
 
 ---
 
-## 14. Инструменты в репозитории
+## 14. Tooling in the repository
 
 ```
-.clang-format          формат, обязателен, CI-гейт
-.clang-tidy            набор проверок; предупреждения = ошибки в новом коде
-.editorconfig          UTF-8, LF, 4 пробела, финальный перевод строки
-tools/ci/check-ascii.py        проверка §1
-tools/ci/check-layering.py     проверка §6.1 по #include-графу
-tools/shadergen/               кроссплатформенный генератор перестановок
-tests/fuzz/                    fuzz-таргеты загрузчиков
-tests/regression/              харнесс прохождения кампаний
+.clang-format                  formatting, required, a CI gate
+.clang-tidy                    the check set; warnings are errors in new code
+.editorconfig                  UTF-8, LF, 4 spaces, final newline
+tools/ci/local.sh              everything CI runs, in thirteen stages
+tools/ci/check_ascii.py        §1
+tools/ci/check_layering.py     §6.1, over the #include graph; ratchet
+tools/ci/check_interface.py    how much of a game the engine can see; ratchet
+tools/ci/check_strings.py      §13.6: bans strcpy/strcat/vsprintf, ratchets the rest
+tools/ci/check_sources.py      a source no CMake list builds; a directory none names
+tools/ci/check_msvc.py         declaration shapes only MSVC accepts
+tools/ci/check_commits.py      §12.2
+tools/shadergen/               the cross-platform permutation generator
+tools/verify/                  the headless bench: the engine draws and quits
+tests/fuzz/                    loader fuzz targets
+tests/regression/              the campaign harness
 ```
+
+Two of the gates are ratchets rather than gates: `check_layering.py` carries a baseline file and `check_interface.py` carries a line count. Both may shrink and never grow. Moving one is a decision that belongs in a commit message, not in a passing build.
 
 ---
 
-## Приложение: почему правила именно такие
+## Appendix: why the rules are what they are
 
-Каждое правило здесь родилось из конкретного дефекта, найденного при аудите. Короткая карта соответствий — чтобы через год никто не отменил правило, не зная, что оно чинило:
+Every rule here came out of a specific defect found during the audit. A short map, so that a year from now nobody drops a rule without knowing what it was fixing:
 
-| Правило | Дефект |
+| Rule | Defect |
 |---|---|
-| §1 латиница | Профилактика; кодировки MSVC, greppability, сторонние контрибьюторы |
-| §2 без исключений | `Com_Error` делает `throw int` через границу модуля без RAII |
-| §4.2 ноль аллокаций в кадре | 1200 отдельных `new` для частиц; `new CTrail` каждые 2 мс |
-| §4.3 выравнивание | `Z_Malloc` игнорирует `iAlign` при включённом `-msse2` |
-| §4.5 без сырых дампов | Сейвы 32/64 несовместимы; адреса указателей утекают в файл |
-| §5.2 валидация данных | 15 дефектов, включая стековый оверфлоу и RCE через кастомную карту |
-| §5.3 без `va()` | 608 вызовов, 4 статических буфера, тихая порча строк |
-| §6.1 слои | `ghoul2_shared.h` внутри `game/`; рендерер зовёт `SV_Trace` |
-| §6.4 без `static` в функциях | `CBezier` с `static lastEnd[2]`; ragdoll-статики блокируют MT |
-| §6.6 лимиты не молчат | `MAX_DRAWSURFS`, `MAX_POLYS`, `Pass::maxDrawItems` — всё молча |
-| §8.1 валидация чистая | Валидация только Win+Debug и через депрекейтнутое расширение |
-| §8.1 без `QueueWaitIdle` | Полный stall на каждой загруженной текстуре |
-| §8.2 без тихой деградации | PBR молча выключается при `maxBoundDescriptorSets < 11` |
-| §9.1 общий заголовок | Раскладки UBO дублировались в C++ и GLSL |
-| §9.3 без генерённого в git | 61,7 МБ и 1,9 млн строк `shader_data.c` |
-| §12.2 ребейз еженедельно | `prototype-pbr-bindless` отстал на год и стал неприменим |
+| §1 Latin-only | Prevention: MSVC encodings, greppability, outside contributors |
+| §2 no exceptions | `Com_Error` throws an `int` across a module boundary with no RAII |
+| §4.2 zero allocations per frame | 1200 separate `new` calls for particles; `new CTrail` every 2 ms |
+| §4.3 alignment | `Z_Malloc` ignores `iAlign` while `-msse2` is on |
+| §4.5 no raw dumps | Saves are 32/64-bit incompatible; pointer addresses leak into the file |
+| §5.2 validate data | 15 defects, including a stack overflow and RCE through a custom map |
+| §5.3 no `va()` | 608 calls, 4 static buffers, silent string corruption |
+| §6.1 layers | `ghoul2_shared.h` inside `game/`; the renderer calls `SV_Trace` |
+| §6.4 no `static` in functions | `CBezier` with `static lastEnd[2]`; ragdoll statics block multithreading |
+| §6.6 limits do not fail silently | `MAX_DRAWSURFS`, `MAX_POLYS`, `Pass::maxDrawItems` - all silent |
+| §7.4 dead code | `ui/`, and the OpenAL/EAX path: 2,806 lines that never compiled here |
+| §8.1 clean validation | Validation ran only on Windows debug, through a deprecated extension |
+| §8.1 no `QueueWaitIdle` | A full stall on every texture uploaded |
+| §8.2 no silent degradation | PBR switched itself off when `maxBoundDescriptorSets < 11` |
+| §9.1 shared header | UBO layouts were duplicated in C++ and GLSL |
+| §9.3 nothing generated in git | 61.7 MB and 1.9 million lines of `shader_data.c` |
+| §12.3 rebase weekly | `prototype-pbr-bindless` fell a year behind and became unusable |
+| §13.6 no `strcpy`/`strcat` | 214 call sites; four of them were live overflows from game data |
 
 ---
 
-## Перед пушем
+## Before pushing
 
 ```sh
 tools/ci/local.sh
 ```
 
-Гоняет то же, что CI: гейты политики, Release, **Debug**, санитайзеры, юнит-тесты
-и headless-запуск движка на Vulkan-рендерере. Занимает несколько минут против
-пятнадцати на ожидание ответа из CI.
+It runs what CI runs: the policy gates, Release, **Debug**, the Windows cross build, sanitizers, unit tests and six headless runs of the engine on the Vulkan renderer. A few minutes against fifteen spent waiting for an answer from CI.
 
-Debug в этом списке не для полноты. В Debug компилируется другой код — у
-рендерера это отладочная отрисовка рэгдолла, — и конфигурация, которую никто не
-собирает локально, ломается молча и всплывает через три пуша.
+Debug is not in that list for completeness. Debug compiles different code - in the renderer that is the ragdoll debug drawing - and a configuration nobody builds locally breaks silently and surfaces three pushes later.
 
-Чего скрипт не покрывает: MSVC. Компилятора Windows здесь нет, и Windows-джобы
-остаются единственным, что может упасть только удалённо. Это довод держать
-Windows-специфичную поверхность маленькой, а не повод пропускать остальное.
+What the script does not cover is MSVC. There is no Windows compiler here, and the Windows jobs remain the one thing that can fail only remotely. That is an argument for keeping the Windows-specific surface small, not for skipping the rest.
