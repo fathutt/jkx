@@ -29,8 +29,6 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 #include "vmachine.h"
 
-intptr_t CL_UISystemCalls( intptr_t *args );
-
 //prototypes
 #ifdef JK2_MODE
 extern qboolean SG_GetSaveImage( const char *psPathlessBaseName, void *pvAddress );
@@ -373,149 +371,15 @@ static void CL_GetGlconfig( glconfig_t *config )
 int PC_ReadTokenHandle(int handle, pc_token_t *pc_token);
 int PC_SourceFileAndLine(int handle, char *filename, int *line);
 */
-/*
-====================
-CL_UISystemCalls
-
-The ui module is making a system call
-====================
-*/
-intptr_t CL_UISystemCalls( intptr_t *args )
-{
-
-	switch( args[0] )
-	{
-	case UI_ERROR:
-		Com_Error( ERR_DROP, "%s", VMA(1) );
-		return 0;
-
-	case UI_CVAR_REGISTER:
-		Cvar_Register( (vmCvar_t *)VMA(1),(const char *) VMA(2),(const char *) VMA(3), args[4] );
-		return 0;
-
-	case UI_CVAR_SET:
-		Cvar_Set( (const char *) VMA(1), (const char *) VMA(2) );
-		return 0;
-
-	case UI_CVAR_SETVALUE:
-		Cvar_SetValue( (const char *) VMA(1), VMF(2) );
-		return 0;
-
-	case UI_CVAR_UPDATE:
-		Cvar_Update( (vmCvar_t *) VMA(1) );
-		return 0;
-
-	case UI_R_REGISTERMODEL:
-		return re.RegisterModel((const char *) VMA(1) );
-
-	case UI_R_REGISTERSHADERNOMIP:
-		return re.RegisterShaderNoMip((const char *) VMA(1) );
-
-	case UI_GETGLCONFIG:
-		CL_GetGlconfig( ( glconfig_t *) VMA(1) );
-		return 0;
-
-	case UI_CMD_EXECUTETEXT:
-		Cbuf_ExecuteText( args[1], (const char *) VMA(2) );
-		return 0;
-
-	case UI_CVAR_VARIABLEVALUE:
-		return FloatAsInt( Cvar_VariableValue( (const char *) VMA(1) ) );
-
-	case UI_FS_GETFILELIST:
-		return FS_GetFileList( (const char *) VMA(1), (const char *) VMA(2), (char *) VMA(3), args[4] );
-
-	case UI_KEY_SETCATCHER:
-		Key_SetCatcher( args[1] );
-		return 0;
-
-	case UI_KEY_CLEARSTATES:
-		Key_ClearStates();
-		return 0;
-
-	case UI_R_SETCOLOR:
-		re.SetColor( (const float *) VMA(1) );
-		return 0;
-
-	case UI_R_DRAWSTRETCHPIC:
-		re.DrawStretchPic( VMF(1), VMF(2), VMF(3), VMF(4), VMF(5), VMF(6), VMF(7), VMF(8), args[9] );
-		return 0;
-
-	case UI_CVAR_VARIABLESTRINGBUFFER:
-		Cvar_VariableStringBuffer( (const char *) VMA(1), (char *) VMA(2), args[3] );
-		return 0;
-
-  case UI_R_MODELBOUNDS:
-		re.ModelBounds( args[1], (float *) VMA(2),(float *) VMA(3) );
-		return 0;
-
-	case UI_R_CLEARSCENE:
-		re.ClearScene();
-		return 0;
-
-//	case UI_KEY_GETOVERSTRIKEMODE:
-//		return Key_GetOverstrikeMode();
-//		return 0;
-
-//	case UI_PC_READ_TOKEN:
-//		return PC_ReadTokenHandle( args[1], VMA(2) );
-
-//	case UI_PC_SOURCE_FILE_AND_LINE:
-//		return PC_SourceFileAndLine( args[1], VMA(2), VMA(3) );
-
-	case UI_KEY_GETCATCHER:
-		return Key_GetCatcher();
-
-	case UI_MILLISECONDS:
-		return Sys_Milliseconds();
-
-	case UI_S_REGISTERSOUND:
-		return S_RegisterSound((const char *) VMA(1));
-
-	case UI_S_STARTLOCALSOUND:
-		S_StartLocalSound( args[1], args[2] );
-		return 0;
-
-//	case UI_R_REGISTERFONT:
-//		re.RegisterFont( VMA(1), args[2], VMA(3));
-//		return 0;
-
-	case UI_CIN_PLAYCINEMATIC:
-	  Com_DPrintf("UI_CIN_PlayCinematic\n");
-	  return CIN_PlayCinematic((const char *)VMA(1), args[2], args[3], args[4], args[5], args[6], (const char *)VMA(7));
-
-	case UI_CIN_STOPCINEMATIC:
-	  return CIN_StopCinematic(args[1]);
-
-	case UI_CIN_RUNCINEMATIC:
-	  return CIN_RunCinematic(args[1]);
-
-	case UI_CIN_DRAWCINEMATIC:
-	  CIN_DrawCinematic(args[1]);
-	  return 0;
-
-	case UI_KEY_SETBINDING:
-		Key_SetBinding( args[1], (const char *) VMA(2) );
-		return 0;
-
-	case UI_KEY_KEYNUMTOSTRINGBUF:
-		Key_KeynumToStringBuf( args[1],(char *) VMA(2), args[3] );
-		return 0;
-
-	case UI_CIN_SETEXTENTS:
-	  CIN_SetExtents(args[1], args[2], args[3], args[4], args[5]);
-	  return 0;
-
-	case UI_KEY_GETBINDINGBUF:
-		Key_GetBindingBuf( args[1], (char *) VMA(2), args[3] );
-		return 0;
-
-
-	default:
-		Com_Error( ERR_DROP, "Bad UI system trap: %i", args[0] );
-
-	}
-
-	return 0;
-}
+// CL_UISystemCalls used to be here: a hundred and thirty-eight lines
+// switching on a uiImport_t and calling the engine function each case named.
+//
+// Nothing installed it. Nothing called it. Single-player compiles the interface
+// into the engine rather than loading it as a module, so the interface reaches
+// the engine through uiimport_t - the struct of function pointers CL_InitUI
+// fills in above - and has done for as long as this tree has existed. The
+// switch was the multiplayer shape of the same thing, left behind, compiled
+// into every build and reachable from nothing.
+//
+// Its enum went with it; see the note in ui_public.h.
 
