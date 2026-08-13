@@ -1848,25 +1848,6 @@ qboolean G2API_HaveWeGhoul2Models(CGhoul2Info_v &ghoul2)
 void G2API_SetGhoul2ModelIndexes(CGhoul2Info_v &ghoul2, qhandle_t *modelList, qhandle_t *skinList)
 {
 	return;
-#if 0
-	int i;
-	if (&ghoul2)
-	{
-		for (i=0; i<ghoul2.size(); i++)
-		{
-			if (ghoul2[i].mModelindex != -1)
-			{
-				// broken into 3 lines for debugging, STL is a pain to view...
-				//
-				int iModelIndex  = ghoul2[i].mModelindex;
-				qhandle_t mModel = modelList[iModelIndex];
-				ghoul2[i].mModel = mModel;
-
-				ghoul2[i].mSkin = skinList[ghoul2[i].mCustomSkin];
-			}
-		}
-	}
-#endif
 }
 
 
@@ -1946,9 +1927,6 @@ void G2API_CollisionDetectCache(CollisionRecord_t *collRecMap, CGhoul2Info_v &gh
 										  int frameNumber, int entNum, vec3_t rayStart, vec3_t rayEnd, vec3_t scale, IHeapAllocator *G2VertSpace, int traceFlags, int useLod, float fRadius)
 { //this will store off the transformed verts for the next trace - this is slower, but for models that do not animate
 	//frequently it is much much faster. -rww
-#if 0 // UNUSED
-	int *test = ghoul2[0].mTransformedVertsArray;
-#endif
 	if (G2_SetupModelPointers(ghoul2))
 	{
 		vec3_t	transRayStart, transRayEnd;

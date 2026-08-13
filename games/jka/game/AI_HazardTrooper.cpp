@@ -1497,7 +1497,6 @@ void		Trooper_Think(gentity_t* actor)
 			}
 		}
 
-		NPC_UpdateFiringAngles( qtrue, qtrue );
 		NPC_UpdateAngles( qtrue, qtrue );
 
 		if (Trooper_Kneeling(actor))

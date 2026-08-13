@@ -1102,36 +1102,10 @@ void G_AddEvent( gentity_t *ent, int event, int eventParm ) {
 		return;
 	}
 
-#if 0 // FIXME: allow multiple events on an entity
-	// if the entity has an event that hasn't expired yet, don't overwrite
-	// it unless it is identical (repeated footsteps / muzzleflashes / etc )
-	if ( ent->s.event && ent->s.event != event ) {
-		gentity_t	*temp;
-
-		// generate a temp entity that references the original entity
-		gi.Printf( "eventPush\n" );
-
-		temp = G_Spawn();
-		temp->s.eType = ET_EVENT_ONLY;
-		temp->s.otherEntityNum = ent->s.number;
-		G_SetOrigin( temp, ent->s.origin );
-		G_AddEvent( temp, event, eventParm );
-		temp->freeAfterEvent = qtrue;
-		gi.linkentity( temp );
-		return;
-	}
-#endif
 
 	// clients need to add the event in playerState_t instead of entityState_t
 	if ( !ent->s.number ) //only one client
 	{
-#if 0
-		bits = ent->client->ps.externalEvent & EV_EVENT_BITS;
-		bits = ( bits + EV_EVENT_BIT1 ) & EV_EVENT_BITS;
-		ent->client->ps.externalEvent = event | bits;
-		ent->client->ps.externalEventParm = eventParm;
-		ent->client->ps.externalEventTime = level.time;
-#endif
 		if ( eventParm > 255 )
 		{
 			if ( event == EV_PAIN )

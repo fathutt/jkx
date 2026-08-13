@@ -2057,9 +2057,6 @@ qboolean CNavigator::CheckFailedEdge( failedEdge_t *failedEdge )
 			m_nodes[failedEdge->endID]->GetPosition( end );
 
 			//See if it's NAV_ClearPath...
-#if 0
-			hitEntNum = NAVNEW_ClearPathBetweenPoints( start, end, mins, maxs, ignore, clipmask|CONTENTS_MONSTERCLIP|CONTENTS_BOTCLIP );//NOTE: should we really always include monsterclip (physically blocks NPCs) and botclip (do not enter)?
-#else
 			trace_t	trace;
 
 			//Test if they're even conceivably close to one another
@@ -2075,7 +2072,6 @@ qboolean CNavigator::CheckFailedEdge( failedEdge_t *failedEdge )
 				return qfalse;
 			}
 			hitEntNum = trace.entityNum;
-#endif
 			//if we did hit something, see if it's just an auto-door and allow it
 			if ( hitEntNum != ENTITYNUM_NONE && G_EntIsUnlockedDoor( hitEntNum ) )
 			{

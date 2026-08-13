@@ -985,15 +985,6 @@ CL_CGameRendering
 =====================
 */
 void CL_CGameRendering( stereoFrame_t stereo ) {
-#if 0
-	if ( cls.state == CA_ACTIVE ) {
-		static int counter;
-
-		if ( ++counter == 40 ) {
-			VM_Debug( 2 );
-		}
-	}
-#endif
 	int timei=cl.serverTime;
 	if (timei>60)
 	{

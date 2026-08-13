@@ -47,9 +47,6 @@ Ghoul2 Insert Start
 Ghoul2 Insert End
 */
 
-#if 0 //G2_SUPERSIZEDBBOX is not being used
-static const float superSizedAdd=64.0f;
-#endif
 
 /*
 ================
@@ -647,33 +644,6 @@ void SV_ClipMoveToEntities( moveclip_t *clip ) {
 			angles = vec3_origin;	// boxes don't rotate
 		}
 
-#if 0 //G2_SUPERSIZEDBBOX is not being used
-		bool shrinkBox=true;
-
-		if (clip->eG2TraceType != G2_SUPERSIZEDBBOX)
-		{
-			shrinkBox=false;
-		}
-		else if (trace.entityNum == touch->s.number&&touch->ghoul2.size()&&!(touch->contents & CONTENTS_LIGHTSABER))
-		{
-			shrinkBox=false;
-		}
-		if (shrinkBox)
-		{
-			vec3_t sh_mins;
-			vec3_t sh_maxs;
-			int j;
-			for ( j=0 ; j<3 ; j++ )
-			{
-					sh_mins[j]=clip->mins[j]+superSizedAdd;
-					sh_maxs[j]=clip->maxs[j]-superSizedAdd;
-			}
-			CM_TransformedBoxTrace ( &trace, clip->start, clip->end,
-				sh_mins, sh_maxs, clipHandle,  clip->contentmask,
-				origin, angles);
-		}
-		else
-#endif
 		{
 #ifdef __MACOS__
 			// compiler bug with const
@@ -753,13 +723,6 @@ Ghoul2 Insert Start
 
 				// if we are looking at an entity then use the player state to get it's angles and origin from
 				float radius;
-#if 0 //G2_SUPERSIZEDBBOX is not being used
-				if (clip->eG2TraceType == G2_SUPERSIZEDBBOX)
-				{
-					radius=(clip->maxs[0]-clip->mins[0]-2.0f*superSizedAdd)/2.0f;
-				}
-				else
-#endif
 				{
 					radius=(clip->maxs[0]-clip->mins[0])/2.0f;
 				}
@@ -899,22 +862,6 @@ Ghoul2 Insert End
 	// a significant savings for line of sight and shot traces
 	clip.passEntityNum = passEntityNum;
 
-#if 0 //G2_SUPERSIZEDBBOX is not being used
-	vec3_t superMin;
-	vec3_t superMax;  // prison, in boscobel
-
-	if (eG2TraceType==G2_SUPERSIZEDBBOX)
-	{
-		for ( i=0 ; i<3 ; i++ )
-		{
-				superMin[i]=mins[i]-superSizedAdd;
-				superMax[i]=maxs[i]+superSizedAdd;
-		}
-		clip.mins = superMin;
-		clip.maxs = superMax;
-	}
-	else
-#endif
 	{
 		clip.mins = mins;
 		clip.maxs = maxs;

@@ -595,12 +595,6 @@ static void ParseAnimationEvtBlock(int glaIndex, unsigned short modelIndex, cons
 			else
 			{
 				animEvents[curAnimEvent].eventData[AED_SOUNDINDEX_START] = G_SoundIndex( stringData );//cgi_S_RegisterSound
-#if 0 //#ifndef FINAL_BUILD (only meaningfull if using S_RegisterSound
-				if ( !animEvents[curAnimEvent].eventData[AED_SOUNDINDEX_START] )
-				{//couldn't register it - file not found
-					Com_Printf( S_COLOR_RED "ParseAnimationSndBlock: sound %s does not exist (%s)!\n", stringData, *aeb_filename );
-				}
-#endif
 				animEvents[curAnimEvent].eventData[AED_SOUND_NUMRANDOMSNDS] = 0;
 			}
 			//get probability

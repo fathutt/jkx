@@ -658,7 +658,6 @@ void NPC_BSFollowLeader (void)
 
 			NPCInfo->desiredYaw = angleToEnemy[YAW];
 			NPCInfo->desiredPitch = angleToEnemy[PITCH];
-			NPC_UpdateFiringAngles( qtrue, qtrue );
 
 			if ( enemyVisibility >= VIS_SHOOT )
 			{//shoot

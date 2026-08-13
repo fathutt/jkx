@@ -2362,7 +2362,6 @@ qboolean NPC_CheckCanAttack (float attack_scale, qboolean stationary)
 	distanceToEnemy = VectorNormalize(delta);
 
 	NPC->NPC->desiredYaw = angleToEnemy[YAW];
-	NPC_UpdateFiringAngles(qfalse, qtrue);
 
 	if( NPC_EnemyTooFar(NPC->enemy, distanceToEnemy*distanceToEnemy, qtrue) )
 	{//Too far away?  Do not attack
@@ -2372,7 +2371,6 @@ qboolean NPC_CheckCanAttack (float attack_scale, qboolean stationary)
 	if(client->fireDelay > 0)
 	{//already waiting for a shot to fire
 		NPC->NPC->desiredPitch = angleToEnemy[PITCH];
-		NPC_UpdateFiringAngles(qtrue, qfalse);
 		return qfalse;
 	}
 
@@ -2467,7 +2465,6 @@ qboolean NPC_CheckCanAttack (float attack_scale, qboolean stationary)
 			VectorSubtract (hitspot, muzzle, delta);
 			vectoangles ( delta, angleToEnemy );
 			NPC->NPC->desiredPitch = angleToEnemy[PITCH];
-			NPC_UpdateFiringAngles(qtrue, qfalse);
 
 			if( !dead_on )
 			{//We're not going to hit him directly, try a suppressing fire
@@ -2512,7 +2509,6 @@ qboolean NPC_CheckCanAttack (float attack_scale, qboolean stationary)
 	else
 	{//Update pitch anyway
 		NPC->NPC->desiredPitch = angleToEnemy[PITCH];
-		NPC_UpdateFiringAngles(qtrue, qfalse);
 	}
 
 	if( attack_ok )

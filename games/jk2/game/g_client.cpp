@@ -426,13 +426,6 @@ static void ClientCleanName( const char *in, char *out, int outSize )
 			{
 				colorlessLen--;
 
-#if 0
-				if ( ColorIndex( *in ) == 0 )
-				{// Disallow color black in names to prevent players from getting advantage playing in front of black backgrounds
-					outpos--;
-					continue;
-				}
-#endif
 			}
 			else
 			{

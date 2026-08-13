@@ -71,13 +71,6 @@ void CM_CleanLeafCache(void)
 {
 	oldestPointToLeaf = sizePointToLeaf = 0;
 //	pointToLeaf.clear();
-#if 0 // VVFIXME
-	hlist<pair<CPoint,int> >::iterator l;
-	for(l=pointToLeaf.begin();l!=pointToLeaf.end();l++)
-	{
-		pointToLeaf.erase(l);
-	}
-#endif
 /*
 	for(l=pointToContents.begin();l!=pointToContents.end();l++)
 	{
@@ -183,15 +176,6 @@ void CM_StoreBrushes( leafList_t *ll, int nodenum ) {
 		}
 		((cbrush_t **)ll->list)[ ll->count++ ] = b;
 	}
-#if 0
-	// store patches?
-	for ( k = 0 ; k < leaf->numLeafSurfaces ; k++ ) {
-		patch = cmg.surfaces[ cmg.leafsurfaces[ leaf->firstleafsurface + k ] ];
-		if ( !patch ) {
-			continue;
-		}
-	}
-#endif
 }
 
 /*

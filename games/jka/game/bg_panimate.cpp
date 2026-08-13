@@ -4736,15 +4736,6 @@ void PM_SetAnimFinal(int *torsoAnim,int *legsAnim,
 	if (animSpeed<0.0f)
 	{
 //	#ifndef FINAL_BUILD
-	#if 0
-		if (g_AnimWarning->integer==1)
-		{
-			if (animFlags&BONE_ANIM_OVERRIDE_LOOP)
-			{
-				gi.Printf(S_COLOR_YELLOW"PM_SetAnimFinal: WARNING: Anim (%s) looping backwards!\n", animTable[anim].name);
-			}
-		}
-	#endif
 
 		int temp	= animEnd;
 		animEnd		= animStart;

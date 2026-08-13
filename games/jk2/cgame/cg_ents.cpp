@@ -225,67 +225,6 @@ void CG_SetGhoul2Info( refEntity_t *ent, centity_t *cent)
 // create 8 new points on screen around a model so we can see it's bounding box
 void CG_CreateBBRefEnts(entityState_t *s1, vec3_t origin )
 {
-#if 0	//loadsavecrash	_DEBUG
-	refEntity_t		point[8];
-	int				i;
-	vec3_t			angles = {0,0,0};
-
-	for (i=0; i<8; i++)
-	{
-		memset (&point[i], 0, sizeof(refEntity_t));
-		point[i].reType = RT_SPRITE;
-		point[i].radius = 1;
-		point[i].customShader = cgi_R_RegisterShader("textures/tests/circle");
-		point[i].shaderRGBA[0] = 255;
-		point[i].shaderRGBA[1] = 255;
-		point[i].shaderRGBA[2] = 255;
-		point[i].shaderRGBA[3] = 255;
-
-		AnglesToAxis( angles, point[i].axis );
-
-		// now, we need to put the correct origins into each origin from the mins and max's
-		switch(i)
-		{
-		case 0:
-			VectorCopy(s1->mins, point[i].origin);
-   			break;
-		case 1:
-			VectorCopy(s1->mins, point[i].origin);
-			point[i].origin[0] = s1->maxs[0];
-   			break;
-		case 2:
-			VectorCopy(s1->mins, point[i].origin);
-			point[i].origin[1] = s1->maxs[1];
-   			break;
-		case 3:
-			VectorCopy(s1->mins, point[i].origin);
-			point[i].origin[0] = s1->maxs[0];
-			point[i].origin[1] = s1->maxs[1];
-   			break;
-		case 4:
-			VectorCopy(s1->maxs, point[i].origin);
-   			break;
-		case 5:
-			VectorCopy(s1->maxs, point[i].origin);
-			point[i].origin[0] = s1->mins[0];
-   			break;
-		case 6:
-			VectorCopy(s1->maxs, point[i].origin);
-			point[i].origin[1] = s1->mins[1];
-   			break;
-		case 7:
-			VectorCopy(s1->maxs, point[i].origin);
-			point[i].origin[0] = s1->mins[0];
-			point[i].origin[1] = s1->mins[1];
-   			break;
-		}
-
-		// add the original origin to each point and then stuff them out there
-		VectorAdd(point[i].origin, origin, point[i].origin);
-
-		cgi_R_AddRefEntityToScene (&point[i]);
-	}
-#endif
 }
 
 // write in the axis and stuff

@@ -56,16 +56,6 @@ UI_DrawConnect
 */
 
 void UI_DrawConnect( const char *servername, const char *updateInfoString ) {
-#if 0
-	// if connecting to a local host, don't draw anything before the
-	// gamestate message.  This allows cinematics to start seamlessly
-	if ( connState < CA_LOADING && !strcmp( cls.servername, "localhost" ) ) {
-		UI_SetColor( g_color_table[0] );
-		re.DrawFill (0, 0, re.scrWidth, re.scrHeight);
-		UI_SetColor( NULL );
-		return;
-	}
-#endif
 #ifdef JK2_MODE
 	qboolean qValid;
 	byte *levelPic = SCR_GetScreenshot(&qValid);

@@ -1383,12 +1383,6 @@ void PM_UpdateViewAngles( playerState_t *ps, usercmd_t *cmd, gentity_t *gent )
 	}
 
 	//TEMP
-#if 0 //rww 12/23/02 - I'm disabling this for now, I'm going to try to make it work with my new rag stuff
-	if ( gent != NULL )
-	{
-		PM_IKUpdate( gent );
-	}
-#endif
 
 	if ( ps->pm_type != PM_SPECTATOR && ps->stats[STAT_HEALTH] <= 0 )
 	{

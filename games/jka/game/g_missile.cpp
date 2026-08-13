@@ -411,12 +411,6 @@ void G_BounceMissile( gentity_t *ent, trace_t *trace ) {
 		}
 	}
 
-#if 0
-	// OLD--this looks so wrong.  It looked wrong in EF.  It just must be wrong.
-	VectorAdd( ent->currentOrigin, trace->plane.normal, ent->currentOrigin);
-
-	ent->s.pos.trTime = level.time - 10;
-#else
 	// NEW--It would seem that we want to set our trBase to the trace endpos
 	//	and set the trTime to the actual time of impact....
 	VectorAdd( trace->endpos, trace->plane.normal, ent->currentOrigin );
@@ -428,7 +422,6 @@ void G_BounceMissile( gentity_t *ent, trace_t *trace ) {
 	{
 		ent->s.pos.trTime = hitTime - 10; // this is kinda dumb hacking, but it pushes the missile away from the impact plane a bit
 	}
-#endif
 
 	VectorCopy( ent->currentOrigin, ent->s.pos.trBase );
 	VectorCopy( trace->plane.normal, ent->pos1 );

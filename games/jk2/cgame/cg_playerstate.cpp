@@ -43,39 +43,6 @@ void CG_CheckAmmo( void )
 	int		previous;
 //	int		weapons;
 
-#if 0
-
-	// see about how many seconds of ammo we have remaining
-	weapons = cg.snap->ps.stats[ STAT_WEAPONS ];
-	total = 0;
-
-	for ( i = WP_STUN_BATON; i < WP_NUM_WEAPONS  i++ )
-	{
-		if ( ! ( weapons & ( 1 << i ) ) )
-			continue;
-
-		/*
-		switch ( i )
-		{
-		case WP_ROCKET_LAUNCHER:
-		case WP_GRENADE_LAUNCHER:
-		case WP_RAILGUN:
-		case WP_SHOTGUN:
-			total += cg.snap->ps.ammo[i] * 1000;
-			break;
-		default:
-			total += cg.snap->ps.ammo[i] * 200;
-			break;
-		}
-		*/
-
-		if ( total >= 5000 )
-		{
-			cg.lowAmmoWarning = 0;
-			return;
-		}
-	}
-#endif
 
 	// Don't bother drawing the ammo warning when have no weapon selected
 	if ( cg.weaponSelect == WP_NONE )
@@ -240,14 +207,6 @@ void CG_CheckPlayerstateEvents( playerState_t *ps, playerState_t *ops ) {
 	int			event;
 	centity_t	*cent;
 
-#if 0
-	if ( ps->externalEvent && ps->externalEvent != ops->externalEvent ) {
-		cent = &cg_entities[ ps->clientNum ];
-		cent->currentState.event = ps->externalEvent;
-		cent->currentState.eventParm = ps->externalEventParm;
-		CG_EntityEvent( cent, cent->lerpOrigin );
-	}
-#endif
 
 	for ( i = ps->eventSequence - MAX_PS_EVENTS ; i < ps->eventSequence ; i++ ) {
 		if ( ps->events[i & (MAX_PS_EVENTS-1)] != ops->events[i & (MAX_PS_EVENTS-1)]

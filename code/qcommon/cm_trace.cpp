@@ -626,12 +626,6 @@ void CM_TraceThroughTree( traceWork_t *tw, clipMap_t *local, int num, float p1f,
 	node = local->nodes + num;
 	plane = node->plane;
 
-#if 0
-	// uncomment this to test against every leaf in the world for debugging
-CM_TraceThroughTree( tw, local, node->children[0], p1f, p2f, p1, p2 );
-CM_TraceThroughTree( tw, local, node->children[1], p1f, p2f, p1, p2 );
-return;
-#endif
 
 	// adjust the plane distance apropriately for mins/maxs
 	if ( plane->type < 3 ) {
@@ -652,11 +646,6 @@ return;
 				fabs(tw->extents[2]*plane->normal[2]);
 
 			offset *= 2;
-#if 0
-CM_TraceThroughTree( tw, local, node->children[0], p1f, p2f, p1, p2 );
-CM_TraceThroughTree( tw, local, node->children[1], p1f, p2f, p1, p2 );
-return;
-#endif
 			offset = tw->maxOffset;
 			offset = 2048;
 		}

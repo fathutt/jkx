@@ -68,12 +68,28 @@ option(JKX_ENABLE_TSAN        "Build with ThreadSanitizer" OFF)
 if(MSVC)
     add_compile_options(/utf-8 /permissive- /W4)
     add_compile_definitions(_CRT_SECURE_NO_WARNINGS _SCL_SECURE_NO_WARNINGS)
+    # C4715: not all control paths return a value. See the note on the other
+    # branch - this is the same rule for the other compiler.
+    add_compile_options(/we4715)
     if(JKX_WARNINGS_AS_ERRORS)
         add_compile_options(/WX)
     endif()
 else()
     add_compile_options(-finput-charset=UTF-8 -fexec-charset=UTF-8)
     add_compile_options(-Wall -Wextra)
+    # One warning promoted to an error, and it earned it.
+    #
+    # NPC_UpdateFiringAngles had its whole body inside #if 0 - declared
+    # qboolean, returning nothing, called six times per game from the NPC
+    # combat code. Falling off the end of a function that has to return a value
+    # is undefined behaviour, and the compiler had been saying so on every
+    # build of that file since the block was disabled. The warning was in a log
+    # nobody reads, among thousands of lines of the same.
+    #
+    # The value it returned was discarded at all twelve call sites, which is
+    # the only reason this was quiet rather than a crash. That is luck, and a
+    # warning nobody reads is not a check.
+    add_compile_options(-Werror=return-type)
     # Legacy noise we accept for now; each entry is a debt item, not a policy.
     add_compile_options(
         -Wno-unused-parameter        # pervasive in Raven/id code

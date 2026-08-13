@@ -1728,14 +1728,6 @@ PrintArgMatches
 
 ===============
 */
-#if 0
-// This is here for if ever commands with other argument completion
-static void PrintArgMatches( const char *s ) {
-	if ( !Q_stricmpn( s, shortestMatch, strlen( shortestMatch ) ) ) {
-		Com_Printf( S_COLOR_WHITE "  %s\n", s );
-	}
-}
-#endif
 
 /*
 ===============

@@ -523,15 +523,5 @@ SV_RemoveOperatorCommands
 ==================
 */
 void SV_RemoveOperatorCommands( void ) {
-#if 0
-	// removing these won't let the server start again
-	Cmd_RemoveCommand ("status");
-	Cmd_RemoveCommand ("serverinfo");
-	Cmd_RemoveCommand ("systeminfo");
-	Cmd_RemoveCommand ("dumpuser");
-	Cmd_RemoveCommand ("serverrecord");
-	Cmd_RemoveCommand ("serverstop");
-	Cmd_RemoveCommand ("sectorlist");
-#endif
 }
 

@@ -819,9 +819,6 @@ void CGCam_FollowUpdate ( void )
 			cameraAngles[i] = AngleNormalize180( client_camera.angles[i] + frac * AngleNormalize180(cameraAngles[i] - client_camera.angles[i]) );
 			cameraAngles[i] = AngleNormalize180( cameraAngles[i] );
 		}
-#if 0
-		Com_Printf( "%s\n", vtos(cameraAngles) );
-#endif
 	}
 	else
 	{//Snapping, should do this first time if follow_lerp_to_start_duration is zero

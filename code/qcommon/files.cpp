@@ -1350,19 +1350,6 @@ long FS_FOpenFileRead( const char *filename, fileHandle_t *file, qboolean unique
 						// open the file in the zip
 						unzOpenCurrentFile(fsh[*file].handleFiles.file.z);
 
-#if 0
-						zfi = (unz_s *)fsh[*file].handleFiles.file.z;
-						// in case the file was new
-						temp = zfi->filestream;
-						// set the file position in the zip file (also sets the current file info)
-						unzSetOffset(pak->handle, pakFile->pos);
-						// copy the file info into the unzip structure
-						Com_Memcpy( zfi, pak->handle, sizeof(unz_s) );
-						// we copy this back into the structure
-						zfi->filestream = temp;
-						// open the file in the zip
-						unzOpenCurrentFile( fsh[*file].handleFiles.file.z );
-#endif
 						fsh[*file].zipFilePos = pakFile->pos;
 						fsh[*file].zipFileLen = pakFile->len;
 

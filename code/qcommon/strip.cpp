@@ -120,9 +120,6 @@ public:
 	const char		*GetName(void) const { return(name.c_str()); }
 
 	virtual bool	UnderstandToken(char *&Data, int &Size, int token, char *data );
-#if 0
-	virtual bool	Load(char *FileName );
-#endif
 	virtual bool	Load(char *Data, int &Size );
 };
 
@@ -836,34 +833,6 @@ bool cStringPackage::UnderstandToken(char *&Data, int &Size, int token, char *da
 }
 
 
-#if 0
-bool cStringPackage::Load(char *FileName )
-{
-	FILE	*FH;
-	int		Size;
-	char	*buffer;
-
-	FH = fopen(FileName,"rb");
-	if (!FH)
-	{
-		return false;
-	}
-
-	fseek(FH, 0, SEEK_END);
-	Size = ftell(FH);
-	fseek(FH, 0, SEEK_SET);
-
-	buffer = new char[Size];
-	fread(buffer, 1, Size, FH);
-	fclose(FH);
-
-	Load(buffer, Size );
-
-	delete[] buffer;
-
-	return true;
-}
-#endif
 
 bool cStringPackage::Load(char *Data, int &Size )
 {

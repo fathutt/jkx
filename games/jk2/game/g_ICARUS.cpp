@@ -317,23 +317,6 @@ bool ICARUS_RegisterScript( const char *name, bool bCalledDuringInterrogate /* =
 	qboolean qbIgnoreFileRead = qfalse;
 	//
 	// NOTENOTE: For the moment I've taken this back out, to avoid doubling the number of fopen()'s per file.
-#if 0//#ifndef FINAL_BUILD
-	if (bCalledDuringInterrogate)
-	{
-		fileHandle_t file;
-
-		gi.FS_FOpenFile( newname, &file, FS_READ );
-
-		if ( file == NULL )
-		{
-			qbIgnoreFileRead = qtrue;	// warn disk code further down not to try FS_ReadFile()
-		}
-		else
-		{
-			gi.FS_FCloseFile( file );
-		}
-	}
-#endif
 
 	length = qbIgnoreFileRead ? -1 : gi.FS_ReadFile( newname, (void **) &buffer );
 

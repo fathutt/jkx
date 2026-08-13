@@ -667,41 +667,6 @@ void PlayerStateToEntityState( playerState_t *ps, entityState_t *s )
 			s->powerups |= 1 << i;
 		}
 	}
-#if 0
-	if ( ps->externalEvent ) {
-		s->event = ps->externalEvent;
-		s->eventParm = ps->externalEventParm;
-	} else {
-		int		seq;
-
-		seq = (ps->eventSequence-1) & (MAX_PS_EVENTS-1);
-		s->event = ps->events[ seq ] | ( ( ps->eventSequence & 3 ) << 8 );
-		s->eventParm = ps->eventParms[ seq ];
-	}
-
-	// show some roll in the body based on velocity and angle
-	if ( ps->stats[STAT_HEALTH] > 0 ) {
-		vec3_t		right;
-		float		sign;
-		float		side;
-		float		value;
-
-		AngleVectors( ps->viewangles, NULL, right, NULL );
-
-		side = DotProduct (ps->velocity, right);
-		sign = side < 0 ? -1 : 1;
-		side = fabs(side);
-
-		value = 2;	// g_rollangle->value;
-
-		if (side < 200 /* g_rollspeed->value */ )
-			side = side * value / 200; // g_rollspeed->value;
-		else
-			side = value;
-
-		s->angles[ROLL] = (int)(side*sign * 4);
-	}
-#endif
 }
 
 

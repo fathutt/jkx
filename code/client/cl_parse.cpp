@@ -419,10 +419,6 @@ void CL_ParseGamestate( msg_t *msg ) {
 	CL_SystemInfoChanged();
 
 	// reinitialize the filesystem if the game directory has changed
-#if 0
-	if ( fs_game->modified ) {
-	}
-#endif
 
 	// let the client game init and load data
 	cls.state = CA_LOADING;

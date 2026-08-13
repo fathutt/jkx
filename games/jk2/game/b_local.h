@@ -206,7 +206,6 @@ extern int	teamCounter[TEAM_NUM_TEAMS];
 extern void CalcEntitySpot ( const gentity_t *ent, const spot_t spot, vec3_t point );
 extern qboolean NPC_UpdateAngles ( qboolean doPitch, qboolean doYaw );
 extern void NPC_UpdateShootAngles (vec3_t angles, qboolean doPitch, qboolean doYaw );
-extern qboolean NPC_UpdateFiringAngles ( qboolean doPitch, qboolean doYaw );
 extern void SetTeamNumbers (void);
 extern qboolean G_ActivateBehavior (gentity_t *self, int bset );
 extern void NPC_AimWiggle( vec3_t enemy_org );

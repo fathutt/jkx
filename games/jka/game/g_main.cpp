@@ -1578,21 +1578,7 @@ qboolean G_RagDoll(gentity_t *ent, vec3_t forcedAngles)
 				{ //Hit something or start in solid, so flag it and break.
 					//This is a slight hack, but if we aren't done with the death anim, we don't really want to
 					//go into ragdoll unless our body has a relatively "flat" pitch.
-#if 0
-					vec3_t vSub;
-
-					//Check the pitch from the head to the right foot (should be reasonable)
-					VectorSubtract(boltPoints[2], boltPoints[3], vSub);
-					VectorNormalize(vSub);
-					vectoangles(vSub, vSub);
-
-					if (deathDone || (vSub[PITCH] < 50 && vSub[PITCH] > -50))
-					{
-						inSomething = qtrue;
-					}
-#else
 					inSomething = qtrue;
-#endif
 					break;
 				}
 
