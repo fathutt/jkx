@@ -83,7 +83,7 @@ jobs:
           # split into two files that do not exist.
           git diff -z --name-only --diff-filter=ACMR "$base"...HEAD \
               -- '*.c' '*.cpp' '*.h' '*.hpp' \
-            | grep -zv '^lib/' \
+            | grep -zv '^third_party/' \
             | xargs -0 --no-run-if-empty clang-format-18 --dry-run --Werror
 
   # ---------------------------------------------------------------------------
@@ -115,8 +115,8 @@ jobs:
                                   zlib1g-dev libopenal-dev libgl1-mesa-dev \
                                   libvulkan-dev glslc
 
-      # Only SDL2: zlib, libpng and libjpeg are still vendored in lib/ and build
-      # from source. lib/SDL2 was a checked-in Windows SDK and went out with the
+      # Only SDL2: zlib, libpng and libjpeg are still vendored in third_party/ and build
+      # from source. third_party/SDL2 was a checked-in Windows SDK and went out with the
       # other committed binaries, so this is where SDL2 comes from now.
       - name: Cache vcpkg
         if: runner.os == 'Windows'

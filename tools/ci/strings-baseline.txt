@@ -11,7 +11,6 @@
   16 code/client/snd_mem.cpp
    3 code/ghoul2/G2_API.cpp
    2 code/ghoul2/G2_bones.cpp
-  14 code/icarus/Sequencer.cpp
    3 code/qcommon/stringed_ingame.cpp
    3 code/server/sv_world.cpp
    1 code/ui/ui_main.cpp
@@ -40,4 +39,5 @@
    6 games/jka/game/g_roff.cpp
    1 games/jka/game/g_target.cpp
    1 games/jka/game/g_utils.cpp
+  14 games/jka/icarus/Sequencer.cpp
    1 shared/qcommon/q_string.cpp

@@ -68,20 +68,20 @@ if(BuildJKAEngine OR BuildJK2Engine)
 		if(CMAKE_SIZEOF_VOID_P EQUAL 4)
 			set(EngineLibraries
 				${EngineLibraries}
-				${OpenJKLibDir}/SDL2/lib/x86/SDL2main.lib
-				${OpenJKLibDir}/SDL2/lib/x86/SDL2.lib
+				${ThirdPartyDir}/SDL2/lib/x86/SDL2main.lib
+				${ThirdPartyDir}/SDL2/lib/x86/SDL2.lib
 				)
 		else()
 			set(EngineLibraries
 				${EngineLibraries}
-				${OpenJKLibDir}/SDL2/lib/x64/SDL2main.lib
-				${OpenJKLibDir}/SDL2/lib/x64/SDL2.lib
+				${ThirdPartyDir}/SDL2/lib/x64/SDL2main.lib
+				${ThirdPartyDir}/SDL2/lib/x64/SDL2.lib
 				)
 		endif()
 
 		set(EngineIncludeDirectories
 			${EngineIncludeDirectories}
-			${OpenJKLibDir}/SDL2/include
+			${ThirdPartyDir}/SDL2/include
 			)
 	else()
 		find_package(SDL2 REQUIRED CONFIG)
@@ -396,13 +396,15 @@ if(BuildJKAEngine OR BuildJK2Engine)
     list(APPEND EngineLibraries          ${ZLIB_LIBRARIES})
 
 	# One macro, invoked twice: once for Jedi Academy and once for Jedi Outcast.
-	# The two engines are the same sources with a different define and a different
-	# set of Windows resources.
+	# The two engines are the same sources with a different define. The Windows
+	# resources are now the same file too: shared/win32/product.h reads JK2_MODE
+	# and supplies the five strings that used to be a second copy of each .rc.
 	function(add_engine_project ProjectName Label GameDirName InstallDir Component)
 		if(WIN32)
 			set(EngineWin32Files
-				"${GameDirName}/win32/resource.h"
-				"${GameDirName}/win32/winquake.rc"
+				"${SharedDir}/win32/resource.h"
+				"${SharedDir}/win32/product.h"
+				"${SharedDir}/win32/winquake.rc"
 				"${SharedDir}/sys/win_manifest.manifest"
 				)
 			source_group("win32" FILES ${EngineWin32Files})
@@ -412,11 +414,11 @@ if(BuildJKAEngine OR BuildJK2Engine)
 			if(UseInternalSDL2)
 				if(CMAKE_SIZEOF_VOID_P EQUAL 4)
 					set(EngineExtraInstallFiles
-						${OpenJKLibDir}/SDL2/bin/x86/SDL2.dll
+						${ThirdPartyDir}/SDL2/bin/x86/SDL2.dll
 						)
 				else()
 					set(EngineExtraInstallFiles
-						${OpenJKLibDir}/SDL2/bin/x64/SDL2.dll
+						${ThirdPartyDir}/SDL2/bin/x64/SDL2.dll
 						)
 				endif()
 			endif()

@@ -133,12 +133,18 @@ code/qcommon      engine core            code/rd-vulkan   the renderer
 code/client       client                 code/rd-common   renderer code shared with the engine
 code/server       server                 code/ghoul2      skeletal animation
 code/api          what the engine and    code/ui          menus, compiled into the engine
-                  the games promise      code/icarus      scripting VM
-                  each other             shared/          platform, SDL, safe utilities
-games/jka/        Jedi Academy: game, cgame
+                  the games promise      shared/          platform, SDL, safe utilities
+                  each other
+games/jka/        Jedi Academy: game, cgame, icarus
 games/jk2/        Jedi Outcast: game, cgame, icarus
+shared/win32      Windows resources      third_party/     vendored dependencies
 tools/ci          the gates              tools/verify     the headless bench
 ```
+
+`shared/win32` is one copy of each resource script for both products.
+`product.h` there reads `JK2_MODE` and supplies the five strings that differ.
+There used to be two copies, and because resource scripts compile only on
+Windows, both went stale twice without anything failing.
 
 `code/api` is three headers and it is the whole of what the engine may see of a game. It was 13,139
 lines through 13 include sites when that was first measured, and `check_interface.py` is what keeps it

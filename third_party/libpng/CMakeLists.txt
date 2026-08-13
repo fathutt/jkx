@@ -21,7 +21,7 @@
 # It is built as a static relocatable library, and linked into any target that
 # requires it.
 
-# This only has effect in this directory (lib/png).
+# This only has effect in this directory (third_party/libpng).
 include_directories(include/)
 if(WIN32)
 	include_directories(../zlib/include/)
@@ -59,7 +59,7 @@ add_library(bundled_libpng STATIC include/png.h
 # cache.  (These are the same variables exported by the standard CMake FindPNG
 # module).
 set(PNG_LIBRARIES bundled_libpng PARENT_SCOPE)
-set(PNG_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/lib/libpng/include/ PARENT_SCOPE)
+set(PNG_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/third_party/libpng/include/ PARENT_SCOPE)
 
 mark_as_advanced(PNG_LIBRARIES PNG_INCLUDE_DIRS)
 

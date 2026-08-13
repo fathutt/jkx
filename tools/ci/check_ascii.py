@@ -31,7 +31,7 @@ CODE_SUFFIXES = {
 # Directories never scanned: vendored code is not ours to reformat, and
 # generated output is not in git anyway (standards 9.3).
 SKIP_DIRS = {
-    ".git", "build", "out", "third_party", "lib",
+    ".git", "build", "out", "third_party",
     "docs", "node_modules", "__pycache__",
 }
 

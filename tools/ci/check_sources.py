@@ -93,7 +93,7 @@ SOURCE_SUFFIXES = {".cpp", ".c"}
 # second answer to that question or a leftover, and both are worth failing over.
 FOREIGN_BUILD_FILES = {".vcproj", ".vcxproj", ".sln", ".dsp", ".dsw", ".pro"}
 FOREIGN_BUILD_NAMES = {"Makefile.am", "configure.ac", "SConstruct", "meson.build"}
-SKIP_DIRS = {"lib", "third_party", ".git"}
+SKIP_DIRS = {"third_party", ".git"}
 
 # shaders/ is built by tools/shadergen and checked by its own gate.
 WATCHED = [
@@ -101,7 +101,7 @@ WATCHED = [
             skip={"shaders"}),
     Watched("games/jka/game/CMakeLists.txt", "games/jka/game", "${JKADir}"),
     Watched("games/jka/game/CMakeLists.txt", "games/jka/cgame", "${JKADir}"),
-    Watched("games/jka/game/CMakeLists.txt", "code/icarus", "${CodeDir}"),
+    Watched("games/jka/game/CMakeLists.txt", "games/jka/icarus", "${JKADir}"),
     Watched("games/jk2/game/CMakeLists.txt", "games/jk2/game", "${JK2Dir}"),
     Watched("games/jk2/game/CMakeLists.txt", "games/jk2/cgame", "${JK2Dir}"),
     Watched("games/jk2/game/CMakeLists.txt", "games/jk2/icarus", "${JK2Dir}"),
@@ -123,7 +123,7 @@ DIR_VARS = {
     "JKADir": "games/jka",
     "JK2Dir": "games/jk2",
     "SharedDir": "shared",
-    "OpenJKLibDir": "lib",
+    "ThirdPartyDir": "third_party",
 }
 
 QUOTED = re.compile(r'"([^"\n]+)"')

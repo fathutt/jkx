@@ -280,7 +280,7 @@ set(JK2GameFiles ${JK2GameFiles} ${JK2GameRuflFiles})
 
 if(WIN32)
 	set(JK2GameWin32Files
-		"${JK2Dir}/win32/game.rc")
+		"${SharedDir}/win32/game.rc")
 	source_group("win32" FILES ${JK2GameWin32Files})
 	set(JK2GameFiles ${JK2GameFiles} ${JK2GameWin32Files})
 endif(WIN32)
@@ -313,7 +313,7 @@ set_target_properties(${JK2Game} PROPERTIES COMPILE_DEFINITIONS "${JK2GameDefine
 set_property(TARGET ${JK2Game} APPEND PROPERTY COMPILE_OPTIONS ${OPENJK_VISIBILITY_FLAGS})
 
 set_target_properties(${JK2Game} PROPERTIES INCLUDE_DIRECTORIES "${JK2GameIncludeDirectories}")
-set_target_properties(${JK2Game} PROPERTIES PROJECT_LABEL "JK2 SP Game Library")
+set_target_properties(${JK2Game} PROPERTIES PROJECT_LABEL "Jedi Outcast Game Library")
 # no libraries used
 if(JK2GameLibraries)
 	target_link_libraries(${JK2Game} ${JK2GameLibraries})

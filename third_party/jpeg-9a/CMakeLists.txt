@@ -3,7 +3,7 @@
 # It is built as a static relocatable library, and linked into any target that
 # requires it.
 
-# This only has effect in this directory (lib/jpeg-9a).
+# This only has effect in this directory (third_party/jpeg-9a).
 include_directories(. include/)
 
 if(MSVC)
@@ -83,7 +83,7 @@ add_library(bundled_libjpeg STATIC include/jconfig.h
 # cache.  (These are the same variables exported by the standard CMake FindJPEG
 # module).
 set(JPEG_LIBRARIES bundled_libjpeg PARENT_SCOPE)
-set(JPEG_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/lib/jpeg-9a/include/ PARENT_SCOPE)
+set(JPEG_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/third_party/jpeg-9a/include/ PARENT_SCOPE)
 
 mark_as_advanced(JPEG_LIBRARIES JPEG_INCLUDE_DIR)
 

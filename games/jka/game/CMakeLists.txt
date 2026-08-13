@@ -290,18 +290,18 @@ source_group("common/safe" FILES ${JKAGameCommonSafeFiles})
 set(JKAGameFiles ${JKAGameFiles} ${JKAGameCommonSafeFiles})
 
 set(JKAGameIcarusFiles
-	"${CodeDir}/icarus/BlockStream.cpp"
-	"${CodeDir}/icarus/IcarusImplementation.cpp"
-	"${CodeDir}/icarus/Sequence.cpp"
-	"${CodeDir}/icarus/Sequencer.cpp"
-	"${CodeDir}/icarus/TaskManager.cpp"
-	"${CodeDir}/icarus/blockstream.h"
-	"${CodeDir}/icarus/IcarusImplementation.h"
-	"${CodeDir}/icarus/IcarusInterface.h"
-	"${CodeDir}/icarus/sequence.h"
-	"${CodeDir}/icarus/sequencer.h"
-	"${CodeDir}/icarus/StdAfx.h"
-	"${CodeDir}/icarus/taskmanager.h"
+	"${JKADir}/icarus/BlockStream.cpp"
+	"${JKADir}/icarus/IcarusImplementation.cpp"
+	"${JKADir}/icarus/Sequence.cpp"
+	"${JKADir}/icarus/Sequencer.cpp"
+	"${JKADir}/icarus/TaskManager.cpp"
+	"${JKADir}/icarus/blockstream.h"
+	"${JKADir}/icarus/IcarusImplementation.h"
+	"${JKADir}/icarus/IcarusInterface.h"
+	"${JKADir}/icarus/sequence.h"
+	"${JKADir}/icarus/sequencer.h"
+	"${JKADir}/icarus/StdAfx.h"
+	"${JKADir}/icarus/taskmanager.h"
 	)
 source_group("icarus" FILES ${JKAGameIcarusFiles})
 set(JKAGameFiles ${JKAGameFiles} ${JKAGameIcarusFiles})
@@ -378,7 +378,7 @@ set(JKAGameFiles ${JKAGameFiles} ${JKAGameClientFiles})
 
 if(WIN32)
 	set(JKAGameWin32Files
-		"${CodeDir}/win32/game.rc")
+		"${SharedDir}/win32/game.rc")
 	source_group("win32" FILES ${JKAGameWin32Files})
 	set(JKAGameFiles ${JKAGameFiles} ${JKAGameWin32Files})
 endif(WIN32)
@@ -419,7 +419,7 @@ endif()
 
 set_target_properties(${JKAGame} PROPERTIES COMPILE_DEFINITIONS "${JKAGameDefines}")
 set_target_properties(${JKAGame} PROPERTIES INCLUDE_DIRECTORIES "${JKAGameIncludeDirectories}")
-set_target_properties(${JKAGame} PROPERTIES PROJECT_LABEL "SP Game Library")
+set_target_properties(${JKAGame} PROPERTIES PROJECT_LABEL "Jedi Academy Game Library")
 # no libraries used
 if(JKAGameLibraries)
 	target_link_libraries(${JKAGame} ${JKAGameLibraries})

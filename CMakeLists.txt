@@ -210,12 +210,12 @@ if(APPLE)
   set(UseInternalPNGDefault  ON)
 endif()
 
-# lib/SDL2 was a checked-in Windows SDK - headers, import libraries and DLLs -
+# third_party/SDL2 was a checked-in Windows SDK - headers, import libraries and DLLs -
 # and it went out with the rest of the committed binaries in phase 0. Defaulting
 # to "bundled" on Windows therefore points the linker at files that are not
 # there, which is how the Windows CI job failed on a missing SDL2main.lib. Track
 # what is actually present instead of what the platform used to imply.
-if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/lib/SDL2/include/SDL.h")
+if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/third_party/SDL2/include/SDL.h")
   set(UseInternalSDL2Default OFF)
 endif()
 
@@ -324,8 +324,8 @@ set(CodeDir "${CMAKE_SOURCE_DIR}/code")
 set(JKADir "${CMAKE_SOURCE_DIR}/games/jka")
 set(JK2Dir "${CMAKE_SOURCE_DIR}/games/jk2")
 set(SharedDir ${CMAKE_SOURCE_DIR}/shared)
-set(OpenJKLibDir "${CMAKE_SOURCE_DIR}/lib")
-set(GSLIncludeDirectory "${OpenJKLibDir}/gsl-lite/include")
+set(ThirdPartyDir "${CMAKE_SOURCE_DIR}/third_party")
+set(GSLIncludeDirectory "${ThirdPartyDir}/gsl-lite/include")
 
 include(InstallConfig)
 
@@ -563,19 +563,19 @@ set(SharedCommonSafeFiles
 #
 #=============================================================================
 if(UseInternalJPEG)
-  add_subdirectory(lib/jpeg-9a)
+  add_subdirectory(third_party/jpeg-9a)
 else()
   find_package(JPEG REQUIRED)
 endif()
 
 if(UseInternalZlib)
-  add_subdirectory(lib/zlib)
+  add_subdirectory(third_party/zlib)
 else()
   find_package(ZLIB REQUIRED)
 endif()
 
 if(UseInternalPNG)
-  add_subdirectory(lib/libpng)
+  add_subdirectory(third_party/libpng)
 else()
   find_package(PNG REQUIRED)
 endif()
@@ -622,7 +622,7 @@ include(Fonts)
 jkx_add_fonts(fonts)
 
 # Always use bundled minizip (sets MINIZIP_{LIBRARIES,INCLUDE_DIR})
-add_subdirectory(lib/minizip)
+add_subdirectory(third_party/minizip)
 
 # Add projects
 add_subdirectory(${CodeDir})

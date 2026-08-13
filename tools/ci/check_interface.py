@@ -41,7 +41,7 @@ ENGINE = ("code/qcommon", "code/server", "code/client", "shared")
 # also dropped from this count the number would fall to zero and the gate would
 # be measuring nothing, which is bookkeeping rather than progress. The question
 # here has not changed: how much of the game side can the engine see.
-GAME = ("code/api", "games/jka", "games/jk2", "code/ui", "code/icarus")
+GAME = ("code/api", "games/jka", "games/jk2", "code/ui")
 
 # shared/qcommon/safe/files.cpp includes game/g_shared.h under JKX_GAME_MODULE - that
 # is, when it is compiled into the game library rather than into the engine. It is

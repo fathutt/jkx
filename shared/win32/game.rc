@@ -1,6 +1,7 @@
 // Microsoft Visual C++ generated resource script.
 //
 #include "resource.h"
+#include "product.h"
 
 #define APSTUDIO_READONLY_SYMBOLS
 /////////////////////////////////////////////////////////////////////////////
@@ -72,11 +73,11 @@ BEGIN
         BEGIN
             VALUE "Comments", "Raven Software"
             VALUE "CompanyName", "Activision Inc"
-            VALUE "FileDescription", "JKX: Jedi Outcast gamecode"
+            VALUE "FileDescription", JKX_GAME_DESCRIPTION
             VALUE "FileVersion", VERSION_STRING
-            VALUE "InternalName", "jk2game"
+            VALUE "InternalName", JKX_GAME_INTERNAL
             VALUE "LegalCopyright", "Copyright (C) 2003"
-            VALUE "OriginalFilename", "jk2gamex86_64.dll"
+            VALUE "OriginalFilename", JKX_GAME_FILENAME
             VALUE "ProductName", "JKX"
             VALUE "ProductVersion", VERSION_STRING
         END

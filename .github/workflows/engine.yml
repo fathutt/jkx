@@ -107,8 +107,8 @@ jobs:
           sudo apt-get install -y ninja-build libsdl2-dev libjpeg-dev libpng-dev \
                                   zlib1g-dev libopenal-dev libgl1-mesa-dev libvulkan-dev
 
-      # Only SDL2: zlib, libpng and libjpeg are vendored in lib/ and build from
-      # source. lib/SDL2 was a checked-in Windows SDK and went out with the
+      # Only SDL2: zlib, libpng and libjpeg are vendored in third_party/ and build from
+      # source. third_party/SDL2 was a checked-in Windows SDK and went out with the
       # other committed binaries, so this is where SDL2 comes from now - the
       # same place the ci workflow gets it.
       # Building SDL2 from source on every run is minutes that buy nothing: the

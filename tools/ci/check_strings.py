@@ -16,7 +16,7 @@ appear in quantity and both need a per-site judgement, so they are counted per
 file in the baseline beside this script. A count may fall and may not rise, and
 a file that reaches zero drops out of the baseline entirely.
 
-Not looked at. lib/ and third_party/ are vendored upstream sources, and
+Not looked at. third_party/ is vendored upstream source, and
 code/rd-vulkan carries a renderer we want to keep diffable against EternalJK.
 Rewriting either would cost more than it buys.
 
@@ -37,7 +37,7 @@ BANNED = ("strcpy", "strcat", "vsprintf")
 RATCHETED = ("sprintf", "strncpy", "strncat")
 
 # Directories whose string handling is not ours to change.
-SKIP = ("lib/", "third_party/", "code/mp3code/", "code/rd-vulkan/", "build")
+SKIP = ("third_party/", "code/mp3code/", "code/rd-vulkan/", "build")
 
 SUFFIXES = {".cpp", ".c", ".h", ".hpp"}
 BASELINE = Path(__file__).with_name("strings-baseline.txt")

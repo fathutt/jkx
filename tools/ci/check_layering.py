@@ -43,7 +43,7 @@ LAYERS: dict[str, tuple[str, ...]] = {
     "engine": ("code/qcommon", "code/server", "code/client", "shared/qcommon"),
     "api": ("code/api",),
     "render": ("code/rd-vulkan", "code/rd-common"),
-    "game": ("games/jka", "games/jk2", "code/ui", "code/icarus"),
+    "game": ("games/jka", "games/jk2", "code/ui"),
 }
 
 # What each layer is allowed to include from (itself always allowed).

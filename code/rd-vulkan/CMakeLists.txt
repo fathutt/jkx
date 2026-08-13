@@ -48,7 +48,7 @@ set(RDVulkanIncludeDirectories
 	"${GSLIncludeDirectory}"
 	"${CMAKE_SOURCE_DIR}/third_party/volk"
 	"${CMAKE_SOURCE_DIR}/third_party/vma"
-	${OpenJKLibDir}
+	${ThirdPartyDir}
 	)
 
 set(RDVulkanDefines ${SharedDefines} "RENDERER" "JKX_ENGINE" "VK_NO_PROTOTYPES")
@@ -230,7 +230,7 @@ add_library(${RDVulkanRenderer} STATIC ${RDVulkanFiles})
 set_target_properties(${RDVulkanRenderer} PROPERTIES
 	COMPILE_DEFINITIONS "${RDVulkanDefines}"
 	INCLUDE_DIRECTORIES "${RDVulkanIncludeDirectories}"
-	PROJECT_LABEL "SP Vulkan Renderer")
+	PROJECT_LABEL "Vulkan Renderer")
 set_property(TARGET ${RDVulkanRenderer} APPEND PROPERTY
 	COMPILE_OPTIONS ${OPENJK_VISIBILITY_FLAGS})
 # The renderer's own diagnostics - the vk_log.log operation trace and, where the
