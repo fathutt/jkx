@@ -605,36 +605,39 @@ void CG_HudAnchorRight( void )
 ================
 CG_DrawCrosshairDot
 
-A dot, from the white image, instead of one of the eight crosshair textures the
-retail games ship. Two quads: a dark one a unit larger in every direction, and
-the coloured one on top of it. The outline is what makes a dot readable against
-a bright wall - a white dot on white stone is not a crosshair, and every
-alternative that keeps the texture pays for it with a blurred magnified bitmap
-at any resolution the texture was not drawn for.
+A round dot, from an image the renderer generates - a filled disc with one texel
+of feather at the edge - instead of one of the eight crosshair bitmaps the retail
+games ship. Those were drawn for 640x480 and are a blurred square at anything
+larger; this is arithmetic, so it is the same shape at any size.
 
 The colour is the caller's, which is where the target identification already
 lives: white on the world, green on an ally, red on an enemy.
 
-Size is cg_crosshairSize, whose meaning changed with the shape - it was the side
-of a bitmap and is now the diameter of the dot, so its default came down with it.
+Size is cg_crosshairDotSize, in the units the head-up display is laid out in. It
+is a new cvar rather than the old cg_crosshairSize because the meaning changed
+with the shape: that one was the side of a bitmap, and its archived value of 24
+draws a block where a dot belongs.
 ================
 */
 void CG_DrawCrosshairDot( float x, float y, float size, const vec4_t colour )
 {
-	vec4_t	outline;
+	static qhandle_t hDot = 0;
+
+	if ( !hDot ) {
+		// A built-in image rather than a file: the renderer generates the disc
+		// at startup and registers it under this name, so this resolves the
+		// same way any shader name does and needs nothing in the base
+		// directory. RegisterShaderNoMip gives it a 2D alpha-blended stage
+		// taking its colour and its alpha from the caller, which is what makes
+		// one white disc serve as white, green and red.
+		hDot = cgi_R_RegisterShaderNoMip( "*crosshair" );
+	}
 
 	if ( size < 1.0f ) {
 		size = 1.0f;
 	}
 
-	outline[0] = outline[1] = outline[2] = 0.0f;
-	outline[3] = colour[3] * 0.8f;
-
-	cgi_R_SetColor( outline );
-	cgi_R_DrawStretchPic( x - size * 0.5f - 1.0f, y - size * 0.5f - 1.0f,
-		size + 2.0f, size + 2.0f, 0, 0, 1, 1, cgs.media.whiteShader );
-
 	cgi_R_SetColor( colour );
 	cgi_R_DrawStretchPic( x - size * 0.5f, y - size * 0.5f,
-		size, size, 0, 0, 1, 1, cgs.media.whiteShader );
+		size, size, 0, 0, 1, 1, hDot );
 }

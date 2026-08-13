@@ -2159,6 +2159,59 @@ static void R_CreateFogImage( void )
 R_CreateBuiltinImages
 ==================
 */
+/*
+==================
+R_CreateCrosshairImage
+
+The crosshair, generated rather than shipped. It is a filled disc with a soft
+edge - the coverage of each texel by a circle - white, with the shape entirely
+in the alpha so the caller's colour is the crosshair's colour. Registering it as
+"*crosshair" puts it in the same table the other built-ins are in, so the game
+finds it through RE_RegisterShaderNoMip like any other name and gets a 2D
+alpha-blended stage for it.
+
+Generated because the alternative is an asset, and an asset for a crosshair
+means either a retail file - the eight bitmaps this replaced, magnified past
+recognition at any modern resolution - or one of ours that has to reach the
+player's base directory somehow. A circle is arithmetic.
+==================
+*/
+#define CROSSHAIR_SIZE 64
+
+static void R_CreateCrosshairImage( void )
+{
+	byte	data[CROSSHAIR_SIZE][CROSSHAIR_SIZE][4];
+	int		x, y;
+
+	const float centre = ( CROSSHAIR_SIZE - 1 ) * 0.5f;
+	const float radius = CROSSHAIR_SIZE * 0.5f - 1.0f;
+
+	for ( y = 0; y < CROSSHAIR_SIZE; y++ ) {
+		for ( x = 0; x < CROSSHAIR_SIZE; x++ ) {
+			const float dx = (float)x - centre;
+			const float dy = (float)y - centre;
+			const float d  = sqrtf( dx * dx + dy * dy );
+
+			// One texel of feather. Sampled up to a dot a few pixels across
+			// this is what stops the edge looking like a staircase, and it
+			// costs nothing because the image is built once.
+			float a = radius - d;
+			if ( a > 1.0f ) a = 1.0f;
+			if ( a < 0.0f ) a = 0.0f;
+
+			data[y][x][0] = 255;
+			data[y][x][1] = 255;
+			data[y][x][2] = 255;
+			data[y][x][3] = (byte)( a * 255.0f );
+		}
+	}
+
+	// The same flags RE_RegisterShaderNoMip asks R_FindImageFile for, so that
+	// looking it up by name is an exact match rather than a mismatch warning.
+	tr.crosshairImage = R_CreateImage( "*crosshair", (byte *)data,
+		CROSSHAIR_SIZE, CROSSHAIR_SIZE, IMGFLAG_CLAMPTOEDGE, 0, 0 );
+}
+
 static void R_CreateBuiltinImages( void ) {
 	int		x, y;
 	byte	data[DEFAULT_SIZE][DEFAULT_SIZE][4];
@@ -2197,6 +2250,7 @@ static void R_CreateBuiltinImages( void ) {
 #endif
 
 	R_CreateDlightImage();
+	R_CreateCrosshairImage();
 	R_CreateFogImage();
 }
 

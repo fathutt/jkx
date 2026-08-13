@@ -1216,6 +1216,9 @@ void CGCam_DrawWideScreen( void )
 		CG_FillRect( 0, 0, width, height, client_camera.fade_color );
 	}
 
+	// Back to the frame: this game's CG_Draw2D does not set the head-up display's
+	// space for its body the way Jedi Academy's does, so the ambient space here
+	// is the one the renderer resets to at the start of every frame.
 	CG_FrameSpace();
 }
 

@@ -1347,7 +1347,9 @@ void CGCam_DrawWideScreen( void )
 		CG_FillRect( 0, 0, width, height, client_camera.fade_color );
 	}
 
-	CG_FrameSpace();
+	// Back to the space CG_Draw2D set, not to the frame: the head-up display is
+	// what is ambient in there, and everything drawn after this expects it.
+	CG_HudSpace();
 }
 
 /*

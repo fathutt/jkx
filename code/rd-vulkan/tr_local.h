@@ -1816,7 +1816,8 @@ typedef struct trGlobals_s {
 	image_t					*defaultImage;
 	image_t					*scratchImage[NUM_SCRATCH_IMAGES];
 	image_t					*fogImage;
-	image_t					*dlightImage;		// inverse-quare highlight for projective adding
+	image_t					*dlightImage;	// inverse-square highlight for dlights
+	image_t					*crosshairImage;	// a filled disc, generated; see R_CreateCrosshairImage
 	image_t					*flareImage;
 	image_t					*whiteImage;		// full of 0xff
 	image_t					*blackImage;			

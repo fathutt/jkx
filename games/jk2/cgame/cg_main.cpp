@@ -252,7 +252,7 @@ vmCvar_t	cg_dynamicCrosshair;
 vmCvar_t	cg_crosshairForceHint;
 vmCvar_t	cg_crosshairX;
 vmCvar_t	cg_crosshairY;
-vmCvar_t	cg_crosshairSize;
+vmCvar_t	cg_crosshairDotSize;
 vmCvar_t	cg_draw2D;
 vmCvar_t	cg_drawStatus;
 vmCvar_t	cg_drawHUD;
@@ -363,7 +363,12 @@ static cvarTable_t cvarTable[] = {
 	{ &cg_updatedDataPadForcePower3, "cg_updatedDataPadForcePower3", "0", 0},
 	{ &cg_updatedDataPadObjective, "cg_updatedDataPadObjective", "0", 0},
 
-	{ &cg_crosshairSize, "cg_crosshairSize", "3", CVAR_ARCHIVE },	// the dot's diameter, not a bitmap's side
+		// The dot's diameter. A new name because the meaning changed: the old
+	// cg_crosshairSize was the side of a bitmap and its archived value - 24 in
+	// every config written before now - makes a block, not a dot. One setting
+	// under two meanings is the same defect check_cvars.py exists for, and a
+	// value already on disk is exactly where it bites.
+	{ &cg_crosshairDotSize, "cg_crosshairDotSize", "3", CVAR_ARCHIVE },
 	{ &cg_crosshairX, "cg_crosshairX", "0", CVAR_ARCHIVE },
 	{ &cg_crosshairY, "cg_crosshairY", "0", CVAR_ARCHIVE },
 	{ &cg_simpleItems, "cg_simpleItems", "0", CVAR_ARCHIVE },

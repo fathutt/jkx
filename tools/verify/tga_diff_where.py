@@ -14,11 +14,13 @@ years. No colour check can find it: the crosshair is white and so is half the
 fixture. What identifies it is that it is the only thing that changed between a
 frame drawn with it and a frame drawn without.
 
-    tga_diff_where.py <without.tga> <with.tga> x0,y0,x1,y1 [min pixels]
+    tga_diff_where.py <without.tga> <with.tga> x0,y0,x1,y1 [min pixels] [max]
 
-The box is in fractions of the image, 0,0 top left. Both the count and the
-centre of mass have to be right: too few pixels means it was not drawn at all,
-and a centre outside the box means it was drawn somewhere else.
+The box is in fractions of the image, 0,0 top left. The count and the centre of
+mass both have to be right: too few pixels means it was not drawn at all, too
+many means it is the wrong shape - a disc covers pi/4 of the square that bounds
+it, so a square drawn where a disc belongs is a quarter too big - and a centre
+outside the box means it was drawn somewhere else.
 
 Targa stores blue, green, red. Handled below.
 """
@@ -56,6 +58,7 @@ def main():
 
     without, with_it, box = sys.argv[1], sys.argv[2], sys.argv[3]
     want = int(sys.argv[4]) if len(sys.argv) > 4 else 100
+    limit = int(sys.argv[5]) if len(sys.argv) > 5 else 0
 
     x0, y0, x1, y1 = (float(v) for v in box.split(","))
 
@@ -87,6 +90,12 @@ def main():
     if count < want:
         print(f"{with_it}: {count} pixel(s) differ from {without}, wanted at least {want}")
         print("  Nothing was drawn, or it was drawn in the same colour as what is behind it.")
+        return 1
+
+    if limit and count > limit:
+        print(f"{with_it}: {count} pixel(s) differ from {without}, wanted at most {limit}")
+        print("  It was drawn, in the right place, and it is too big - which for a shape")
+        print("  with a known area means it is the wrong shape.")
         return 1
 
     cx = sx / count / aw

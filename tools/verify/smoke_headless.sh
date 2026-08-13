@@ -249,9 +249,9 @@ INMAP_STEP=( +wait 20 +map jkx_room +wait $SETTLE +screenshot_tga jkx_inmap )
 # fog stage uses, and the wait is what makes it stable: the shot is queued and
 # the file appears a frame later.
 INMAP_STEP+=( +cg_drawCrosshair 0 +wait 10 +screenshot_tga jkx_nocross
-              +cg_crosshairSize 48 +cg_drawCrosshair 1 +wait 10
+              +cg_crosshairDotSize 48 +cg_drawCrosshair 1 +wait 10
               +screenshot_tga jkx_cross
-              +cg_crosshairSize 3 )
+              +cg_crosshairDotSize 3 )
 #
 # The weather, asked about a place rather than about the world. A wind zone is
 # created with a velocity of 800 along +Y over a box around the origin, and then
@@ -573,18 +573,24 @@ if [ "${JKX_SMOKE_PLAIN:-0}" != "1" ] && [ -f "$RUN/home/base/screenshots/jkx_in
     fi
 fi
 
-# The crosshair is at the centre of the window, on every shape of window. The
-# box is tight because there is nothing approximate about the answer: the
-# crosshair is either at the middle of the screen or it is at the middle of
-# something else.
+# The crosshair is a disc at the centre of the window, on every shape of window.
+#
+# The box is tight because there is nothing approximate about the answer: the
+# crosshair is either at the middle of the screen or at the middle of something
+# else. The pixel count is the shape. At this window size a 48-unit dot is 72
+# pixels across, so a square one covers 5184 of them and a disc covers pi/4 of
+# that, about 4070 - and about 3630 of those clear the tool's difference
+# threshold, the rest being the feathered edge. The band is measured rather than
+# derived, and it excludes both a square of that size and nothing at all: the
+# square version of this crosshair scored 5605.
 if [ "${JKX_SMOKE_PLAIN:-0}" != "1" ] \
    && [ -f "$RUN/home/base/screenshots/jkx_cross.tga" ] \
    && [ -f "$RUN/home/base/screenshots/jkx_nocross.tga" ]; then
     if ! python3 "$HERE/tga_diff_where.py" \
         "$RUN/home/base/screenshots/jkx_nocross.tga" \
         "$RUN/home/base/screenshots/jkx_cross.tga" \
-        "0.47,0.47,0.53,0.53" 500; then
-        report "the crosshair is not at the centre of the window"
+        "0.47,0.47,0.53,0.53" 2800 4600; then
+        report "the crosshair is not a centred disc"
     fi
 fi
 

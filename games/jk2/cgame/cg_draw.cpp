@@ -1486,7 +1486,7 @@ static void CG_DrawCrosshair( vec3_t worldPoint )
 		}
 	}
 
-	w = h = cg_crosshairSize.value;
+	w = h = cg_crosshairDotSize.value;
 
 	// pulse the size of the crosshair when picking up items
 	f = cg.time - cg.itemPickupBlendTime;
@@ -1564,6 +1564,11 @@ static void CG_DrawCrosshair( vec3_t worldPoint )
 	}
 
 	cgi_R_SetColor( NULL );
+	// Back to the frame. Jedi Academy's CG_Draw2D sets the head-up display's
+	// space for its whole body and everything switches back to that; this game's
+	// does not, so the ambient space here is the one the renderer resets to at
+	// the start of every frame. Restoring the wrong one moves everything drawn
+	// after this by the width of the margin.
 	CG_FrameSpace();
 }
 

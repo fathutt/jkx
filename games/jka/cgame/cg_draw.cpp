@@ -2532,7 +2532,7 @@ void CG_DrawHealthBars( void )
 		}
 	}
 
-	CG_FrameSpace();
+	CG_HudSpace();
 }
 
 #define HEALTHBARRANGE 422
@@ -2755,7 +2755,7 @@ static void CG_DrawCrosshair( vec3_t worldPoint )
 		}
 	}
 
-	w = h = cg_crosshairSize.value;
+	w = h = cg_crosshairDotSize.value;
 
 	// pulse the size of the crosshair when picking up items
 	f = cg.time - cg.itemPickupBlendTime;
@@ -2789,7 +2789,7 @@ static void CG_DrawCrosshair( vec3_t worldPoint )
 		if ( !CG_WorldCoordToScreenCoordFloat( worldPoint, &x, &y ) )
 		{//off screen, don't draw it
 			cgi_R_SetColor( NULL );
-			CG_FrameSpace();
+			CG_HudSpace();
 			return;
 		}
 		x -= centreX;
@@ -2833,7 +2833,7 @@ static void CG_DrawCrosshair( vec3_t worldPoint )
 	}
 
 	cgi_R_SetColor( NULL );
-	CG_FrameSpace();
+	CG_HudSpace();
 }
 
 /*
@@ -3354,7 +3354,7 @@ static void CG_DrawRocketLocking( int lockEntNum, int lockTime )
 		if ( dif < 0 )
 		{
 			oldDif = 0;
-			CG_FrameSpace();
+			CG_HudSpace();
 			return;
 		}
 		else if ( dif > 8 )
@@ -3402,7 +3402,7 @@ static void CG_DrawRocketLocking( int lockEntNum, int lockTime )
 		}
 	}
 
-	CG_FrameSpace();
+	CG_HudSpace();
 }
 
 

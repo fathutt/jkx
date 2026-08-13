@@ -587,7 +587,7 @@ extern	vmCvar_t		cg_crosshairForceHint;
 extern	vmCvar_t		cg_crosshairIdentifyTarget;
 extern	vmCvar_t		cg_crosshairX;
 extern	vmCvar_t		cg_crosshairY;
-extern	vmCvar_t		cg_crosshairSize;
+extern	vmCvar_t		cg_crosshairDotSize;
 extern	vmCvar_t		cg_drawStatus;
 extern	vmCvar_t		cg_drawHUD;
 extern	vmCvar_t		cg_draw2D;
