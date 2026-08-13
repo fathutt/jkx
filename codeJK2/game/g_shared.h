@@ -49,7 +49,22 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #include "b_public.h"
 #include "../icarus/icarus.h"
 #include "../../code/rd-common/tr_types.h"
-#include "../cgame/cg_public.h"
+// One cg_public.h, like g_public.h above it.
+//
+// This tree had its own, and the difference was not the interface - it was the
+// numbering. Both files list the same system calls; Jedi Outcast's list is 112
+// entries and Jedi Academy's is those 112 plus 13 more, in a different order.
+// The engine bridged the gap with a 360-line switch that translated one set of
+// ordinals into the other at every single call.
+//
+// It bridged nothing that had to exist. Both modules are built from source in
+// this tree, by this build, against this engine - the ordinals are ours to
+// choose, and the only reason for two sets was that retail Jedi Outcast shipped
+// a game library with its own. That library has not been loadable here for a
+// long time: GAME_API_VERSION and the whole of game_import_t have moved.
+//
+// Also, that file had no include guard.
+#include "../../code/cgame/cg_public.h"
 #include "bset.h"
 
 #define	FOFS(x) offsetof(gentity_t, x)

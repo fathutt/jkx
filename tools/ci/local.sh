@@ -8,8 +8,8 @@
 # broken across three pushes.
 #
 # What it covers:
-#   policy      the ascii, layering and source-list gates, the MSVC dialect
-#               traps, and actionlint
+#   policy      the ascii, layering, interface and source-list gates, the
+#               MSVC dialect traps, and actionlint
 #   release     the whole tree, Release
 #   debug       the whole tree, Debug: different code is compiled, and it is
 #               the configuration nobody looks at until it fails
@@ -94,6 +94,7 @@ configure() {
 stage_policy() {
     python3 "$ROOT/tools/ci/check_ascii.py" "$ROOT" &&
     python3 "$ROOT/tools/ci/check_layering.py" "$ROOT" &&
+    python3 "$ROOT/tools/ci/check_interface.py" "$ROOT" &&
     python3 "$ROOT/tools/ci/check_sources.py" "$ROOT" &&
     python3 "$ROOT/tools/ci/check_msvc.py" "$ROOT" &&
     python3 "$ROOT/tools/ci/check_commits.py" &&

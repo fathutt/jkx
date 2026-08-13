@@ -201,7 +201,6 @@ set(JK2SPGameCGameFiles
 	"${JK2SPDir}/cgame/cg_players.cpp"
 	"${JK2SPDir}/cgame/cg_playerstate.cpp"
 	"${JK2SPDir}/cgame/cg_predict.cpp"
-	"${JK2SPDir}/cgame/cg_public.h"
 	"${JK2SPDir}/cgame/cg_scoreboard.cpp"
 	"${JK2SPDir}/cgame/cg_servercmds.cpp"
 	"${JK2SPDir}/cgame/cg_snapshot.cpp"
