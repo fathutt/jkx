@@ -1586,6 +1586,15 @@ int FS_Seek( fileHandle_t f, long offset, int origin ) {
 
 	FS_AssertInitialised();
 
+	// Returns 0 on success and -1 on failure, on both paths. That was not true
+	// until now: the branch below returned the offset it had been given, which
+	// for a file inside a pk3 meant every seek to anywhere but the start
+	// reported failure to a caller that checked, and a seek to a negative
+	// offset reported a negative number. The disk branch returns fseek's own
+	// 0-or-minus-one. Nothing in the tree looked at the result except the sound
+	// codec, which is why this survived - and it is exactly what stopped music
+	// after a couple of seconds, because music is the one thing streamed out of
+	// a pk3 by a decoder that seeks.
 	if (fsh[f].zipFile == qtrue) {
 		//FIXME: this is really, really crappy
 		//(but better than what was here before)
@@ -1626,7 +1635,7 @@ int FS_Seek( fileHandle_t f, long offset, int origin ) {
 		switch( origin ) {
 			case FS_SEEK_SET:
 				if ( remainder == currentPosition ) {
-					return offset;
+					return 0;
 				}
 				unzSetOffset(fsh[f].handleFiles.file.z, fsh[f].zipFilePos);
 				unzOpenCurrentFile(fsh[f].handleFiles.file.z);
@@ -1639,7 +1648,7 @@ int FS_Seek( fileHandle_t f, long offset, int origin ) {
 					remainder -= PK3_SEEK_BUFFER_SIZE;
 				}
 				FS_Read( buffer, remainder, f );
-				return offset;
+				return 0;
 
 			default:
 				Com_Error( ERR_FATAL, "Bad origin in FS_Seek" );

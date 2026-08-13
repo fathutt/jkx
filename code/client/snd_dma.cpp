@@ -3009,6 +3009,17 @@ static qboolean S_UpdateBackgroundTrack_Actual( MusicInfo_t *pMusicInfo, qboolea
 			// request in bytes of stereo output, so it is half that in frames.
 			qbForceFinish = S_CodecStreamRead( pMusicInfo->chMP3_Bgrnd.stream, iStartingSampleNum,
 											   fileBytes/4, (short*) raw ) ? qfalse : qtrue;
+
+			// A track that produces nothing on its very first request has not
+			// ended - it never started. Everything around here is silent about
+			// that: the open reports its own failures and this reports none, so
+			// music that decodes to nothing is indistinguishable from music
+			// nobody asked for. Once per track, because this loop runs every
+			// frame.
+			if ( qbForceFinish && iStartingSampleNum == 0 ) {
+				Com_Printf( S_COLOR_RED"Music track \"%s\" decoded nothing on its first read\n",
+							pMusicInfo->sfxMP3_Bgrnd.sSoundName );
+			}
 		}
 		else
 		{
