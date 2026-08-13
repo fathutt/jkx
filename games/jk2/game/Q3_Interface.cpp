@@ -4131,7 +4131,7 @@ void Q3_SetParm (int entID, int parmNum, const char *parmValue)
 	if ( (val = Q3_CheckStringCounterIncrement( parmValue )) )
 	{
 		val += atof( ent->parms->parm[parmNum] );
-		sprintf( ent->parms->parm[parmNum], "%f", val );
+		Com_sprintf( ent->parms->parm[parmNum], "%f", val );
 	}
 	else
 	{//Just copy the string

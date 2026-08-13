@@ -522,7 +522,12 @@ public:
 	// String Operations
     ////////////////////////////////////////////////////////////////////////////////////
 	void	FromStr(const char *s);
-	void	ToStr(char* s) const;
+	// The destination as an array, so its size comes from the type. This wrote
+	// through a bare char* with sprintf, which is a promise about how long a
+	// float prints rather than about how big the buffer is.
+	template<size_t N>
+	void	ToStr(char (&s)[N]) const { ToStr(s, (int)N); }
+	void	ToStr(char* s, int size) const;
 
 
     ////////////////////////////////////////////////////////////////////////////////////
@@ -993,7 +998,12 @@ public:
 	// String Operations
     ////////////////////////////////////////////////////////////////////////////////////
 	void	FromStr(const char *s);
-	void	ToStr(char* s) const;
+	// The destination as an array, so its size comes from the type. This wrote
+	// through a bare char* with sprintf, which is a promise about how long a
+	// float prints rather than about how big the buffer is.
+	template<size_t N>
+	void	ToStr(char (&s)[N]) const { ToStr(s, (int)N); }
+	void	ToStr(char* s, int size) const;
 
 
     ////////////////////////////////////////////////////////////////////////////////////

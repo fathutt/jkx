@@ -1,42 +1,18 @@
-# sprintf, strncpy and strncat call sites per file, from
+# strncpy and strncat call sites per file, from
 # tools/ci/check_strings.py. A count may fall and may not rise.
 # Regenerate with: tools/ci/check_strings.py --update
 
-   1 code/Ragl/graph_vs.h
    1 code/Ratl/string_vs.h
-   1 code/Ravl/CBounds.cpp
-   2 code/Ravl/CVec.cpp
-   1 code/client/cl_main.cpp
    8 code/client/snd_mem.cpp
-   3 code/ghoul2/G2_API.cpp
-   2 code/ghoul2/G2_bones.cpp
    3 code/qcommon/stringed_ingame.cpp
-   3 code/server/sv_world.cpp
    1 code/ui/ui_main.cpp
    1 code/ui/ui_shared.cpp
-   1 games/jk2/cgame/FxSystem.cpp
-   2 games/jk2/cgame/cg_ents.cpp
-   1 games/jk2/cgame/cg_main.cpp
    1 games/jk2/game/NPC_stats.cpp
-   1 games/jk2/game/NPC_utils.cpp
-   5 games/jk2/game/Q3_Interface.cpp
-   4 games/jk2/game/g_ICARUS.cpp
+   4 games/jk2/game/Q3_Interface.cpp
+   2 games/jk2/game/g_ICARUS.cpp
    3 games/jk2/game/g_breakable.cpp
-   2 games/jk2/game/g_fx.cpp
    2 games/jk2/game/g_misc_model.cpp
-   4 games/jk2/game/g_nav.cpp
-   2 games/jk2/game/g_roff.cpp
-   1 games/jk2/game/g_target.cpp
-   1 games/jk2/game/g_utils.cpp
-   1 games/jka/cgame/FxSystem.cpp
-   2 games/jka/cgame/cg_ents.cpp
-   8 games/jka/game/Q3_Interface.cpp
+   7 games/jka/game/Q3_Interface.cpp
    3 games/jka/game/g_breakable.cpp
-   3 games/jka/game/g_fx.cpp
-   1 games/jka/game/g_misc.cpp
    2 games/jka/game/g_misc_model.cpp
-   6 games/jka/game/g_roff.cpp
-   1 games/jka/game/g_target.cpp
-   1 games/jka/game/g_utils.cpp
-  14 games/jka/icarus/Sequencer.cpp
    1 shared/qcommon/q_string.cpp

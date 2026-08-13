@@ -3144,7 +3144,7 @@ void SP_misc_weather_zone( gentity_t *ent )
 	gi.SetBrushModel(ent, ent->model);
 
 	char	temp[256];
-	sprintf( temp, "zone ( %f %f %f ) ( %f %f %f )",
+	Com_sprintf( temp, "zone ( %f %f %f ) ( %f %f %f )",
 		ent->mins[0], ent->mins[1], ent->mins[2],
 		ent->maxs[0], ent->maxs[1], ent->maxs[2] );
 

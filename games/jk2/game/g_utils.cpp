@@ -783,7 +783,7 @@ gentity_t *G_Spawn( void )
 		{
 			if ( e->classname )
 			{
-				sprintf( buff, "%d: %s\n", i, e->classname );
+				Com_sprintf( buff, "%d: %s\n", i, e->classname );
 			}
 
 			fputs( buff, fp );

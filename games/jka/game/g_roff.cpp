@@ -174,7 +174,7 @@ static void G_RoffNotetrackCallback( gentity_t *ent, const char *notetrack)
 
 		if (posoffsetGathered < 3)
 		{
-			sprintf(errMsg, "Offset position argument for 'effect' type is invalid.");
+			Com_sprintf(errMsg, "Offset position argument for 'effect' type is invalid.");
 			goto functionend;
 		}
 
@@ -345,7 +345,7 @@ defaultoffsetposition:
 			}
 			else
 			{
-				sprintf(errMsg, "Invalid additional argument <%s> for type 'loop rof'", addlArg);
+				Com_sprintf(errMsg, "Invalid additional argument <%s> for type 'loop rof'", addlArg);
 				goto functionend;
 			}
 
@@ -409,7 +409,7 @@ defaultoffsetposition:
 					else
 					{
 						ent->s.loopSound = 0;
-						sprintf(errMsg, "cgi_S_RegisterSound(%s) failed to return a valid sfxHandle_t for additional argument. Setting 'loopSound' to 0.", addlArg);
+						Com_sprintf(errMsg, "cgi_S_RegisterSound(%s) failed to return a valid sfxHandle_t for additional argument. Setting 'loopSound' to 0.", addlArg);
 						goto functionend;
 					}
 				}
@@ -424,13 +424,13 @@ defaultoffsetposition:
 			}
 			else
 			{
-				sprintf(errMsg, "Invalid additional argument <%s> for type 'loop sfx'", addlArg);
+				Com_sprintf(errMsg, "Invalid additional argument <%s> for type 'loop sfx'", addlArg);
 				goto functionend;
 			}
 		}
 		else
 		{
-			sprintf(errMsg, "Invalid argument <%s> for type 'loop' notetrack.", argument);
+			Com_sprintf(errMsg, "Invalid argument <%s> for type 'loop' notetrack.", argument);
 			goto functionend;
 		}
 	}
@@ -652,7 +652,7 @@ int G_LoadRoff( const char *fileName )
 	}
 
 	// The actual path
-	sprintf( file, "%s/%s.rof", Q3_SCRIPT_DIR, fileName );
+	Com_sprintf( file, "%s/%s.rof", Q3_SCRIPT_DIR, fileName );
 
 	// See if I'm already precached
 	for ( i = 0; i < num_roffs; i++ )

@@ -284,7 +284,7 @@ void SP_CreateSnow( gentity_t *ent )
 
 	if ( r_weatherScale->value > 0.0f )
 	{
-		sprintf( temp, "snow init %i", (int)( ent->count * r_weatherScale->value ));
+		Com_sprintf( temp, "snow init %i", (int)( ent->count * r_weatherScale->value ));
 
 		G_FindConfigstringIndex( temp, CS_WORLD_FX, MAX_WORLD_FX, qtrue );
 		G_FindConfigstringIndex( "wind", CS_WORLD_FX, MAX_WORLD_FX, qtrue );
@@ -309,7 +309,7 @@ void SP_CreateRain( gentity_t *ent )
 
 	if ( r_weatherScale->value > 0.0f )
 	{
-		sprintf( temp, "rain init %i", (int)( ent->count * r_weatherScale->value ));
+		Com_sprintf( temp, "rain init %i", (int)( ent->count * r_weatherScale->value ));
 
 		G_FindConfigstringIndex( temp, CS_WORLD_FX, MAX_WORLD_FX, qtrue );
 		G_FindConfigstringIndex( "wind", CS_WORLD_FX, MAX_WORLD_FX, qtrue );

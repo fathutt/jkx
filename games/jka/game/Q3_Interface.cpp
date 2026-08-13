@@ -7667,7 +7667,7 @@ int CQuake3GameInterface::RegisterScript( const char *strFileName, void **ppBuf,
 
 	// Prepare the name with the extension.
 	char		newname[MAX_FILENAME_LENGTH];
-	sprintf((char *) newname, "%s%s", sFilename, IBI_EXT );
+	Com_sprintf( newname, "%s%s", sFilename, IBI_EXT );
 
 	qboolean qbIgnoreFileRead = qfalse;
 

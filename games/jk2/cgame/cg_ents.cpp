@@ -2221,7 +2221,7 @@ void CG_ROFF_NotetrackCallback( centity_t *cent, const char *notetrack)
 	{
 		if (!addlArgs)
 		{
-			//sprintf(errMsg, "Offset position argument for 'effect' type is invalid.");
+			//Com_sprintf(errMsg, "Offset position argument for 'effect' type is invalid.");
 			//goto functionend;
 			VectorClear(parsedOffset);
 			goto defaultoffsetposition;
@@ -2242,7 +2242,7 @@ void CG_ROFF_NotetrackCallback( centity_t *cent, const char *notetrack)
 			i++;
 			if (!r)
 			{ //failure..
-				//sprintf(errMsg, "Offset position argument for 'effect' type is invalid.");
+				//Com_sprintf(errMsg, "Offset position argument for 'effect' type is invalid.");
 				//goto functionend;
 				VectorClear(parsedOffset);
 				i = 0;

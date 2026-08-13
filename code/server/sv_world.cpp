@@ -537,16 +537,16 @@ void SV_SectorList_f( void )
 	multimap<int,pair<int,list<CBBox> > >::iterator j;
 	for(j=entStats.begin();j!=entStats.end();j++)
 	{
-		sprintf(mess,"**************************************************\n");
+		Com_sprintf(mess,"**************************************************\n");
 		Sleep(5);
 		OutputDebugString(mess);
-		sprintf(mess,"level=%i, count=%i\n",(*j).first,(*j).second.first);
+		Com_sprintf(mess,"level=%i, count=%i\n",(*j).first,(*j).second.first);
 		Sleep(5);
 		OutputDebugString(mess);
 		list<CBBox>::iterator k;
 		for(k=(*j).second.second.begin();k!=(*j).second.second.end();k++)
 		{
-			sprintf(mess,"mins=%f %f %f, maxs=%f %f %f\n",
+			Com_sprintf(mess,"mins=%f %f %f, maxs=%f %f %f\n",
 					(*k).mMins[0],(*k).mMins[1],(*k).mMins[2],(*k).mMaxs[0],(*k).mMaxs[1],(*k).mMaxs[2]);
 			OutputDebugString(mess);
 		}

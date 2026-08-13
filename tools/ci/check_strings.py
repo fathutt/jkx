@@ -3,18 +3,26 @@
 
 Three groups, treated differently because they are different defects.
 
-Banned outright. strcpy, strcat and vsprintf take no destination size at all,
-so a correct call is one where the author checked something the compiler cannot
-see. There are none left in our code; every one that used to be here was either
-a measured copy - the same length that was allocated - or a real overflow
+Banned outright. strcpy, strcat, vsprintf and sprintf take no destination size
+at all, so a correct call is one where the author checked something the compiler
+cannot see. There are none left in our code; every one that used to be here was
+either a measured copy - the same length that was allocated - or a real overflow
 reachable from game data. Adding one back is a decision, not an oversight, so
 this refuses it rather than counting it.
 
-Ratcheted. sprintf and strncpy are bounded-in-principle: sprintf usually has a
-format whose output fits, strncpy has a size but does not terminate. Both still
-appear in quantity and both need a per-site judgement, so they are counted per
-file in the baseline beside this script. A count may fall and may not rise, and
-a file that reaches zero drops out of the baseline entirely.
+sprintf moved into that group when the last of its sixty-one call sites went.
+It was ratcheted rather than banned on the grounds that a format usually has
+output that fits - which is a claim about values, not about types, and therefore
+not one a reader can check. What replaced it is Com_sprintf with the size taken
+from the destination's type; see q_shared.h. Every one of the sixty-one had an
+array for a destination, which the compiler confirmed by accepting the overload,
+so not one of them needed the judgement the ratchet existed to defer.
+
+Ratcheted. strncpy and strncat are bounded-in-principle: they take a size but do
+not terminate. Both still appear in quantity and both need a per-site judgement,
+so they are counted per file in the baseline beside this script. A count may fall
+and may not rise, and a file that reaches zero drops out of the baseline
+entirely.
 
 Not looked at. third_party/ is vendored upstream source, and
 code/rd-vulkan carries a renderer we want to keep diffable against EternalJK.
@@ -33,8 +41,8 @@ import re
 import sys
 from pathlib import Path
 
-BANNED = ("strcpy", "strcat", "vsprintf")
-RATCHETED = ("sprintf", "strncpy", "strncat")
+BANNED = ("strcpy", "strcat", "vsprintf", "sprintf")
+RATCHETED = ("strncpy", "strncat")
 
 # Directories whose string handling is not ours to change.
 SKIP = ("third_party/", "code/mp3code/", "code/rd-vulkan/", "build")
@@ -95,7 +103,7 @@ def read_baseline() -> dict[str, int]:
 
 def write_baseline(counts: dict[str, int]) -> None:
     lines = [
-        "# sprintf, strncpy and strncat call sites per file, from",
+        "# strncpy and strncat call sites per file, from",
         "# tools/ci/check_strings.py. A count may fall and may not rise.",
         "# Regenerate with: tools/ci/check_strings.py --update",
         "",
@@ -128,8 +136,9 @@ def main() -> int:
             print(f"  {rel}:{line}: {name}")
         print()
         print("These take no bound, so the caller has to have proved the fit by hand.")
-        print("Use Q_strncpyz or Q_strcat - both take the size, and the array forms")
-        print("in q_string.h take it from the type. Where the length really is known,")
+        print("Use Q_strncpyz, Q_strcat or Com_sprintf - all three take the size, and")
+        print("the array forms take it from the type (q_string.h, q_shared.h). Where")
+        print("the length really is known,")
         print("memcpy with the length that was allocated says so and this gate agrees.")
         print()
 
@@ -137,7 +146,7 @@ def main() -> int:
     grew = sorted(p for p, n in counts.items() if n > baseline.get(p, 0))
     if grew:
         failed = True
-        print("error: sprintf/strncpy/strncat call sites grew:")
+        print("error: strncpy/strncat call sites grew:")
         for path in grew:
             print(f"  {path}: {baseline.get(path, 0)} -> {counts[path]}")
         print()

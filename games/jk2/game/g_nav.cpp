@@ -1632,19 +1632,19 @@ qboolean NAV_WaypointsTooFar( gentity_t *wp1, gentity_t *wp2 )
 		fatalErrors++;
 		if ( !wp1->targetname && !wp2->targetname )
 		{
-			sprintf( temp, S_COLOR_RED"Waypoint conn %s->%s > 1024\n", vtos( wp1->currentOrigin ), vtos( wp2->currentOrigin ) );
+			Com_sprintf( temp, S_COLOR_RED"Waypoint conn %s->%s > 1024\n", vtos( wp1->currentOrigin ), vtos( wp2->currentOrigin ) );
 		}
 		else if ( !wp1->targetname )
 		{
-			sprintf( temp, S_COLOR_RED"Waypoint conn %s->%s > 1024\n", vtos( wp1->currentOrigin ), wp2->targetname );
+			Com_sprintf( temp, S_COLOR_RED"Waypoint conn %s->%s > 1024\n", vtos( wp1->currentOrigin ), wp2->targetname );
 		}
 		else if ( !wp2->targetname )
 		{
-			sprintf( temp, S_COLOR_RED"Waypoint conn %s->%s > 1024\n", wp1->targetname, vtos( wp2->currentOrigin ) );
+			Com_sprintf( temp, S_COLOR_RED"Waypoint conn %s->%s > 1024\n", wp1->targetname, vtos( wp2->currentOrigin ) );
 		}
 		else
 		{//they both have valid targetnames
-			sprintf( temp, S_COLOR_RED"Waypoint conn %s->%s > 1024\n", wp1->targetname, wp2->targetname );
+			Com_sprintf( temp, S_COLOR_RED"Waypoint conn %s->%s > 1024\n", wp1->targetname, wp2->targetname );
 		}
 		len = strlen( temp );
 		if ( (fatalErrorPointer-fatalErrorString)+len >= (int)sizeof( fatalErrorString ) )

@@ -830,7 +830,7 @@ qboolean G2_Set_Bone_Anim_Index(
 		char mess[1000];
 		if (bone.flags&BONE_ANIM_BLEND)
 		{
-			sprintf(mess,"sab[%2d] %5d  %5d  (%5d-%5d) %4.2f %4x   bt(%5d-%5d) %7.2f %5d\n",
+			Com_sprintf(mess,"sab[%2d] %5d  %5d  (%5d-%5d) %4.2f %4x   bt(%5d-%5d) %7.2f %5d\n",
 				index,
 				currentTime,
 				bone.startTime,
@@ -846,7 +846,7 @@ qboolean G2_Set_Bone_Anim_Index(
 		}
 		else
 		{
-			sprintf(mess,"saa[%2d] %5d  %5d  (%5d-%5d) %4.2f %4x\n",
+			Com_sprintf(mess,"saa[%2d] %5d  %5d  (%5d-%5d) %4.2f %4x\n",
 				index,
 				currentTime,
 				bone.startTime,

@@ -726,7 +726,7 @@ void scriptrunner_run (gentity_t *self)
 	{
 		char	newname[MAX_FILENAME_LENGTH];
 
-		sprintf((char *) &newname, "%s/%s", Q3_SCRIPT_DIR, self->behaviorSet[BSET_USE] );
+		Com_sprintf( newname, "%s/%s", Q3_SCRIPT_DIR, self->behaviorSet[BSET_USE] );
 
 		ICARUS_RunScript( self, newname );
 	}

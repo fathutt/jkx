@@ -408,6 +408,30 @@ int Com_HexStrToInt( const char *str );
 
 int	QDECL Com_sprintf (char *dest, int size, const char *fmt, ...);
 
+#if defined(__cplusplus)
+// The same, with the size taken from the type instead of from the caller - the
+// third of the family described in shared/qcommon/q_string.h, and here rather
+// than there because Com_sprintf is declared here.
+//
+// This is what replaces a sprintf. sprintf cannot be made safe by inspection:
+// the length of what it writes depends on the format and the arguments, so
+// "this one is short enough" is a claim about values rather than about types,
+// and it is the claim that is wrong every time a name turns out longer than
+// someone assumed. Where the destination is an array the compiler knows the
+// bound; where it is a pointer there is no overload to match, and the size has
+// to be stated - which is the point, because that is exactly where somebody has
+// to look at the code.
+template<size_t N>
+inline int Com_sprintf( char (&dest)[N], const char *fmt, ... ) {
+	va_list argptr;
+	va_start( argptr, fmt );
+	const int ret = Q_vsnprintf( dest, N, fmt, argptr );
+	va_end( argptr );
+	dest[N - 1] = '\0';
+	return ret;
+}
+#endif
+
 char *Com_SkipTokens( char *s, int numTokens, const char *sep );
 char *Com_SkipCharset( char *s, const char *sep );
 

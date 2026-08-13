@@ -34,6 +34,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #include <math.h>
 #include <stdio.h>
 #include <float.h>
+#include "qcommon/q_shared.h"
 #include "CVec.h"
 
 //using namespace ravl;
@@ -403,10 +404,10 @@ void	CVec4::FromStr(const char *s)
 ////////////////////////////////////////////////////////////////////////////////////////
 // Write Values To A String
 ////////////////////////////////////////////////////////////////////////////////////////
-void	CVec4::ToStr(char* s) const
+void	CVec4::ToStr(char* s, int size) const
 {
 //	assert(s);
-	sprintf(s, "(%3.3f %3.3f %3.3f %3.3f)", v[0], v[1], v[2], v[3]);
+	Com_sprintf(s, size, "(%3.3f %3.3f %3.3f %3.3f)", v[0], v[1], v[2], v[3]);
 }
 
 
@@ -978,10 +979,10 @@ void	CVec3::FromStr(const char *s)
 ////////////////////////////////////////////////////////////////////////////////////////
 // Write Values To A String
 ////////////////////////////////////////////////////////////////////////////////////////
-void	CVec3::ToStr(char* s) const
+void	CVec3::ToStr(char* s, int size) const
 {
 	assert(s);
-	sprintf(s, "(%3.3f %3.3f %3.3f)", v[0], v[1], v[2]);
+	Com_sprintf(s, size, "(%3.3f %3.3f %3.3f)", v[0], v[1], v[2]);
 }
 
 

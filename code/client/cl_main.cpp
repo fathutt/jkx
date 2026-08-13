@@ -807,7 +807,7 @@ void CL_Frame ( int msec,float fractionMsec ) {
 		char mess[256];
 		if(!(frameCount&0x1f))
 		{
-			sprintf(mess,"Frame rate=%f\n\n",1000.0f*(1.0/(avgFrametime/32.0f)));
+			Com_sprintf(mess,"Frame rate=%f\n\n",1000.0f*(1.0/(avgFrametime/32.0f)));
 	//		OutputDebugString(mess);
 			Com_Printf(mess);
 			avgFrametime=0.0f;

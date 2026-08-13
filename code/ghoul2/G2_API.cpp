@@ -421,7 +421,7 @@ public:
 		char mess[1000];
 		if (mFreeIndecies.size()<MAX_G2_MODELS)
 		{
-			sprintf(mess,"************************\nLeaked %d ghoul2info slots\n", MAX_G2_MODELS - mFreeIndecies.size());
+			Com_sprintf(mess,"************************\nLeaked %d ghoul2info slots\n", MAX_G2_MODELS - mFreeIndecies.size());
 			OutputDebugString(mess);
 			int i;
 			for (i=0;i<MAX_G2_MODELS;i++)
@@ -434,11 +434,11 @@ public:
 				}
 				if (j==mFreeIndecies.end())
 				{
-					sprintf(mess,"Leaked Info idx=%d id=%d sz=%d\n", i, mIds[i], mInfos[i].size());
+					Com_sprintf(mess,"Leaked Info idx=%d id=%d sz=%d\n", i, mIds[i], mInfos[i].size());
 					OutputDebugString(mess);
 					if (mInfos[i].size())
 					{
-						sprintf(mess,"%s\n", mInfos[i][0].mFileName);
+						Com_sprintf(mess,"%s\n", mInfos[i][0].mFileName);
 						OutputDebugString(mess);
 					}
 				}

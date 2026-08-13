@@ -1165,7 +1165,7 @@ int CSequencer::EvaluateConditional( CBlock *block , CIcarus* icarus)
 	switch ( id )
 	{
 	case CIcarus::TK_FLOAT:
-		sprintf( (char *) tempString1, "%.3f", *(float *) bm->GetData() );
+		Com_sprintf( tempString1, "%.3f", *(float *) bm->GetData() );
 		p1 = (char *) tempString1;
 		break;
 
@@ -1179,7 +1179,7 @@ int CSequencer::EvaluateConditional( CBlock *block , CIcarus* icarus)
 			vec[i] = *(float *) bm->GetData();
 		}
 
-		sprintf( (char *) tempString1, "%.3f %.3f %.3f", vec[0], vec[1], vec[2] );
+		Com_sprintf( tempString1, "%.3f %.3f %.3f", vec[0], vec[1], vec[2] );
 		p1 = (char *) tempString1;
 
 		break;
@@ -1212,7 +1212,7 @@ int CSequencer::EvaluateConditional( CBlock *block , CIcarus* icarus)
 					if ( game->GetFloat( m_ownerID, name, &fVal ) == false)
 						return false;
 
-					sprintf( (char *) tempString1, "%.3f", fVal );
+					Com_sprintf( tempString1, "%.3f", fVal );
 					p1 = (char *) tempString1;
 				}
 
@@ -1225,7 +1225,7 @@ int CSequencer::EvaluateConditional( CBlock *block , CIcarus* icarus)
 					if ( game->GetFloat( m_ownerID, name, &fVal ) == false)
 						return false;
 
-					sprintf( (char *) tempString1, "%d", (int) fVal );
+					Com_sprintf( tempString1, "%d", (int) fVal );
 					p1 = (char *) tempString1;
 				}
 				break;
@@ -1244,7 +1244,7 @@ int CSequencer::EvaluateConditional( CBlock *block , CIcarus* icarus)
 					if ( game->GetVector( m_ownerID, name, vVal ) == false)
 						return false;
 
-					sprintf( (char *) tempString1, "%.3f %.3f %.3f", vVal[0], vVal[1], vVal[2] );
+					Com_sprintf( tempString1, "%.3f %.3f %.3f", vVal[0], vVal[1], vVal[2] );
 					p1 = (char *) tempString1;
 				}
 
@@ -1265,7 +1265,7 @@ int CSequencer::EvaluateConditional( CBlock *block , CIcarus* icarus)
 			//A float value is returned from the function
 			t1 = CIcarus::TK_FLOAT;
 
-			sprintf( (char *) tempString1, "%.3f", game->Random( min, max ) );
+			Com_sprintf( tempString1, "%.3f", game->Random( min, max ) );
 			p1 = (char *) tempString1;
 		}
 
@@ -1288,7 +1288,7 @@ int CSequencer::EvaluateConditional( CBlock *block , CIcarus* icarus)
 				return false;
 			}
 
-			sprintf( (char *) tempString1, "%.3f %.3f %.3f", vec[0], vec[1], vec[2] );
+			Com_sprintf( tempString1, "%.3f %.3f %.3f", vec[0], vec[1], vec[2] );
 			p1 = (char *) tempString1;
 
 			break;
@@ -1335,7 +1335,7 @@ int CSequencer::EvaluateConditional( CBlock *block , CIcarus* icarus)
 	switch ( id )
 	{
 	case CIcarus::TK_FLOAT:
-		sprintf( (char *) tempString2, "%.3f", *(float *) bm->GetData() );
+		Com_sprintf( tempString2, "%.3f", *(float *) bm->GetData() );
 		p2 = (char *) tempString2;
 		break;
 
@@ -1349,7 +1349,7 @@ int CSequencer::EvaluateConditional( CBlock *block , CIcarus* icarus)
 			vec[i] = *(float *) bm->GetData();
 		}
 
-		sprintf( (char *) tempString2, "%.3f %.3f %.3f", vec[0], vec[1], vec[2] );
+		Com_sprintf( tempString2, "%.3f %.3f %.3f", vec[0], vec[1], vec[2] );
 		p2 = (char *) tempString2;
 
 		break;
@@ -1382,7 +1382,7 @@ int CSequencer::EvaluateConditional( CBlock *block , CIcarus* icarus)
 					if ( game->GetFloat( m_ownerID, name, &fVal ) == false)
 						return false;
 
-					sprintf( (char *) tempString2, "%.3f", fVal );
+					Com_sprintf( tempString2, "%.3f", fVal );
 					p2 = (char *) tempString2;
 				}
 
@@ -1395,7 +1395,7 @@ int CSequencer::EvaluateConditional( CBlock *block , CIcarus* icarus)
 					if ( game->GetFloat( m_ownerID, name, &fVal ) == false)
 						return false;
 
-					sprintf( (char *) tempString2, "%d", (int) fVal );
+					Com_sprintf( tempString2, "%d", (int) fVal );
 					p2 = (char *) tempString2;
 				}
 				break;
@@ -1414,7 +1414,7 @@ int CSequencer::EvaluateConditional( CBlock *block , CIcarus* icarus)
 					if ( game->GetVector( m_ownerID, name, vVal ) == false)
 						return false;
 
-					sprintf( (char *) tempString2, "%.3f %.3f %.3f", vVal[0], vVal[1], vVal[2] );
+					Com_sprintf( tempString2, "%.3f %.3f %.3f", vVal[0], vVal[1], vVal[2] );
 					p2 = (char *) tempString2;
 				}
 
@@ -1436,7 +1436,7 @@ int CSequencer::EvaluateConditional( CBlock *block , CIcarus* icarus)
 			//A float value is returned from the function
 			t2 = CIcarus::TK_FLOAT;
 
-			sprintf( (char *) tempString2, "%.3f", game->Random( min, max ) );
+			Com_sprintf( tempString2, "%.3f", game->Random( min, max ) );
 			p2 = (char *) tempString2;
 		}
 
@@ -1460,7 +1460,7 @@ int CSequencer::EvaluateConditional( CBlock *block , CIcarus* icarus)
 				return false;
 			}
 
-			sprintf( (char *) tempString2, "%.3f %.3f %.3f", vec[0], vec[1], vec[2] );
+			Com_sprintf( tempString2, "%.3f %.3f %.3f", vec[0], vec[1], vec[2] );
 			p2 = (char *) tempString2;
 
 			break;

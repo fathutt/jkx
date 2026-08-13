@@ -350,7 +350,7 @@ void SP_CreateWind( gentity_t *ent )
 		G_SpawnFloat( "speed", "500", &ent->speed );
 		VectorScale(windDir, ent->speed, windDir);
 
-		sprintf( temp, "constantwind ( %f %f %f )", windDir[0], windDir[1], windDir[2] );
+		Com_sprintf( temp, "constantwind ( %f %f %f )", windDir[0], windDir[1], windDir[2] );
 		G_FindConfigstringIndex(temp, CS_WORLD_FX, MAX_WORLD_FX, qtrue);
 	}
 
@@ -406,7 +406,7 @@ void SP_CreateWindZone( gentity_t *ent )
 	VectorScale(windDir, ent->speed, windDir);
 
 	char	temp[256];
-	sprintf( temp, "windzone ( %f %f %f ) ( %f %f %f ) ( %f %f %f )",
+	Com_sprintf( temp, "windzone ( %f %f %f ) ( %f %f %f ) ( %f %f %f )",
 		ent->mins[0], ent->mins[1], ent->mins[2],
 		ent->maxs[0], ent->maxs[1], ent->maxs[2],
 		windDir[0],	  windDir[1],   windDir[2]
@@ -702,7 +702,7 @@ void SP_CreatePuffSystem( gentity_t *ent )
 
 	if ( r_weatherScale->value > 0.0f )
 	{
-		sprintf( temp, "puff%i init %i", iPuffSystem, (int)( ent->count * r_weatherScale->value ));
+		Com_sprintf( temp, "puff%i init %i", iPuffSystem, (int)( ent->count * r_weatherScale->value ));
 
 		G_FindConfigstringIndex( temp, CS_WORLD_FX, MAX_WORLD_FX, qtrue );
 
