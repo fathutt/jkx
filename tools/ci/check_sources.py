@@ -15,6 +15,11 @@ codeJK2/icarus, all four in no source list and included by nothing. Deleting a
 file that nothing compiles cannot change a binary, which is exactly why nobody
 noticed them for years.
 
+code/qcommon was added last and found the third instance immediately:
+hstring.cpp and hstring.h, 14 KB of a string-interning class that nothing
+compiles and nothing includes. The one every caller actually uses is
+code/Rufl/hstring.h, which is what all four source lists name.
+
 The rule is one-directional where it has to be: every .cpp and .c under a
 watched directory must be listed, and every path listed must exist. Headers are
 not required to be listed - the lists carry them for IDE grouping, not for
@@ -27,10 +32,18 @@ from pathlib import Path
 
 
 class Watched:
-    """One CMakeLists, one directory, and the variable its paths start with."""
+    """One directory, and every CMakeLists that is allowed to build out of it.
 
-    def __init__(self, cmake: str, root: str, prefix: str, skip=()):
-        self.cmake = Path(cmake)
+    Usually that is one file. code/qcommon is the exception and the reason this
+    takes a list: its sources are split four ways - the engine builds most of
+    them, the renderer builds matcomp.cpp, and both game libraries build
+    tri_coll_test.cpp - so asking any single list about that directory would
+    report the other three lists' files as unbuilt.
+    """
+
+    def __init__(self, cmake, root: str, prefix: str, skip=()):
+        self.cmakes = [Path(c) for c in ([cmake] if isinstance(cmake, str) else cmake)]
+        self.cmake = self.cmakes[0]
         self.root = Path(root)
         self.prefix = prefix
         self.skip = set(skip)
@@ -64,6 +77,9 @@ WATCHED = [
     Watched("codeJK2/game/CMakeLists.txt", "codeJK2/game", "${JK2SPDir}"),
     Watched("codeJK2/game/CMakeLists.txt", "codeJK2/cgame", "${JK2SPDir}"),
     Watched("codeJK2/game/CMakeLists.txt", "codeJK2/icarus", "${JK2SPDir}"),
+    Watched(["code/CMakeLists.txt", "code/rd-vulkan/CMakeLists.txt",
+             "code/game/CMakeLists.txt", "codeJK2/game/CMakeLists.txt"],
+            "code/qcommon", "${SPDir}"),
 ]
 
 
@@ -72,13 +88,15 @@ def main() -> int:
     checked = 0
 
     for watch in WATCHED:
-        if not watch.cmake.is_file():
-            print(f"not found: {watch.cmake}", file=sys.stderr)
-            print("run this from the top of the repository", file=sys.stderr)
-            return 2
+        for cmake in watch.cmakes:
+            if not cmake.is_file():
+                print(f"not found: {cmake}", file=sys.stderr)
+                print("run this from the top of the repository", file=sys.stderr)
+                return 2
 
-        text = watch.cmake.read_text(encoding="utf-8")
-        listed = watch.listed(text)
+        listed = set()
+        for cmake in watch.cmakes:
+            listed |= watch.listed(cmake.read_text(encoding="utf-8"))
         sources = watch.on_disk()
 
         missing = sorted(sources - listed)

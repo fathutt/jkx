@@ -494,17 +494,10 @@ void		Menu_New(char *buffer);
 void		Menus_OpenByName(const char *p);
 void		Menu_PaintAll(void);
 void		Menu_Reset(void);
-void		PC_EndParseSession(char *buffer);
-qboolean	PC_Float_Parse(int handle, float *f);
-qboolean	PC_ParseString(const char **tempStr);
+// The rest of the PC_* family is in qcommon.h - it is a text parser, not part
+// of the menu system. PC_Float_Parse and PC_String_Parse were declared here and
+// defined nowhere at all.
 qboolean	PC_ParseStringMem(const char **out);
-void		PC_ParseWarning(const char *message);
-qboolean	PC_String_Parse(int handle, const char **out);
-int			PC_StartParseSession(const char *fileName,char **buffer);
-char		*PC_ParseExt(void);
-qboolean	PC_ParseInt(int *number);
-qboolean	PC_ParseFloat(float *number);
-qboolean	PC_ParseColor(vec4_t *c);
 const char	*String_Alloc(const char *p);
 void		String_Init(void);
 qboolean	String_Parse(const char **p, const char **out);

@@ -518,6 +518,17 @@ void	FS_ForceFlush( fileHandle_t f );
 void	FS_FreeFile( void *buffer );
 // frees the memory returned by FS_ReadFile
 
+// A file read into a parse session, and the session read back. See
+// qcommon/pc_parse.cpp; the session itself is q_shared.cpp's.
+int			PC_StartParseSession( const char *fileName, char **buffer );
+void		PC_EndParseSession( char *buffer );
+void		PC_ParseWarning( const char *message );
+char		*PC_ParseExt( void );
+qboolean	PC_ParseString( const char **string );
+qboolean	PC_ParseInt( int *number );
+qboolean	PC_ParseFloat( float *number );
+qboolean	PC_ParseColor( vec4_t *color );
+
 void	FS_WriteFile( const char *qpath, const void *buffer, int size );
 // writes a complete file, creating any subdirectories needed
 

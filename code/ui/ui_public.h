@@ -48,10 +48,10 @@ answer and hands it back to be painted; nothing on this side of the boundary
 needs to know what is behind the pointer, and once it does not, the header
 describing it can stay where it belongs.
 
-The parser is here for a less good reason: PC_* is a general text parser that
-happens to live in ui_shared.cpp, and cgame reaches it through the client. It
-is not part of the menu system and should not be in this list; moving it out is
-its own piece of work.
+The PC_* text parser used to be on this list, for a worse reason: it lived in
+ui_shared.cpp and cgame reached it through the client. It parses files and it
+is not a menu, so it is in qcommon now, and it is not the interface's business
+any more.
 
 ===============================================================================
 */
@@ -71,13 +71,6 @@ void		Menu_PaintAll( void );
 void		String_Init( void );
 void		UI_Cursor_Show( qboolean flag );
 
-// the text parser that lives in the same file
-int			PC_StartParseSession( const char *fileName, char **buffer );
-void		PC_EndParseSession( char *buffer );
-char		*PC_ParseExt( void );
-qboolean	PC_ParseInt( int *number );
-qboolean	PC_ParseFloat( float *number );
-qboolean	PC_ParseString( const char **tempStr );
 
 
 typedef struct {

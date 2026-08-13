@@ -32,7 +32,7 @@ import sys
 from pathlib import Path
 
 # Lower this when it drops. See the note above before touching it.
-CEILING = 942
+CEILING = 935
 
 ENGINE = ("code/qcommon", "code/server", "code/client", "shared")
 GAME = ("code/game", "code/cgame", "code/ui", "code/icarus", "codeJK2")

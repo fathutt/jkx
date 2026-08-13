@@ -263,6 +263,7 @@ if(BuildSPEngine OR BuildJK2SPEngine)
 	# headers are the whole of the engine-to-game interface.
 	set(SPEngineGameFiles
 		"${SPDir}/qcommon/GenericParser2.cpp"
+		"${SPDir}/qcommon/pc_parse.cpp"
 		"${SPDir}/qcommon/GenericParser2.h"
 		"${SPDir}/game/g_public.h"
 		"${SPDir}/cgame/cg_public.h"
