@@ -381,8 +381,48 @@ else
     INMAP_STEP+=( +set r_dissolveType 1 +set r_dissolveFreeze 45
                   +wait 20 +map jkx_room2 +wait $SETTLE
                   +screenshot_tga jkx_wipe +wait 20
-                  +set r_dissolveFreeze -1 +wait 20
-                  +screenshot_tga jkx_sky +wait 20 )
+                  +set r_dissolveFreeze -1 +wait 20 )
+
+    # A plain run pins the camera before this shot, and the reason is worth
+    # writing down because it was read as a renderer defect twice.
+    #
+    # Every other frame in the A/B lane compares to the pixel. This one came
+    # back at 0, 1 or 151 differing pixels depending on the run, and 151 fails.
+    # Dumping the coordinates settled what kind of difference it is: a
+    # single-pixel-wide staircase along one long diagonal edge, the two runs
+    # stepping it at different rows. That is a camera a fraction of a unit from
+    # where it was, not a wall drawn differently.
+    #
+    # Where the fraction comes from, measured rather than reasoned. Nothing has
+    # pinned the view at this point in the run: the player spawns above the
+    # floor and falls to it, and the fall is integrated once per rendered frame
+    # with that frame's own duration as the step - bg_pmove.cpp, pml.frametime,
+    # no fixed sub-step, pmove_fixed and pmove_msec do not exist in single
+    # player. So how long a frame took decides where the player comes to rest.
+    #
+    # Three measurements, in the order they were taken:
+    #
+    #   com_maxfps 60 against com_maxfps 20, unpinned: identical, twice. Which
+    #   looked like a refutation and is not - lavapipe at 1280x720 never gets
+    #   near either cap, so neither run was capped and nothing was varied;
+    #
+    #   the same settings on both sides - r_depthPrepass 0 against
+    #   r_depthPrepass 0 - with six busy processes on the machine, unpinned:
+    #   they differ. The lane is not measuring the depth prepass at all;
+    #
+    #   the same again with the pin below: identical, three pairs out of three.
+    #
+    # setviewpos puts the camera at a stated place; sixty frames later the
+    # player is at rest with no velocity left to integrate, and from there the
+    # two runs agree exactly. The engine's framerate-coupled movement is a real
+    # defect (backlog 46.2) and this pin is not a fix for it - it takes it out
+    # of a lane that is asking about something else. When 46.2 lands, take the
+    # pin out and the flake should not come back.
+    if [ "${JKX_SMOKE_PLAIN:-0}" = "1" ]; then
+        INMAP_STEP+=( +setviewpos 0 0 -15 90 +wait 60 )
+    fi
+
+    INMAP_STEP+=( +screenshot_tga jkx_sky +wait 20 )
 
     # The turned views belong to the sky, and are skipped when there is no sky.
     # That is not a dodge around frames that would not compare: a plain run draws
