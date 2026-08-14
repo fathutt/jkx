@@ -526,10 +526,21 @@ Size is cg_crosshairDotSize, in the units the head-up display is laid out in. It
 is a new cvar rather than the old cg_crosshairSize because the meaning changed
 with the shape: that one was the side of a bitmap, and its archived value of 24
 draws a block where a dot belongs.
+
+The caller's alpha is scaled by fDOT_ALPHA rather than used as it is. A solid dot
+sits on top of the picture; a dot you can see through sits in it, and the world
+under the middle of the screen is the part of the picture the player is actually
+looking at. The scale is a factor and not a replacement so that the fade the
+force hint does - which drives the same alpha from zero to one and back - still
+fades to nothing rather than to four fifths.
 ================
 */
 void CG_DrawCrosshairDot( float x, float y, float size, const vec4_t colour )
 {
+	// Eighty per cent. Enough to read against a bright wall, little enough that
+	// what is behind it is not lost.
+	const float	fDOT_ALPHA = 0.8f;
+
 	static qhandle_t hDot = 0;
 
 	if ( !hDot ) {
@@ -546,7 +557,14 @@ void CG_DrawCrosshairDot( float x, float y, float size, const vec4_t colour )
 		size = 1.0f;
 	}
 
-	cgi_R_SetColor( colour );
+	vec4_t	drawColour;
+
+	drawColour[0] = colour[0];
+	drawColour[1] = colour[1];
+	drawColour[2] = colour[2];
+	drawColour[3] = colour[3] * fDOT_ALPHA;
+
+	cgi_R_SetColor( drawColour );
 	cgi_R_DrawStretchPic( x - size * 0.5f, y - size * 0.5f,
 		size, size, 0, 0, 1, 1, hDot );
 }
