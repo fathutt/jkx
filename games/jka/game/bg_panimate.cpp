@@ -47,6 +47,8 @@ extern cvar_t	*g_AnimWarning;
 extern cvar_t	*g_noFootSlide;
 extern cvar_t	*g_noFootSlideRunScale;
 extern cvar_t	*g_noFootSlideWalkScale;
+extern cvar_t	*g_noFootSlideMaxScale;
+extern cvar_t	*g_noFootSlideDebug;
 extern cvar_t	*g_saberAnimSpeed;
 extern cvar_t	*g_saberAutoAim;
 extern cvar_t	*g_speederControlScheme;
@@ -4764,7 +4766,13 @@ void PM_SetAnimFinal(int *torsoAnim,int *legsAnim,
 		bool	Walking = !!PM_WalkingAnim(anim);
 		bool	HasDual = (gent->client->ps.saberAnimLevel==SS_DUAL);
 		bool	HasStaff = (gent->client->ps.saberAnimLevel==SS_STAFF);
-		float	moveSpeedOfAnim  = 150.0f;//g_noFootSlideRunScale->value;
+		// The two cvars that exist to tune this were registered in g_main.cpp
+		// and then commented out at both places that read them, so foot slide
+		// had no adjustment at all - the numbers beside them are their
+		// defaults, which is why nobody noticed. They are live again, and the
+		// defaults are the same numbers, so a build with them untouched
+		// behaves exactly as before.
+		float	moveSpeedOfAnim  = g_noFootSlideRunScale->value;
 
 		if (anim==BOTH_CROUCH1WALK || anim==BOTH_CROUCH1WALKBACK)
 		{
@@ -4790,7 +4798,7 @@ void PM_SetAnimFinal(int *torsoAnim,int *legsAnim,
 					}
 					else
 					{
-						moveSpeedOfAnim = 50.0f;// g_noFootSlideWalkScale->value;
+						moveSpeedOfAnim = g_noFootSlideWalkScale->value;
 					}
 				}
 				else
@@ -4812,7 +4820,9 @@ void PM_SetAnimFinal(int *torsoAnim,int *legsAnim,
 
 
 
-		animSpeed *= (gent->resultspeed/moveSpeedOfAnim);
+		const float	wantedSpeed = animSpeed * (gent->resultspeed/moveSpeedOfAnim);
+
+		animSpeed = wantedSpeed;
 		if (animSpeed<0.01f)
 		{
 			animSpeed = 0.01f;
@@ -4820,10 +4830,33 @@ void PM_SetAnimFinal(int *torsoAnim,int *legsAnim,
 
 		// Make Sure Not To Play Too Fast An Anim
 		//----------------------------------------
-		float	maxPlaybackSpeed = (1.5f * timeScaleMod);
+		//
+		// This is where the feet go back to sliding, and silently. The cycle is
+		// scaled to match the ground until the scale reaches this ceiling, and
+		// past it the ground keeps accelerating and the legs do not - so the
+		// faster something moves, the worse the slide, which is the opposite of
+		// what the system is for. The ceiling is a cvar now rather than a
+		// literal, at the value it already had, and g_noFootSlideDebug says
+		// when it fires and by how much. The reference speeds beside it are
+		// guesses - the FIXME above says so in the original author's words -
+		// and they cannot be tuned by anyone who cannot see the number they are
+		// wrong by.
+		const float	maxPlaybackSpeed = (g_noFootSlideMaxScale->value * timeScaleMod);
+
 		if (animSpeed>maxPlaybackSpeed)
 		{
 			animSpeed = maxPlaybackSpeed;
+		}
+
+		if (g_noFootSlideDebug->integer && gent->s.number == 0)
+		{
+			Com_Printf("footslide: ground %.0f, anim tuned for %.0f, cycle x%.2f%s\n",
+				gent->resultspeed, moveSpeedOfAnim, animSpeed,
+				(wantedSpeed>maxPlaybackSpeed)
+					? va(" (wanted x%.2f, clamped - feet slide %.0f%%)",
+						wantedSpeed,
+						(wantedSpeed/maxPlaybackSpeed - 1.0f) * 100.0f)
+					: "");
 		}
 	}
 

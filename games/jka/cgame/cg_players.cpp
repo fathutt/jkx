@@ -5057,9 +5057,21 @@ CG_G2SetHeadAnims
 static void CG_G2SetHeadAnim( centity_t *cent, int anim )
 {
 	gentity_t	*gent = cent->gent;
-	const int blendTime = 50;
+	// A blend time was declared, computed and passed to the engine here, and
+	// the flag that makes the engine read it was commented out on the next
+	// line - so every change of expression was a cut, and the parameter was
+	// dead. That is why a raised eyebrow arrives instantly.
+	//
+	// Under a cvar because nobody alive knows why it was disabled, and because
+	// the right length is a matter of taste: cg_faceBlendTime 0 restores the
+	// cut exactly.
+	const int blendTime = cg_faceBlendTime.integer;
 	const animation_t *animations = level.knownAnimFileSets[gent->client->clientInfo.animFileIndex].animations;
-	int	animFlags = BONE_ANIM_OVERRIDE ;//| BONE_ANIM_BLEND;
+	int	animFlags = BONE_ANIM_OVERRIDE;
+
+	if ( blendTime > 0 ) {
+		animFlags |= BONE_ANIM_BLEND;
+	}
 	// animSpeed is 1.0 if the frameLerp (ms/frame) is 50 (20 fps).
 //	float		timeScaleMod = (cg_timescale.value&&gent&&gent->s.clientNum==0&&!player_locked&&!MatrixMode&&gent->client->ps.forcePowersActive&(1<<FP_SPEED))?(1.0/cg_timescale.value):1.0;
 	const float		timeScaleMod = (cg_timescale.value)?(1.0/cg_timescale.value):1.0;
@@ -5097,6 +5109,67 @@ static void CG_G2SetHeadAnim( centity_t *cent, int anim )
 		gi.G2API_SetBoneAnimIndex(&gent->ghoul2[gent->playerModel], cent->gent->faceBone,
 			firstFrame, lastFrame, animFlags, animSpeed, cg.time, -1, blendTime);
 	}
+}
+
+/*
+-------------------------
+CG_G2SetHeadTalkPose
+
+The mouth, held between the talk poses rather than snapped onto one of them.
+
+What FACE_TALK0 through FACE_TALK4 actually are, measured out of the retail
+_humanoid.gla rather than assumed: five poses, two frames each, and the two
+frames of each are IDENTICAL. There is no motion inside a talk animation at
+all - it is one pose held. The whole of a character's mouth is those five poses
+and the jaw rotates on one axis across about nine degrees between the quietest
+and the loudest, from -2.8 to +6.3.
+
+So the five animations are not animations, they are a ladder, and the engine was
+climbing it one rung at a time - picking a rung from the volume and cutting to
+it. That is the ventriloquist's dummy: a mouth that only ever holds one of five
+shapes, changed on a step.
+
+Held at a fractional frame between them, the same five poses become a continuous
+one, and not only for the jaw - each pose moves the lip bones too, so the corners
+travel with it. The frame numbers come from the animation table, so a model whose
+animation.cfg puts the talk poses elsewhere follows its own.
+
+The top of the ladder is FACE_TALK3, not FACE_TALK4. Measured, the jaw is 6.3
+degrees open at TALK3 and 5.0 at TALK4 - the retail ladder is not monotonic at
+the last rung, so walking to the end of it would have the mouth close slightly
+as the voice got loudest. It stops at the widest pose instead.
+-------------------------
+*/
+static float	cg_faceEnvelope[MAX_CLIENTS];
+
+static qboolean CG_G2SetHeadTalkPose( centity_t *cent, float openness )
+{
+	gentity_t			*gent = cent->gent;
+	const animation_t	*animations = level.knownAnimFileSets[gent->client->clientInfo.animFileIndex].animations;
+
+	const int	quiet = animations[FACE_TALK0].firstFrame;
+	const int	wide = animations[FACE_TALK3].firstFrame;
+
+	if ( animations[FACE_TALK0].numFrames <= 0 || animations[FACE_TALK3].numFrames <= 0
+		|| wide <= quiet ) {
+		return qfalse;
+	}
+
+	if ( openness < 0.0f ) {
+		openness = 0.0f;
+	} else if ( openness > 1.0f ) {
+		openness = 1.0f;
+	}
+
+	const float	setFrame = quiet + openness * (float)( wide - quiet );
+
+	// Speed zero and an explicit frame: the pose is held where it is put rather
+	// than played. The range has to span every pose the frame can land on,
+	// because G2_Set_Bone_Anim range checks the two against each other.
+	gi.G2API_SetBoneAnimIndex( &gent->ghoul2[gent->playerModel], gent->faceBone,
+		quiet, wide + 1, BONE_ANIM_OVERRIDE_FREEZE, 0.0f, cg.time, setFrame, 0 );
+
+	return qtrue;
 }
 
 static qboolean CG_G2PlayerHeadAnims( centity_t *cent )
@@ -5190,6 +5263,44 @@ static qboolean CG_G2PlayerHeadAnims( centity_t *cent )
 			}
 		}//talking
 	}//dead
+	// The mouth, continuously, from the same number the animation choice above
+	// is made from.
+	//
+	// gi.VoiceVolume is a rung of the talk ladder, zero when silent. It used to
+	// be recomputed once every 800 milliseconds, which is three to five
+	// syllables, so smoothing it would have smoothed nothing; snd_dma.cpp
+	// measures it every 50 now, which is the rate the talk poses were authored
+	// at. Attack is faster than release because a jaw opens faster than it
+	// closes, and a mouth that shuts as slowly as it opens reads as chewing.
+	if ( cg_lipSyncSmooth.integer && cent->currentState.clientNum < MAX_CLIENTS ) {
+		const int	rung = gi.VoiceVolume[cent->gent->s.clientNum];
+		float		&envelope = cg_faceEnvelope[cent->currentState.clientNum];
+		float		want = 0.0f;
+
+		if ( rung > 0 ) {
+			want = (float)rung / 4.0f;
+		}
+
+		if ( cent->gent->health <= 0 ) {
+			want = 0.0f;
+		}
+
+		envelope += ( want - envelope )
+			* CG_SmoothFactor( ( want > envelope )
+				? cg_lipSyncAttack.value : cg_lipSyncRelease.value );
+
+		if ( envelope > 0.001f || want > 0.0f ) {
+			if ( CG_G2SetHeadTalkPose( cent, envelope ) ) {
+				// The pose is the mouth; an expression on top of it would fight
+				// it for the same bones. Expressions are for when nobody is
+				// speaking, which is what the branches above already decide.
+				if ( anim >= FACE_TALK0 && anim <= FACE_TALK4 ) {
+					return qtrue;
+				}
+			}
+		}
+	}
+
 	if (anim != -1)
 	{
 		CG_G2SetHeadAnim( cent, anim );

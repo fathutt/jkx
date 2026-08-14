@@ -165,6 +165,8 @@ cvar_t	*g_AnimWarning;
 cvar_t	*g_noFootSlide;
 cvar_t	*g_noFootSlideRunScale;
 cvar_t	*g_noFootSlideWalkScale;
+cvar_t	*g_noFootSlideMaxScale;
+cvar_t	*g_noFootSlideDebug;
 
 cvar_t	*g_nav1;
 cvar_t	*g_nav2;
@@ -640,6 +642,14 @@ void G_InitCvars( void ) {
 	g_noFootSlide = gi.cvar ( "g_noFootSlide", "1", 0 );
 	g_noFootSlideRunScale = gi.cvar ( "g_noFootSlideRunScale", "150.0", 0 );
 	g_noFootSlideWalkScale = gi.cvar ( "g_noFootSlideWalkScale", "50.0", 0 );
+	// How far the walk cycle may be sped up to keep the feet on the ground.
+	// 1.5 is the number that was compiled in; past it the ground keeps
+	// accelerating and the legs do not.
+	g_noFootSlideMaxScale = gi.cvar ( "g_noFootSlideMaxScale", "1.5", 0 );
+	// Print the ground speed, the speed the animation was tuned for, and by how
+	// much the cycle had to be clamped. The reference speeds are guesses - see
+	// the FIXME in bg_panimate.cpp - and this is how they stop being guesses.
+	g_noFootSlideDebug = gi.cvar ( "g_noFootSlideDebug", "0", 0 );
 
 	g_nav1 = gi.cvar ( "g_nav1", "", 0 );
 	g_nav2 = gi.cvar ( "g_nav2", "", 0 );

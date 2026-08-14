@@ -311,6 +311,10 @@ vmCvar_t 	cg_developer;
 vmCvar_t 	cg_timescale;
 vmCvar_t	cg_skippingcin;
 vmCvar_t	cg_smoothLookTime;
+vmCvar_t	cg_faceBlendTime;
+vmCvar_t	cg_lipSyncSmooth;
+vmCvar_t	cg_lipSyncAttack;
+vmCvar_t	cg_lipSyncRelease;
 
 vmCvar_t	cg_pano;
 vmCvar_t	cg_panoNumShots;
@@ -456,6 +460,16 @@ static cvarTable_t cvarTable[] = {
 	// The time constant, in milliseconds, for a head or a pair of legs chasing
 	// where it should be pointing. Bigger is lazier. See CG_SmoothFactor.
 	{ &cg_smoothLookTime, "cg_smoothLookTime", "50", CVAR_ARCHIVE },
+	// How long an expression takes to arrive. The engine was given 50 and the
+	// flag that reads it was commented out, so it was a cut; 0 restores that.
+	{ &cg_faceBlendTime, "cg_faceBlendTime", "250", CVAR_ARCHIVE },
+	// Hold the mouth between the five talk poses instead of cutting to one of
+	// them. See CG_G2SetHeadTalkPose.
+	{ &cg_lipSyncSmooth, "cg_lipSyncSmooth", "1", CVAR_ARCHIVE },
+	// Time constants for the mouth, in milliseconds. Opening is faster than
+	// closing because a jaw is.
+	{ &cg_lipSyncAttack, "cg_lipSyncAttack", "35", CVAR_ARCHIVE },
+	{ &cg_lipSyncRelease, "cg_lipSyncRelease", "90", CVAR_ARCHIVE },
 	{ &cg_missionInfoFlashTime, "cg_missionInfoFlashTime", "10000", 0  },
 	{ &cg_hudFiles, "cg_hudFiles", "ui/jahud.txt", CVAR_ARCHIVE},
 

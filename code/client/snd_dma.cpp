@@ -200,6 +200,7 @@ cvar_t *s_lip_threshold_1;
 cvar_t *s_lip_threshold_2;
 cvar_t *s_lip_threshold_3;
 cvar_t *s_lip_threshold_4;
+cvar_t *s_lipSyncRate;
 cvar_t *s_mixahead;
 cvar_t *s_mixPreStep;
 cvar_t *s_musicVolume;
@@ -352,6 +353,7 @@ void S_Init( void ) {
 	s_lip_threshold_2   = Cvar_Get( "s_threshold2",        "4",       0 );
 	s_lip_threshold_3   = Cvar_Get( "s_threshold3",        "6",       0 );
 	s_lip_threshold_4   = Cvar_Get( "s_threshold4",        "8",       0 );
+	s_lipSyncRate       = Cvar_Get( "s_lipSyncRate",       "50",      CVAR_ARCHIVE_ND );
 	s_mixahead          = Cvar_Get( "s_mixahead",          "0.2",     CVAR_ARCHIVE );
 	s_mixPreStep        = Cvar_Get( "s_mixPreStep",        "0.05",    CVAR_ARCHIVE );
 	s_musicVolume       = Cvar_Get( "s_musicvolume",       "0.25",    CVAR_ARCHIVE );
@@ -1610,6 +1612,19 @@ void S_UpdateEntityPosition( int entityNum, const vec3_t origin )
 //
 // (this is mostly Jake's code from EF1, which explains a lot...:-)
 //
+// When the mouth is allowed to move next.
+//
+// This was every 800 milliseconds, and that single number is most of why
+// characters talk like ventriloquists' dummies. A syllable is 150 to 250
+// milliseconds; sampling how open the mouth should be once every 800 means one
+// pose held across three to five of them, so the jaw is not late, it is
+// unrelated. Everything downstream - the five FACE_TALK animations, the
+// script tests on VoiceVolume - was working from a number that changed a bit
+// over once a second.
+//
+// s_lipSyncRate is that interval and defaults to 50 ms, which is the rate the
+// talk animations themselves were authored at (five frames per second in
+// animation.cfg). Set it to 800 to get the old mouth back.
 static int next_amplitude = 0;
 static int S_CheckAmplitude(channel_t	*ch, const int s_oldpaintedtime )
 {
@@ -1729,7 +1744,11 @@ static int S_CheckAmplitude(channel_t	*ch, const int s_oldpaintedtime )
 		return (sample);
 	}
 	// no, just get last value calculated from backup table
-	assert( s_entityWavVol_back[ch->entnum] );
+	//
+	// No assert on the cached value. Zero is what this function answers for a
+	// sample that has run out - the !count path above returns it without
+	// writing the table - so the assert was on ordinary data, and a debug build
+	// stopped on a character finishing a line.
 	return (s_entityWavVol_back[ ch->entnum]);
 }
 
@@ -1869,7 +1888,17 @@ void S_DoLipSynchs( const int s_oldpaintedtime )
 	}
 
 	if (next_amplitude < s_soundtime)	{
-		next_amplitude = s_soundtime + 800;
+		int rate = s_lipSyncRate ? s_lipSyncRate->integer : 50;
+
+		if ( rate < 1 ) {
+			rate = 1;
+		}
+
+		// s_soundtime counts samples, not milliseconds, so the interval has to
+		// be scaled by the mixer's rate. The old constant did not, which meant
+		// the mouth moved twice as often at 44 kHz as at 22 - and the number
+		// that was tuned was tuned at one of them.
+		next_amplitude = s_soundtime + ( rate * dma.speed ) / 1000;
 	}
 }
 

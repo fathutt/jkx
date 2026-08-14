@@ -637,6 +637,10 @@ extern	vmCvar_t		cg_stereoSeparation;
 extern	vmCvar_t		cg_developer;
 extern	vmCvar_t		cg_timescale;
 extern	vmCvar_t		cg_smoothLookTime;
+extern	vmCvar_t		cg_faceBlendTime;
+extern	vmCvar_t		cg_lipSyncSmooth;
+extern	vmCvar_t		cg_lipSyncAttack;
+extern	vmCvar_t		cg_lipSyncRelease;
 extern	vmCvar_t		cg_skippingcin;
 
 extern	vmCvar_t		cg_pano;
