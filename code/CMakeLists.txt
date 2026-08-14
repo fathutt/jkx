@@ -161,6 +161,8 @@ if(BuildJKAEngine OR BuildJK2Engine)
 	# qcommon files
 	set(EngineCommonFiles
 		"${CodeDir}/qcommon/cm_load.cpp"
+		"${CodeDir}/qcommon/cm_bsp_check.cpp"
+		"${CodeDir}/qcommon/cm_bsp_check.h"
 		"${CodeDir}/qcommon/cm_patch.cpp"
 		"${CodeDir}/qcommon/cm_polylib.cpp"
 		"${CodeDir}/qcommon/cm_test.cpp"

@@ -24,6 +24,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 // cmodel.c -- model loading
 
 #include "cm_local.h"
+#include "cm_bsp_check.h"
 #include "qcommon/ojk_saved_game.h"
 #include "qcommon/ojk_saved_game_helper.h"
 
@@ -50,6 +51,27 @@ void SetPlaneSignbits (cplane_t *out) {
 #define	BOX_PLANES		12
 
 #define	LL(x) x=LittleLong(x)
+
+
+// The lump element sizes in cm_bsp_check.h are numbers, because that file has
+// to stay free of these structures - a test compiles it with nothing else.
+// These tie the numbers back to the structures: change one in qfiles.h and the
+// build stops here, rather than the check quietly starting to accept lumps it
+// should refuse. Two of the twelve were guessed wrong when they were first
+// written, and only measuring caught it.
+static_assert( sizeof( dheader_t ) == BSP_HEADER_BYTES, "BSP header size" );
+static_assert( sizeof( dshader_t ) == BSP_ELEM_SHADERS, "shader lump element" );
+static_assert( sizeof( dplane_t ) == BSP_ELEM_PLANES, "plane lump element" );
+static_assert( sizeof( dnode_t ) == BSP_ELEM_NODES, "node lump element" );
+static_assert( sizeof( dleaf_t ) == BSP_ELEM_LEAFS, "leaf lump element" );
+static_assert( sizeof( int ) == BSP_ELEM_LEAFSURFACES, "leafsurface lump element" );
+static_assert( sizeof( int ) == BSP_ELEM_LEAFBRUSHES, "leafbrush lump element" );
+static_assert( sizeof( dmodel_t ) == BSP_ELEM_MODELS, "model lump element" );
+static_assert( sizeof( dbrush_t ) == BSP_ELEM_BRUSHES, "brush lump element" );
+static_assert( sizeof( dbrushside_t ) == BSP_ELEM_BRUSHSIDES, "brushside lump element" );
+static_assert( sizeof( drawVert_t ) == BSP_ELEM_DRAWVERTS, "drawvert lump element" );
+static_assert( sizeof( dfog_t ) == BSP_ELEM_FOGS, "fog lump element" );
+static_assert( sizeof( dsurface_t ) == BSP_ELEM_SURFACES, "surface lump element" );
 
 
 clipMap_t	cmg;
@@ -773,18 +795,29 @@ static void CM_LoadMap_Actual( const char *name, qboolean clientload, int *check
 
 		last_checksum = LittleLong (Com_BlockChecksum (buf, iBSPLen));
 
+		// Every lump inside the file, before a single one of them is read.
+		//
+		// The loaders below all do the same thing with a lump - add its offset
+		// to cmod_base and read filelen/sizeof(element) elements - and nothing
+		// compared either number against the length of the file. A lump offset
+		// is a signed int out of a .bsp, and a .bsp arrives in a pk3. See
+		// cm_bsp_check.h; the check also compares the identifier, which
+		// BSP_IDENT declared and nothing had ever read.
+		{
+			const char *bad = BSP_CheckHeader( (const unsigned char *)buf, (size_t)iBSPLen );
+
+			if ( bad ) {
+				Z_Free( gpvCachedMapDiskImage );
+				gpvCachedMapDiskImage = NULL;
+
+				Com_Error( ERR_DROP, "CM_LoadMap: %s: %s", name, bad );
+				return;
+			}
+		}
+
 		header = *(dheader_t *)buf;
 		for (i=0 ; i<sizeof(dheader_t)/4 ; i++) {
 			((int *)&header)[i] = LittleLong ( ((int *)&header)[i]);
-		}
-
-		if ( header.version != BSP_VERSION )
-		{
-			Z_Free(	gpvCachedMapDiskImage);
-					gpvCachedMapDiskImage = NULL;
-
-			Com_Error (ERR_DROP, "CM_LoadMap: %s has wrong version number (%i should be %i)"
-			, name, header.version, BSP_VERSION );
 		}
 
 		cmod_base = (byte *)buf;
