@@ -467,7 +467,27 @@ void R_AddMD3Surfaces( trRefEntity_t *ent, int entityNum ) {
 		// don't add third_person objects if not viewing through a portal
 		if ( !personalModel ) {
 #ifdef USE_VBO_MDV
-			if ( vk.vboMdvActive ) 
+			// The vertex buffer holds ONE frame. R_BuildMD3 sizes it numVerts,
+			// not numVerts * numFrames, and writes surf->verts from the start -
+			// which is frame zero. So a model with more than one frame drawn
+			// through here is frozen at its first, and every MD3 in this engine
+			// was drawn through here, because vk.vboMdvActive is set
+			// unconditionally.
+			//
+			// That is what killed vertex animation: the weapon in the player's
+			// hands is a morph-animated MD3 whose frame is mapped from the
+			// character's torso animation, and it has not moved since the
+			// buffer path was added. The lerp itself was never deleted -
+			// LerpMeshVertexes_ is still here, in two versions - it just stopped
+			// being called.
+			//
+			// A single-frame model has nothing to lerp, so it keeps the buffer,
+			// which is nearly everything: props, weapons on the ground, debris.
+			// An animated one goes back through the batch. Making the buffer
+			// carry every frame and lerping in the vertex shader is the right
+			// answer and is a separate piece of work; this is the line that
+			// stops the picture being wrong in the meantime.
+			if ( vk.vboMdvActive && model->numFrames <= 1 )
 				R_AddDrawSurf( (surfaceType_t *)&model->vboSurfaces[i], entityNum, shader, fogNum, cubemapIndex );
 			else
 #endif

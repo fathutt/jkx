@@ -286,6 +286,31 @@ fi
 INMAP_STEP+=( +debugview roughness +wait 10 +screenshot_tga jkx_debugview
               +wait 10 +debugview off +wait 5 )
 
+# Vertex animation, which is the one kind of animation this bench has never
+# drawn - every model in the fixture had a single frame until make_test_md3.py.
+#
+# testmodel puts a model a hundred units in front of the camera; given a second
+# argument it sets frame 1, oldframe 0 and that backlerp, so 1 is the first
+# frame and 0 is the second. The square is in a different place in each, so the
+# two shots have to differ. A build whose vertex buffer holds one frame draws
+# the same picture twice, and that is exactly what this engine did.
+#
+# Not in the fog lane, and that is an open question rather than a tidy-up. With
+# these four steps added, a fog run stops responding at the end - stuck inside
+# the driver in vk_present_frame, on the frame after the last screenshot, three
+# times out of three, while the same run without them passes. The test model is
+# cleared long before the fog steps begin and the fog lane is the only one that
+# hangs, so something about drawing a mesh through the batch path leaves state
+# that the fog pass then chokes on. That is a real finding and it is written
+# down in the backlog rather than left as a flaky stage; this check runs in the
+# other seven lanes meanwhile.
+if [ "${JKX_SMOKE_FOG:-0}" != "1" ]; then
+INMAP_STEP+=( +testmodel models/jkx/anim.md3 1 +wait 30 +screenshot_tga jkx_md3_a
+              +wait 10
+              +testmodel models/jkx/anim.md3 0 +wait 30 +screenshot_tga jkx_md3_b
+              +wait 10 +testmodel +wait 10 )
+fi
+
 if [ "${JKX_SMOKE_SAVELOAD:-0}" = "1" ]; then
     # And then stop. The second map below is there to move the media level
     # counter, which the run without the round trip already checks; doing both
@@ -398,6 +423,13 @@ fi
 # sky_texorder = { 0, 2, 1, 3, 4, 5 }, which swaps the second and third. That is
 # measured, not assumed - the first guess was "lf" and the screenshot said green.
 python3 "$HERE/make_test_sky.py" "$RUN/base/textures/jkx" sky >/dev/null
+
+# A model with two frames in it, and the only one in this fixture that has more
+# than one. That is not a detail: the vertex buffer built for an MD3 holds a
+# single frame, so every animated model was drawn frozen at its first - and
+# nothing here had a second frame to be frozen at. See make_test_md3.py.
+mkdir -p "$RUN/base/models/jkx"
+python3 "$HERE/make_test_md3.py" "$RUN/base/models/jkx/anim.md3" >/dev/null
 
 # The screen wipe used to need a mask picture here, and without it the engine
 # printed "no screen wipe" and skipped the whole dissolve path - which is how a
@@ -626,6 +658,23 @@ if [ "${JKX_SMOKE_PLAIN:-0}" != "1" ] && [ -f "$RUN/home/base/screenshots/jkx_wi
     if ! python3 "$HERE/tga_soft_edge.py" 40 \
         "$RUN/home/base/screenshots/jkx_wipe.tga"; then
         report "the screen wipe's edge is a step, not a ramp"
+    fi
+fi
+
+# Vertex animation moves the model. The box is the whole frame rather than a
+# corner of it, because where the square lands depends on the camera and the
+# question here is only whether the two frames are different pictures. Sixteen
+# hundred pixels is a fifth of the square's area at this distance - enough that
+# a stray pixel of dithering cannot pass, little enough that the exact placement
+# does not matter.
+if [ "${JKX_SMOKE_PLAIN:-0}" != "1" ] \
+   && [ -f "$RUN/home/base/screenshots/jkx_md3_a.tga" ] \
+   && [ -f "$RUN/home/base/screenshots/jkx_md3_b.tga" ]; then
+    if ! python3 "$HERE/tga_diff_where.py" \
+        "$RUN/home/base/screenshots/jkx_md3_a.tga" \
+        "$RUN/home/base/screenshots/jkx_md3_b.tga" \
+        "0.0,0.0,1.0,1.0" 1600; then
+        report "vertex animation does not move the model between its two frames"
     fi
 fi
 

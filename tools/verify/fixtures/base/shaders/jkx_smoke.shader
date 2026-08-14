@@ -89,3 +89,18 @@ textures/jkx/fog
 	surfaceparm nonsolid
 	fogParms ( 0.9 0.1 0.9 ) 512
 }
+
+// The two-frame model from make_test_md3.py, in a colour nothing else in the
+// fixture uses. It has to be unmistakable: the check on it is that the square
+// is somewhere else in the second frame, and a white square against a white
+// floor cannot answer that.
+textures/jkx/anim
+{
+	// Two-sided, so that which way the square happens to face after testmodel's
+	// yaw is not part of what this measures.
+	cull none
+	{
+		map $whiteimage
+		rgbGen const ( 0.0 1.0 1.0 )
+	}
+}
