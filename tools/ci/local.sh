@@ -230,6 +230,26 @@ stage_tests_cxx() {
         "$ROOT/code/qcommon/jkx_rle.cpp" || return 1
     "$out/rle_test" || return 1
 
+    # One zip handle, two readers. A pack keeps a single unzFile open and hands
+    # it to every caller that did not ask for its own, and a zip handle carries
+    # one position - so the second file opened from a pack used to take the
+    # first one's place with nothing returning an error.
+    #
+    # minizip is third-party and is compiled without our warning set: it is not
+    # our code to keep clean, and -Wextra -Werror on it stops the build on
+    # unused callback parameters that are part of zlib's own interface.
+    cc -O1 -g -w -I "$ROOT/third_party/minizip/include" \
+        -I "$ROOT/third_party/minizip/include/minizip" \
+        -c "$ROOT/third_party/minizip/unzip.c" -o "$out/unzip.o" || return 1
+    cc -O1 -g -w -I "$ROOT/third_party/minizip/include" \
+        -I "$ROOT/third_party/minizip/include/minizip" \
+        -c "$ROOT/third_party/minizip/ioapi.c" -o "$out/ioapi.o" || return 1
+    c++ -O1 -g -std=c++17 -Wall -Wextra -Werror \
+        -I "$ROOT/third_party/minizip/include" \
+        -o "$out/pk3_share_test" \
+        "$ROOT/tests/pk3_share_test.cpp" "$out/unzip.o" "$out/ioapi.o" -lz || return 1
+    "$out/pk3_share_test" "$out/pk3_share_test.pk3" || return 1
+
     # The sound codec, against a real compressed file. The headless bench never
     # plays one, so without this the decoder is unverified.
     c++ -O2 -std=c++20 -Wall -Werror -DARCH_STRING='"x86_64"' -DJKX_ENGINE \

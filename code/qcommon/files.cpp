@@ -210,6 +210,10 @@ typedef struct pack_s {
 	char			pakBasename[MAX_OSPATH];	// assets0
 	char			pakGamename[MAX_OSPATH];	// base
 	unzFile			handle;						// handle to zip file
+	// Which open file handle is currently reading through 'handle', or 0 for
+	// none. One zip handle carries one position, so it can serve one reader at
+	// a time; see the note in FS_FOpenFileRead.
+	fileHandle_t	sharedUser;
 	int				checksum;					// regular checksum
 	int				numfiles;					// number of files in pk3
 	int				hashSize;					// hash table size (power of 2)
@@ -981,6 +985,22 @@ void FS_FCloseFile( fileHandle_t f ) {
 		unzCloseCurrentFile( fsh[f].handleFiles.file.z );
 		if ( fsh[f].handleFiles.unique ) {
 			unzClose( fsh[f].handleFiles.file.z );
+		} else {
+			// This one was reading through the pack's shared handle, so give
+			// the handle back. Found by looking rather than by remembering a
+			// pointer to the pack: a search path can be freed while a handle
+			// is still open, and a remembered pointer would be read after the
+			// free. Nothing found means the pack is already gone, which is the
+			// answer we want anyway.
+			searchpath_t *sp;
+
+			for ( sp = fs_searchpaths ; sp ; sp = sp->next ) {
+				if ( sp->pack && sp->pack->sharedUser == f
+					&& sp->pack->handle == fsh[f].handleFiles.file.z ) {
+					sp->pack->sharedUser = 0;
+					break;
+				}
+			}
 		}
 		Com_Memset( &fsh[f], 0, sizeof( fsh[f] ) );
 		return;
@@ -1332,7 +1352,28 @@ long FS_FOpenFileRead( const char *filename, fileHandle_t *file, qboolean unique
 					if ( !FS_FilenameCompare( pakFile->name, filename ) ) {
 						// found it!
 
-						if ( uniqueFILE ) {
+						// A pack keeps one zip handle open and hands it out to
+						// readers that did not ask for their own. One handle
+						// carries one position: unzSetOffset and
+						// unzOpenCurrentFile below move it to this file and
+						// start a fresh inflate there, so a second file opened
+						// on the same handle takes the place of the first
+						// silently. The first reader is still holding a valid
+						// fileHandle_t and still calling FS_Read on it, and
+						// what comes back is bytes of the other file, or
+						// nothing, depending on where the two sit in the
+						// archive. Nothing anywhere returns an error.
+						//
+						// So the handle goes to one reader at a time and the
+						// next one gets its own. That costs an open and a read
+						// of the archive's central directory, which is why the
+						// shared handle exists at all - and it is paid only
+						// when two files from one pack are genuinely open
+						// together, which is rare and used to be wrong.
+						const qboolean ownHandle =
+							( uniqueFILE || pak->sharedUser != 0 ) ? qtrue : qfalse;
+
+						if ( ownHandle ) {
 							// open a new file on the pakfile
 							fsh[*file].handleFiles.file.z = unzOpen (pak->pakFilename);
 							if (fsh[*file].handleFiles.file.z == NULL) {
@@ -1340,7 +1381,13 @@ long FS_FOpenFileRead( const char *filename, fileHandle_t *file, qboolean unique
 							}
 						} else {
 							fsh[*file].handleFiles.file.z = pak->handle;
+							pak->sharedUser = *file;
 						}
+
+						// 'unique' means this handle owns the zip handle and
+						// has to close it, which is now a wider set than the
+						// callers that asked for one.
+						fsh[*file].handleFiles.unique = ownHandle;
 						Q_strncpyz( fsh[*file].name, filename, sizeof( fsh[*file].name ) );
 						fsh[*file].zipFile = qtrue;
 
