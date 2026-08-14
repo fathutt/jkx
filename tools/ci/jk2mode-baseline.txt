@@ -1,0 +1,40 @@
+# JK2_MODE conditional directives per file, from
+# tools/ci/check_jk2mode.py. The TOTAL may fall and may not rise;
+# a single file's count may move either way, because the way this
+# number comes down is by moving a difference somewhere it can be read.
+# Regenerate with: tools/ci/check_jk2mode.py --update
+
+# total: 199
+
+   3 code/api/ui_public.h
+   2 code/client/cl_cgame.cpp
+   1 code/client/cl_cin.cpp
+   4 code/client/cl_input.cpp
+   4 code/client/cl_main.cpp
+   1 code/client/cl_scrn.cpp
+   6 code/client/cl_ui.cpp
+   1 code/client/client.h
+   1 code/ghoul2/G2_API.cpp
+   4 code/ghoul2/ghoul2_shared.h
+   1 code/qcommon/cm_load.cpp
+   4 code/qcommon/common.cpp
+   4 code/qcommon/msg.cpp
+  10 code/qcommon/ojk_saved_game.cpp
+  48 code/qcommon/q_shared.h
+   1 code/qcommon/qcommon.h
+   1 code/qcommon/stringed_ingame.cpp
+   1 code/qcommon/strip.cpp
+   1 code/server/server.h
+   7 code/server/sv_ccmds.cpp
+   3 code/server/sv_game.cpp
+   1 code/server/sv_init.cpp
+  19 code/server/sv_savegame.cpp
+   4 code/server/sv_snapshot.cpp
+   6 code/ui/ui_atoms.cpp
+   2 code/ui/ui_connect.cpp
+  37 code/ui/ui_main.cpp
+  18 code/ui/ui_shared.cpp
+   1 games/jk2/cgame/cg_info.cpp
+   1 games/jk2/game/g_savegame.cpp
+   1 shared/sdl/sdl_icon.h
+   1 shared/win32/product.h

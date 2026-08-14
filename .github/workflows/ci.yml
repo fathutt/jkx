@@ -53,6 +53,9 @@ jobs:
       - name: One setting, one name
         run: python3 tools/ci/check_cvars.py .
 
+      - name: Per-game branches (ratchet, and banned in the renderer)
+        run: python3 tools/ci/check_jk2mode.py .
+
       # This one fails here in two seconds instead of failing in the Windows
       # job twenty minutes in, with an error message that names the wrong
       # token. Everything it looks for compiles cleanly on every compiler this
