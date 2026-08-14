@@ -101,6 +101,12 @@ PLANE_Y_NEG = 6
 PLANE_CEILING = 8   # ( 0  0  1)  z <=  256
 PLANE_FLOOR = 10    # ( 0  0 -1)  z >= FLOOR_Z, pointing DOWN
 PLANE_FLOOR_UP = 11 # its opposite: ( 0 0 1) at FLOOR_Z, pointing UP
+PLANE_UNDER = 12    # ( 0  0 -1)  z >= FLOOR_Z - SLAB, the underside of the slab
+
+# How thick the floor is. Anything is fine; a trace only ever enters it from
+# above, and a thin slab is one more way for a trace with a big box to go
+# through it.
+SLAB = 64.0
 
 
 def planes():
@@ -116,6 +122,7 @@ def planes():
         ((1, 0, 0), HALF), ((-1, 0, 0), HALF),
         ((0, 1, 0), HALF), ((0, -1, 0), HALF),
         ((0, 0, 1), HALF), ((0, 0, -1), -FLOOR_Z),
+        ((0, 0, -1), -( FLOOR_Z - SLAB )),
     ):
         out += struct.pack("<4f", normal[0], normal[1], normal[2], dist)
         out += struct.pack("<4f", -normal[0], -normal[1], -normal[2], -dist)
@@ -179,10 +186,51 @@ def brushes():
 
 
 def brushsides():
-    """One per box face, on the even planes, all carrying the solid shader."""
+    """The floor, as a slab under it - and not the room, which is what this was.
+
+    A brush is the intersection of the half spaces behind its sides, so a brush
+    whose six sides are the six room faces pointing outwards IS the room: the
+    whole interior, marked CONTENTS_SOLID. That is what this wrote, and the
+    effect was invisible for as long as the fixture existed because nothing here
+    ever asked the player to move.
+
+    What it did to a run: every trace from inside the room came back allsolid.
+    PM_GroundTrace then reports no ground at all, PM_SlideMove sees a completely
+    trapped entity, zeroes the vertical velocity and returns without moving. So
+    the player stood at the spawn with gravity 800 and never fell, +forward
+    raised his velocity to 127 and his origin did not change, and noclip - which
+    does not trace - worked perfectly. Measured, with a print in front of Pmove:
+    "org=0.0 0.0 -39.8 grav=800 grnd=1023", frame after frame.
+
+    A convex brush cannot be "everything outside the room", so the room's shell
+    would be six slabs. It does not need to be: the only surface this fixture
+    draws is the floor, so the only thing worth colliding with is the floor, and
+    one slab under it is exactly that. The walls are drawn by nothing and now
+    stop nothing, which is honest - a fixture that collides with a wall nobody
+    can see is a fixture that will confuse someone later.
+
+    Sides point out of the slab: the room's four vertical faces (which already
+    point outwards and bound it in x and y), the floor plane pointing up, and a
+    new one SLAB below it pointing down.
+
+    The ORDER of the six is not free, which is the second thing this got wrong.
+    CM_BoundBrush does not look at the planes' normals - it reads the first six
+    sides positionally:
+
+        bounds[0][0] = -sides[0].dist    bounds[1][0] = sides[1].dist
+        bounds[0][1] = -sides[2].dist    bounds[1][1] = sides[3].dist
+        bounds[0][2] = -sides[4].dist    bounds[1][2] = sides[5].dist
+
+    so side 0 has to be the -X face, side 1 the +X face, and so on to side 4
+    being -Z and side 5 being +Z. Written the other way round, as it was, the
+    brush gets a bounding box somewhere else entirely and every trace rejects it
+    before looking at a single plane. That is a silent miss: the brush is there,
+    it is solid, and nothing ever touches it.
+    """
     out = b""
-    for i in range(6):
-        out += struct.pack("<3i", i * 2, 0, -1)
+    for plane in ( PLANE_X_NEG, PLANE_X_POS, PLANE_Y_NEG, PLANE_Y_POS,
+            PLANE_UNDER, PLANE_FLOOR_UP ):
+        out += struct.pack("<3i", plane, 0, -1)
     return out
 
 
