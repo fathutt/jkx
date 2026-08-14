@@ -502,6 +502,13 @@ endif()
 
 # Reproducible builds
 # https://reproducible-builds.org/specs/source-date-epoch/
+#
+# When SOURCE_DATE_EPOCH is set, the date compiled into the binary is that
+# instant and not the moment of the build - which is the whole point, and which
+# is why a CI build says "gamedate: Jan 1 2026" forever. That is correct and it
+# is deliberate; .github/workflows pins the epoch so that two builds of one
+# commit come out identical. It reads like a broken clock, so: the date is not
+# what identifies a build here. GIT_TAG below is.
 if ("$ENV{SOURCE_DATE_EPOCH}" STREQUAL "")
 	message(STATUS "SOURCE_DATE_EPOCH is not set: SOURCE_DATE will be set to the compile-time date")
 else()
@@ -513,19 +520,64 @@ else()
 	message(STATUS "SOURCE_DATE_EPOCH is set ($ENV{SOURCE_DATE_EPOCH}): SOURCE_DATE set to \"${SOURCE_DATE}\"")
 endif()
 
-# Current Git tag/version
-# ideally we would separate the hash suffix into its own variable, but sed is not available everywhere
+# Which build this is.
+#
+# The string ends up in JK_VERSION, which is what the console prints on the
+# first line, what the menu draws in the corner, and what a bug report quotes.
+# It said vUNKNOWN in every build this project has ever produced.
+#
+# The reason was "git describe --tag" with no fallback: describe answers with
+# the nearest TAG, and this repository has never had one. There is no remote to
+# push tags to - delivery is a git bundle - so there was never going to be one,
+# and the failure branch below turned that into vUNKNOWN and a warning nobody
+# reads at configure time. A build that cannot say which commit it is, is a
+# build whose bug reports cannot be trusted, and this one has been shipping
+# screenshots and console logs for weeks.
+#
+# --always is the fix: with no tag to describe, describe answers with the
+# abbreviated commit, which always exists. --dirty appends to that when the
+# working tree differs from it, so "this is not any commit" is also sayable.
+#
+# vUNKNOWN still exists and now means one thing only: this is not a git checkout
+# at all - an exported tarball, or a machine without git. It is no longer what
+# a perfectly ordinary checkout says about itself.
 execute_process(
-	COMMAND "git" "describe" "--tag"
+	COMMAND "git" "describe" "--tags" "--always" "--dirty"
 	WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
 	OUTPUT_VARIABLE GIT_TAG
 	RESULT_VARIABLE GIT_TAG_ERROR
 	OUTPUT_STRIP_TRAILING_WHITESPACE)
 if(GIT_TAG_ERROR AND NOT GIT_TAG_ERROR EQUAL 0)
-	message(WARNING "Unable to determine Git tag")
+	message(WARNING "No git here, so this build cannot say which commit it is")
 	set(GIT_TAG vUNKNOWN)
 endif()
 message(STATUS "Git tag is ${GIT_TAG}")
+
+# The version is read at configure time, so a commit made after configuring
+# leaves the built binary claiming the commit before it. These make CMake
+# reconfigure when the commit changes: HEAD moves on checkout, the branch file
+# moves on commit, and packed-refs covers a repository whose refs have been
+# packed. Cheap - CMake stats them, it does not read them.
+#
+# What this deliberately does not cover is --dirty. Editing a file without
+# staging it touches nothing under .git, so a tree that becomes dirty after
+# configuring is not noticed until something else reconfigures. Watching the
+# whole tree to keep one suffix honest costs more than the suffix is worth; the
+# suffix is a hint that the commit is not the whole story, not a guarantee.
+foreach(gitFile "HEAD" "packed-refs")
+	if(EXISTS "${CMAKE_SOURCE_DIR}/.git/${gitFile}")
+		set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+			"${CMAKE_SOURCE_DIR}/.git/${gitFile}")
+	endif()
+endforeach()
+if(EXISTS "${CMAKE_SOURCE_DIR}/.git/HEAD")
+	file(READ "${CMAKE_SOURCE_DIR}/.git/HEAD" gitHead)
+	string(STRIP "${gitHead}" gitHead)
+	if(gitHead MATCHES "^ref: (.+)$" AND EXISTS "${CMAKE_SOURCE_DIR}/.git/${CMAKE_MATCH_1}")
+		set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+			"${CMAKE_SOURCE_DIR}/.git/${CMAKE_MATCH_1}")
+	endif()
+endif()
 
 configure_file(shared/qcommon/q_version.h.in shared/qcommon/q_version.h @ONLY)
 
