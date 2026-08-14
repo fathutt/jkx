@@ -158,6 +158,8 @@ set(RDVulkanRdCommonFiles
 	"${CodeDir}/rd-vulkan/tr_image_load.cpp"
 	"${CodeDir}/rd-vulkan/tr_image_jpg.cpp"
 	"${CodeDir}/rd-vulkan/tr_image_tga.cpp"
+	"${CodeDir}/rd-vulkan/tr_image_tga_decode.cpp"
+	"${CodeDir}/rd-vulkan/tr_image_tga_decode.h"
 	"${CodeDir}/rd-vulkan/tr_image_png.cpp"
 	"${CodeDir}/rd-vulkan/tr_noise.cpp")
 source_group("rd-common" FILES ${RDVulkanRdCommonFiles})

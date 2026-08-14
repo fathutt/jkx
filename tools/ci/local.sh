@@ -190,6 +190,17 @@ stage_tests_cxx() {
         "$ROOT/tests/ghoul2_bonemap_test.cpp" || return 1
     "$out/ghoul2_bonemap_test" || return 1
 
+    # The Targa reader, against forty thousand malformed files. Built with the
+    # sanitizers on and only here: the point of the mutation loop is that a read
+    # or a write one byte outside a buffer is a fault, and without asan it is a
+    # value nobody notices. Two seconds.
+    c++ -O1 -g -std=c++17 -Wall -Wextra -Werror \
+        -fsanitize=address,undefined -fno-sanitize-recover=all \
+        -o "$out/image_tga_test" \
+        "$ROOT/tests/image_tga_test.cpp" \
+        "$ROOT/code/rd-vulkan/tr_image_tga_decode.cpp" || return 1
+    "$out/image_tga_test" || return 1
+
     # The sound codec, against a real compressed file. The headless bench never
     # plays one, so without this the decoder is unverified.
     c++ -O2 -std=c++20 -Wall -Werror -DARCH_STRING='"x86_64"' -DJKX_ENGINE \
