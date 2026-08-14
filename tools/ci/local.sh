@@ -71,7 +71,7 @@ JOBS="${JOBS:-$(nproc)}"
 
 STAGES=( "$@" )
 if [ "${#STAGES[@]}" -eq 0 ]; then
-    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokepak smokesan prepass fog noassets )
+    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokepak move smokesan prepass fog noassets )
 fi
 
 failed=()
@@ -382,6 +382,27 @@ stage_smokejk2() {
 stage_smokesave() {
     JKX_SMOKE_SAVELOAD=1 \
     JKX_SMOKE_DISPLAY="${JKX_SMOKE_SAVE_DISPLAY:-:95}" \
+    JKX_SMOKE_NO_VALIDATION=1 \
+        bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
+}
+
+# The player walks and jumps, which he could not do until the fixture had a
+# floor - see make_test_bsp.py's brushsides(). Until then every trace from
+# inside the room came back allsolid, so pmove could not move him at all and
+# half the game's logic was outside this bench without anything saying so.
+#
+# What this gates is only "he left the ground". The apex itself is not a gate
+# and must not become one: measured at the same settings it comes back 44, 48,
+# 49, 49 on an idle machine and 53, 55 with eight busy processes on it. That
+# spread is the defect this lane exists to point at - single player integrates
+# movement once per rendered frame with the frame's own duration as the step -
+# but the number is also blunted by sampling, since the true apex falls between
+# two frames. A sharper instrument is wanted before anything is asserted about
+# the value; backlog 46.2.
+stage_move() {
+    JKX_SMOKE_MOVE=1 \
+    JKX_SMOKE_PLAIN=1 \
+    JKX_SMOKE_DISPLAY="${JKX_SMOKE_MOVE_DISPLAY:-:87}" \
     JKX_SMOKE_NO_VALIDATION=1 \
         bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
 }

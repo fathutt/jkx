@@ -534,6 +534,40 @@ python3 "$HERE/make_test_bsp.py" "$RUN/base/maps/jkx_room2.bsp" \
     --shader textures/jkx/wide --sky textures/jkx/sky \
     "${FOG_ARGS[@]}" >/dev/null
 
+# Movement, as a number rather than as a picture.
+#
+# This lane could not have existed a day ago: the fixture's only brush was the
+# room's own volume marked solid, so the player stood inside solid and could not
+# move at all. See make_test_bsp.py's brushsides(). With a floor under him he
+# walks and jumps, and the first thing worth asking is how high.
+#
+# Single player integrates movement once per rendered frame with that frame's
+# own duration as the step - pml.msec in bg_pmove.cpp, clamped to [1, 200] and
+# not divided into anything smaller. pmove_fixed and pmove_msec, which exist in
+# the multiplayer branch to cut the interval into fixed steps, are not in this
+# tree at all. A jump is the sharpest symptom: gravity is subtracted once per
+# step, so a different number of steps between leaving the floor and coming back
+# gives a different apex.
+#
+# Sampled every frame rather than at a fixed count, because the apex lands
+# between frames and "between frames" is exactly what differs.
+if [ "${JKX_SMOKE_MOVE:-0}" = "1" ]; then
+    {
+        echo "setviewpos 0 0 -15 90"
+        echo "wait 60"
+        echo "+moveup"
+        echo "wait 3"
+        echo "-moveup"
+        i=0
+        while [ "$i" -lt 60 ]; do
+            echo "viewpos"
+            echo "wait 1"
+            i=$(( i + 1 ))
+        done
+    } > "$RUN/base/jkx_move.cfg"
+    INMAP_STEP+=( +exec jkx_move.cfg +wait 200 )
+fi
+
 # Everything above builds a game directory out of loose files, and every run so
 # far has read it that way. A pk3 is a zip, and it is how the retail assets
 # arrive and how every downloaded mod arrives - so the archive half of the
@@ -1039,6 +1073,29 @@ for name in jkx_smoke jkx_wiped; do
         fi
     fi
 done
+
+# The jump, reduced to one number. viewpos prints "<map> (x y z) : yaw", so the
+# apex is the largest z among the samples; the count goes with it because a run
+# that produced two samples would give a confident answer about nothing.
+if [ "${JKX_SMOKE_MOVE:-0}" = "1" ]; then
+    MOVE_SAMPLES="$(grep -c "maps/jkx_room2.bsp (" "$RUN/run.log" || true)"
+    MOVE_APEX="$(sed -n 's/.*maps\/jkx_room2\.bsp (-\?[0-9]* -\?[0-9]* \(-\?[0-9]*\)).*/\1/p' \
+        "$RUN/run.log" | sort -n | tail -1)"
+    if [ -z "$MOVE_APEX" ] || [ "$MOVE_SAMPLES" -lt 30 ]; then
+        report "the movement lane got $MOVE_SAMPLES sample(s) and no apex"
+    else
+        echo "  jump apex z=$MOVE_APEX from $MOVE_SAMPLES sample(s)"
+        if [ -n "${JKX_SMOKE_MOVE_OUT:-}" ]; then
+            printf '%s\n' "$MOVE_APEX" > "$JKX_SMOKE_MOVE_OUT"
+        fi
+        # The floor is at z = -64 and the camera sits about 52 above the player,
+        # so a jump that did not happen reads about 12 and one that went through
+        # the floor reads negative. Both have happened here.
+        if [ "$MOVE_APEX" -lt 20 ]; then
+            report "the player did not leave the ground: apex z=$MOVE_APEX"
+        fi
+    fi
+fi
 
 if [ "$fail" -ne 0 ]; then
     echo
