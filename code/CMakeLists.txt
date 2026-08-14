@@ -204,6 +204,8 @@ if(BuildJKAEngine OR BuildJK2Engine)
 		"${CodeDir}/qcommon/jkx_i_saved_game.h"
 		"${CodeDir}/qcommon/jkx_saved_game.h"
 		"${CodeDir}/qcommon/jkx_saved_game.cpp"
+		"${CodeDir}/qcommon/jkx_rle.h"
+		"${CodeDir}/qcommon/jkx_rle.cpp"
 		"${CodeDir}/qcommon/jkx_saved_game_helper.h"
 		"${CodeDir}/qcommon/jkx_saved_game_helper_fwd.h"
 		"${CodeDir}/qcommon/jkx_scope_guard.h"

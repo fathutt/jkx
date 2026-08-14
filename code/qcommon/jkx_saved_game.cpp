@@ -4,6 +4,7 @@
 
 
 #include "jkx_saved_game.h"
+#include "jkx_rle.h"
 #include <algorithm>
 #include <memory>
 #include "jkx_saved_game_helper.h"
@@ -272,9 +273,19 @@ bool SavedGame::read_chunk(
 		io_buffer_.resize(
 			loaded_data_size);
 
-		decompress(
+		if (!decompress(
 			rle_buffer_,
-			io_buffer_);
+			io_buffer_))
+		{
+			is_failed_ = true;
+
+			error_message_ =
+				"Compressed chunk (" +
+					chunk_id_string +
+					") does not decode to the size it claims.";
+
+			return false;
+		}
 	}
 	else
 	{
@@ -827,103 +838,30 @@ void SavedGame::compress(
 	const Buffer& src_buffer,
 	Buffer& dst_buffer)
 {
-	const int src_size = static_cast<int>(src_buffer.size());
-
-	dst_buffer.resize(2 * src_size);
-
-	int src_count = 0;
-	int dst_index = 0;
-
-	while (src_count < src_size)
-	{
-		int src_index = src_count;
-		uint8_t b = src_buffer[src_index++];
-
-		while (src_index < src_size &&
-			(src_index - src_count) < 127 &&
-			src_buffer[src_index] == b)
-		{
-			src_index += 1;
-		}
-
-		if ((src_index - src_count) == 1)
-		{
-			while (src_index < src_size &&
-				(src_index - src_count) < 127 && (
-					src_buffer[src_index] != src_buffer[src_index - 1] || (
-						src_index > 1 &&
-						src_buffer[src_index] != src_buffer[src_index - 2])))
-			{
-				src_index += 1;
-			}
-
-			while (src_index < src_size &&
-				src_buffer[src_index] == src_buffer[src_index - 1])
-			{
-				src_index -= 1;
-			}
-
-			dst_buffer[dst_index++] =
-				static_cast<uint8_t>(src_count - src_index);
-
-			for (int i = src_count; i < src_index; ++i)
-			{
-				dst_buffer[dst_index++] = src_buffer[i];
-			}
-		}
-		else
-		{
-			dst_buffer[dst_index++] =
-				static_cast<uint8_t>(src_index - src_count);
-
-			dst_buffer[dst_index++] = b;
-		}
-
-		src_count = src_index;
-	}
-
+	// The coding itself is in jkx_rle.cpp, which depends on nothing and can
+	// therefore be handed malformed input by a test. See the comment at the top
+	// of jkx_rle.h for what it used to do with any.
 	dst_buffer.resize(
-		dst_index);
+		RLE_MaxEncodedSize(src_buffer.size()));
+
+	const size_t written = ::RLE_Encode(
+		src_buffer.data(),
+		src_buffer.size(),
+		dst_buffer.data(),
+		dst_buffer.size());
+
+	dst_buffer.resize(written);
 }
 
-void SavedGame::decompress(
+bool SavedGame::decompress(
 	const Buffer& src_buffer,
 	Buffer& dst_buffer)
 {
-	int src_index = 0;
-	int dst_index = 0;
-
-	int remain_size = static_cast<int>(dst_buffer.size());
-
-	while (remain_size > 0)
-	{
-		int8_t count = static_cast<int8_t>(src_buffer[src_index++]);
-
-		if (count > 0)
-		{
-			std::uninitialized_fill_n(
-				&dst_buffer[dst_index],
-				count,
-				src_buffer[src_index++]);
-		}
-		else
-		{
-			if (count < 0)
-			{
-				count = -count;
-
-				std::uninitialized_copy_n(
-					&src_buffer[src_index],
-					count,
-					&dst_buffer[dst_index]);
-
-				src_index += count;
-			}
-		}
-
-		dst_index += count;
-		remain_size -= count;
-	}
+	return ::RLE_Decode(
+		src_buffer.data(),
+		src_buffer.size(),
+		dst_buffer.data(),
+		dst_buffer.size());
 }
 
 std::string SavedGame::generate_path(

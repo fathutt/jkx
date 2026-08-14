@@ -169,8 +169,10 @@ private:
 		const Buffer& src_buffer,
 		Buffer& dst_buffer);
 
-	// Decompresses data.
-	static void decompress(
+	// Decompresses data. Answers false when the compressed data does not
+	// describe exactly dst_buffer.size() bytes, in which case dst_buffer holds
+	// what was decoded before that was discovered.
+	static bool decompress(
 		const Buffer& src_buffer,
 		Buffer& dst_buffer);
 
