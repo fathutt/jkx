@@ -237,7 +237,10 @@ fi
 # with numbers behind it instead of a number that happened to work.
 SETTLE=200
 
-INMAP_STEP=( +wait 20 +map jkx_room +wait $SETTLE +screenshot_tga jkx_inmap )
+INMAP_STEP=( +wait 20 +map jkx_room +wait $SETTLE
+             +screenshot_tga jkx_inmap )
+
+
 
 # The crosshair, twice: once absent, once drawn large enough that nothing else
 # in the frame can outweigh it. What is being measured is where it lands, and it
@@ -311,7 +314,39 @@ else
     # and it subtracts 25 for eye height - so z is 25 to stand where the spawn is.
     # It takes a yaw and no pitch, so up and down are still not covered here;
     # tests/sky_projection_test.cpp covers all six, without a renderer.
-    INMAP_STEP+=( +wait 20 +map jkx_room2 +wait $SETTLE +screenshot_tga jkx_sky +wait 20 )
+    # And the screen wipe, held still over this load rather than over the first
+    # one - because this is the only load in the run where the two pictures
+    # differ.
+    #
+    # A wipe blends the screen it captured against the screen being drawn now,
+    # so a check on it is only a check when those two are different. The first
+    # map load has a grey load screen on one side and a grey room on the other:
+    # both are the clear colour, 191 in every channel, and the blend between
+    # them is 191 at every alpha. The measurement below read that frame as flat
+    # and reported a one pixel edge - against a build whose ramp was measured at
+    # 128 pixels by hand. It was reading a picture with nothing in it.
+    #
+    # Here the old screen is the load screen and the new one is the sky room,
+    # which is green along the middle row. 191 to 0 across the band is a ramp
+    # with somewhere to go.
+    #
+    # r_dissolveFreeze holds the wipe at one percentage instead of running it,
+    # so the picture does not depend on how long the load took - with the
+    # validation layer on it takes long enough that a shot a fixed number of
+    # frames later catches the wipe already over. r_dissolveType pins which of
+    # the six it is, so the boundary is a vertical line and the middle row
+    # crosses it.
+    #
+    # The wait after the screenshot is not padding either: a screenshot is
+    # queued and lands a frame or two later, so a cvar changed on the next line
+    # changes the frame that gets written. That is measurable - the shots in the
+    # run that found this were each one step ahead of the value they were named
+    # after.
+    INMAP_STEP+=( +set r_dissolveType 1 +set r_dissolveFreeze 45
+                  +wait 20 +map jkx_room2 +wait $SETTLE
+                  +screenshot_tga jkx_wipe +wait 20
+                  +set r_dissolveFreeze -1 +wait 20
+                  +screenshot_tga jkx_sky +wait 20 )
 
     # The turned views belong to the sky, and are skipped when there is no sky.
     # That is not a dodge around frames that would not compare: a plain run draws
@@ -364,15 +399,19 @@ fi
 # measured, not assumed - the first guess was "lf" and the screenshot said green.
 python3 "$HERE/make_test_sky.py" "$RUN/base/textures/jkx" sky >/dev/null
 
-# The screen wipe's mask. Without this file the engine prints "no screen wipe"
-# and the whole dissolve path is skipped - which is how a crash lived there
-# undisturbed: R_DissolveCaptureScreen compared image_t::width, the size that was
-# asked for, against the capture size, when what it had built was
-# uploadWidth - the size after clamping to glConfig.maxTextureSize, which is
+# The screen wipe used to need a mask picture here, and without it the engine
+# printed "no screen wipe" and skipped the whole dissolve path - which is how a
+# crash lived there undisturbed: R_DissolveCaptureScreen compared image_t::width,
+# the size that was asked for, against the capture size, when what it had built
+# was uploadWidth - the size after clamping to glConfig.maxTextureSize, which is
 # 2048. Wider than that, the two disagree and it uploads sixteen times more
 # texels than the image holds. The wide lane runs at 2560, so it is the one that
 # reaches it; below 2048 nothing is clamped and nothing goes wrong.
-python3 "$HERE/make_test_sky.py" --mask "$RUN/base/textures/common/dissolve.tga" >/dev/null
+#
+# The boundary is geometry now, so there is no file to generate and no
+# configuration in which the path is skipped. That is the better state: the
+# capture above is exercised by every run rather than by every run that
+# remembered to write a fixture.
 # The sky room's floor carries a texture wider than the renderer used to keep.
 # See the shader, and the require below.
 python3 "$HERE/make_test_sky.py" --wide "$RUN/base/textures/jkx/wide.tga" >/dev/null
@@ -459,7 +498,8 @@ set +e
       "${SET_STEP[@]}" \
       +wait 60 +screenshot_tga jkx_smoke \
       "${CONSOLE_STEP[@]}" \
-      +wait 20 +map jkx_smoke +wait $SETTLE +screenshot_tga jkx_wiped \
+      +wait 20 +map jkx_smoke +wait 12 +screenshot_tga jkx_wiping \
+      +wait $SETTLE +screenshot_tga jkx_wiped \
       "${INMAP_STEP[@]}" \
       +imagelist +wait 20 +quit ) > "$RUN/run.log" 2>&1
 status=$?
@@ -570,6 +610,22 @@ if [ "${JKX_SMOKE_PLAIN:-0}" != "1" ] && [ -f "$RUN/home/base/screenshots/jkx_in
         "$RUN/home/base/screenshots/jkx_inmap.tga" \
         "255,255,255@0.3,0.75,0.7,1.0"; then
         report "the map's floor is not where it should be in jkx_inmap.tga"
+    fi
+fi
+
+# The wipe's boundary is a ramp rather than a step. See tga_soft_edge.py; the
+# bar is forty and the band is a tenth of the screen, so there is room either
+# side of it.
+#
+# The frame only exists when the sky map was loaded - the save-and-load lane
+# stops after the first map, and the first map has nothing to wipe to. Tested by
+# the file rather than by repeating the condition that produced it, so that a
+# change to the run order cannot leave this checking a stale frame from the run
+# before it: the run directory is new every time.
+if [ "${JKX_SMOKE_PLAIN:-0}" != "1" ] && [ -f "$RUN/home/base/screenshots/jkx_wipe.tga" ]; then
+    if ! python3 "$HERE/tga_soft_edge.py" 40 \
+        "$RUN/home/base/screenshots/jkx_wipe.tga"; then
+        report "the screen wipe's edge is a step, not a ramp"
     fi
 fi
 

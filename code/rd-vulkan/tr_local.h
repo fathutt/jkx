@@ -2095,6 +2095,8 @@ extern	cvar_t	*r_uiFullScreen;		// ui is running fullscreen
 extern	cvar_t	*r_logFile;				// number of frames to emit GL logs
 extern	cvar_t	*r_showtris;			// enables wireframe rendering of the world
 extern	cvar_t	*r_showsky;				// forces sky in front of all surfaces
+extern	cvar_t	*r_dissolveType;		// -1 for the game's random pick, else a Dissolve_e
+extern	cvar_t	*r_dissolveFreeze;		// -1 runs the wipe, 0..100 holds it there
 extern	cvar_t	*r_depthPrepass;		// lay down opaque depth before shading
 extern	cvar_t	*r_shownormals;			// draws wireframe normals
 extern	cvar_t	*r_clear;				// force screen clear every frame

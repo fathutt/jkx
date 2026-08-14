@@ -144,6 +144,8 @@ cvar_t	*r_colorMipLevels;
 cvar_t	*r_picmip;
 cvar_t	*r_showtris;
 cvar_t	*r_showsky;
+cvar_t	*r_dissolveType;
+cvar_t	*r_dissolveFreeze;
 cvar_t	*r_depthPrepass;
 cvar_t	*r_shownormals;
 cvar_t	*r_finish;
@@ -814,6 +816,30 @@ static void R_DebugView_f( void ) {
 	CL_RefPrintf( PRINT_ALL, "debugview: %s\n", debugViewNames[i] );
 }
 
+/*
+==================
+R_Dissolve_f
+
+Start a screen wipe now, without waiting for a level to finish loading.
+
+The wipe normally begins at the end of a level load, so seeing one means loading
+a level and being quick. With r_dissolveFreeze this holds any wipe still, in any
+scene, for as long as it takes to look at it.
+
+What it cannot do is make a wipe visible where there is nothing to wipe between.
+The old screen it captures is the screen as it is now, so a wipe started from the
+console with nothing else changing blends a picture against itself and shows
+nothing at all - correctly. Change the view, or the level, between the capture
+and the look.
+==================
+*/
+static void R_Dissolve_f( void )
+{
+	if ( !RE_InitDissolve( qfalse ) ) {
+		CL_RefPrintf( PRINT_ALL, "dissolve: could not start\n" );
+	}
+}
+
 typedef struct consoleCommand_s {
 	const char	*cmd;
 	xcommand_t	func;
@@ -823,6 +849,7 @@ static consoleCommand_t	commands[] = {
 	{ "imagelist",			R_ImageList_f },
 	{ "shaderlist",			R_ShaderList_f },
 	{ "skinlist",			R_SkinList_f },
+	{ "dissolve",			R_Dissolve_f },
 	{ "fontlist",			R_FontList_f },
 	{ "screenshot",			R_ScreenShot_f },
 	{ "screenshot_png",		R_ScreenShot_f },
@@ -973,6 +1000,21 @@ void R_Register( void )
 	r_nobind							= Cvar_Get( "r_nobind",							"0",						CVAR_CHEAT, "" );
 	r_showtris							= Cvar_Get( "r_showtris",						"0",						CVAR_NONE, "" );
 	r_showsky							= Cvar_Get( "r_showsky",							"0",						CVAR_CHEAT, "" );
+	// Which screen wipe to use, or -1 for the random pick the game makes. It
+	// exists because a wipe chosen at random is a wipe nobody can take a picture
+	// of twice, and the picture is the only way to see whether the boundary is
+	// soft. See Dissolve_e in tr_dissolve.cpp for the order.
+	//
+	// Neither this nor the freeze below is cheat protected. They were, and the
+	// bench could not set them: a cheat-protected cvar is forced back to its
+	// default whenever cheats are off, silently, so the wipe ran normally and
+	// the check photographed whatever it found. Neither of them can do anything
+	// a player would call cheating - one picks which wipe, the other holds it
+	// still.
+	r_dissolveType						= Cvar_Get( "r_dissolveType",						"-1",						CVAR_ARCHIVE_ND, "" );
+	// Hold the wipe at a percentage instead of running it, so that a picture of
+	// it is a picture of a known thing. -1 runs it normally.
+	r_dissolveFreeze					= Cvar_Get( "r_dissolveFreeze",						"-1",						0, "" );
 	r_depthPrepass						= Cvar_Get( "r_depthPrepass",					"0",						CVAR_ARCHIVE_ND, "fill the depth buffer with opaque geometry before shading it" );
 	r_shownormals						= Cvar_Get( "r_shownormals",						"0",						CVAR_CHEAT, "" );
 	r_clear								= Cvar_Get( "r_clear",							"0",						CVAR_CHEAT, "" );

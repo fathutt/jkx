@@ -18,18 +18,21 @@ Foundation.
 // when a cinematic ends or a level starts. Multiplayer has no such thing, which
 // is why this had to be written rather than found.
 //
-// The trick is the same one the OpenGL renderer used, because it is a good one.
-// Nothing here masks in the fragment shader. Instead the depth buffer is cleared
-// and used as a stencil: everything that should still show the OLD screen writes
-// depth, and the old screen is then drawn once with the depth test set to EQUAL.
-// The wipe boundary is a picture with an alpha ramp, drawn with an alpha test, so
-// the ragged edge of the wipe comes out of the texture rather than out of code.
+// The screen from before the change is captured into an image, and then drawn
+// back over the new one as a handful of triangles whose vertex alpha is the
+// wipe: one where the old screen is untouched, zero where the new one has taken
+// over, and a ramp across the boundary. That is the whole of it. There is no
+// mask texture, no fragment shader work and no second pass.
 //
-// Colour writes during the masking passes are a deliberate no-op - source times
-// zero plus destination times one - so those passes leave the new screen exactly
-// as it was drawn and touch only depth.
+// The retail construction was different and is worth knowing, because it is why
+// the wipe used to look the way it did. The depth buffer was cleared and used as
+// a stencil: a boundary picture was drawn with an alpha TEST to write depth, and
+// the old screen was then drawn once with the depth test set to EQUAL. An alpha
+// test has two answers, so every pixel came out as either the old screen or the
+// new one; the only softness available was the dither pattern baked into that
+// picture, magnified from 64 texels to the width of the screen.
 //
-// What changed in the move to Vulkan:
+// What else changed in the move to Vulkan:
 //
 //   - No power-of-two dance. The OpenGL version expanded the captured screen
 //     into a power-of-two texture, cleared the margins, and resampled if the
@@ -46,10 +49,15 @@ Foundation.
 // How long the whole wipe takes.
 #define fDISSOLVE_SECONDS	0.75f
 
-// The masking quads overlap the boundary by a couple of pixels. Two edges that
-// meet exactly can leave a seam of unwritten depth between them, and a seam
-// shows up as a one-pixel line of the wrong screen.
-#define iSAFETY_SPRITE_OVERLAP	2
+// How wide the soft edge is, as a fraction of the screen. The original was a
+// 64-texel picture stretched across a 640-wide screen, so a tenth is what the
+// wipe has always looked like - the difference is that this one is a fraction
+// rather than a number of texels, and therefore the same shape at any size.
+#define fDISSOLVE_EDGE	0.10f
+
+// Segments around the circular wipes. Sixty makes a six-degree step, which is
+// under a pixel of chord at any resolution anyone runs.
+#define iDISSOLVE_SEGMENTS	60
 
 typedef enum
 {
@@ -71,8 +79,6 @@ typedef struct {
 	int			width;			// the captured screen, in pixels
 	int			height;
 	image_t		*screen;		// the old screen
-	image_t		*mask;			// the wipe boundary, an alpha ramp
-	image_t		*black;			// 8x8 of nothing, for the flat masking quads
 	int			startTime;		// 0 means no dissolve is running
 	Dissolve_e	type;
 	qboolean	touchNeeded;
@@ -80,12 +86,18 @@ typedef struct {
 
 static dissolve_t	dissolve;
 
-// Three pipelines, one per job. Built on first use and then kept: the set is
-// fixed, and a dissolve starts at a moment when nobody wants to wait for a
-// pipeline to compile.
-static uint32_t		dissolve_pipeline_mask;		// the alpha-tested boundary
-static uint32_t		dissolve_pipeline_solid;	// the flat masking quads
-static uint32_t		dissolve_pipeline_screen;	// the old screen itself
+// One pipeline, built on first use and then kept: a dissolve starts at a moment
+// when nobody wants to wait for a pipeline to compile.
+//
+// It used to be three, because the mask was made by writing the boundary into
+// the depth buffer and then drawing the old screen with a depth-equal test - a
+// way of getting a mask out of hardware that could not blend the way this does.
+// Blending the old screen over the new one with an alpha ramp in the vertex
+// colours costs one pipeline, no depth buffer, and no texture, and the ramp is
+// arithmetic - so it is smooth at any size and needs nothing from the retail
+// data. gfx/2d/iris_mono, gfx/2d/iris_mono_rev and textures/common/dissolve are
+// no longer looked for; without them there used to be no wipe at all.
+static uint32_t		dissolve_pipeline;
 static qboolean		dissolve_pipelines_built;
 
 static void R_DissolveBuildPipelines( void )
@@ -99,18 +111,9 @@ static void R_DissolveBuildPipelines( void )
 	Com_Memset( &def, 0, sizeof( def ) );
 	def.shader_type = TYPE_SINGLE_TEXTURE;
 	def.face_culling = CT_TWO_SIDED;
+	def.state_bits = GLS_SRCBLEND_SRC_ALPHA | GLS_DSTBLEND_ONE_MINUS_SRC_ALPHA;
 
-	// Writes depth where the alpha test passes and leaves colour alone.
-	def.state_bits = GLS_DEPTHMASK_TRUE | GLS_SRCBLEND_ZERO | GLS_DSTBLEND_ONE | GLS_ATEST_LT_80;
-	dissolve_pipeline_mask = vk_find_pipeline_ext( 0, &def, qtrue );
-
-	// The same, without the alpha test: writes depth over its whole quad.
-	def.state_bits = GLS_DEPTHMASK_TRUE | GLS_SRCBLEND_ZERO | GLS_DSTBLEND_ONE;
-	dissolve_pipeline_solid = vk_find_pipeline_ext( 0, &def, qtrue );
-
-	// Opaque, and drawn only where the two above wrote depth.
-	def.state_bits = GLS_DEPTHFUNC_EQUAL;
-	dissolve_pipeline_screen = vk_find_pipeline_ext( 0, &def, qtrue );
+	dissolve_pipeline = vk_find_pipeline_ext( 0, &def, qtrue );
 
 	dissolve_pipelines_built = qtrue;
 }
@@ -130,56 +133,62 @@ static void R_KillDissolve( void )
 
 /*
 =================
-RB_DissolveBlit
+RB_DissolveEmit
 
-One textured quad in the 2D virtual screen, with an explicit pipeline. The four
-corners are given separately rather than as a rectangle because two of the wipes
-draw the boundary right to left, which is a quad with its corners swapped.
+The old screen, as geometry whose vertex alpha is the wipe.
+
+Texture coordinates come from position rather than from the caller: the captured
+screen covers the whole of this space by definition, so a vertex at x is looking
+at x/width of the picture. That removes the possibility of a quad whose corners
+and whose texture disagree, which is what the four hand-written corner pairs per
+wipe direction were.
 =================
 */
-static void RB_DissolveBlit( float x0, float y0, float x1, float y1,
-	float x2, float y2, float x3, float y3, image_t *image, uint32_t pipeline )
+typedef struct {
+	float	x, y;
+	float	alpha;		// 1 is still the old screen, 0 is the new one
+} dissolveVert_t;
+
+static void RB_DissolveEmit( const dissolveVert_t *verts, int numVerts,
+	const int *indexes, int numIndexes, float spaceW, float spaceH )
 {
 	int i;
 
-	if ( !image ) {
+	if ( numVerts < 3 || numIndexes < 3 ) {
 		return;
 	}
 
 	tess.numVertexes = 0;
 	tess.numIndexes = 0;
 
-	tess.xyz[0][0] = x0; tess.xyz[0][1] = y0;
-	tess.xyz[1][0] = x1; tess.xyz[1][1] = y1;
-	tess.xyz[2][0] = x2; tess.xyz[2][1] = y2;
-	tess.xyz[3][0] = x3; tess.xyz[3][1] = y3;
-
-	tess.texCoords[0][0][0] = 0.0f; tess.texCoords[0][0][1] = 0.0f;
-	tess.texCoords[0][1][0] = 1.0f; tess.texCoords[0][1][1] = 0.0f;
-	tess.texCoords[0][2][0] = 1.0f; tess.texCoords[0][2][1] = 1.0f;
-	tess.texCoords[0][3][0] = 0.0f; tess.texCoords[0][3][1] = 1.0f;
-
-	for ( i = 0; i < 4; i++ ) {
+	for ( i = 0; i < numVerts; i++ ) {
+		tess.xyz[i][0] = verts[i].x;
+		tess.xyz[i][1] = verts[i].y;
 		tess.xyz[i][2] = 0.0f;
 		tess.xyz[i][3] = 1.0f;
+
+		tess.texCoords[0][i][0] = verts[i].x / spaceW;
+		tess.texCoords[0][i][1] = verts[i].y / spaceH;
+
 		tess.svars.colors[0][i][0] = 255;
 		tess.svars.colors[0][i][1] = 255;
 		tess.svars.colors[0][i][2] = 255;
-		tess.svars.colors[0][i][3] = 255;
+		tess.svars.colors[0][i][3] = (byte)( verts[i].alpha * 255.0f );
 	}
 
-	tess.indexes[0] = 0; tess.indexes[1] = 1; tess.indexes[2] = 2;
-	tess.indexes[3] = 0; tess.indexes[4] = 2; tess.indexes[5] = 3;
+	for ( i = 0; i < numIndexes; i++ ) {
+		tess.indexes[i] = indexes[i];
+	}
 
-	tess.numVertexes = 4;
-	tess.numIndexes = 6;
+	tess.numVertexes = numVerts;
+	tess.numIndexes = numIndexes;
 
 	vk_select_texture( 0 );
-	vk_bind( image );
+	vk_bind( dissolve.screen );
 
 	tess.svars.texcoordPtr[0] = tess.texCoords[0];
 
-	vk_bind_pipeline( pipeline );
+	vk_bind_pipeline( dissolve_pipeline );
 	vk_bind_index_ext( tess.numIndexes, tess.indexes );
 	vk_bind_geometry( TESS_XYZ | TESS_RGBA0 | TESS_ST0 );
 	vk_bind_geometry_buffer();
@@ -191,6 +200,149 @@ static void RB_DissolveBlit( float x0, float y0, float x1, float y1,
 
 /*
 =================
+RB_DissolveLinear
+
+A wipe that runs along one axis.
+
+The old screen is drawn over the new one, so the alpha is how much of the old
+screen is left: one where it is untouched, zero where the new screen has taken
+over, and a ramp between the two. The ramp is a band fDISSOLVE_EDGE wide that
+travels from just off one edge to just off the other - which is what makes the
+wipe begin on a whole old picture and end on a whole new one, rather than
+starting with the boundary already part way across.
+
+  alpha = 0            before the trailing edge   (the new screen)
+        = 0 .. 1       across the band
+        = 1            after the leading edge     (the old screen)
+=================
+*/
+static void RB_DissolveLinear( float progress, float spaceW, float spaceH,
+	qboolean bVertical, qboolean bReverse )
+{
+	const float	extent = bVertical ? spaceH : spaceW;
+	const float	across = bVertical ? spaceW : spaceH;
+	const float	band = extent * fDISSOLVE_EDGE;
+
+	// The band travels the whole extent plus its own width at each end.
+	const float	lead = -band + ( extent + band * 2.0f ) * progress;
+	const float	trail = lead - band;
+
+	// Three positions along the axis and the alpha at each: the band's two edges
+	// and the far end. Everything before the trailing edge is the new screen and
+	// is simply not drawn.
+	const float	stops[3] = { trail, lead, extent };
+	const float	alphas[3] = { 0.0f, 1.0f, 1.0f };
+
+	dissolveVert_t	verts[6];
+	int				indexes[12];
+	int				i;
+
+	for ( i = 0; i < 3; i++ ) {
+		// A reversed wipe is the same construction measured from the other end.
+		const float along = bReverse ? ( extent - stops[i] ) : stops[i];
+
+		if ( bVertical ) {
+			verts[i * 2 + 0].x = 0.0f;		verts[i * 2 + 0].y = along;
+			verts[i * 2 + 1].x = across;	verts[i * 2 + 1].y = along;
+		} else {
+			verts[i * 2 + 0].x = along;		verts[i * 2 + 0].y = 0.0f;
+			verts[i * 2 + 1].x = along;		verts[i * 2 + 1].y = across;
+		}
+
+		verts[i * 2 + 0].alpha = alphas[i];
+		verts[i * 2 + 1].alpha = alphas[i];
+	}
+
+	// Two strips between the three lines. Winding does not matter: the pipeline
+	// is two-sided, which it has to be because a reversed wipe mirrors these.
+	for ( i = 0; i < 2; i++ ) {
+		const int a = i * 2;
+		indexes[i * 6 + 0] = a;		indexes[i * 6 + 1] = a + 1;	indexes[i * 6 + 2] = a + 3;
+		indexes[i * 6 + 3] = a;		indexes[i * 6 + 4] = a + 3;	indexes[i * 6 + 5] = a + 2;
+	}
+
+	RB_DissolveEmit( verts, 6, indexes, 12, spaceW, spaceH );
+}
+
+/*
+=================
+RB_DissolveCircular
+
+An iris, built from rings rather than from a picture of a circle - so it is round
+at any resolution and there is no texture to find.
+
+Same rule as the linear wipe: the alpha is how much of the old screen is left.
+Outward, the new screen grows from the centre and the old one survives outside;
+inward, the old screen is the disc and it shrinks. Both are the same three rings
+with the alphas the other way round.
+=================
+*/
+static void RB_DissolveCircular( float progress, float spaceW, float spaceH, qboolean bOutward )
+{
+	static dissolveVert_t	verts[( iDISSOLVE_SEGMENTS + 1 ) * 3];
+	static int				indexes[iDISSOLVE_SEGMENTS * 12];
+
+	const float	cx = spaceW * 0.5f;
+	const float	cy = spaceH * 0.5f;
+
+	// Far enough to reach the corners, so that a fully open iris really has
+	// nothing of the old screen left anywhere - including in them.
+	const float	reach = sqrtf( cx * cx + cy * cy );
+	const float	band = reach * fDISSOLVE_EDGE * 2.0f;
+
+	// The boundary sweeps from just inside nothing to past the corners.
+	const float	p = bOutward ? progress : ( 1.0f - progress );
+	const float	inner = -band + ( reach + band ) * p;
+	const float	outer = inner + band;
+
+	// Three radii, and the alpha at each. Outward: nothing inside the boundary,
+	// old screen outside it. Inward: the reverse.
+	const float	radii[3] = {
+		( inner > 0.0f ) ? inner : 0.0f,
+		( outer > 0.0f ) ? outer : 0.0f,
+		reach + band
+	};
+	const float	alphas[3] = {
+		bOutward ? 0.0f : 1.0f,
+		bOutward ? 1.0f : 0.0f,
+		bOutward ? 1.0f : 0.0f
+	};
+
+	int	numVerts = 0, numIndexes = 0;
+	int	i, r;
+
+	for ( r = 0; r < 3; r++ ) {
+		for ( i = 0; i <= iDISSOLVE_SEGMENTS; i++ ) {
+			const float ang = ( (float)i / (float)iDISSOLVE_SEGMENTS ) * 2.0f * (float)M_PI;
+
+			verts[numVerts].x = cx + cosf( ang ) * radii[r];
+			verts[numVerts].y = cy + sinf( ang ) * radii[r];
+			verts[numVerts].alpha = alphas[r];
+			numVerts++;
+		}
+	}
+
+	// Two ring strips. Inward, the middle of the disc is covered because the
+	// innermost ring collapses to the centre when the boundary passes it; the
+	// solid part of an inward iris is the first strip, whose inner edge is at
+	// radius zero once inner has gone negative.
+	for ( r = 0; r < 2; r++ ) {
+		const int base = r * ( iDISSOLVE_SEGMENTS + 1 );
+
+		for ( i = 0; i < iDISSOLVE_SEGMENTS; i++ ) {
+			const int a = base + i;
+			const int b = a + iDISSOLVE_SEGMENTS + 1;
+
+			indexes[numIndexes++] = a;		indexes[numIndexes++] = b;		indexes[numIndexes++] = b + 1;
+			indexes[numIndexes++] = a;		indexes[numIndexes++] = b + 1;	indexes[numIndexes++] = a + 1;
+		}
+	}
+
+	RB_DissolveEmit( verts, numVerts, indexes, numIndexes, spaceW, spaceH );
+}
+
+/*
+=================
 RB_Dissolve
 
 Draw one frame of the wipe over what has already been drawn.
@@ -198,220 +350,43 @@ Draw one frame of the wipe over what has already been drawn.
 */
 const void *RB_Dissolve( const void *data )
 {
-	const dissolveCommand_t	*cmd;
-	float	x0, y0, x1, y1, x2, y2, x3, y3;
-	float	xScale, yScale;
-	int		percentage;
+	const dissolveCommand_t	*cmd = (const dissolveCommand_t *)data;
 
-	cmd = (const dissolveCommand_t *)data;
-
-	if ( !dissolve.screen || !dissolve.mask || !dissolve.black ) {
+	if ( !dissolve.screen ) {
 		return (const void *)( cmd + 1 );
 	}
 
-	percentage = cmd->percentage;
-
 	RB_EndSurface();
+
+	// The head-up display's space, not the fitted frame. A wipe covers the
+	// picture, and the picture is the window: drawn in the frame it stopped at
+	// the edges of a 4:3 box in the middle of a wide screen, and the scene
+	// changed underneath the black bars a moment before it changed between them.
+	backEnd.space2D = SPACE2D_SCREEN;
+	backEnd.projection2D = qfalse;
 	vk_set_2d();
 
-	// The depth buffer is the mask, so whatever the 3D view left in it has to go.
-	vk_clear_depthstencil_attachments( qfalse );
+	const float spaceW = ( ( glConfig.virtualWidth > 0.0f )
+		? glConfig.virtualWidth : (float)SCREEN_WIDTH ) / vk_ui_scale();
+	const float spaceH = (float)SCREEN_HEIGHT / vk_ui_scale();
 
-	xScale = (float)SCREEN_WIDTH / (float)dissolve.width;
-	yScale = (float)SCREEN_HEIGHT / (float)dissolve.height;
-
-	// The boundary picture is square and its width sets how wide the fuzzy edge
-	// is, in captured-screen pixels.
-	const float maskWidth = (float)dissolve.mask->width;
+	const float progress = (float)cmd->percentage / 100.0f;
 
 	switch ( dissolve.type )
 	{
-		case eDISSOLVE_RT_TO_LT:
-		{
-			const float boundary = (float)dissolve.width -
-				( ( (float)dissolve.width + maskWidth ) * (float)percentage ) / 100.0f;
-
-			x0 = xScale * boundary;
-			y0 = 0.0f;
-			x1 = xScale * ( boundary + maskWidth );
-			y1 = 0.0f;
-			x2 = x1;
-			y2 = yScale * dissolve.height;
-			x3 = x0;
-			y3 = y2;
-			RB_DissolveBlit( x0, y0, x1, y1, x2, y2, x3, y3, dissolve.mask, dissolve_pipeline_mask );
-
-			// Everything left of the boundary is still the old screen.
-			x0 = 0.0f;
-			y0 = 0.0f;
-			x1 = xScale * ( boundary + iSAFETY_SPRITE_OVERLAP );
-			y1 = 0.0f;
-			x2 = x1;
-			y2 = yScale * dissolve.height;
-			x3 = x0;
-			y3 = y2;
-			RB_DissolveBlit( x0, y0, x1, y1, x2, y2, x3, y3, dissolve.black, dissolve_pipeline_solid );
-		}
-		break;
-
-		case eDISSOLVE_LT_TO_RT:
-		{
-			const float boundary =
-				( ( (float)dissolve.width + 2.0f * maskWidth ) * (float)percentage ) / 100.0f - maskWidth;
-
-			x0 = xScale * ( boundary + maskWidth );
-			y0 = 0.0f;
-			x1 = xScale * boundary;
-			y1 = 0.0f;
-			x2 = x1;
-			y2 = yScale * dissolve.height;
-			x3 = x0;
-			y3 = y2;
-			RB_DissolveBlit( x0, y0, x1, y1, x2, y2, x3, y3, dissolve.mask, dissolve_pipeline_mask );
-
-			x0 = xScale * ( ( boundary + maskWidth ) - iSAFETY_SPRITE_OVERLAP );
-			y0 = 0.0f;
-			x1 = xScale * dissolve.width;
-			y1 = 0.0f;
-			x2 = x1;
-			y2 = yScale * dissolve.height;
-			x3 = x0;
-			y3 = y2;
-			RB_DissolveBlit( x0, y0, x1, y1, x2, y2, x3, y3, dissolve.black, dissolve_pipeline_solid );
-		}
-		break;
-
-		case eDISSOLVE_TP_TO_BT:
-		{
-			const float boundary =
-				( ( (float)dissolve.height + 2.0f * maskWidth ) * (float)percentage ) / 100.0f - maskWidth;
-
-			x0 = 0.0f;
-			y0 = yScale * ( boundary + maskWidth );
-			x1 = x0;
-			y1 = yScale * boundary;
-			x2 = xScale * dissolve.width;
-			y2 = y1;
-			x3 = x2;
-			y3 = y0;
-			RB_DissolveBlit( x0, y0, x1, y1, x2, y2, x3, y3, dissolve.mask, dissolve_pipeline_mask );
-
-			x0 = 0.0f;
-			y0 = yScale * ( ( boundary + maskWidth ) - iSAFETY_SPRITE_OVERLAP );
-			x1 = xScale * dissolve.width;
-			y1 = y0;
-			x2 = x1;
-			y2 = yScale * dissolve.height;
-			x3 = x0;
-			y3 = y2;
-			RB_DissolveBlit( x0, y0, x1, y1, x2, y2, x3, y3, dissolve.black, dissolve_pipeline_solid );
-		}
-		break;
-
-		case eDISSOLVE_BT_TO_TP:
-		{
-			const float boundary = (float)dissolve.height -
-				( ( (float)dissolve.height + maskWidth ) * (float)percentage ) / 100.0f;
-
-			x0 = 0.0f;
-			y0 = yScale * boundary;
-			x1 = x0;
-			y1 = yScale * ( boundary + maskWidth );
-			x2 = xScale * dissolve.width;
-			y2 = y1;
-			x3 = x2;
-			y3 = y0;
-			RB_DissolveBlit( x0, y0, x1, y1, x2, y2, x3, y3, dissolve.mask, dissolve_pipeline_mask );
-
-			x0 = 0.0f;
-			y0 = 0.0f;
-			x1 = xScale * dissolve.width;
-			y1 = y0;
-			x2 = x1;
-			y2 = yScale * ( boundary + iSAFETY_SPRITE_OVERLAP );
-			x3 = x0;
-			y3 = y2;
-			RB_DissolveBlit( x0, y0, x1, y1, x2, y2, x3, y3, dissolve.black, dissolve_pipeline_solid );
-		}
-		break;
-
-		case eDISSOLVE_CIRCULAR_IN:
-		case eDISSOLVE_CIRCULAR_OUT:
-		{
-			// The iris picture is its own mask, so the circle needs no masking
-			// quad - except on the way out, where the four corners of the screen
-			// are outside the picture and have to be held down by hand.
-			const float progress = ( dissolve.type == eDISSOLVE_CIRCULAR_IN )
-				? (float)( 100 - percentage ) : (float)percentage;
-			const float zoom = ( ( (float)dissolve.width * 0.8f ) * progress ) / 100.0f;
-
-			x0 = xScale * ( ( dissolve.width / 2 ) - zoom );
-			y0 = yScale * ( ( dissolve.height / 2 ) - zoom );
-			x1 = xScale * ( ( dissolve.width / 2 ) + zoom );
-			y1 = y0;
-			x2 = x1;
-			y2 = yScale * ( ( dissolve.height / 2 ) + zoom );
-			x3 = x0;
-			y3 = y2;
-			RB_DissolveBlit( x0, y0, x1, y1, x2, y2, x3, y3, dissolve.mask, dissolve_pipeline_mask );
-
-			if ( dissolve.type == eDISSOLVE_CIRCULAR_OUT )
-			{
-				const float screenW = xScale * dissolve.width;
-				const float screenH = yScale * dissolve.height;
-
-				// left
-				RB_DissolveBlit( 0.0f, 0.0f,
-					x0 + iSAFETY_SPRITE_OVERLAP, 0.0f,
-					x0 + iSAFETY_SPRITE_OVERLAP, screenH,
-					0.0f, screenH,
-					dissolve.black, dissolve_pipeline_solid );
-
-				// right
-				RB_DissolveBlit( x1 - iSAFETY_SPRITE_OVERLAP, 0.0f,
-					screenW, 0.0f,
-					screenW, screenH,
-					x1 - iSAFETY_SPRITE_OVERLAP, screenH,
-					dissolve.black, dissolve_pipeline_solid );
-
-				// top
-				RB_DissolveBlit( x0 - iSAFETY_SPRITE_OVERLAP, 0.0f,
-					x1 + iSAFETY_SPRITE_OVERLAP, 0.0f,
-					x1 + iSAFETY_SPRITE_OVERLAP, y0 + iSAFETY_SPRITE_OVERLAP,
-					x0 - iSAFETY_SPRITE_OVERLAP, y0 + iSAFETY_SPRITE_OVERLAP,
-					dissolve.black, dissolve_pipeline_solid );
-
-				// bottom
-				RB_DissolveBlit( x0 - iSAFETY_SPRITE_OVERLAP, y3 - iSAFETY_SPRITE_OVERLAP,
-					x1 + iSAFETY_SPRITE_OVERLAP, y2 - iSAFETY_SPRITE_OVERLAP,
-					x1 + iSAFETY_SPRITE_OVERLAP, screenH,
-					x0 - iSAFETY_SPRITE_OVERLAP, screenH,
-					dissolve.black, dissolve_pipeline_solid );
-			}
-		}
-		break;
-
-		default:
-			// A type that does not exist means the state is wrong, and drawing
-			// the old screen over everything would freeze the picture.
-			return (const void *)( cmd + 1 );
+		case eDISSOLVE_RT_TO_LT:	RB_DissolveLinear( progress, spaceW, spaceH, qfalse, qtrue );	break;
+		case eDISSOLVE_LT_TO_RT:	RB_DissolveLinear( progress, spaceW, spaceH, qfalse, qfalse );	break;
+		case eDISSOLVE_TP_TO_BT:	RB_DissolveLinear( progress, spaceW, spaceH, qtrue, qfalse );	break;
+		case eDISSOLVE_BT_TO_TP:	RB_DissolveLinear( progress, spaceW, spaceH, qtrue, qtrue );	break;
+		case eDISSOLVE_CIRCULAR_OUT: RB_DissolveCircular( progress, spaceW, spaceH, qtrue );	break;
+		case eDISSOLVE_CIRCULAR_IN:	RB_DissolveCircular( progress, spaceW, spaceH, qfalse );	break;
+		default:					break;
 	}
-
-	// And now the old screen, which lands only where the passes above wrote depth.
-	x0 = 0.0f;
-	y0 = 0.0f;
-	x1 = xScale * dissolve.width;
-	y1 = y0;
-	x2 = x1;
-	y2 = yScale * dissolve.height;
-	x3 = x0;
-	y3 = y2;
-	RB_DissolveBlit( x0, y0, x1, y1, x2, y2, x3, y3, dissolve.screen, dissolve_pipeline_screen );
 
 	// Hand the batch back the way it was found. The 2D drawing that follows -
 	// the menu, the console - checks whether its shader is the one already in
 	// tess and appends to it if so, so tess has to be a batch and not the
-	// leftovers of the four quads above.
+	// leftovers of the geometry above.
 	if ( tess.shader ) {
 		RB_BeginSurface( tess.shader, tess.fogNum, 0 );
 	}
@@ -449,7 +424,21 @@ qboolean RE_ProcessDissolve( void )
 
 	percentage = (int)( ( ( Sys_Milliseconds2() - dissolve.startTime ) * 100 ) / ( 1000.0f * fDISSOLVE_SECONDS ) );
 
-	if ( percentage > 100 ) {
+	// r_dissolveFreeze holds the wipe at one point instead of running it.
+	//
+	// A wipe lasts three quarters of a second measured in milliseconds, and
+	// anything that wants to look at it counts frames - so which frame has the
+	// boundary in it depends on how fast the machine is drawing, and a check
+	// that photographs "a frame near the start" photographs whatever happened to
+	// be there. That is not hypothetical: the first attempt at a check for the
+	// soft edge passed identically against a build with the edge quantised back
+	// to a step, because what it had caught was the menu underneath.
+	if ( r_dissolveFreeze && r_dissolveFreeze->integer >= 0 ) {
+		percentage = r_dissolveFreeze->integer;
+		if ( percentage > 100 ) {
+			percentage = 100;
+		}
+	} else if ( percentage > 100 ) {
 		R_KillDissolve();
 		return qfalse;
 	}
@@ -597,8 +586,6 @@ qtrue means a dissolve is running.
 */
 qboolean RE_InitDissolve( qboolean bForceCircularExtroWipe )
 {
-	static const char	*maskName;
-
 	if ( !tr.registered || !vk.active ) {
 		return qfalse;
 	}
@@ -612,49 +599,20 @@ qboolean RE_InitDissolve( qboolean bForceCircularExtroWipe )
 		return qfalse;
 	}
 
-	if ( !dissolve.black )
-	{
-		// Eight by eight of opaque black. Its colour never reaches the screen -
-		// these quads write depth and nothing else - but a texture with zero
-		// alpha would be thrown away by a pipeline that ever gained an alpha
-		// test, so it is opaque on purpose.
-		static byte black[8 * 8 * 4];
-		int i;
-
-		for ( i = 0; i < 8 * 8; i++ ) {
-			black[i * 4 + 0] = 0;
-			black[i * 4 + 1] = 0;
-			black[i * 4 + 2] = 0;
-			black[i * 4 + 3] = 255;
-		}
-
-		dissolve.black = R_CreateImage( "*dissolveBlack", black, 8, 8,
-			IMGFLAG_CLAMPTOEDGE | IMGFLAG_NOSCALE | IMGFLAG_NO_COMPRESSION, 0, 0 );
+	if ( r_dissolveType && r_dissolveType->integer >= 0
+		 && r_dissolveType->integer < eDISSOLVE_NUMBEROF ) {
+		dissolve.type = (Dissolve_e)r_dissolveType->integer;
+	} else {
+		dissolve.type = bForceCircularExtroWipe
+			? eDISSOLVE_CIRCULAR_IN
+			: (Dissolve_e)Q_irand( 0, eDISSOLVE_RAND_LIMIT - 1 );
 	}
 
-	dissolve.type = bForceCircularExtroWipe
-		? eDISSOLVE_CIRCULAR_IN
-		: (Dissolve_e)Q_irand( 0, eDISSOLVE_RAND_LIMIT - 1 );
-
-	switch ( dissolve.type )
-	{
-		case eDISSOLVE_CIRCULAR_IN:		maskName = "gfx/2d/iris_mono_rev";		break;
-		case eDISSOLVE_CIRCULAR_OUT:	maskName = "gfx/2d/iris_mono";			break;
-		default:						maskName = "textures/common/dissolve";	break;
-	}
-
-	dissolve.mask = R_FindImageFile( maskName,
-		( dissolve.type == eDISSOLVE_CIRCULAR_IN || dissolve.type == eDISSOLVE_CIRCULAR_OUT )
-			? IMGFLAG_CLAMPTOEDGE : IMGFLAG_NONE, 0 );
-
-	if ( !dissolve.mask )
-	{
-		// No boundary picture, no wipe. Saying so once is better than a level
-		// that appears to hang on a frozen screen.
-		CL_RefPrintf( PRINT_WARNING, "dissolve: %s not found, no screen wipe\n", maskName );
-		R_KillDissolve();
-		return qfalse;
-	}
+	// There is nothing to look for. The boundary used to be a picture from the
+	// retail data - textures/common/dissolve for the linear wipes, gfx/2d/
+	// iris_mono for the round ones - and if it was not there the wipe did not
+	// happen at all, which is what "no screen wipe" in the log meant. The shape
+	// is geometry now.
 
 	R_DissolveBuildPipelines();
 
