@@ -1,6 +1,7 @@
 // tr_cache.cpp - Cache models, images, and more..
 
 #include "tr_local.h"
+#include "../rd-common/mdx_check.h"
 #include "tr_cache.h"
 #include <algorithm>
 
@@ -93,6 +94,26 @@ qboolean CModelCacheManager::LoadFile( const char *pFileName, void **ppFileBuffe
 	if ( len == -1 || *ppFileBuffer == NULL )
 	{
 		return qfalse;
+	}
+
+	// Every model goes through here, and this is the only place that knows how
+	// long the file actually is: the loaders are handed a pointer and nothing
+	// else, which is why not one of them ever compared an offset against the
+	// end of the file. R_LoadMDXM takes ofsEnd straight out of the file and
+	// allocates and copies that many bytes out of this buffer. See
+	// rd-common/mdx_check.h.
+	//
+	// A malformed model is treated as a missing one, which every caller already
+	// handles - that is what a file that is not there gives them.
+	{
+		const char *bad = MDX_CheckHeader( (const unsigned char *)*ppFileBuffer, (size_t)len );
+
+		if ( bad ) {
+			CL_RefPrintf( PRINT_ALL, S_COLOR_YELLOW "%s: %s\n", path, bad );
+			FS_FreeFile( *ppFileBuffer );
+			*ppFileBuffer = NULL;
+			return qfalse;
+		}
 	}
 
 	CL_RefPrintf( PRINT_DEVELOPER, "C_LoadFile(): Loaded %s from disk\n", pFileName );

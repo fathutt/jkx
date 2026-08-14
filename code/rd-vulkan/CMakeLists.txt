@@ -150,6 +150,8 @@ list(APPEND RDVulkanFiles ${RDVulkanGhoul2Files})
 # format, which the gamecode also reads.
 set(RDVulkanRdCommonFiles
 	"${CodeDir}/rd-common/mdx_format.h"
+	"${CodeDir}/rd-common/mdx_check.h"
+	"${CodeDir}/rd-common/mdx_check.cpp"
 	"${CodeDir}/rd-common/tr_public.h"
 	"${CodeDir}/rd-common/tr_types.h"
 	"${CodeDir}/rd-vulkan/tr_common.h"

@@ -211,6 +211,16 @@ stage_tests_cxx() {
         "$ROOT/code/qcommon/cm_bsp_check.cpp" || return 1
     "$out/bsp_header_test" || return 1
 
+    # The three model headers. A .glm arrives in a pk3 and R_LoadMDXM allocates
+    # and copies ofsEnd bytes out of a buffer whose real length nothing had
+    # looked at.
+    c++ -O1 -g -std=c++17 -Wall -Wextra -Werror \
+        -fsanitize=address,undefined -fno-sanitize-recover=all \
+        -o "$out/mdx_header_test" \
+        "$ROOT/tests/mdx_header_test.cpp" \
+        "$ROOT/code/rd-common/mdx_check.cpp" || return 1
+    "$out/mdx_header_test" || return 1
+
     # The sound codec, against a real compressed file. The headless bench never
     # plays one, so without this the decoder is unverified.
     c++ -O2 -std=c++20 -Wall -Werror -DARCH_STRING='"x86_64"' -DJKX_ENGINE \
