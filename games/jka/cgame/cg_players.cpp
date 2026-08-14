@@ -73,6 +73,20 @@ static float CG_SmoothFactor( float tauMsec )
 	return 1.0f - expf( -(float)cg.frametime / tauMsec );
 }
 
+// Per character facial state, kept here rather than on the entity because
+// gentity_t is serialised into savegames and none of this is worth a format
+// change: it is all reconstructed within a frame of a character appearing.
+//
+// cg_eyeWanted is written by CG_UpdateLookAngles, which runs long before
+// CG_G2PlayerEyes reads it, which is why these live at the top of the file.
+static float	cg_faceEnvelope[MAX_CLIENTS];
+static vec3_t	cg_eyeWanted[MAX_CLIENTS];
+static vec3_t	cg_eyeCurrent[MAX_CLIENTS];
+static int		cg_eyeSaccadeTime[MAX_CLIENTS];
+static vec3_t	cg_eyeSaccade[MAX_CLIENTS];
+static int		cg_eyeBone[MAX_CLIENTS][2];
+static int		cg_eyeBoneModel[MAX_CLIENTS];
+
 /*
 
 player entities generate a great deal of information from implicit ques
@@ -2466,6 +2480,14 @@ static void CG_UpdateLookAngles( centity_t *cent, vec3_t lookAngles, float lookS
 		else if ( lookAngles[ROLL] < minRoll )
 		{
 			lookAngles[ROLL] = minRoll;
+		}
+
+		// Where the head WANTS to point, before it is smoothed towards it. The
+		// eyes want this and the head does not have it yet - that difference is
+		// the whole of "the eyes get there first", which is what a head turn
+		// looks like on a person. See CG_G2PlayerEyes.
+		if ( cent->currentState.clientNum < MAX_CLIENTS ) {
+			VectorCopy( lookAngles, cg_eyeWanted[cent->currentState.clientNum] );
 		}
 
 		//slowly lerp to this new value
@@ -5113,6 +5135,146 @@ static void CG_G2SetHeadAnim( centity_t *cent, int anim )
 
 /*
 -------------------------
+CG_G2PlayerEyes
+
+The eyes, which in Jedi Academy have never moved.
+
+That is not a figure of speech. leye and reye are real bones - children of the
+face bone, which is a child of cranium - and scanning all 21376 frames of the
+retail _humanoid.gla for them finds nothing but quantisation noise: rotations of
+a hundredth of a degree, translations of two hundredths of a unit. In every
+animation Raven authored, the eyes are welded to the skull. So a character can
+turn to look at you and arrive with the same thousand-yard stare it left with,
+and no amount of work on the mouth fixes that.
+
+Because nothing ever rotated them, the data says nothing about which way is
+which either. The axes come from the bone's base pose instead, and the method is
+calibrated against a bone whose answer is already known. cranium's base pose maps
+its local X to model +Z, local Y to model +X and local Z to model +Y; the code
+that turns the head passes POSITIVE_X for up, NEGATIVE_Y for right and
+NEGATIVE_Z for forward - which agrees, given that model +X is the character's
+left and forward is -Y. The same reading of leye and reye gives local X to
+model -Y, local Y to model -X and local Z to model -Z, so for an eye: forward is
+POSITIVE_X, right is POSITIVE_Y, and up is NEGATIVE_Z.
+
+Two things are added, and the second matters more.
+
+The lead. CG_UpdateLookAngles works out where the head wants to point and then
+walks it there over a time constant, so while a character is turning to look at
+something there is a difference between where the head is aimed and where it is
+going. Eyes cover that difference: they arrive first and hold while the head
+catches up. That is what makes a look read as intent rather than as machinery.
+
+The saccades. Eyes are never still - they flick a couple of degrees every few
+hundred milliseconds even when fixed on something, and it is the absence of that,
+more than anything else, that reads as dead. They are small, they are on a per
+character clock so two people do not blink in step, and they are damped by the
+same envelope as everything else here.
+
+No convergence yet. The eyes are 2.28 units apart, which is about a degree of
+toe-in at conversational distance, and it is not worth a second bone lookup
+until the rest of this has been seen by human eyes.
+-------------------------
+*/
+static void CG_G2PlayerEyes( centity_t *cent )
+{
+	gentity_t	*gent = cent->gent;
+	const int	client = cent->currentState.clientNum;
+
+	if ( !cg_eyeMovement.integer || client >= MAX_CLIENTS || !gent || !gent->client ) {
+		return;
+	}
+	if ( gent->health <= 0 ) {
+		// The dead do not look at anything, and CG_G2PlayerHeadAnims has
+		// already closed their eyes.
+		return;
+	}
+	if ( gent->playerModel < 0 || !gent->ghoul2.size() ) {
+		return;
+	}
+
+	// Resolved once per model, not once per frame.
+	//
+	// The first version asked Ghoul2 for the bone index every frame, on the
+	// grounds that a name lookup over fifty-three bones is cheap. It is, but it
+	// is not free of side effects: G2API_GetBoneIndex goes through
+	// G2_SetupModelPointers, which stamps the instance's frame counters, and
+	// asking for a bone the skeleton does not have appends to the bone list.
+	// The depth pre-pass stage caught it - 150 pixels of difference between two
+	// runs that must draw the same picture, in the same place every time - and
+	// the fixture's skeleton is exactly the case that triggers it, because it
+	// has no eyes at all.
+	// Stored as the handle plus one, so that zero means "not looked at yet"
+	// rather than "model zero" - an array of zeroes is what this starts as, and
+	// a handle of zero is a real value.
+	const int	model = gent->ghoul2[gent->playerModel].mModel + 1;
+
+	if ( cg_eyeBoneModel[client] != model ) {
+		cg_eyeBoneModel[client] = model;
+		cg_eyeBone[client][0] = gi.G2API_GetBoneIndex( &gent->ghoul2[gent->playerModel], "leye", qtrue );
+		cg_eyeBone[client][1] = gi.G2API_GetBoneIndex( &gent->ghoul2[gent->playerModel], "reye", qtrue );
+	}
+
+	const int	leye = cg_eyeBone[client][0];
+	const int	reye = cg_eyeBone[client][1];
+
+	if ( leye < 0 || reye < 0 ) {
+		// A model without eye bones - a droid, a creature, the bench's own
+		// fixture - and there are plenty. Nothing to do and nothing to say.
+		return;
+	}
+
+	// What the head has not caught up with yet.
+	vec3_t	lead;
+	VectorSubtract( cg_eyeWanted[client], gent->client->renderInfo.lastHeadAngles, lead );
+	lead[PITCH] = AngleNormalize180( lead[PITCH] ) * cg_eyeLead.value;
+	lead[YAW] = AngleNormalize180( lead[YAW] ) * cg_eyeLead.value;
+	lead[ROLL] = 0.0f;
+
+	// A flick, on this character's own clock.
+	if ( cg_eyeSaccadeTime[client] < cg.time ) {
+		cg_eyeSaccadeTime[client] = cg.time + Q_irand( 250, 1600 );
+		cg_eyeSaccade[client][PITCH] = Q_flrand( -1.0f, 1.0f ) * cg_eyeSaccadeSize.value * 0.5f;
+		cg_eyeSaccade[client][YAW] = Q_flrand( -1.0f, 1.0f ) * cg_eyeSaccadeSize.value;
+		cg_eyeSaccade[client][ROLL] = 0.0f;
+	}
+
+	vec3_t	want;
+	VectorAdd( lead, cg_eyeSaccade[client], want );
+
+	// An eye cannot look round the side of its own head.
+	const float	limit = cg_eyeLimit.value;
+
+	for ( int ang = 0; ang < 2; ang++ ) {
+		if ( want[ang] > limit ) {
+			want[ang] = limit;
+		} else if ( want[ang] < -limit ) {
+			want[ang] = -limit;
+		}
+	}
+
+	// Eyes move faster than heads and faster than jaws; a saccade is over in
+	// well under a tenth of a second, which is why this time constant is the
+	// shortest in the file.
+	const float	f = CG_SmoothFactor( cg_eyeSmoothTime.value );
+
+	for ( int ang = 0; ang < 3; ang++ ) {
+		cg_eyeCurrent[client][ang] += ( want[ang] - cg_eyeCurrent[client][ang] ) * f;
+	}
+
+	// Derived from the base pose; see the comment above. POSTMULT so this
+	// composes with whatever the face animation is doing rather than replacing
+	// it - though as established, what it is doing to the eyes is nothing.
+	gi.G2API_SetBoneAnglesIndex( &gent->ghoul2[gent->playerModel], leye,
+		cg_eyeCurrent[client], BONE_ANGLES_POSTMULT,
+		NEGATIVE_Z, POSITIVE_Y, POSITIVE_X, NULL, 0, cg.time );
+	gi.G2API_SetBoneAnglesIndex( &gent->ghoul2[gent->playerModel], reye,
+		cg_eyeCurrent[client], BONE_ANGLES_POSTMULT,
+		NEGATIVE_Z, POSITIVE_Y, POSITIVE_X, NULL, 0, cg.time );
+}
+
+/*
+-------------------------
 CG_G2SetHeadTalkPose
 
 The mouth, held between the talk poses rather than snapped onto one of them.
@@ -5140,8 +5302,6 @@ the last rung, so walking to the end of it would have the mouth close slightly
 as the voice got loudest. It stops at the widest pose instead.
 -------------------------
 */
-static float	cg_faceEnvelope[MAX_CLIENTS];
-
 static qboolean CG_G2SetHeadTalkPose( centity_t *cent, float openness )
 {
 	gentity_t			*gent = cent->gent;
@@ -5174,6 +5334,11 @@ static qboolean CG_G2SetHeadTalkPose( centity_t *cent, float openness )
 
 static qboolean CG_G2PlayerHeadAnims( centity_t *cent )
 {
+	// Before the early returns below: a model with no animation set and no face
+	// bone can still have eyes, and a character that never speaks is exactly
+	// the one whose stare is noticed.
+	CG_G2PlayerEyes( cent );
+
 	if(!ValidAnimFileIndex(cent->gent->client->clientInfo.animFileIndex))
 	{
 		return qfalse;

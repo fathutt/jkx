@@ -312,6 +312,11 @@ vmCvar_t 	cg_timescale;
 vmCvar_t	cg_skippingcin;
 vmCvar_t	cg_smoothLookTime;
 vmCvar_t	cg_faceBlendTime;
+vmCvar_t	cg_eyeMovement;
+vmCvar_t	cg_eyeLead;
+vmCvar_t	cg_eyeLimit;
+vmCvar_t	cg_eyeSaccadeSize;
+vmCvar_t	cg_eyeSmoothTime;
 vmCvar_t	cg_lipSyncSmooth;
 vmCvar_t	cg_lipSyncAttack;
 vmCvar_t	cg_lipSyncRelease;
@@ -463,6 +468,18 @@ static cvarTable_t cvarTable[] = {
 	// How long an expression takes to arrive. The engine was given 50 and the
 	// flag that reads it was commented out, so it was a cut; 0 restores that.
 	{ &cg_faceBlendTime, "cg_faceBlendTime", "250", CVAR_ARCHIVE },
+	// The eyes, which no retail animation has ever moved. See CG_G2PlayerEyes.
+	{ &cg_eyeMovement, "cg_eyeMovement", "1", CVAR_ARCHIVE },
+	// How much of the head's remaining turn the eyes cover while it catches up.
+	{ &cg_eyeLead, "cg_eyeLead", "0.7", CVAR_ARCHIVE },
+	// How far an eye can turn in its socket, degrees.
+	{ &cg_eyeLimit, "cg_eyeLimit", "22", CVAR_ARCHIVE },
+	// How wide the idle flicks are, degrees. Real saccades are small; this is
+	// the difference between alive and twitching.
+	{ &cg_eyeSaccadeSize, "cg_eyeSaccadeSize", "2.5", CVAR_ARCHIVE },
+	// Time constant, milliseconds. The shortest in the file: an eye arrives
+	// long before a head does.
+	{ &cg_eyeSmoothTime, "cg_eyeSmoothTime", "25", CVAR_ARCHIVE },
 	// Hold the mouth between the five talk poses instead of cutting to one of
 	// them. See CG_G2SetHeadTalkPose.
 	{ &cg_lipSyncSmooth, "cg_lipSyncSmooth", "1", CVAR_ARCHIVE },
