@@ -520,6 +520,22 @@ python3 "$HERE/make_test_bsp.py" "$RUN/base/maps/jkx_room2.bsp" \
     --shader textures/jkx/wide --sky textures/jkx/sky \
     "${FOG_ARGS[@]}" >/dev/null
 
+# Everything above builds a game directory out of loose files, and every run so
+# far has read it that way. A pk3 is a zip, and it is how the retail assets
+# arrive and how every downloaded mod arrives - so the archive half of the
+# filesystem was outside this bench entirely: FS_LoadZipFile, the per-pack hash
+# table, the pak branch of FS_FOpenFileRead, unzReadCurrentFile in FS_Read and
+# the pk3 case of FS_Seek had never executed here once.
+#
+# JKX_SMOKE_PK3 packs the fixture and deletes what it packed, so there is no
+# loose file left to fall back to. The run either reads through the archive or
+# it fails, which is the only arrangement worth having: a fixture that keeps
+# both copies proves nothing, because the directory branch comes first in the
+# search path and would serve every read.
+if [ "${JKX_SMOKE_PK3:-0}" = "1" ]; then
+    python3 "$HERE/make_pk3.py" "$RUN/base" "$RUN/base/jkx_fixture.pk3" >/dev/null
+fi
+
 # Extra cvars, as "name=value name=value". This exists for A/B runs: two passes
 # of the same fixture that differ by one setting, compared pixel for pixel. The
 # cubemap sky was landed that way, and the comparison is what showed that five

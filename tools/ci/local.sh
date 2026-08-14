@@ -71,7 +71,7 @@ JOBS="${JOBS:-$(nproc)}"
 
 STAGES=( "$@" )
 if [ "${#STAGES[@]}" -eq 0 ]; then
-    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokesan prepass fog noassets )
+    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokepak smokesan prepass fog noassets )
 fi
 
 failed=()
@@ -362,6 +362,31 @@ stage_smokejk2() {
 stage_smokesave() {
     JKX_SMOKE_SAVELOAD=1 \
     JKX_SMOKE_DISPLAY="${JKX_SMOKE_SAVE_DISPLAY:-:95}" \
+    JKX_SMOKE_NO_VALIDATION=1 \
+        bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
+}
+
+# The same fixture, out of a pk3.
+#
+# Every run before this one read loose files, so the archive half of the
+# filesystem had never executed here at all: FS_LoadZipFile, the per-pack hash
+# table, the pak branch of FS_FOpenFileRead, unzReadCurrentFile in FS_Read and
+# the pk3 case of FS_Seek. That is how retail assets arrive and how every
+# downloaded mod arrives, and none of it was covered.
+#
+# make_pk3.py deletes what it packs, so there is no loose copy to fall back to
+# and no way for this lane to pass by reading the directory instead. Sound is on
+# because the sound cache is one of the few callers that opens a file, keeps the
+# handle and reads it in pieces.
+#
+# What this still does not reach, so that the next person does not have to
+# re-derive it: the pk3 case of FS_Seek, which needs a caller that seeks
+# backwards in an archived file, and the archive path under the sanitizers - the
+# san lane above reads loose files.
+stage_smokepak() {
+    JKX_SMOKE_PK3=1 \
+    JKX_SMOKE_SOUND=1 \
+    JKX_SMOKE_DISPLAY="${JKX_SMOKE_PAK_DISPLAY:-:89}" \
     JKX_SMOKE_NO_VALIDATION=1 \
         bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
 }
