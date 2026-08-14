@@ -182,10 +182,27 @@ void NormalToLatLong( const vec3_t normal, byte bytes[2] )
 	{
 		int	a, b;
 
-		a = (int)(RAD2DEG( (float)atan2( normal[1], normal[0] ) ) * (255.0f / 360.0f ));
+		// The casts to double are what keeps this file's move to C++ inert, and
+		// they are the only two in 1433 lines.
+		//
+		// In C, atan2 and acos take doubles: a float argument is promoted, the
+		// answer is computed in double and narrowed back. In C++, <math.h>
+		// brings in the float overloads too, so the same source silently calls
+		// atan2f and acosf instead - a different function, computed at a
+		// different precision. Neither of those two is correctly rounded, so
+		// the answers differ in the last bits, and the last bits are then
+		// truncated to an integer by the cast below: a normal sitting on a
+		// boundary can encode to a different byte.
+		//
+		// Found by measurement rather than by reading. The object file this
+		// translation unit produces is byte-identical between the two
+		// languages except for these two calls, which cost this function
+		// twenty-one bytes of code; that was the only difference in the whole
+		// file, and it was a behaviour change wearing a size change's clothes.
+		a = (int)(RAD2DEG( (float)atan2( (double)normal[1], (double)normal[0] ) ) * (255.0f / 360.0f ));
 		a &= 0xff;
 
-		b = (int)(RAD2DEG( (float)acos( normal[2] ) ) * ( 255.0f / 360.0f ));
+		b = (int)(RAD2DEG( (float)acos( (double)normal[2] ) ) * ( 255.0f / 360.0f ));
 		b &= 0xff;
 
 		bytes[0] = b;	// longitude
