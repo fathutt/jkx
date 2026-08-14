@@ -290,6 +290,42 @@ static int RunFixture( const char *psFixture, soundCodec_t expectCodec )
 		CHECK( fabsf( fHz - kToneHz ) < 5.0f, "tone after seek measured at %.1f Hz", fHz );
 	}
 
+	{
+		// A seek that cannot be done still has to leave the stream somewhere the
+		// caller can read from.
+		//
+		// It used to return early, leaving the window where it already was -
+		// while MusicInfo_t::SeekTo, which ignores the result, went back to
+		// counting from zero. Every read after that was a request from before
+		// the window, which is answered with silence, so one entry time in
+		// dms.dat that is past the end of the track it names cost the rest of
+		// the level's music. Being at the wrong end of a track is recoverable;
+		// being permanently silent is not.
+		// This does not yet discriminate, and it is worth saying why rather than
+		// leaving a check that looks like one. The damage a failed seek does is
+		// to leave the window somewhere other than where the caller thinks it
+		// is - and these fixtures are one second long, which is 47 kilobytes of
+		// mono, which fits inside the 50-kilobyte decode window. The window
+		// never scrolls, so it is always at zero, so a seek that leaves it alone
+		// and one that resets it are the same thing here.
+		//
+		// A fixture long enough to scroll the window would make this real, and
+		// would also make the "window scrolling" this test claims in its last
+		// line true. Until then this checks the return value and that the stream
+		// is still readable, which is the half that can be checked.
+		CHECK( S_CodecStreamSeekSeconds( pStream, 9999.0f ) == qfalse,
+			   "a seek past the end of the stream reported success" );
+
+		const int iWant = 8192;
+		std::vector<short> after( iWant );
+		const qboolean bOk = S_CodecStreamRead( pStream, 0, iWant, after.data() );
+		CHECK( bOk == qtrue, "the stream is unreadable after a seek that failed" );
+
+		const float fRms = Rms( after.data(), iWant );
+		CHECK( fRms > 1000.0f,
+			   "the stream is silent after a seek that failed, rms %.1f", fRms );
+	}
+
 	S_CodecStreamClose( pStream );
 	CHECK( pStream->open == qfalse, "close left the stream open" );
 

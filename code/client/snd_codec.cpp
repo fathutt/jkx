@@ -614,12 +614,27 @@ qboolean S_CodecStreamSeekSeconds( soundStream_t *pStream, float fSeconds )
 	// tell you where anything is.
 	const drmp3_uint64 iFrame = (drmp3_uint64)( fSeconds * (float)pStream->rate );
 
+	qboolean bSought;
+
 	if ( pStream->codec == CODEC_VORBIS ) {
-		if ( !stb_vorbis_seek( pStream->vorbis, (unsigned int)iFrame ) ) {
-			return qfalse;
+		bSought = (qboolean)( stb_vorbis_seek( pStream->vorbis, (unsigned int)iFrame ) != 0 );
+	} else {
+		bSought = (qboolean)( drmp3_seek_to_pcm_frame( &pStream->mp3, iFrame ) != 0 );
+	}
+
+	if ( !bSought ) {
+		// A seek that did not happen still has to leave the stream somewhere the
+		// caller can read from, and returning here left it wherever it already
+		// was - while the caller, which ignores this result, went back to
+		// counting from zero. Every read after that was a request from before
+		// the window, which is answered with silence, and the music never came
+		// back. The start of the track is a defined place; being at the wrong
+		// end of a track is recoverable, being permanently silent is not.
+		if ( pStream->codec == CODEC_VORBIS ) {
+			stb_vorbis_seek_start( pStream->vorbis );
+		} else {
+			drmp3_seek_to_pcm_frame( &pStream->mp3, 0 );
 		}
-	} else if ( !drmp3_seek_to_pcm_frame( &pStream->mp3, iFrame ) ) {
-		return qfalse;
 	}
 
 	// The window restarts at zero, exactly as it does after a rewind, because
@@ -635,9 +650,11 @@ qboolean S_CodecStreamSeekSeconds( soundStream_t *pStream, float fSeconds )
 	// before its window, and the music stopped. MusicInfo_t::Rewind is the same
 	// pair of operations and has always agreed on zero; this is the seek being
 	// brought in line with it.
+	// Whatever happened above, the window restarts: the caller counts from zero
+	// after a seek either way, and a window left in the past is silence forever.
 	pStream->writePos	= 0;
 	pStream->windowPos	= 0;
-	return qtrue;
+	return bSought;
 }
 
 int S_CodecStreamRate( const soundStream_t *pStream )

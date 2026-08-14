@@ -107,7 +107,13 @@ typedef struct MusicInfo_s
 
 	void SeekTo(float fTime)
 	{
-		S_CodecStreamSeekSeconds( chMP3_Bgrnd.stream, fTime );
+		// The result was ignored, and a seek can fail - an entry time out of
+		// dms.dat that is past the end of the track it names is enough. What
+		// followed was silence for the rest of the level, so it says so now.
+		if ( !S_CodecStreamSeekSeconds( chMP3_Bgrnd.stream, fTime ) ) {
+			Com_Printf( S_COLOR_YELLOW"Music \"%s\": cannot seek to %.1f s, playing from the start\n",
+						sfxMP3_Bgrnd.sSoundName, fTime );
+		}
 		s_backgroundSamples = sfxMP3_Bgrnd.iSoundLengthInSamples;
 	}
 
