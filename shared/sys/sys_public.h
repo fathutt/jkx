@@ -113,9 +113,16 @@ char	*Sys_GetClipboardData( void );	// note that this isn't journaled...
 void	Sys_Print( const char *msg );
 
 // Sys_Milliseconds should only be used for profiling purposes,
-// any game related timing information should come from event timestamps
-int		Sys_Milliseconds (bool baseTime = false);
-int		Sys_Milliseconds2(void);
+// any game related timing information should come from event timestamps.
+//
+// It took a bool called baseTime, defaulted to false, which chose between "since
+// the first call" and "since some other origin" - and the two platforms
+// disagreed about what the other origin was: on Windows it was the raw system
+// counter, on Unix the process start. Nothing in the tree ever passed true, so
+// the parameter was a cross-platform disagreement about a value nobody asked
+// for.
+int		Sys_Milliseconds( void );
+int		Sys_Milliseconds2( void );
 void	Sys_Sleep( int msec );
 
 extern "C" void	Sys_SnapVector( float *v );

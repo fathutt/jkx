@@ -89,23 +89,40 @@ const char *Sys_Dirname( const char *path )
 Sys_Milliseconds
 ================
 */
-int Sys_Milliseconds (bool baseTime)
-{
-	static int sys_timeBase = timeGetTime();
-	int			sys_curtime;
+// Milliseconds since the first call, from a clock that only goes forwards.
+//
+// This used to be timeGetTime, whose resolution is whatever the system timer
+// period happens to be - between one and about sixteen milliseconds, set by
+// whichever process last called timeBeginPeriod, including processes that are
+// not this one. A frame timer whose tick can be sixteen milliseconds wide on
+// one machine and one on another is not a timer, and the counter wraps every
+// 49.7 days besides.
+//
+// QueryPerformanceCounter is monotonic, better than a microsecond on every
+// machine this targets, and the frequency is fixed for the life of the process
+// so it is asked for once. The delta is scaled in a 64-bit integer: dividing
+// first and accumulating loses the remainder every read.
+static LARGE_INTEGER	sys_timeBase;
+static LARGE_INTEGER	sys_timeFreq;
 
-	sys_curtime = timeGetTime();
-	if(!baseTime)
-	{
-		sys_curtime -= sys_timeBase;
+int Sys_Milliseconds( void )
+{
+	LARGE_INTEGER now;
+
+	if ( !sys_timeFreq.QuadPart ) {
+		QueryPerformanceFrequency( &sys_timeFreq );
+		QueryPerformanceCounter( &sys_timeBase );
 	}
 
-	return sys_curtime;
+	QueryPerformanceCounter( &now );
+
+	return (int)( ( ( now.QuadPart - sys_timeBase.QuadPart ) * 1000LL )
+		/ sys_timeFreq.QuadPart );
 }
 
 int Sys_Milliseconds2( void )
 {
-	return Sys_Milliseconds(false);
+	return Sys_Milliseconds();
 }
 
 /*

@@ -23,6 +23,8 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #include <stdarg.h>
 #include <stdlib.h>
 #include <sys/time.h>
+#include <time.h>
+#include <stdint.h>
 #include <errno.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -92,42 +94,51 @@ void Sys_PlatformExit( void )
 Sys_Milliseconds
 ================
 */
-/* base time in seconds, that's our origin
-   timeval:tv_sec is an int:
-   assuming this wraps every 0x7fffffff - ~68 years since the Epoch (1970) - we're safe till 2038 */
-unsigned long sys_timeBase = 0;
-/* current time in ms, using sys_timeBase as origin
-   NOTE: sys_timeBase*1000 + curtime -> ms since the Epoch
-     0x7fffffff ms - ~24 days
-   although timeval:tv_usec is an int, I'm not sure wether it is actually used as an unsigned int
-     (which would affect the wrap period) */
-int curtime;
-int Sys_Milliseconds (bool baseTime)
+// Milliseconds since the first call, from a clock that only goes forwards.
+//
+// This used to be gettimeofday, which is the wall clock: it is what NTP steps,
+// what the user changes in the settings, and what a virtual machine corrects
+// after a suspend. A step backwards makes the engine compute a negative frame
+// time, and a step forwards makes it compute one long enough to be clamped -
+// so the symptom is a hitch or a rubber-band at a moment with no other cause,
+// impossible to reproduce and impossible to attribute. CLOCK_MONOTONIC is the
+// same call without any of that; it is not the time of day and nothing here
+// wanted the time of day.
+//
+// The arithmetic is done in nanoseconds in a 64-bit integer and divided once,
+// rather than kept as milliseconds and accumulated. A counter that is stored
+// already-rounded drifts by up to half a millisecond per read.
+//
+// The old version had two variables called sys_timeBase - a file-scope one and
+// a function-local static declared halfway down, shadowing it from there on -
+// and returned tv_usec/1000 from its first call, before the local one had been
+// initialised at all. So the first answer was a number between 0 and 999 with
+// no relation to the rest, and the origin was set by the second call.
+static int64_t	sys_timeBaseNs = 0;
+
+static int64_t Sys_MonotonicNs( void )
 {
-	struct timeval tp;
+	struct timespec ts;
 
-	gettimeofday(&tp, NULL);
+	clock_gettime( CLOCK_MONOTONIC, &ts );
 
-	if (!sys_timeBase)
-	{
-		sys_timeBase = tp.tv_sec;
-		return tp.tv_usec/1000;
+	return (int64_t)ts.tv_sec * 1000000000LL + (int64_t)ts.tv_nsec;
+}
+
+int Sys_Milliseconds( void )
+{
+	const int64_t now = Sys_MonotonicNs();
+
+	if ( !sys_timeBaseNs ) {
+		sys_timeBaseNs = now;
 	}
 
-	curtime = (tp.tv_sec - sys_timeBase)*1000 + tp.tv_usec/1000;
-
-    static int sys_timeBase = curtime;
-	if (!baseTime)
-	{
-		curtime -= sys_timeBase;
-	}
-
-	return curtime;
+	return (int)( ( now - sys_timeBaseNs ) / 1000000LL );
 }
 
 int Sys_Milliseconds2( void )
 {
-    return Sys_Milliseconds(false);
+    return Sys_Milliseconds();
 }
 
 /*
