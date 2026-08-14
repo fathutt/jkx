@@ -393,31 +393,45 @@ else
     # stepping it at different rows. That is a camera a fraction of a unit from
     # where it was, not a wall drawn differently.
     #
-    # Where the fraction comes from, measured rather than reasoned. Nothing has
-    # pinned the view at this point in the run: the player spawns above the
-    # floor and falls to it, and the fall is integrated once per rendered frame
-    # with that frame's own duration as the step - bg_pmove.cpp, pml.frametime,
-    # no fixed sub-step, pmove_fixed and pmove_msec do not exist in single
-    # player. So how long a frame took decides where the player comes to rest.
-    #
-    # Three measurements, in the order they were taken:
+    # What is measured, and it is less than the first version of this comment
+    # claimed:
     #
     #   com_maxfps 60 against com_maxfps 20, unpinned: identical, twice. Which
-    #   looked like a refutation and is not - lavapipe at 1280x720 never gets
-    #   near either cap, so neither run was capped and nothing was varied;
+    #   looks like a refutation of "it is a timing difference" and is not -
+    #   lavapipe at 1280x720 never gets near either cap, so neither run was
+    #   capped and nothing was varied. Check that the knob turns something;
     #
     #   the same settings on both sides - r_depthPrepass 0 against
     #   r_depthPrepass 0 - with six busy processes on the machine, unpinned:
-    #   they differ. The lane is not measuring the depth prepass at all;
+    #   they differ. So this lane was not measuring the depth prepass at all,
+    #   it was measuring how long the frames happened to take;
     #
-    #   the same again with the pin below: identical, three pairs out of three.
+    #   with the pin below: identical, three pairs out of three under the same
+    #   load, and every frame in the lane at zero.
     #
-    # setviewpos puts the camera at a stated place; sixty frames later the
-    # player is at rest with no velocity left to integrate, and from there the
-    # two runs agree exactly. The engine's framerate-coupled movement is a real
-    # defect (backlog 46.2) and this pin is not a fix for it - it takes it out
-    # of a lane that is asking about something else. When 46.2 lands, take the
-    # pin out and the flake should not come back.
+    # The first version of this comment said the player falls to the floor after
+    # spawning and lands differently depending on the frame duration. That is
+    # wrong and the fixture says so: make_test_bsp.py puts info_player_start
+    # standing on the floor precisely so that nothing falls, and its docstring
+    # explains that it was moved there to stop this class of difference.
+    #
+    # What is left, read from the code rather than measured: single player
+    # forces the third-person camera, and that camera follows its ideal
+    # position through an exponential filter whose ratio is
+    # powf(1 - cg_thirdPersonTargetDamp, elapsed_ms / 50) - cg_view.cpp. A
+    # filter like that reaches its target only in the limit, so what remains
+    # after any number of frames depends on the sequence of frame durations, for
+    # ever. setviewpos calls CG_ResetThirdPersonViewDamp, which copies ideal to
+    # current exactly; from there the difference is exactly zero and stays zero
+    # whatever the frame durations are, which is why the pin works and why
+    # sixty frames is enough.
+    #
+    # Stated as a hypothesis, not a result: switching the damping off did not
+    # reproduce the difference either way in the two pairs it was given, because
+    # the unpinned difference itself only shows up in some runs. The pin is
+    # justified by the third measurement above regardless of which mechanism is
+    # behind it - this lane asks about the depth prepass and must not answer
+    # about anything else.
     if [ "${JKX_SMOKE_PLAIN:-0}" = "1" ]; then
         INMAP_STEP+=( +setviewpos 0 0 -15 90 +wait 60 )
     fi
