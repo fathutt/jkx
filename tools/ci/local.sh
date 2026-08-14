@@ -182,6 +182,13 @@ stage_tests_cxx() {
         "$ROOT/tests/sky_projection_test.cpp" || return 1
     "$out/sky_projection_test" || return 1
 
+    # The Outcast-to-Academy bone remap and, more to the point, the decision
+    # about when to apply it. Neither half shows up in a frame until a character
+    # is already folded up, and the bench draws no Outcast model at all.
+    c++ -O2 -Wall -Werror -o "$out/ghoul2_bonemap_test" \
+        "$ROOT/tests/ghoul2_bonemap_test.cpp" || return 1
+    "$out/ghoul2_bonemap_test" || return 1
+
     # The sound codec, against a real compressed file. The headless bench never
     # plays one, so without this the decoder is unverified.
     c++ -O2 -std=c++20 -Wall -Werror -DARCH_STRING='"x86_64"' -DJKX_ENGINE \
