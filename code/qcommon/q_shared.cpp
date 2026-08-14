@@ -903,7 +903,7 @@ void Info_RemoveKey( char *s, const char *key ) {
 		}
 		*o = 0;
 
-		//OJKNOTE: static analysis pointed out pkey may not be null-terminated
+		//NOTE: static analysis pointed out pkey may not be null-terminated
 		if (!strcmp (key, pkey) )
 		{
 			memmove(start, s, strlen(s) + 1);	// remove this part

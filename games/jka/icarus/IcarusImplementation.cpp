@@ -34,7 +34,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 #include "qcommon/q_shared.h"
 #include "qcommon/qcommon.h"
-#include "qcommon/ojk_saved_game_helper.h"
+#include "qcommon/jkx_saved_game_helper.h"
 
 #define STL_ITERATE( a, b )		for ( a = b.begin(); a != b.end(); ++a )
 #define STL_INSERT( a, b )		a.insert( a.end(), b );
@@ -540,7 +540,7 @@ int CIcarus::Save()
 
 	IGameInterface* game = IGameInterface::GetGame(m_flavor);
 
-	ojk::SavedGameHelper saved_game(
+	jkx::SavedGameHelper saved_game(
 		game->get_saved_game_file());
 
 	//Save out a ICARUS save block header with the ICARUS version
@@ -689,7 +689,7 @@ int CIcarus::Load()
 
 	IGameInterface* game = IGameInterface::GetGame(m_flavor);
 
-	ojk::SavedGameHelper saved_game(
+	jkx::SavedGameHelper saved_game(
 		game->get_saved_game_file());
 
 	//Clear out any old information
@@ -818,7 +818,7 @@ void CIcarus::BufferWrite( void *pSrcData, unsigned long ulNumBytesToWrite )
 	{	// Write out the buffer with all our collected data so far...
 		IGameInterface::GetGame()->DebugPrint( IGameInterface::WL_ERROR, "BufferWrite: Out of buffer space, Flushing." );
 
-		ojk::SavedGameHelper saved_game(
+		jkx::SavedGameHelper saved_game(
 			IGameInterface::GetGame()->get_saved_game_file());
 
 		saved_game.write_chunk(
@@ -848,7 +848,7 @@ void CIcarus::BufferRead( void *pDstBuff, unsigned long ulNumBytesToRead )
 		IGameInterface::GetGame()->DebugPrint( IGameInterface::WL_ERROR, "BufferRead: Buffer underflow, Looking for new block." );
 		// Read in the next block.
 
-		ojk::SavedGameHelper saved_game(
+		jkx::SavedGameHelper saved_game(
 			IGameInterface::GetGame()->get_saved_game_file());
 
 		saved_game.read_chunk(

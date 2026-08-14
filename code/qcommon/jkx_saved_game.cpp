@@ -3,15 +3,15 @@
 //
 
 
-#include "ojk_saved_game.h"
+#include "jkx_saved_game.h"
 #include <algorithm>
 #include <memory>
-#include "ojk_saved_game_helper.h"
+#include "jkx_saved_game_helper.h"
 #include "qcommon/qcommon.h"
 #include "server/server.h"
 
 
-namespace ojk
+namespace jkx
 {
 
 
@@ -970,4 +970,4 @@ const uint32_t SavedGame::get_jk2_magic_value()
 }
 
 
-} // ojk
+} // jkx

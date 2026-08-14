@@ -28,7 +28,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #include "client/vmachine.h"
 
 #include "qcommon/sstring.h"
-#include "qcommon/ojk_saved_game_helper.h"
+#include "qcommon/jkx_saved_game_helper.h"
 
 //NOTENOTE: Be sure to change the mirrored code in g_shared.h
 typedef std::map< sstring_t, unsigned char, std::less<sstring_t> >	namePrecache_m;
@@ -1646,7 +1646,7 @@ Ghoul2 Insert End
 
 void CG_WriteTheEvilCGHackStuff(void)
 {
-	ojk::SavedGameHelper saved_game(
+	jkx::SavedGameHelper saved_game(
 		::gi.saved_game);
 
 	saved_game.write_chunk<int32_t>(
@@ -1660,7 +1660,7 @@ void CG_WriteTheEvilCGHackStuff(void)
 
 void CG_ReadTheEvilCGHackStuff(void)
 {
-	ojk::SavedGameHelper saved_game(
+	jkx::SavedGameHelper saved_game(
 		::gi.saved_game);
 
 	saved_game.read_chunk<int32_t>(

@@ -31,7 +31,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 
 #include <assert.h>
-#include "qcommon/ojk_saved_game_helper.h"
+#include "qcommon/jkx_saved_game_helper.h"
 
 #define ICARUS_VALIDATE(a) if ( a == false ) return TASK_FAILED;
 
@@ -1640,7 +1640,7 @@ int CTaskManager::SaveCommand( CBlock *block )
 	int				numMembers, bID, size;
 	CBlockMember	*bm;
 
-	ojk::SavedGameHelper saved_game(
+	jkx::SavedGameHelper saved_game(
 		m_owner->GetInterface()->saved_game);
 
 	//Save out the block ID
@@ -1710,7 +1710,7 @@ void CTaskManager::Save( void )
 	int			id, numCommands;
 	int			numWritten;
 
-	ojk::SavedGameHelper saved_game(
+	jkx::SavedGameHelper saved_game(
 		m_owner->GetInterface()->saved_game);
 
 	//Save the taskmanager's GUID
@@ -1887,7 +1887,7 @@ void CTaskManager::Load( void )
 	int				bID = 0, bSize = 0;
 	int				i;
 
-	ojk::SavedGameHelper saved_game(
+	jkx::SavedGameHelper saved_game(
 		m_owner->GetInterface()->saved_game);
 
 	//Get the GUID

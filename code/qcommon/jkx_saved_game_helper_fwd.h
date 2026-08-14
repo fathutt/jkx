@@ -4,14 +4,14 @@
 //
 
 
-#ifndef OJK_SAVED_GAME_HELPER_FWD_INCLUDED
-#define OJK_SAVED_GAME_HELPER_FWD_INCLUDED
+#ifndef JKX_SAVED_GAME_HELPER_FWD_INCLUDED
+#define JKX_SAVED_GAME_HELPER_FWD_INCLUDED
 
 
-#include "ojk_i_saved_game.h"
+#include "jkx_i_saved_game.h"
 
 
-namespace ojk
+namespace jkx
 {
 
 
@@ -314,8 +314,8 @@ public:
 };
 
 
-} // ojk
+} // jkx
 
 
-#endif // OJK_SAVED_GAME_HELPER_FWD_INCLUDED
+#endif // JKX_SAVED_GAME_HELPER_FWD_INCLUDED
 

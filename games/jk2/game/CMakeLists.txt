@@ -232,11 +232,11 @@ set(JK2GameCommonFiles
 	"${CodeDir}/qcommon/q_shared.cpp"
 	"${CodeDir}/qcommon/q_shared.h"
 	"${CodeDir}/qcommon/strippublic.h"
-	"${CodeDir}/qcommon/ojk_i_saved_game.h"
-	"${CodeDir}/qcommon/ojk_saved_game_class_archivers.h"
-	"${CodeDir}/qcommon/ojk_saved_game_helper.h"
-	"${CodeDir}/qcommon/ojk_saved_game_helper_fwd.h"
-	"${CodeDir}/qcommon/ojk_scope_guard.h"
+	"${CodeDir}/qcommon/jkx_i_saved_game.h"
+	"${CodeDir}/qcommon/jkx_saved_game_class_archivers.h"
+	"${CodeDir}/qcommon/jkx_saved_game_helper.h"
+	"${CodeDir}/qcommon/jkx_saved_game_helper_fwd.h"
+	"${CodeDir}/qcommon/jkx_scope_guard.h"
 	${SharedCommonFiles}
 	)
 source_group("common" FILES ${JK2GameCommonFiles})

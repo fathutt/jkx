@@ -28,7 +28,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #include "icarus.h"
 
 #include <assert.h>
-#include "qcommon/ojk_saved_game_helper.h"
+#include "qcommon/jkx_saved_game_helper.h"
 
 CSequence::CSequence( void )
 {
@@ -343,7 +343,7 @@ int CSequence::SaveCommand( CBlock *block )
 	int				numMembers, bID, size;
 	CBlockMember	*bm;
 
-	ojk::SavedGameHelper saved_game(
+	jkx::SavedGameHelper saved_game(
 		m_owner->GetInterface()->saved_game);
 
 	//Save out the block ID
@@ -409,7 +409,7 @@ int CSequence::Save( void )
 	block_l::iterator		bi;
 	int						id;
 
-	ojk::SavedGameHelper saved_game(
+	jkx::SavedGameHelper saved_game(
 		m_owner->GetInterface()->saved_game);
 
 	//Save the parent (by GUID)
@@ -482,7 +482,7 @@ int CSequence::Load( void )
 	int				bID, bSize;
 	void			*bData;
 
-	ojk::SavedGameHelper saved_game(
+	jkx::SavedGameHelper saved_game(
 		m_owner->GetInterface()->saved_game);
 
 	//Get the parent sequence

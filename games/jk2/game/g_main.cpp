@@ -35,7 +35,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #include "objectives.h"
 #include "../cgame/cg_local.h"	// yeah I know this is naughty, but we're shipping soon...
 #include "time.h"
-#include "qcommon/ojk_saved_game_helper.h"
+#include "qcommon/jkx_saved_game_helper.h"
 #include "qcommon/game_version.h"
 
 extern CNavigator		navigator;
@@ -91,7 +91,7 @@ qboolean PInUse2(gentity_t *ent)
 
 void WriteInUseBits()
 {
-	ojk::SavedGameHelper saved_game(
+	jkx::SavedGameHelper saved_game(
 		::gi.saved_game);
 
 	saved_game.write_chunk<uint32_t>(
@@ -101,7 +101,7 @@ void WriteInUseBits()
 
 void ReadInUseBits()
 {
-	ojk::SavedGameHelper saved_game(
+	jkx::SavedGameHelper saved_game(
 		::gi.saved_game);
 
 	saved_game.read_chunk<uint32_t>(
@@ -1489,7 +1489,7 @@ extern qboolean player_locked;
 
 void G_LoadSave_WriteMiscData(void)
 {
-	ojk::SavedGameHelper saved_game(
+	jkx::SavedGameHelper saved_game(
 		::gi.saved_game);
 
 	saved_game.write_chunk<int32_t>(
@@ -1501,7 +1501,7 @@ void G_LoadSave_WriteMiscData(void)
 
 void G_LoadSave_ReadMiscData(void)
 {
-	ojk::SavedGameHelper saved_game(
+	jkx::SavedGameHelper saved_game(
 		::gi.saved_game);
 
 	saved_game.read_chunk<int32_t>(

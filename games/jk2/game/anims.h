@@ -1410,7 +1410,7 @@ public:
 
 
 	void sg_export(
-		ojk::SavedGameHelper& saved_game) const
+		jkx::SavedGameHelper& saved_game) const
 	{
 		saved_game.write<int8_t>(filename);
 		saved_game.write<>(animations);
@@ -1420,7 +1420,7 @@ public:
 	}
 
 	void sg_import(
-		ojk::SavedGameHelper& saved_game)
+		jkx::SavedGameHelper& saved_game)
 	{
 		saved_game.read<int8_t>(filename);
 		saved_game.read<>(animations);

@@ -47,18 +47,18 @@ private:
 };
 
 template<typename T>
-T *ojkAllocArray( Allocator& allocator, size_t count )
+T *jkxAllocArray( Allocator& allocator, size_t count )
 {
 	return static_cast<T *>(allocator.Alloc(sizeof(T) * count));
 }
 
-inline char *ojkAllocString( Allocator& allocator, size_t stringLength )
+inline char *jkxAllocString( Allocator& allocator, size_t stringLength )
 {
-	return ojkAllocArray<char>(allocator, stringLength + 1);
+	return jkxAllocArray<char>(allocator, stringLength + 1);
 }
 
 template<typename T>
-T *ojkAlloc( Allocator& allocator )
+T *jkxAlloc( Allocator& allocator )
 {
-	return ojkAllocArray<T>(allocator, 1);
+	return jkxAllocArray<T>(allocator, 1);
 }

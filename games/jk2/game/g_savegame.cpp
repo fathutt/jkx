@@ -33,7 +33,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #include "../cgame/cg_camera.h"
 #include "g_icarus.h"
 #include "qcommon/sstring.h"
-#include "qcommon/ojk_saved_game_helper.h"
+#include "qcommon/jkx_saved_game_helper.h"
 
 extern void OBJ_LoadTacticalInfo(void);
 
@@ -184,7 +184,7 @@ char *GetStringPtr(int iStrlen, char *psOriginal/*may be NULL*/)
 
 		assert(iStrlen+1<=(int)sizeof(sString));
 
-		ojk::SavedGameHelper saved_game(
+		jkx::SavedGameHelper saved_game(
 			::gi.saved_game);
 
 		saved_game.read_chunk(
@@ -470,7 +470,7 @@ static void EnumerateFields(
 		}
 	}
 
-	ojk::SavedGameHelper saved_game(
+	jkx::SavedGameHelper saved_game(
 		::gi.saved_game);
 
 	// save out raw data...
@@ -601,7 +601,7 @@ static void EvaluateFields(
 	T* pbOriginalRefData,
 	unsigned int ulChid)
 {
-	ojk::SavedGameHelper saved_game(
+	jkx::SavedGameHelper saved_game(
 		::gi.saved_game);
 
 	if (!saved_game.try_read_chunk(
@@ -678,7 +678,7 @@ static void WriteGEntities(qboolean qbAutosave)
 		}
 	}
 
-	ojk::SavedGameHelper saved_game(
+	jkx::SavedGameHelper saved_game(
 		::gi.saved_game);
 
 	saved_game.write_chunk<int32_t>(
@@ -765,7 +765,7 @@ static void ReadGEntities(qboolean qbAutosave)
 	int		iCount = 0;
 	int		i;
 
-	ojk::SavedGameHelper saved_game(
+	jkx::SavedGameHelper saved_game(
 		::gi.saved_game);
 
 	saved_game.read_chunk<int32_t>(
@@ -1016,7 +1016,7 @@ void WriteLevel(qboolean qbAutosave)
 	//
 	static int iDONE = 1234;
 
-	ojk::SavedGameHelper saved_game(
+	jkx::SavedGameHelper saved_game(
 		::gi.saved_game);
 
 	saved_game.write_chunk<int32_t>(
@@ -1044,7 +1044,7 @@ void ReadLevel(qboolean qbAutosave, qboolean qbLoadTransition)
 		EvaluateFields(savefields_gClient, &junkClient, &level.clients[0], INT_ID('G','C','L','I'));
 
 		//Read & throw away objective info
-		ojk::SavedGameHelper saved_game(
+		jkx::SavedGameHelper saved_game(
 			::gi.saved_game);
 
 		saved_game.read_chunk(
@@ -1082,7 +1082,7 @@ void ReadLevel(qboolean qbAutosave, qboolean qbLoadTransition)
 	//
 	static int iDONE = 1234;
 
-	ojk::SavedGameHelper saved_game(
+	jkx::SavedGameHelper saved_game(
 		::gi.saved_game);
 
 	saved_game.read_chunk<int32_t>(

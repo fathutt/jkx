@@ -201,12 +201,12 @@ if(BuildJKAEngine OR BuildJK2Engine)
 		"${CodeDir}/qcommon/timing.h"
 		"${CodeDir}/qcommon/MiniHeap.h"
 
-		"${CodeDir}/qcommon/ojk_i_saved_game.h"
-		"${CodeDir}/qcommon/ojk_saved_game.h"
-		"${CodeDir}/qcommon/ojk_saved_game.cpp"
-		"${CodeDir}/qcommon/ojk_saved_game_helper.h"
-		"${CodeDir}/qcommon/ojk_saved_game_helper_fwd.h"
-		"${CodeDir}/qcommon/ojk_scope_guard.h"
+		"${CodeDir}/qcommon/jkx_i_saved_game.h"
+		"${CodeDir}/qcommon/jkx_saved_game.h"
+		"${CodeDir}/qcommon/jkx_saved_game.cpp"
+		"${CodeDir}/qcommon/jkx_saved_game_helper.h"
+		"${CodeDir}/qcommon/jkx_saved_game_helper_fwd.h"
+		"${CodeDir}/qcommon/jkx_scope_guard.h"
 
 		${SharedCommonFiles}
 		)

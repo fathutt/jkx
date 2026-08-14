@@ -30,7 +30,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #include "g_shared.h"
 
 #include "assert.h"
-#include "qcommon/ojk_saved_game_helper.h"
+#include "qcommon/jkx_saved_game_helper.h"
 
 // Sequencer
 
@@ -2330,7 +2330,7 @@ int	CSequencer::Save( void )
 	//Get the number of sequences to save out
 	numSequences = m_sequences.size();
 
-	ojk::SavedGameHelper saved_game(
+	jkx::SavedGameHelper saved_game(
 		m_ie->saved_game);
 
 	//Save out the owner sequence
@@ -2411,7 +2411,7 @@ int	CSequencer::Load( void )
 {
 	int i;
 
-	ojk::SavedGameHelper saved_game(
+	jkx::SavedGameHelper saved_game(
 		m_ie->saved_game);
 
 	//Get the owner of this sequencer

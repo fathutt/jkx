@@ -3,18 +3,18 @@
 //
 
 
-#ifndef OJK_SAVED_GAME_HELPER_INCLUDED
-#define OJK_SAVED_GAME_HELPER_INCLUDED
+#ifndef JKX_SAVED_GAME_HELPER_INCLUDED
+#define JKX_SAVED_GAME_HELPER_INCLUDED
 
 
 #include <cstdint>
 #include <type_traits>
-#include "ojk_saved_game_helper_fwd.h"
-#include "ojk_scope_guard.h"
-#include "ojk_saved_game_class_archivers.h"
+#include "jkx_saved_game_helper_fwd.h"
+#include "jkx_scope_guard.h"
+#include "jkx_saved_game_class_archivers.h"
 
 
-namespace ojk
+namespace jkx
 {
 
 
@@ -837,7 +837,7 @@ void SavedGameHelper::write(
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 
-} // ojk
+} // jkx
 
 
-#endif // OJK_SAVED_GAME_HELPER_INCLUDED
+#endif // JKX_SAVED_GAME_HELPER_INCLUDED

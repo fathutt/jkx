@@ -3,15 +3,15 @@
 //
 
 
-#ifndef OJK_SCOPE_GUARD_INCLUDED
-#define OJK_SCOPE_GUARD_INCLUDED
+#ifndef JKX_SCOPE_GUARD_INCLUDED
+#define JKX_SCOPE_GUARD_INCLUDED
 
 
 #include <functional>
 #include <utility>
 
 
-namespace ojk
+namespace jkx
 {
 
 
@@ -52,7 +52,7 @@ private:
 }; // ScopeGuard
 
 
-} // ojk
+} // jkx
 
 
-#endif // OJK_SCOPE_GUARD_INCLUDED
+#endif // JKX_SCOPE_GUARD_INCLUDED

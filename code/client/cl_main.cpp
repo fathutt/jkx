@@ -32,7 +32,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #include "../ghoul2/G2.h"
 #include "qcommon/stringed_ingame.h"
 #include "sys/sys_loadlib.h"
-#include "qcommon/ojk_saved_game.h"
+#include "qcommon/jkx_saved_game.h"
 
 #define	RETRANSMIT_TIMEOUT	3000	// time between connection packet retransmits
 

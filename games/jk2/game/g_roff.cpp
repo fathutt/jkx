@@ -25,7 +25,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #include "g_local.h"
 #include "g_roff.h"
 #include "g_icarus.h"
-#include "qcommon/ojk_saved_game_helper.h"
+#include "qcommon/jkx_saved_game_helper.h"
 
 // The list of precached ROFFs
 roff_list_t	roffs[MAX_ROFFS];
@@ -628,7 +628,7 @@ void G_SaveCachedRoffs()
 {
 	int i, len;
 
-	ojk::SavedGameHelper saved_game(
+	jkx::SavedGameHelper saved_game(
 		::gi.saved_game);
 
 	// Write out the number of cached ROFFs
@@ -665,7 +665,7 @@ void G_LoadCachedRoffs()
 	int		i, count = 0, len = 0;
 	char	buffer[MAX_QPATH];
 
-	ojk::SavedGameHelper saved_game(
+	jkx::SavedGameHelper saved_game(
 		::gi.saved_game);
 
 	// Get the count of goodies we need to revive

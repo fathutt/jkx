@@ -159,7 +159,7 @@ public:
 
 
 	void sg_export(
-		ojk::SavedGameHelper& saved_game) const
+		jkx::SavedGameHelper& saved_game) const
 	{
 		saved_game.write<int32_t>(aggression);
 		saved_game.write<int32_t>(aim);
@@ -182,7 +182,7 @@ public:
 	}
 
 	void sg_import(
-		ojk::SavedGameHelper& saved_game)
+		jkx::SavedGameHelper& saved_game)
 	{
 		saved_game.read<int32_t>(aggression);
 		saved_game.read<int32_t>(aim);
@@ -381,7 +381,7 @@ public:
 
 
 	void sg_export(
-		ojk::SavedGameHelper& saved_game) const
+		jkx::SavedGameHelper& saved_game) const
 	{
 		saved_game.write<int32_t>(timeOfDeath);
 		saved_game.write<int32_t>(touchedByPlayer);
@@ -498,7 +498,7 @@ public:
 	}
 
 	void sg_import(
-		ojk::SavedGameHelper& saved_game)
+		jkx::SavedGameHelper& saved_game)
 	{
 		saved_game.read<int32_t>(timeOfDeath);
 		saved_game.read<int32_t>(touchedByPlayer);

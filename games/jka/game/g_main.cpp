@@ -36,7 +36,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #include "ghoul2/ghoul2_gore.h"
 //rww - RAGDOLL_END
 
-#include "qcommon/ojk_saved_game_helper.h"
+#include "qcommon/jkx_saved_game_helper.h"
 #include "qcommon/game_version.h"
 
 extern void WP_SaberLoadParms( void );
@@ -108,7 +108,7 @@ qboolean PInUse(unsigned int entNum)
 
 void WriteInUseBits()
 {
-	ojk::SavedGameHelper saved_game(
+	jkx::SavedGameHelper saved_game(
 		::gi.saved_game);
 
 	saved_game.write_chunk<uint32_t>(
@@ -118,7 +118,7 @@ void WriteInUseBits()
 
 void ReadInUseBits()
 {
-	ojk::SavedGameHelper saved_game(
+	jkx::SavedGameHelper saved_game(
 		::gi.saved_game);
 
 	saved_game.read_chunk<uint32_t>(
@@ -2117,7 +2117,7 @@ extern qboolean player_locked;
 
 void G_LoadSave_WriteMiscData()
 {
-	ojk::SavedGameHelper saved_game(
+	jkx::SavedGameHelper saved_game(
 		::gi.saved_game);
 
 	saved_game.write_chunk<int32_t>(
@@ -2129,7 +2129,7 @@ void G_LoadSave_WriteMiscData()
 
 void G_LoadSave_ReadMiscData()
 {
-	ojk::SavedGameHelper saved_game(
+	jkx::SavedGameHelper saved_game(
 		::gi.saved_game);
 
 	saved_game.read_chunk<int32_t>(

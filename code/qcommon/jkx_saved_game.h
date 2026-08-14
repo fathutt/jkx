@@ -3,17 +3,17 @@
 //
 
 
-#ifndef OJK_SAVED_GAME_INCLUDED
-#define OJK_SAVED_GAME_INCLUDED
+#ifndef JKX_SAVED_GAME_INCLUDED
+#define JKX_SAVED_GAME_INCLUDED
 
 
 #include <cstdint>
 #include <string>
 #include <vector>
-#include "ojk_i_saved_game.h"
+#include "jkx_i_saved_game.h"
 
 
-namespace ojk
+namespace jkx
 {
 
 
@@ -187,7 +187,7 @@ private:
 }; // SavedGame
 
 
-} // ojk
+} // jkx
 
 
-#endif // OJK_SAVED_GAME_INCLUDED
+#endif // JKX_SAVED_GAME_INCLUDED

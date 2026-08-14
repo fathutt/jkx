@@ -587,7 +587,7 @@ struct SLoopedEffect
 
 
 	void sg_export(
-		ojk::SavedGameHelper& saved_game) const
+		jkx::SavedGameHelper& saved_game) const
 	{
 		saved_game.write<int32_t>(mId);
 		saved_game.write<int32_t>(mBoltInfo);
@@ -599,7 +599,7 @@ struct SLoopedEffect
 	}
 
 	void sg_import(
-		ojk::SavedGameHelper& saved_game)
+		jkx::SavedGameHelper& saved_game)
 	{
 		saved_game.read<int32_t>(mId);
 		saved_game.read<int32_t>(mBoltInfo);

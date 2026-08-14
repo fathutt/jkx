@@ -26,8 +26,8 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #include "qcommon/MiniHeap.h"
 #include "server/server.h"
 #include "ghoul2/g2_local.h"
-#include "qcommon/ojk_saved_game.h"
-#include "qcommon/ojk_saved_game_helper.h"
+#include "qcommon/jkx_saved_game.h"
+#include "qcommon/jkx_saved_game_helper.h"
 
 #ifdef _G2_GORE
 #include "ghoul2/ghoul2_gore.h"
@@ -1643,7 +1643,7 @@ void *G2_FindSurface(void *mod_t, int index, int lod)
 // This used to be multiplayer's: it measured the instances, allocated a buffer,
 // memcpy'd raw structures into it and handed the buffer back to the caller. The
 // caller here is single-player's, which has nowhere to put a buffer - it writes
-// into an ojk::SavedGame stream and expects this function to have done the same
+// into an jkx::SavedGame stream and expects this function to have done the same
 // - so the buffer was dropped on the floor and a savegame came out with no
 // Ghoul2 in it at all. The load half then read a chunk nobody had written.
 //
@@ -1658,7 +1658,7 @@ void *G2_FindSurface(void *mod_t, int index, int lod)
 // games link; the framing lives in sv_game.cpp, which is compiled per game.
 void G2_SaveGhoul2Models( CGhoul2Info_v &ghoul2 )
 {
-	ojk::SavedGameHelper saved_game( &ojk::SavedGame::get_instance() );
+	jkx::SavedGameHelper saved_game( &jkx::SavedGame::get_instance() );
 
 	// An empty instance list is still a payload: a count of zero. Writing
 	// nothing at all would leave the reader looking at whatever came next.
@@ -1708,7 +1708,7 @@ void G2_LoadGhoul2Model( CGhoul2Info_v &ghoul2, char *buffer )
 {
 	(void)buffer;
 
-	ojk::SavedGameHelper saved_game( &ojk::SavedGame::get_instance() );
+	jkx::SavedGameHelper saved_game( &jkx::SavedGame::get_instance() );
 
 	int model_count = 0;
 	saved_game.read<int32_t>( model_count );

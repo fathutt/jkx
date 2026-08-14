@@ -36,8 +36,8 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 #include <map>
 
-#include "qcommon/ojk_saved_game.h"
-#include "qcommon/ojk_saved_game_helper.h"
+#include "qcommon/jkx_saved_game.h"
+#include "qcommon/jkx_saved_game_helper.h"
 
 
 static char	saveGameComment[iSG_COMMENT_SIZE];
@@ -110,7 +110,7 @@ static const char *GetString_FailedToOpenSaveGame(const char *psFilename, qboole
 void SG_WipeSavegame(
 	const char* psPathlessBaseName)
 {
-	ojk::SavedGame::remove(
+	jkx::SavedGame::remove(
 		psPathlessBaseName);
 }
 
@@ -119,7 +119,7 @@ void SG_WipeSavegame(
 //
 void SG_Shutdown()
 {
-	ojk::SavedGame& saved_game = ojk::SavedGame::get_instance();
+	jkx::SavedGame& saved_game = jkx::SavedGame::get_instance();
 
 	saved_game.close();
 
@@ -405,8 +405,8 @@ void SV_SaveGame_f(void)
 //---------------
 static void WriteGame(qboolean autosave)
 {
-	ojk::SavedGameHelper saved_game(
-		&ojk::SavedGame::get_instance());
+	jkx::SavedGameHelper saved_game(
+		&jkx::SavedGame::get_instance());
 
 	saved_game.write_chunk<int32_t>(
 		INT_ID('G', 'A', 'M', 'E'),
@@ -463,8 +463,8 @@ static qboolean ReadGame (void)
 {
 	qboolean qbAutoSave = qfalse;
 
-	ojk::SavedGameHelper saved_game(
-		&ojk::SavedGame::get_instance());
+	jkx::SavedGameHelper saved_game(
+		&jkx::SavedGame::get_instance());
 
 	saved_game.read_chunk<int32_t>(
 		INT_ID('G', 'A', 'M', 'E'),
@@ -531,8 +531,8 @@ void SG_WriteCvars(void)
 	cvar_t	*var;
 	int		iCount = 0;
 
-	ojk::SavedGameHelper saved_game(
-		&ojk::SavedGame::get_instance());
+	jkx::SavedGameHelper saved_game(
+		&jkx::SavedGame::get_instance());
 
 	// count the cvars...
 	//
@@ -586,8 +586,8 @@ void SG_ReadCvars()
 	std::string psName;
 	const char* psValue;
 
-	ojk::SavedGameHelper saved_game(
-		&ojk::SavedGame::get_instance());
+	jkx::SavedGameHelper saved_game(
+		&jkx::SavedGame::get_instance());
 
 	saved_game.read_chunk<int32_t>(
 		INT_ID('C', 'V', 'C', 'N'),
@@ -614,8 +614,8 @@ void SG_ReadCvars()
 
 void SG_WriteServerConfigStrings()
 {
-	ojk::SavedGameHelper saved_game(
-		&ojk::SavedGame::get_instance());
+	jkx::SavedGameHelper saved_game(
+		&jkx::SavedGame::get_instance());
 
 	int iCount = 0;
 	int i;	// not in FOR statement in case compiler goes weird by reg-optimising it then failing to get the address later
@@ -678,8 +678,8 @@ void SG_ReadServerConfigStrings( void )
 	//
 	int iCount = 0;
 
-	ojk::SavedGameHelper saved_game(
-		&ojk::SavedGame::get_instance());
+	jkx::SavedGameHelper saved_game(
+		&jkx::SavedGame::get_instance());
 
 	saved_game.read_chunk<int32_t>(
 		INT_ID('C', 'S', 'C', 'N'),
@@ -716,8 +716,8 @@ static unsigned int SG_UnixTimestamp ( const time_t& t )
 
 static void SG_WriteComment(qboolean qbAutosave, const char *psMapName)
 {
-	ojk::SavedGameHelper saved_game(
-		&ojk::SavedGame::get_instance());
+	jkx::SavedGameHelper saved_game(
+		&jkx::SavedGame::get_instance());
 
 	char	sComment[iSG_COMMENT_SIZE];
 
@@ -759,10 +759,10 @@ int SG_GetSaveGameComment(
 {
 	int ret = 0;
 
-	ojk::SavedGame& saved_game = ojk::SavedGame::get_instance();
+	jkx::SavedGame& saved_game = jkx::SavedGame::get_instance();
 
-	ojk::SavedGameHelper sgh(
-		&ojk::SavedGame::get_instance());
+	jkx::SavedGameHelper sgh(
+		&jkx::SavedGame::get_instance());
 
 	if (!saved_game.open(
 		psPathlessBaseName))
@@ -894,8 +894,8 @@ static bool SG_ReadScreenshot(
 {
 	bool is_succeed = true;
 
-	ojk::SavedGameHelper saved_game(
-		&ojk::SavedGame::get_instance());
+	jkx::SavedGameHelper saved_game(
+		&jkx::SavedGame::get_instance());
 
 	// get JPG screenshot data length...
 	//
@@ -995,7 +995,7 @@ qboolean SG_GetSaveImage(
 		return qfalse;
 	}
 
-	ojk::SavedGame& saved_game = ojk::SavedGame::get_instance();
+	jkx::SavedGame& saved_game = jkx::SavedGame::get_instance();
 
 	if (!saved_game.open(base_name))
 	{
@@ -1004,7 +1004,7 @@ qboolean SG_GetSaveImage(
 
 	bool is_succeed = true;
 
-	ojk::SavedGameHelper sgh(
+	jkx::SavedGameHelper sgh(
 		&saved_game);
 
 	is_succeed = sgh.try_read_chunk(
@@ -1031,8 +1031,8 @@ qboolean SG_GetSaveImage(
 
 static void SG_WriteScreenshot(qboolean qbAutosave, const char *psMapName)
 {
-	ojk::SavedGameHelper saved_game(
-		&ojk::SavedGame::get_instance());
+	jkx::SavedGameHelper saved_game(
+		&jkx::SavedGame::get_instance());
 
 	byte *pbRawScreenShot = NULL;
 	byte *byBlank = NULL;
@@ -1184,7 +1184,7 @@ qboolean SG_WriteSavegame(const char *psPathlessBaseName, qboolean qbAutosave)
 		SG_StoreSaveGameComment(va("--> %s <--",psMapName));
 	}
 
-	ojk::SavedGame& saved_game = ojk::SavedGame::get_instance();
+	jkx::SavedGame& saved_game = jkx::SavedGame::get_instance();
 
 	if(!saved_game.create( "current" ))
 	{
@@ -1195,7 +1195,7 @@ qboolean SG_WriteSavegame(const char *psPathlessBaseName, qboolean qbAutosave)
 	}
 //END JLF
 
-	ojk::SavedGameHelper sgh(
+	jkx::SavedGameHelper sgh(
 		&saved_game);
 
 	char   sMapCmd[iSG_MAPCMD_SIZE]={0};
@@ -1243,7 +1243,7 @@ qboolean SG_WriteSavegame(const char *psPathlessBaseName, qboolean qbAutosave)
 		return qfalse;
 	}
 
-	ojk::SavedGame::rename(
+	jkx::SavedGame::rename(
 		"current",
 		psPathlessBaseName);
 
@@ -1263,14 +1263,14 @@ qboolean SG_ReadSavegame(
 		"0");
 #endif
 
-	ojk::SavedGame& saved_game = ojk::SavedGame::get_instance();
+	jkx::SavedGame& saved_game = jkx::SavedGame::get_instance();
 
-	ojk::SavedGameHelper sgh(
+	jkx::SavedGameHelper sgh(
 		&saved_game);
 
 	const int iPrevTestSave = ::sv_testsave->integer;
 
-	ojk::ScopeGuard scope_guard(
+	jkx::ScopeGuard scope_guard(
 		[&]()
 	{
 		::sv_testsave->integer = 0;

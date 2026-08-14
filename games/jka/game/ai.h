@@ -125,7 +125,7 @@ public:
 
 
 	void sg_export(
-		ojk::SavedGameHelper& saved_game) const
+		jkx::SavedGameHelper& saved_game) const
 	{
 		saved_game.write<int32_t>(number);
 		saved_game.write<int32_t>(waypoint);
@@ -134,7 +134,7 @@ public:
 	}
 
 	void sg_import(
-		ojk::SavedGameHelper& saved_game)
+		jkx::SavedGameHelper& saved_game)
 	{
 		saved_game.read<int32_t>(number);
 		saved_game.read<int32_t>(waypoint);
@@ -168,7 +168,7 @@ public:
 
 
 	void sg_export(
-		ojk::SavedGameHelper& saved_game) const
+		jkx::SavedGameHelper& saved_game) const
 	{
 		saved_game.write<int32_t>(numGroup);
 		saved_game.write<int32_t>(processed);
@@ -190,7 +190,7 @@ public:
 	}
 
 	void sg_import(
-		ojk::SavedGameHelper& saved_game)
+		jkx::SavedGameHelper& saved_game)
 	{
 		saved_game.read<int32_t>(numGroup);
 		saved_game.read<int32_t>(processed);

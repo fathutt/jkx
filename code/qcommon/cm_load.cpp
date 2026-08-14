@@ -25,8 +25,8 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 #include "cm_local.h"
 #include "cm_bsp_check.h"
-#include "qcommon/ojk_saved_game.h"
-#include "qcommon/ojk_saved_game_helper.h"
+#include "qcommon/jkx_saved_game.h"
+#include "qcommon/jkx_saved_game_helper.h"
 
 #ifdef BSPC
 void SetPlaneSignbits (cplane_t *out) {
@@ -1253,8 +1253,8 @@ int SG_Read(unsigned int chid, void *pvAddress, int iLength, void **ppvAddressPt
 
 void CM_WritePortalState()
 {
-	ojk::SavedGameHelper saved_game(
-		&ojk::SavedGame::get_instance());
+	jkx::SavedGameHelper saved_game(
+		&jkx::SavedGame::get_instance());
 
 	saved_game.write_chunk<int32_t>(
 		INT_ID('P', 'R', 'T', 'S'),
@@ -1272,8 +1272,8 @@ and recalculates the area connections
 */
 void CM_ReadPortalState()
 {
-	ojk::SavedGameHelper saved_game(
-		&ojk::SavedGame::get_instance());
+	jkx::SavedGameHelper saved_game(
+		&jkx::SavedGame::get_instance());
 
 	saved_game.read_chunk<int32_t>(
 		INT_ID('P', 'R', 'T', 'S'),

@@ -583,10 +583,10 @@ void RB_BindDescriptorSets( const DrawItem& drawItem )
 
 static Pass *RB_CreatePass( Allocator& allocator, int capacity )
 {
-	Pass *pass = ojkAlloc<Pass>( *backEndData->perFrameMemory );
+	Pass *pass = jkxAlloc<Pass>( *backEndData->perFrameMemory );
 	*pass = {};
 	pass->maxDrawItems = capacity;
-	pass->drawItems = ojkAllocArray<DrawItem>( allocator, pass->maxDrawItems );
+	pass->drawItems = jkxAllocArray<DrawItem>( allocator, pass->maxDrawItems );
 	return pass;
 }
 

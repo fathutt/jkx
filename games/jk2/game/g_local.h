@@ -140,7 +140,7 @@ public:
 
 
 	void sg_export(
-		ojk::SavedGameHelper& saved_game) const
+		jkx::SavedGameHelper& saved_game) const
 	{
 		saved_game.write<float>(position);
 		saved_game.write<float>(radius);
@@ -154,7 +154,7 @@ public:
 	}
 
 	void sg_import(
-		ojk::SavedGameHelper& saved_game)
+		jkx::SavedGameHelper& saved_game)
 	{
 		saved_game.read<float>(position);
 		saved_game.read<float>(radius);
@@ -245,7 +245,7 @@ public:
 
 
 	void sg_export(
-		ojk::SavedGameHelper& saved_game) const
+		jkx::SavedGameHelper& saved_game) const
 	{
 		saved_game.write<int32_t>(clients);
 		saved_game.write<int32_t>(maxclients);
@@ -267,7 +267,7 @@ public:
 	}
 
 	void sg_import(
-		ojk::SavedGameHelper& saved_game)
+		jkx::SavedGameHelper& saved_game)
 	{
 		saved_game.read<int32_t>(clients);
 		saved_game.read<int32_t>(maxclients);

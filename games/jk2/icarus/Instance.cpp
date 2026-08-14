@@ -29,7 +29,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #include "instance.h"
 
 #include <assert.h>
-#include "qcommon/ojk_saved_game_helper.h"
+#include "qcommon/jkx_saved_game_helper.h"
 
 // Instance
 
@@ -304,7 +304,7 @@ int ICARUS_Instance::SaveSequenceIDTable( void )
 	//Save out the number of sequences to follow
 	int		numSequences = m_sequences.size();
 
-	ojk::SavedGameHelper saved_game(
+	jkx::SavedGameHelper saved_game(
 		m_interface->saved_game);
 
 	saved_game.write_chunk<int32_t>(
@@ -368,7 +368,7 @@ int ICARUS_Instance::SaveSequencers( void )
 	//Save out the number of sequences to follow
 	int		numSequencers = m_sequencers.size();
 
-	ojk::SavedGameHelper saved_game(
+	jkx::SavedGameHelper saved_game(
 		m_interface->saved_game);
 
 	saved_game.write_chunk<int32_t>(
@@ -395,7 +395,7 @@ int ICARUS_Instance::SaveSignals( void )
 {
 	int	numSignals = m_signals.size();
 
-	ojk::SavedGameHelper saved_game(
+	jkx::SavedGameHelper saved_game(
 		m_interface->saved_game);
 
 	saved_game.write_chunk<int32_t>(
@@ -439,7 +439,7 @@ int ICARUS_Instance::Save( void )
 	//Save out a ICARUS save block header with the ICARUS version
 	double	version = ICARUS_VERSION;
 
-	ojk::SavedGameHelper saved_game(
+	jkx::SavedGameHelper saved_game(
 		m_interface->saved_game);
 
 	saved_game.write_chunk<double>(
@@ -475,7 +475,7 @@ int ICARUS_Instance::LoadSignals( void )
 {
 	int numSignals = 0;
 
-	ojk::SavedGameHelper saved_game(
+	jkx::SavedGameHelper saved_game(
 		m_interface->saved_game);
 
 	saved_game.read_chunk<int32_t>(
@@ -538,7 +538,7 @@ int ICARUS_Instance::LoadSequences( void )
 	CSequence	*sequence;
 	int			numSequences = 0;
 
-	ojk::SavedGameHelper saved_game(
+	jkx::SavedGameHelper saved_game(
 		m_interface->saved_game);
 
 	//Get the number of sequences to read in
@@ -590,7 +590,7 @@ int ICARUS_Instance::LoadSequencers( void )
 	CSequencer	*sequencer;
 	int			numSequencers = 0;
 
-	ojk::SavedGameHelper saved_game(
+	jkx::SavedGameHelper saved_game(
 		m_interface->saved_game);
 
 	//Get the number of sequencers to load
@@ -626,7 +626,7 @@ int ICARUS_Instance::Load( void )
 	//Check to make sure we're at the ICARUS save block
 	double	version = 0.0;
 
-	ojk::SavedGameHelper saved_game(
+	jkx::SavedGameHelper saved_game(
 		m_interface->saved_game);
 
 	saved_game.read_chunk<double>(

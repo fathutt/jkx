@@ -60,7 +60,7 @@ surfaceInfo_t():
 
 
 	void sg_export(
-		ojk::SavedGameHelper& saved_game) const
+		jkx::SavedGameHelper& saved_game) const
 	{
 		saved_game.write<int32_t>(offFlags);
 		saved_game.write<int32_t>(surface);
@@ -71,7 +71,7 @@ surfaceInfo_t():
 	}
 
 	void sg_import(
-		ojk::SavedGameHelper& saved_game)
+		jkx::SavedGameHelper& saved_game)
 	{
 		saved_game.read<int32_t>(offFlags);
 		saved_game.read<int32_t>(surface);
@@ -214,7 +214,7 @@ boneInfo_t():
 
 
 	void sg_export(
-		ojk::SavedGameHelper& saved_game) const
+		jkx::SavedGameHelper& saved_game) const
 	{
 		saved_game.write<int32_t>(boneNumber);
 		saved_game.write<>(matrix);
@@ -290,7 +290,7 @@ boneInfo_t():
 	}
 
 	void sg_import(
-		ojk::SavedGameHelper& saved_game)
+		jkx::SavedGameHelper& saved_game)
 	{
 		saved_game.read<int32_t>(boneNumber);
 		saved_game.read<>(matrix);
@@ -387,7 +387,7 @@ struct boltInfo_t{
 
 
 	void sg_export(
-		ojk::SavedGameHelper& saved_game) const
+		jkx::SavedGameHelper& saved_game) const
 	{
 		saved_game.write<int32_t>(boneNumber);
 		saved_game.write<int32_t>(surfaceNumber);
@@ -396,7 +396,7 @@ struct boltInfo_t{
 	}
 
 	void sg_import(
-		ojk::SavedGameHelper& saved_game)
+		jkx::SavedGameHelper& saved_game)
 	{
 		saved_game.read<int32_t>(boneNumber);
 		saved_game.read<int32_t>(surfaceNumber);
@@ -521,7 +521,7 @@ public:
 
 
 	void sg_export(
-		ojk::SavedGameHelper& saved_game) const
+		jkx::SavedGameHelper& saved_game) const
 	{
 		saved_game.write<int32_t>(mModelindex);
 
@@ -549,7 +549,7 @@ public:
 	}
 
 	void sg_import(
-		ojk::SavedGameHelper& saved_game)
+		jkx::SavedGameHelper& saved_game)
 	{
 		saved_game.read<int32_t>(mModelindex);
 
@@ -728,13 +728,13 @@ public:
 
 
 	void sg_export(
-		ojk::SavedGameHelper& saved_game) const
+		jkx::SavedGameHelper& saved_game) const
 	{
 		saved_game.write<int32_t>(mItem);
 	}
 
 	void sg_import(
-		ojk::SavedGameHelper& saved_game)
+		jkx::SavedGameHelper& saved_game)
 	{
 		saved_game.read<int32_t>(mItem);
 	}
@@ -769,7 +769,7 @@ public:
 
 
 	void sg_export(
-		ojk::SavedGameHelper& saved_game) const
+		jkx::SavedGameHelper& saved_game) const
 	{
 		saved_game.write<float>(mDistance);
 		saved_game.write<int32_t>(mEntityNum);
@@ -786,7 +786,7 @@ public:
 	}
 
 	void sg_import(
-		ojk::SavedGameHelper& saved_game)
+		jkx::SavedGameHelper& saved_game)
 	{
 		saved_game.read<float>(mDistance);
 		saved_game.read<int32_t>(mEntityNum);

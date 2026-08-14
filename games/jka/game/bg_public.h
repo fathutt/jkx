@@ -461,7 +461,7 @@ public:
 
 
 	void sg_export(
-		ojk::SavedGameHelper& saved_game) const
+		jkx::SavedGameHelper& saved_game) const
 	{
 		saved_game.write<uint16_t>(firstFrame);
 		saved_game.write<uint16_t>(numFrames);
@@ -471,7 +471,7 @@ public:
 	}
 
 	void sg_import(
-		ojk::SavedGameHelper& saved_game)
+		jkx::SavedGameHelper& saved_game)
 	{
 		saved_game.read<uint16_t>(firstFrame);
 		saved_game.read<uint16_t>(numFrames);
@@ -543,7 +543,7 @@ typedef struct animevent_s
 
 
 	void sg_export(
-		ojk::SavedGameHelper& saved_game) const
+		jkx::SavedGameHelper& saved_game) const
 	{
 		saved_game.write<int32_t>(eventType);
 		saved_game.write<int16_t>(modelOnly);
@@ -554,7 +554,7 @@ typedef struct animevent_s
 	}
 
 	void sg_import(
-		ojk::SavedGameHelper& saved_game)
+		jkx::SavedGameHelper& saved_game)
 	{
 		saved_game.read<int32_t>(eventType);
 		saved_game.read<int16_t>(modelOnly);

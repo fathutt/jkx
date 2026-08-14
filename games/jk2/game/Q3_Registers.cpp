@@ -24,7 +24,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 #include "g_local.h"
 #include "Q3_Registers.h"
-#include "qcommon/ojk_saved_game_helper.h"
+#include "qcommon/jkx_saved_game_helper.h"
 
 extern	void	Q3_DebugPrint( int level, const char *format, ... );
 
@@ -290,7 +290,7 @@ void Q3_VariableSaveFloats( varFloat_m &fmap )
 {
 	int numFloats = fmap.size();
 
-	ojk::SavedGameHelper saved_game(
+	jkx::SavedGameHelper saved_game(
 		::gi.saved_game);
 
 	saved_game.write_chunk<int32_t>(
@@ -330,7 +330,7 @@ void Q3_VariableSaveStrings( varString_m &smap )
 {
 	int numStrings = smap.size();
 
-	ojk::SavedGameHelper saved_game(
+	jkx::SavedGameHelper saved_game(
 		::gi.saved_game);
 
 	saved_game.write_chunk<int32_t>(
@@ -393,7 +393,7 @@ void Q3_VariableLoadFloats( varFloat_m &fmap )
 	int		numFloats = 0;
 	char	tempBuffer[1024];
 
-	ojk::SavedGameHelper saved_game(
+	jkx::SavedGameHelper saved_game(
 		::gi.saved_game);
 
 	saved_game.read_chunk<int32_t>(
@@ -443,7 +443,7 @@ void Q3_VariableLoadStrings( int type, varString_m &fmap )
 	char	tempBuffer[1024];
 	char	tempBuffer2[1024];
 
-	ojk::SavedGameHelper saved_game(
+	jkx::SavedGameHelper saved_game(
 		::gi.saved_game);
 
 	saved_game.read_chunk<int32_t>(

@@ -3,15 +3,15 @@
 //
 
 
-#ifndef OJK_SAVED_GAME_CLASS_ARCHIVERS_INCLUDED
-#define OJK_SAVED_GAME_CLASS_ARCHIVERS_INCLUDED
+#ifndef JKX_SAVED_GAME_CLASS_ARCHIVERS_INCLUDED
+#define JKX_SAVED_GAME_CLASS_ARCHIVERS_INCLUDED
 
 
 #include "qcommon/q_math.h"
-#include "ojk_saved_game_helper_fwd.h"
+#include "jkx_saved_game_helper_fwd.h"
 
 
-namespace ojk
+namespace jkx
 {
 
 
@@ -45,7 +45,7 @@ public:
 };
 
 
-} // ojk
+} // jkx
 
 
-#endif // OJK_SAVED_GAME_CLASS_ARCHIVERS_INCLUDED
+#endif // JKX_SAVED_GAME_CLASS_ARCHIVERS_INCLUDED

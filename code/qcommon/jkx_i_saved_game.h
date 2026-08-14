@@ -3,14 +3,14 @@
 //
 
 
-#ifndef OJK_I_SAVED_GAME_INCLUDED
-#define OJK_I_SAVED_GAME_INCLUDED
+#ifndef JKX_I_SAVED_GAME_INCLUDED
+#define JKX_I_SAVED_GAME_INCLUDED
 
 
 #include <cstdint>
 
 
-namespace ojk
+namespace jkx
 {
 
 
@@ -100,7 +100,7 @@ public:
 }; // ISavedGame
 
 
-} // ojk
+} // jkx
 
 
-#endif // OJK_I_SAVED_GAME_INCLUDED
+#endif // JKX_I_SAVED_GAME_INCLUDED

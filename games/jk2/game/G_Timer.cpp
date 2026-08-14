@@ -23,7 +23,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 #include "g_local.h"
 #include "Rufl/hstring.h"
-#include "qcommon/ojk_saved_game_helper.h"
+#include "qcommon/jkx_saved_game_helper.h"
 
 #define MAX_GTIMERS	16384
 
@@ -165,7 +165,7 @@ void TIMER_Save( void )
 	int			j;
 	gentity_t	*ent;
 
-	ojk::SavedGameHelper saved_game(
+	jkx::SavedGameHelper saved_game(
 		::gi.saved_game);
 
 	for ( j = 0, ent = &g_entities[0]; j < MAX_GENTITIES; j++, ent++ )
@@ -227,7 +227,7 @@ void TIMER_Load( void )
 	int j;
 	gentity_t	*ent;
 
-	ojk::SavedGameHelper saved_game(
+	jkx::SavedGameHelper saved_game(
 		::gi.saved_game);
 
 	for ( j = 0, ent = &g_entities[0]; j < MAX_GENTITIES; j++, ent++ )

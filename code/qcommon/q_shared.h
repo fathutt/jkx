@@ -186,7 +186,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #endif
 
 #include "qcommon/q_platform.h"
-#include "ojk_saved_game_helper_fwd.h"
+#include "jkx_saved_game_helper_fwd.h"
 
 
 // ================================================================
@@ -598,7 +598,7 @@ Ghoul2 Insert End
 
 
 	void sg_export(
-		ojk::SavedGameHelper& saved_game) const
+		jkx::SavedGameHelper& saved_game) const
 	{
 		saved_game.write<int8_t>(allsolid);
 		saved_game.write<int8_t>(startsolid);
@@ -612,7 +612,7 @@ Ghoul2 Insert End
 	}
 
 	void sg_import(
-		ojk::SavedGameHelper& saved_game)
+		jkx::SavedGameHelper& saved_game)
 	{
 		saved_game.read<int8_t>(allsolid);
 		saved_game.read<int8_t>(startsolid);
@@ -895,7 +895,7 @@ typedef struct saberTrail_s
 
 
 	void sg_export(
-		ojk::SavedGameHelper& saved_game) const
+		jkx::SavedGameHelper& saved_game) const
 	{
 		saved_game.write<int32_t>(inAction);
 		saved_game.write<int32_t>(duration);
@@ -908,7 +908,7 @@ typedef struct saberTrail_s
 	}
 
 	void sg_import(
-		ojk::SavedGameHelper& saved_game)
+		jkx::SavedGameHelper& saved_game)
 	{
 		saved_game.read<int32_t>(inAction);
 		saved_game.read<int32_t>(duration);
@@ -950,7 +950,7 @@ typedef struct bladeInfo_s
 
 
 	void sg_export(
-		ojk::SavedGameHelper& saved_game) const
+		jkx::SavedGameHelper& saved_game) const
 	{
 		saved_game.write<int32_t>(active);
 		saved_game.write<int32_t>(color);
@@ -966,7 +966,7 @@ typedef struct bladeInfo_s
 	}
 
 	void sg_import(
-		ojk::SavedGameHelper& saved_game)
+		jkx::SavedGameHelper& saved_game)
 	{
 		saved_game.read<int32_t>(active);
 		saved_game.read<int32_t>(color);
@@ -1271,7 +1271,7 @@ typedef struct saberInfo_s
 
 
 	void sg_export(
-		ojk::SavedGameHelper& saved_game) const
+		jkx::SavedGameHelper& saved_game) const
 	{
 		saved_game.write<int32_t>(name);
 		saved_game.write<int32_t>(fullName);
@@ -1352,7 +1352,7 @@ typedef struct saberInfo_s
 	}
 
 	void sg_import(
-		ojk::SavedGameHelper& saved_game)
+		jkx::SavedGameHelper& saved_game)
 	{
 		saved_game.read<int32_t>(name);
 		saved_game.read<int32_t>(fullName);
@@ -1553,7 +1553,7 @@ public:
 
 
 	void sg_export(
-		ojk::SavedGameHelper& saved_game) const
+		jkx::SavedGameHelper& saved_game) const
 	{
 		saved_game.write<int32_t>(name);
 		saved_game.write<int32_t>(fullName);
@@ -1585,7 +1585,7 @@ public:
 	}
 
 	void sg_import(
-		ojk::SavedGameHelper& saved_game)
+		jkx::SavedGameHelper& saved_game)
 	{
 		saved_game.read<int32_t>(name);
 		saved_game.read<int32_t>(fullName);
@@ -1962,7 +1962,7 @@ public:
 
 
 	void sg_export(
-		ojk::SavedGameHelper& saved_game) const
+		jkx::SavedGameHelper& saved_game) const
 	{
 		saved_game.write<int32_t>(commandTime);
 		saved_game.write<int32_t>(pm_type);
@@ -2131,7 +2131,7 @@ public:
 	}
 
 	void sg_import(
-		ojk::SavedGameHelper& saved_game)
+		jkx::SavedGameHelper& saved_game)
 	{
 		saved_game.read<int32_t>(commandTime);
 		saved_game.read<int32_t>(pm_type);
@@ -2357,7 +2357,7 @@ typedef struct usercmd_s {
 
 
 	void sg_export(
-		ojk::SavedGameHelper& saved_game) const
+		jkx::SavedGameHelper& saved_game) const
 	{
 		saved_game.write<int32_t>(serverTime);
 		saved_game.write<int32_t>(buttons);
@@ -2371,7 +2371,7 @@ typedef struct usercmd_s {
 	}
 
 	void sg_import(
-		ojk::SavedGameHelper& saved_game)
+		jkx::SavedGameHelper& saved_game)
 	{
 		saved_game.read<int32_t>(serverTime);
 		saved_game.read<int32_t>(buttons);
@@ -2409,7 +2409,7 @@ typedef struct trajectory_s {// !!!!!!!!!!! LOADSAVE-affecting struct !!!!!!!!!!
 
 
 	void sg_export(
-		ojk::SavedGameHelper& saved_game) const
+		jkx::SavedGameHelper& saved_game) const
 	{
 		saved_game.write<int32_t>(trType);
 		saved_game.write<int32_t>(trTime);
@@ -2419,7 +2419,7 @@ typedef struct trajectory_s {// !!!!!!!!!!! LOADSAVE-affecting struct !!!!!!!!!!
 	}
 
 	void sg_import(
-		ojk::SavedGameHelper& saved_game)
+		jkx::SavedGameHelper& saved_game)
 	{
 		saved_game.read<int32_t>(trType);
 		saved_game.read<int32_t>(trTime);
@@ -2515,7 +2515,7 @@ Ghoul2 Insert End
 
 
 	void sg_export(
-		ojk::SavedGameHelper& saved_game) const
+		jkx::SavedGameHelper& saved_game) const
 	{
 		saved_game.write<int32_t>(number);
 		saved_game.write<int32_t>(eType);
@@ -2571,7 +2571,7 @@ Ghoul2 Insert End
 	}
 
 	void sg_import(
-		ojk::SavedGameHelper& saved_game)
+		jkx::SavedGameHelper& saved_game)
 	{
 		saved_game.read<int32_t>(number);
 		saved_game.read<int32_t>(eType);
