@@ -105,8 +105,27 @@ qboolean CModelCacheManager::LoadFile( const char *pFileName, void **ppFileBuffe
 	//
 	// A malformed model is treated as a missing one, which every caller already
 	// handles - that is what a file that is not there gives them.
+	//
+	// The record sizes the checker counts in are spelled out there so that it
+	// depends on nothing and can be handed malformed files by a test. Spelled
+	// out is not the same as right, so they are tied to the real structures
+	// here, where mdx_format.h is in scope. Two of the BSP element sizes were
+	// guessed wrong when the same thing was done for cm_load.cpp, and only the
+	// measurement caught it.
+	static_assert( sizeof( mdxmSurface_t ) == 4 * 10, "mdxmSurface_t" );
+	static_assert( sizeof( mdxmVertex_t ) == 32, "mdxmVertex_t" );
+	static_assert( sizeof( mdxmVertexTexCoord_t ) == 8, "mdxmVertexTexCoord_t" );
+	static_assert( sizeof( mdxmTriangle_t ) == 12, "mdxmTriangle_t" );
+	static_assert( sizeof( mdxmLOD_t ) == 4, "mdxmLOD_t" );
+	static_assert( sizeof( mdxmLODSurfOffset_t ) == 4, "mdxmLODSurfOffset_t" );
+	static_assert( offsetof( mdxmSurfHierarchy_t, childIndexes ) == 144,
+		"mdxmSurfHierarchy_t up to childIndexes" );
+	static_assert( offsetof( mdxaSkel_t, children ) == 172,
+		"mdxaSkel_t up to children" );
+	static_assert( sizeof( mdxaCompQuatBone_t ) == 14, "mdxaCompQuatBone_t" );
+
 	{
-		const char *bad = MDX_CheckHeader( (const unsigned char *)*ppFileBuffer, (size_t)len );
+		const char *bad = MDX_CheckModel( (const unsigned char *)*ppFileBuffer, (size_t)len );
 
 		if ( bad ) {
 			CL_RefPrintf( PRINT_ALL, S_COLOR_YELLOW "%s: %s\n", path, bad );

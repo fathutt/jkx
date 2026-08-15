@@ -63,3 +63,15 @@ Foundation.
 //
 // Nothing is written to data.
 const char *MDX_CheckHeader( const unsigned char *data, size_t len );
+
+// The same, and then the second pass: the surface hierarchy and every LOD and
+// surface of an MDXM, the bone table and every frame index of an MDXA. Where
+// the header check asks whether the top-level arrays are inside the file, this
+// asks whether the loader can walk what is in them - both formats nest, and
+// every level down carries offsets of its own that nothing compared against
+// anything.
+//
+// This is what a caller loading a model wants. MDX_CheckHeader is left public
+// because the two are tested separately: the shallow pass has to be able to
+// stand on its own, since the deep one assumes what it established.
+const char *MDX_CheckModel( const unsigned char *data, size_t len );

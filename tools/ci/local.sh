@@ -221,6 +221,17 @@ stage_tests_cxx() {
         "$ROOT/code/rd-common/mdx_check.cpp" || return 1
     "$out/mdx_header_test" || return 1
 
+    # The second pass over a model file: every LOD, every surface, every bone.
+    # The header test above covers the top-level arrays; this covers what is
+    # inside them, which is where both formats nest and where every offset is a
+    # number out of a stranger's pk3.
+    c++ -O1 -g -std=c++17 -Wall -Wextra -Werror \
+        -fsanitize=address,undefined -fno-sanitize-recover=all \
+        -o "$out/mdx_deep_test" \
+        "$ROOT/tests/mdx_deep_test.cpp" \
+        "$ROOT/code/rd-common/mdx_check.cpp" || return 1
+    "$out/mdx_deep_test" || return 1
+
     # The savegame's run-length coding, round-tripped and then attacked. A .sav
     # is a file players send each other and every chunk of one goes through it.
     c++ -O1 -g -std=c++17 -Wall -Wextra -Werror \

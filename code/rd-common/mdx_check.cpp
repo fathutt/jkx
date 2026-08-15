@@ -43,6 +43,24 @@ Foundation.
 #define MDX_MDXM_LODOFS		4		// one int per LOD in mdxmLODInfo_t
 #define MDX_MDXM_HIEROFS	4		// one int per surface in mdxmHierarchyOffsets_t
 
+// The second pass needs the sizes of the records the first pass only counted.
+#define MDX_MDXM_LOD		4		// mdxmLOD_t: one offset to the next LOD
+#define MDX_MDXM_SURF		( 4 * 10 )	// mdxmSurface_t, ten ints
+#define MDX_MDXM_VERT		32		// mdxmVertex_t, kept at 32 for cache lines
+#define MDX_MDXM_TEXCOORD	8		// mdxmVertexTexCoord_t, two floats
+#define MDX_MDXM_TRI		12		// mdxmTriangle_t, three indices
+// mdxmSurfHierarchy_t up to childIndexes: name, flags, shader, shaderIndex,
+// parentIndex, numChildren.
+#define MDX_MDXM_HIER		( MDX_MAX_QPATH + 4 + MDX_MAX_QPATH + 4 + 4 + 4 )
+// mdxaSkel_t up to children: name, flags, parent, two 3x4 matrices, numChildren.
+#define MDX_MDXA_SKEL		( MDX_MAX_QPATH + 4 + 4 + 48 + 48 + 4 )
+
+// The loader's own ceilings, from qfiles.h. R_LoadMDXM refuses a surface past
+// them, so a checker that allowed more would be answering a different question
+// than the code it protects.
+#define MDX_MAX_VERTEXES	1000
+#define MDX_MAX_INDEXES		( 6 * MDX_MAX_VERTEXES )
+
 
 static char	mdxMessage[192];
 
@@ -256,5 +274,302 @@ const char *MDX_CheckHeader( const unsigned char *data, size_t len )
 	}
 
 	// Not a model this knows. Deciding what that means is the caller's job.
+	return NULL;
+}
+
+
+/*
+=================================================================
+
+The second pass.
+
+The first pass asks whether the top-level arrays are inside the file. That is
+not the same question as whether the loader can walk them, because both formats
+nest: an MDXM is a list of LODs, each of which is a list of surfaces, each of
+which carries three more offsets of its own; an MDXA is a table of bone
+offsets and a frame array whose entries are indices into a pool. Every one of
+those is a number out of the file used as a position, and none was compared
+against anything.
+
+Kept separate from the first pass on purpose. Until the top-level arrays are
+known to be inside the file there is nothing safe to walk here, so this runs
+second and assumes what the first established - in particular that ofsEnd is
+inside the buffer, which is why everything below bounds against ofsEnd rather
+than against len.
+
+=================================================================
+*/
+
+
+static const char *MDX_ComplainAt( const char *what, int which )
+{
+	snprintf( mdxMessage, sizeof( mdxMessage ),
+		"the %s of %i is outside the file", what, which );
+	return mdxMessage;
+}
+
+
+// One surface of one LOD. 'at' is where the surface starts, 'room' is what is
+// left of the file from there; the surface's own offsets are relative to it.
+static const char *MDX_CheckMDXMSurface( const unsigned char *data, int at,
+	int room, int numSurfaces, int numBones, int *surfaceBytes )
+{
+	int	thisSurfaceIndex, numVerts, ofsVerts, numTriangles, ofsTriangles;
+	int	numBoneReferences, ofsBoneReferences, ofsEnd, i;
+
+	if ( room < MDX_MDXM_SURF ) {
+		return "a surface that does not have room for its own header";
+	}
+
+	thisSurfaceIndex	= MDX_ReadLong( data + at + 4 );
+	numVerts			= MDX_ReadLong( data + at + 12 );
+	ofsVerts			= MDX_ReadLong( data + at + 16 );
+	numTriangles		= MDX_ReadLong( data + at + 20 );
+	ofsTriangles		= MDX_ReadLong( data + at + 24 );
+	numBoneReferences	= MDX_ReadLong( data + at + 28 );
+	ofsBoneReferences	= MDX_ReadLong( data + at + 32 );
+	ofsEnd				= MDX_ReadLong( data + at + 36 );
+
+	if ( thisSurfaceIndex < 0 || thisSurfaceIndex >= numSurfaces ) {
+		return "a surface that says it is not one of this model's surfaces";
+	}
+
+	// The loader's ceilings, checked here rather than there because there they
+	// are checked after the offsets above have already been used.
+	if ( numVerts < 0 || numVerts > MDX_MAX_VERTEXES ) {
+		return "a surface with more vertices than the renderer can hold";
+	}
+	if ( numTriangles < 0 || numTriangles > MDX_MAX_INDEXES / 3 ) {
+		return "a surface with more triangles than the renderer can hold";
+	}
+	if ( numBoneReferences < 0 || numBoneReferences > numBones ) {
+		return "a surface referring to more bones than the skeleton has";
+	}
+
+	if ( ofsEnd < MDX_MDXM_SURF || ofsEnd > room ) {
+		return "a surface that ends outside the file";
+	}
+
+	// Everything a surface points at is inside the surface, so ofsEnd is the
+	// limit rather than the file. The texture coordinates are a second array
+	// immediately after the vertices and have no offset of their own - the
+	// loader finds them at &verts[numVerts], so their room has to be counted
+	// here or a file can hide numVerts * 8 bytes past the end of the block.
+	if ( !MDX_Fits( ofsVerts, (long long)numVerts * ( MDX_MDXM_VERT + MDX_MDXM_TEXCOORD ),
+			(size_t)ofsEnd ) ) {
+		return "a surface whose vertices run past its end";
+	}
+	if ( !MDX_Fits( ofsTriangles, (long long)numTriangles * MDX_MDXM_TRI, (size_t)ofsEnd ) ) {
+		return "a surface whose triangles run past its end";
+	}
+	if ( !MDX_Fits( ofsBoneReferences, (long long)numBoneReferences * 4, (size_t)ofsEnd ) ) {
+		return "a surface whose bone references run past its end";
+	}
+
+	// The bone references are indices into the skeleton, and G2_TransformGhoulBones
+	// uses them to index the transformed bone array without looking.
+	for ( i = 0; i < numBoneReferences; i++ ) {
+		const int bone = MDX_ReadLong( data + at + ofsBoneReferences + i * 4 );
+
+		if ( bone < 0 || bone >= numBones ) {
+			return "a surface referring to a bone the skeleton does not have";
+		}
+	}
+
+	*surfaceBytes = ofsEnd;
+	return NULL;
+}
+
+
+static const char *MDX_CheckMDXMDeep( const unsigned char *data )
+{
+	const int	numBones			= MDX_ReadLong( data + 140 );
+	const int	numLODs				= MDX_ReadLong( data + 144 );
+	const int	ofsLODs				= MDX_ReadLong( data + 148 );
+	const int	numSurfaces			= MDX_ReadLong( data + 152 );
+	const int	ofsSurfHierarchy	= MDX_ReadLong( data + 156 );
+	const int	ofsEnd				= MDX_ReadLong( data + 160 );
+	int			i, l, at;
+
+	// The surface hierarchy. Entries are variable sized and walked by adding
+	// their own numChildren, so a single wrong count moves every entry after it.
+	at = ofsSurfHierarchy;
+	for ( i = 0; i < numSurfaces; i++ ) {
+		int	numChildren, parentIndex, j;
+
+		if ( !MDX_Fits( at, MDX_MDXM_HIER, (size_t)ofsEnd ) ) {
+			return MDX_ComplainAt( "surface hierarchy entry", i );
+		}
+
+		parentIndex	= MDX_ReadLong( data + at + MDX_MAX_QPATH + 4 + MDX_MAX_QPATH + 4 );
+		numChildren	= MDX_ReadLong( data + at + MDX_MAX_QPATH + 4 + MDX_MAX_QPATH + 8 );
+
+		if ( numChildren < 0 || numChildren > numSurfaces ) {
+			return "a surface with an impossible number of children";
+		}
+		if ( parentIndex < -1 || parentIndex >= numSurfaces ) {
+			return "a surface whose parent is not one of this model's surfaces";
+		}
+		if ( !MDX_Fits( at, (long long)MDX_MDXM_HIER + (long long)numChildren * 4,
+				(size_t)ofsEnd ) ) {
+			return MDX_ComplainAt( "children of surface", i );
+		}
+		for ( j = 0; j < numChildren; j++ ) {
+			const int child = MDX_ReadLong( data + at + MDX_MDXM_HIER + j * 4 );
+
+			if ( child < 0 || child >= numSurfaces ) {
+				return "a surface whose child is not one of this model's surfaces";
+			}
+		}
+
+		at += MDX_MDXM_HIER + numChildren * 4;
+	}
+
+	// The LODs. Each carries the offset to the next, so the walk is the file's
+	// arithmetic rather than ours, and a zero would loop for ever.
+	at = ofsLODs;
+	for ( l = 0; l < numLODs; l++ ) {
+		int	lodEnd, surfAt;
+
+		if ( !MDX_Fits( at, MDX_MDXM_LOD, (size_t)ofsEnd ) ) {
+			return MDX_ComplainAt( "LOD", l );
+		}
+
+		lodEnd = MDX_ReadLong( data + at );
+
+		// The surfaces of a LOD start after its header and after the table of
+		// per-surface offsets, which is what the loader does.
+		surfAt = at + MDX_MDXM_LOD + numSurfaces * MDX_MDXM_LODOFS;
+
+		if ( lodEnd <= MDX_MDXM_LOD || !MDX_Fits( at, lodEnd, (size_t)ofsEnd ) ) {
+			return MDX_ComplainAt( "end of LOD", l );
+		}
+		if ( surfAt > at + lodEnd ) {
+			return MDX_ComplainAt( "surface table of LOD", l );
+		}
+
+		for ( i = 0; i < numSurfaces; i++ ) {
+			int			bytes = 0;
+			const char	*bad = MDX_CheckMDXMSurface( data, surfAt,
+							at + lodEnd - surfAt, numSurfaces, numBones, &bytes );
+
+			if ( bad ) {
+				return bad;
+			}
+			surfAt += bytes;
+		}
+
+		at += lodEnd;
+	}
+
+	return NULL;
+}
+
+
+static const char *MDX_CheckMDXADeep( const unsigned char *data )
+{
+	const int	numFrames		= MDX_ReadLong( data + 76 );
+	const int	ofsFrames		= MDX_ReadLong( data + 80 );
+	const int	numBones		= MDX_ReadLong( data + 84 );
+	const int	ofsCompBonePool	= MDX_ReadLong( data + 88 );
+	const int	ofsSkel			= MDX_ReadLong( data + 92 );
+	const int	ofsEnd			= MDX_ReadLong( data + 96 );
+	long long	poolBytes;
+	long long	poolEntries;
+	long long	i;
+	int			b;
+
+	// The bone table: one offset per bone, relative to ofsSkel, each pointing
+	// at a variable-sized mdxaSkel_t.
+	for ( b = 0; b < numBones; b++ ) {
+		int	at, numChildren, parent, j;
+
+		at = MDX_ReadLong( data + ofsSkel + b * MDX_MDXA_SKELOFS );
+		if ( at < 0 ) {
+			return MDX_ComplainAt( "bone", b );
+		}
+		at += ofsSkel;
+
+		if ( !MDX_Fits( at, MDX_MDXA_SKEL, (size_t)ofsEnd ) ) {
+			return MDX_ComplainAt( "bone", b );
+		}
+
+		parent		= MDX_ReadLong( data + at + MDX_MAX_QPATH + 4 );
+		numChildren	= MDX_ReadLong( data + at + MDX_MDXA_SKEL - 4 );
+
+		if ( parent < -1 || parent >= numBones ) {
+			return "a bone whose parent is not one of this skeleton's bones";
+		}
+		if ( numChildren < 0 || numChildren > numBones ) {
+			return "a bone with an impossible number of children";
+		}
+		if ( !MDX_Fits( at, (long long)MDX_MDXA_SKEL + (long long)numChildren * 4,
+				(size_t)ofsEnd ) ) {
+			return MDX_ComplainAt( "children of bone", b );
+		}
+		for ( j = 0; j < numChildren; j++ ) {
+			const int child = MDX_ReadLong( data + at + MDX_MDXA_SKEL + j * 4 );
+
+			if ( child < 0 || child >= numBones ) {
+				return "a bone whose child is not one of this skeleton's bones";
+			}
+		}
+	}
+
+	// The frame array is three-byte indices into the compressed bone pool, and
+	// the pool has no count of its own - it runs from ofsCompBonePool to the
+	// end of the file. G2_TimingModel reads pool[index] every frame for every
+	// bone without looking at either end, so an index one too large is a read
+	// past the model on every frame of an animation that plays.
+	poolBytes = (long long)ofsEnd - ofsCompBonePool;
+	if ( poolBytes < 0 ) {
+		return MDX_Complain( "bone pool", "skeleton" );
+	}
+	poolEntries = poolBytes / MDX_MDXA_COMPBONE;
+
+	for ( i = 0; i < (long long)numFrames * numBones; i++ ) {
+		const unsigned char	*at = data + ofsFrames + i * 3;
+		const long long		index = (long long)at[0]
+			| ( (long long)at[1] << 8 )
+			| ( (long long)at[2] << 16 );
+
+		if ( index >= poolEntries ) {
+			snprintf( mdxMessage, sizeof( mdxMessage ),
+				"a frame asking for compressed bone %lld of %lld",
+				index, poolEntries );
+			return mdxMessage;
+		}
+	}
+
+	return NULL;
+}
+
+
+const char *MDX_CheckModel( const unsigned char *data, size_t len )
+{
+	const char	*bad = MDX_CheckHeader( data, len );
+	int			ident;
+
+	if ( bad ) {
+		return bad;
+	}
+	if ( !data || len < 4 ) {
+		return NULL;
+	}
+
+	ident = MDX_ReadLong( data );
+
+	if ( ident == MDX_MDXM_IDENT ) {
+		return MDX_CheckMDXMDeep( data );
+	}
+	if ( ident == MDX_MDXA_IDENT ) {
+		return MDX_CheckMDXADeep( data );
+	}
+
+	// MD3's surfaces are a second pass of their own and nothing here has needed
+	// one yet: the surfaces are walked by R_LoadMD3 through their own ofsEnd,
+	// exactly as MDXM's are, and that walk deserves the same treatment. Left
+	// undone rather than half done, and said out loud so the next person does
+	// not read the absence as a decision that it is safe.
 	return NULL;
 }
