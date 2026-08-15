@@ -9,6 +9,11 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Action versions are majors, not shas, and they are bumped when the runner says
+# so. The runner started warning that checkout and upload-artifact still target
+# Node 20 and were being forced onto Node 24; the fix is the newer majors, which
+# declare node24 themselves. actions/cache was not named and stays where it is.
+
 env:
   # sccache stores its objects in the Actions cache rather than on the runner,
   # which is what makes it survive from one run to the next.
@@ -28,7 +33,7 @@ jobs:
     name: policy (ascii / layering / format)
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Rule 1 - code is Latin-only
         run: python3 tools/ci/check_ascii.py
@@ -111,7 +116,7 @@ jobs:
           - os: windows-2022
             config: Release
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install dependencies (Linux)
         if: runner.os == 'Linux'
@@ -210,7 +215,7 @@ jobs:
       # Note that "path" is a block scalar: every line in it is a pattern, and
       # a line starting with "#" is a pattern too, not a comment. Which is why
       # this paragraph is up here.
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: matrix.config == 'Release'
         with:
           name: jkx-${{ runner.os }}
@@ -235,7 +240,7 @@ jobs:
     name: unit tests (asan + ubsan)
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Install dependencies
         run: |
           sudo apt-get update -qq
@@ -299,7 +304,7 @@ jobs:
     name: sanitizers (asan + ubsan)
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Install dependencies
         run: |
           sudo apt-get update -qq
@@ -335,7 +340,7 @@ jobs:
       VK_ICD_FILENAMES: /usr/share/vulkan/icd.d/lvp_icd.json
       VK_LOADER_LAYERS_ENABLE: VK_LAYER_KHRONOS_validation
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Install Vulkan software stack
         run: |
           sudo apt-get update -qq
@@ -370,7 +375,7 @@ jobs:
       # rather than argued about.
       - name: Keep the frame
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: smoke-frame
           path: jkx_smoke.tga

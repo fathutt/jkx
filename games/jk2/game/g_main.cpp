@@ -585,7 +585,12 @@ void G_InitCvars( void ) {
 	g_ICARUSDebug = gi.cvar( "g_ICARUSDebug", "1", CVAR_CHEAT );
 	g_timescale = gi.cvar( "timescale", "1", 0 );
 
-	g_subtitles = gi.cvar( "g_subtitles", "2", CVAR_ARCHIVE );
+	// Off, as it is in Jedi Academy. 2 shows the talking-head text and the
+	// cinematic text, which is a subtitle track running over dialogue nobody
+	// asked to have subtitled - and the option is in the menu for anyone who
+	// wants it. Same cvar, same meaning, and the two games disagreed about it;
+	// tools/ci/check_cvars.py now refuses that shape.
+	g_subtitles = gi.cvar( "g_subtitles", "0", CVAR_ARCHIVE );
 	com_buildScript = gi.cvar ("com_buildScript", "0", 0);	// capital S, as the engine and the renderer register it
 
 	g_saberAutoBlocking = gi.cvar( "g_saberAutoBlocking", "1", CVAR_ARCHIVE|CVAR_CHEAT );//must press +block button to do any blocking

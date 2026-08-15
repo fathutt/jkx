@@ -63,7 +63,7 @@ jobs:
     name: shaders.pak
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install glslc
         run: |
@@ -76,7 +76,7 @@ jobs:
       - name: Pack
         run: python3 tools/shadergen/shadergen.py pack --spv-dir spv --out shaders.pak
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: shaders-pak
           path: shaders.pak
@@ -104,7 +104,7 @@ jobs:
             config: Release
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           path: jkx
 
@@ -204,7 +204,7 @@ jobs:
         working-directory: build
         run: cmake --install . --config ${{ matrix.config }}
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           name: shaders-pak
           path: pak
@@ -266,7 +266,7 @@ jobs:
           find "$tree" -maxdepth 2 -type f | sort
           echo "PACKAGE_DIR=$tree" >> "$GITHUB_ENV"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: jkx-engine-${{ matrix.name }}${{ inputs.trace && '-trace' || '' }}
           path: ${{ env.PACKAGE_DIR }}
