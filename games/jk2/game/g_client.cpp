@@ -797,10 +797,17 @@ void G_SetSkin( gentity_t *ent, const char *modelName, const char *customSkin )
 	{
 		// put it in the config strings
 		// and set the ghoul2 model to use it
-		// The handle, not the configstring index - see G_SetG2PlayerModel in
-		// the Academy gamecode for the measurement behind this.
-		G_SkinIndex( skinName );
-		gi.G2API_SetSkin( &ent->ghoul2[ent->playerModel], skin, skin );
+		//
+		// The configstring index rather than the handle. The handle is the more
+		// correct number and it is the one that does not survive: this runs on
+		// the server, and for an NPC that is inside the window where tr has been
+		// wiped. See the long note in G_SetG2PlayerModel in the Academy
+		// gamecode.
+		// Two different numbers on purpose, and that is the shape the file
+		// arrived with: mCustomSkin is the configstring index, renderSkin is
+		// the renderer's handle and is used only to switch surfaces on and off
+		// from the skin file. Passing the handle for both is what broke Jan.
+		gi.G2API_SetSkin( &ent->ghoul2[ent->playerModel], G_SkinIndex( skinName ), skin );
 	}
 }
 
@@ -1314,7 +1321,7 @@ void G_SetG2PlayerModel( gentity_t * const ent, const char *modelName, const cha
 	// surface in a retail .glm has an empty shader name, so the skin above is
 	// where all of this model's textures come from.
 	ent->playerModel = gi.G2API_InitGhoul2Model( ent->ghoul2, va("models/players/%s/model.glm", modelName),
-		G_ModelIndex( va("models/players/%s/model.glm", modelName) ), ( G_SkinIndex( skinName ), skin ), NULL_HANDLE, 0, 0 );
+		G_ModelIndex( va("models/players/%s/model.glm", modelName) ), G_SkinIndex( skinName ), NULL_HANDLE, 0, 0 );
 	if (ent->playerModel == -1)
 	{//try the stormtrooper as a default
 		modelName = "stormtrooper";

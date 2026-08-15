@@ -250,6 +250,23 @@ qhandle_t RE_RegisterSkin( const char *name ) {
 	{//single skin
 		hSkin = RE_RegisterIndividualSkin(name, hSkin);
 	}
+
+	// A skin that did not register, said out loud, with the name of the file.
+	//
+	// This used to be silent, and the silence cost a round trip through the
+	// person playing: a character came up in black and white, and the only way
+	// to find out which file had not arrived was to reason about it from a
+	// screenshot. A skin failing is a fact the engine already has.
+	//
+	// Not a warning colour and not fatal, because it happens legitimately - the
+	// gamecode asks for a three-part skin first and falls back when there is
+	// none, so a miss here is often the question being asked rather than an
+	// answer being wrong.
+	if ( !hSkin ) {
+		CL_RefPrintf( PRINT_DEVELOPER, "RE_RegisterSkin: %s did not register; "
+			"a model with this skin has no textures of its own to fall back on\n", name );
+	}
+
 	return(hSkin);
 }
 

@@ -881,9 +881,16 @@ static void G_SetSkin( gentity_t *ent )
 	{//what if this returns 0 because *one* part of a multi-skin didn't load?
 		// put it in the config strings
 		// and set the ghoul2 model to use it
-		// The handle, not the configstring index - see G_SetG2PlayerModel.
-		G_SkinIndex( skinName );
-		gi.G2API_SetSkin( &ent->ghoul2[ent->playerModel], skin, skin );
+		//
+		// The configstring index rather than the handle, and the handle is used
+		// only to answer "did this register at all" - see the long note in
+		// G_SetG2PlayerModel for why the more correct number is the one that
+		// does not survive.
+		// Two different numbers on purpose, and that is the shape the file
+		// arrived with: mCustomSkin is the configstring index, renderSkin is
+		// the renderer's handle and is used only to switch surfaces on and off
+		// from the skin file. Passing the handle for both is what broke Jan.
+		gi.G2API_SetSkin( &ent->ghoul2[ent->playerModel], G_SkinIndex( skinName ), skin );
 	}
 
 	//color tinting
@@ -1803,8 +1810,7 @@ void G_SetG2PlayerModel( gentity_t * const ent, const char *modelName, const cha
 		// This will register the model and other assets.
 		Vehicle_t *pVeh = ent->m_pVehicle;
 		pVeh->m_pVehicleInfo->RegisterAssets( pVeh );
-		G_SkinIndex( skinName );
-		ent->playerModel = gi.G2API_InitGhoul2Model( ent->ghoul2, va("models/players/%s/model.glm", modelName), pVeh->m_pVehicleInfo->modelIndex, skin, NULL_HANDLE, 0, 0 );
+		ent->playerModel = gi.G2API_InitGhoul2Model( ent->ghoul2, va("models/players/%s/model.glm", modelName), pVeh->m_pVehicleInfo->modelIndex, G_SkinIndex( skinName ), NULL_HANDLE, 0, 0 );
 	}
 	else
 	{
@@ -1812,8 +1818,7 @@ void G_SetG2PlayerModel( gentity_t * const ent, const char *modelName, const cha
 		// empty shader name - so what the skin registered above resolves to is
 		// the whole of this model's appearance. The note that used to be here
 		// said the opposite.
-		G_SkinIndex( skinName );
-		ent->playerModel = gi.G2API_InitGhoul2Model( ent->ghoul2, va("models/players/%s/model.glm", modelName), G_ModelIndex( va("models/players/%s/model.glm", modelName) ), skin, NULL_HANDLE, 0, 0 );
+		ent->playerModel = gi.G2API_InitGhoul2Model( ent->ghoul2, va("models/players/%s/model.glm", modelName), G_ModelIndex( va("models/players/%s/model.glm", modelName) ), G_SkinIndex( skinName ), NULL_HANDLE, 0, 0 );
 	}
 	if (ent->playerModel == -1)
 	{//try the stormtrooper as a default
@@ -1828,26 +1833,37 @@ void G_SetG2PlayerModel( gentity_t * const ent, const char *modelName, const cha
 		Com_Error(ERR_DROP, "Cannot fall back to default model %s!", modelName);
 	}
 
-	// The renderer's handle, and only when there is one.
+	// The configstring index, not the renderer's handle, and that is a
+	// correction of a correction.
 	//
-	// Two things were wrong here and the second is the one that showed. The
-	// argument G2API_SetSkin puts in mCustomSkin is resolved by the renderer
-	// through R_GetSkinByHandle - it is a renderer handle - and what was passed
-	// is the index of the skin's NAME among the CS_CHARSKINS configstrings, a
-	// different numbering that agrees with this one only by accident.
+	// The measurement behind the previous change is still true: G2API_SetSkin
+	// puts its argument in mCustomSkin, the renderer resolves that through
+	// R_GetSkinByHandle, and it is therefore a renderer handle. Passing the
+	// index of the skin's NAME among the CS_CHARSKINS configstrings is passing
+	// a number from a different space.
 	//
-	// And it was passed unconditionally. RE_RegisterSkin returns 0 for a skin
-	// it could not register, which is what happens to every three-part skin
-	// name whose parts are not there - measured on the bench: handle 0,
-	// configstring 1. So the model was given a custom skin of 1 for a skin the
-	// renderer had never heard of, and drew whatever skin 1 happens to be. The
-	// sibling G_SetSkin has an "if ( skin )" around the same call; this one had
-	// nothing.
+	// It is also, here, the only one of the two that survives. This function
+	// runs on the SERVER, and for an NPC the server spawns it inside the window
+	// where tr has been wiped by Hunk_Clear - the same window R_LoadMDXM has a
+	// paragraph about, where every shader it looks up comes back default. A
+	// handle taken from the renderer's skin list in that window is a handle into
+	// a list that is thrown away a moment later. The configstring index is game
+	// state and survives.
 	//
-	// G_SkinIndex is still called, because creating the configstring entry is
-	// its other job and the client needs it.
-	G_SkinIndex( skinName );
-	gi.G2API_SetSkin( &ent->ghoul2[ent->playerModel], skin, skin );//this is going to set the surfs on/off matching the skin file
+	// Measured by the person playing, in one frame that shows both cases at
+	// once: Kyle textured and Jan not. Kyle is the player and is built after the
+	// renderer is alive; Jan is an NPC and is built inside the window.
+	//
+	// So this goes back to the number that works, and the number that is right
+	// waits for the fix that makes it available at all - resolving the skin by
+	// NAME when the renderer is up, rather than capturing a handle before it is.
+	// That needs a bench that can spawn an NPC in that window, which is the next
+	// piece of work rather than a guess to ship.
+	//
+	// The fallback to model_default.skin above stays. It is a different defect
+	// and it is measured: a .glm names no shaders, so a skin that will not
+	// register at all leaves the model with nothing to draw with.
+	gi.G2API_SetSkin( &ent->ghoul2[ent->playerModel], G_SkinIndex( skinName ), skin );//this is going to set the surfs on/off matching the skin file
 
 	// did we find a ghoul2 model? if so, load the animation.cfg file
 	if ( !G_SetG2PlayerModelInfo( ent, modelName, customSkin, surfOff, surfOn ) )

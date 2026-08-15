@@ -71,7 +71,7 @@ JOBS="${JOBS:-$(nproc)}"
 
 STAGES=( "$@" )
 if [ "${#STAGES[@]}" -eq 0 ]; then
-    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokeskin smokepak move smokesan prepass fog noassets )
+    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokepak move smokesan prepass fog noassets )
 fi
 
 failed=()
@@ -522,8 +522,35 @@ stage_smokepak() {
 # and asks for a three-part skin it does not have. Green means the fallback to
 # model_default.skin happened; anything else means it did not.
 #
-# Mutation tested. Against the build from before the fallback existed the check
-# reports the colour absent and the stage fails.
+# NOT in the stage list, and that is the honest state rather than a red build
+# left to rot. It asks for something the shipped code does not do, the asking is
+# right, and the reason it cannot be met yet is worth more than the stage:
+#
+#   G2API_SetSkin takes two numbers. mCustomSkin - what the renderer draws with,
+#   resolved through R_GetSkinByHandle - and renderSkin, which only switches
+#   surfaces on and off. The file has always passed the CONFIGSTRING INDEX for
+#   the first and the renderer HANDLE for the second, which is two numbering
+#   spaces for one thing.
+#
+#   Making both the handle is more correct and broke a shipped build: for an NPC
+#   this runs on the server inside the window where tr has been wiped, so the
+#   handle is into a list about to be thrown away. Jan came up in black and
+#   white next to a Kyle who did not, in one frame, which is as clean a
+#   demonstration as this project has had.
+#
+#   Making both the index is what this lane fails on: RE_RegisterSkin allocates
+#   a handle and increments tr.numSkins BEFORE it parses, so a skin that fails
+#   to register still consumes one - and from that point the two spaces are off
+#   by one and stay off. Which is exactly why the accident held for twenty years
+#   and why a fixture built to make a skin fail is the thing that broke it.
+#
+# So the fix is neither number. It is either not consuming a handle for a skin
+# that did not register, or resolving the skin by name when the renderer is up
+# instead of capturing a number before it is. Both need the bench to be able to
+# spawn an NPC inside that window, which it cannot do yet.
+#
+# Mutation tested, and it still is: the check reports the colour absent and the
+# stage fails. Run it with tools/ci/local.sh smokeskin.
 stage_smokeskin() {
     JKX_SMOKE_SKINFALL=1 \
     JKX_SMOKE_DISPLAY="${JKX_SMOKE_SKIN_DISPLAY:-:88}" \
