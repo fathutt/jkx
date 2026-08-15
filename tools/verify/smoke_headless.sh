@@ -925,12 +925,28 @@ if [ "$CHAR_SKIN" != "retail" ]; then
                  +set g_char_skin_legs "$CHAR_LEGS" )
 fi
 
+# Something in front of the engine: a debugger, a tracer, a profiler.
+#
+# JKX_SMOKE_WRAP holds a command that the engine is passed to. It exists because
+# a lane that reproduces a crash is only half of what a crash needs - the other
+# half is the stack, and the whole point of getting a hardware crash onto this
+# bench is to stop reading it out of screenshots.
+#
+#   JKX_SMOKE_WRAP="gdb -batch -ex run -ex bt -ex 'info registers' --args"
+#
+# The words are split on spaces deliberately, so the value is a command and its
+# flags rather than a shell line; anything that needs quoting goes in a script.
+WRAP=()
+if [ -n "${JKX_SMOKE_WRAP:-}" ]; then
+    read -r -a WRAP <<< "$JKX_SMOKE_WRAP"
+fi
+
 set +e
 ( cd "$RUN" && \
   DISPLAY="$DISPLAY_NUM" \
   XDG_RUNTIME_DIR="$RUN/xdg" \
   VK_ICD_FILENAMES="${VK_ICD_FILENAMES:-/usr/share/vulkan/icd.d/lvp_icd.json}" \
-  timeout -k 10 "${JKX_SMOKE_TIMEOUT:-600}" "./$(basename "$ENGINE")" \
+  timeout -k 10 "${JKX_SMOKE_TIMEOUT:-600}" "${WRAP[@]}" "./$(basename "$ENGINE")" \
       +set fs_basepath "$RUN" +set fs_homepath "$RUN/home" \
       "${SOUND_STEP[@]}" +set com_errorDialog 0 +set con_notifytime 0 \
       +set cg_hudFiles ui/jkx_hud.txt "${CHAR_STEP[@]}" \

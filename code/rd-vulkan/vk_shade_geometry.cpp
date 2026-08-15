@@ -953,17 +953,14 @@ void vk_update_pbr_descriptor( int binding, const image_t *image )
 		return;
 	}
 
-	// The image rather than a copy of its descriptor, and the difference is a
-	// defect the bench found on the second PBR run it had ever done: an
-	// "Invalid VkImageView" from the validation layer, not a null one - a
-	// handle to a view that had been destroyed. An image_t outlives its
-	// VkImageView, which is remade whenever the texture is reloaded, so a
-	// descriptor cached beside the image goes stale without anything saying so.
-	//
-	// The sampler is stable for the life of the image and comes from the cached
-	// copy; the view is read at push time, from the image, where it is current.
-	vk.cmd->pbr_image[binding] = image->descriptor_info;
+	// The image, and nothing copied out of it. An image_t outlives its
+	// VkImageView - the view is remade whenever the texture is reloaded and
+	// again on every vid_restart - so anything cached here goes stale without
+	// saying so, and a stale VkImageView is indistinguishable from a good one
+	// until a driver reads it. Everything the push needs is read from the image
+	// at push time.
 	vk.cmd->pbr_source[binding] = image;
+	vk.cmd->pbr_raw_set[binding] = qfalse;
 	vk.cmd->pbr_dirty = qtrue;
 }
 
@@ -980,7 +977,8 @@ void vk_update_pbr_descriptor_raw( int binding, const VkDescriptorImageInfo *inf
 		return;
 	}
 
-	vk.cmd->pbr_image[binding] = *info;
+	vk.cmd->pbr_raw[binding] = *info;
+	vk.cmd->pbr_raw_set[binding] = qtrue;
 	vk.cmd->pbr_source[binding] = NULL;
 	vk.cmd->pbr_dirty = qtrue;
 }
@@ -1035,32 +1033,42 @@ void vk_bind_descriptor_sets( void )
 	// binding the shader reads and nothing wrote.
 	if ( vk.cmd->pbr_dirty ) {
 		VkWriteDescriptorSet	writes[VK_DESC_PBR_BINDING_COUNT];
+		VkDescriptorImageInfo	images[VK_DESC_PBR_BINDING_COUNT];
 		uint32_t				i;
 
 		for ( i = 0; i < VK_DESC_PBR_BINDING_COUNT; i++ ) {
-			// A binding nothing wrote this draw.
+			// Every binding, built here, from something that is current.
 			//
 			// A pushed set holds no state between draws, so "the caller only
 			// sets the ones its material has" - which is what the five-set
 			// arrangement allowed, because a set left alone kept whatever was
 			// bound before - becomes an image info full of zeroes and a null
 			// handle handed to the driver. The validation layer said so nine
-			// hundred and twenty-four times on the first run: two VUIDs about
-			// the sampler and the view of a combined image sampler.
+			// hundred and twenty-four times on the first run.
 			//
-			// White for the flat maps and the empty cubemap for the cube one,
-			// which is what the call sites above use for their own "not
-			// present" case.
-			if ( vk.cmd->pbr_source[i] != NULL ) {
-				vk.cmd->pbr_image[i].imageView = vk.cmd->pbr_source[i]->view;
-			}
-
-			if ( vk.cmd->pbr_image[i].imageView == VK_NULL_HANDLE ) {
+			// The obvious repair was to carry the last image info per binding
+			// and fill in only the ones that were never set. That is wrong in a
+			// way that took a segmentation fault to see: "never set" was being
+			// asked as imageView == VK_NULL_HANDLE, and a view destroyed by a
+			// vid_restart is not null, it is a handle to something that is
+			// gone. The first screen wipe after a restart pushed one and the
+			// validation layer died reading it.
+			//
+			// So nothing is carried. A binding is an image whose view is read
+			// now, or the raw descriptor for the BRDF table, or the fallback -
+			// white for the flat maps, the empty cubemap for the cube one,
+			// which is what the call sites use for their own "not present".
+			if ( vk.cmd->pbr_source[i] != NULL && vk.cmd->pbr_source[i]->view != VK_NULL_HANDLE ) {
+				images[i] = vk.cmd->pbr_source[i]->descriptor_info;
+				images[i].imageView = vk.cmd->pbr_source[i]->view;
+			} else if ( vk.cmd->pbr_raw_set[i] && vk.cmd->pbr_raw[i].imageView != VK_NULL_HANDLE ) {
+				images[i] = vk.cmd->pbr_raw[i];
+			} else {
 				const image_t *fallback = ( i == VK_DESC_PBR_CUBEMAP_BINDING )
 					? tr.emptyCubemap : tr.whiteImage;
 
-				vk.cmd->pbr_image[i] = fallback->descriptor_info;
-				vk.cmd->pbr_image[i].imageView = fallback->view;
+				images[i] = fallback->descriptor_info;
+				images[i].imageView = fallback->view;
 			}
 
 			writes[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -1070,7 +1078,7 @@ void vk_bind_descriptor_sets( void )
 			writes[i].dstArrayElement = 0;
 			writes[i].descriptorCount = 1;
 			writes[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-			writes[i].pImageInfo = &vk.cmd->pbr_image[i];
+			writes[i].pImageInfo = &images[i];
 			writes[i].pBufferInfo = NULL;
 			writes[i].pTexelBufferView = NULL;
 		}

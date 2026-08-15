@@ -562,15 +562,25 @@ typedef struct vk_tess_s {
 	uint32_t			num_indexes; // value from most recent vk_bind_index() call
 	VkPipeline			last_pipeline;
 #ifdef USE_VK_PBR
-	// The five physically-based textures for the next draw, pushed into the
-	// command buffer rather than bound as five sets. Rebuilt per draw, which is
-	// what the old five-set arrangement was doing anyway - it just spent five
-	// of the eight descriptor sets most devices have to do it.
-	VkDescriptorImageInfo	pbr_image[VK_DESC_PBR_BINDING_COUNT];
-	// Where each of those came from, when it came from an image. The view is
-	// read back through this at push time rather than trusted from the copy -
-	// see vk_update_pbr_descriptor.
+	// Where each of the five physically-based textures for the next draw comes
+	// from. What is NOT here is the VkDescriptorImageInfo that gets pushed:
+	// that is built from scratch on every push and lives on the stack.
+	//
+	// It used to be kept here, and keeping it is what crashed the bench. A
+	// binding no call site set this draw kept the previous draw's image info,
+	// and the test for "nothing set this one" was imageView == VK_NULL_HANDLE -
+	// which a view destroyed by a vid_restart is not. So a handle to a
+	// destroyed view went to the driver, and the validation layer segfaulted
+	// dereferencing it, inside RB_Dissolve on the first wipe after a restart.
+	// A stale handle that is null is caught; a stale handle that is not null is
+	// exactly the case that cannot be told from a good one by looking at it.
+	//
+	// So the only state that survives a push is a pointer to the image, whose
+	// view is read live, and the raw descriptor for the BRDF lookup table,
+	// which is not an image_t and is made once per renderer life.
 	const struct image_s	*pbr_source[VK_DESC_PBR_BINDING_COUNT];
+	VkDescriptorImageInfo	pbr_raw[VK_DESC_PBR_BINDING_COUNT];
+	qboolean				pbr_raw_set[VK_DESC_PBR_BINDING_COUNT];
 	qboolean				pbr_dirty;
 #endif
 
