@@ -1050,7 +1050,13 @@ void R_Register( void )
 	r_hdr								= Cvar_Get("r_hdr",								"1",						CVAR_ARCHIVE | CVAR_LATCH, "");
 	r_mapGreyScale						= Cvar_Get("r_mapGreyScale",						"0",						CVAR_ARCHIVE_ND | CVAR_LATCH, "");
 	Cvar_CheckRange(r_mapGreyScale, -1, 1, qfalse);
-	r_ext_max_anisotropy				= Cvar_Get("r_ext_max_anisotropy",				"2",						CVAR_ARCHIVE_ND | CVAR_LATCH, "");
+	// Sixteen, clamped to the device's own limit where it is lower. Two was the
+	// default and two is what every player was getting: anisotropic filtering
+	// is the difference between ground that keeps its texture towards the
+	// horizon and ground that turns to mush, and on any card of this century
+	// the cost of sixteen over two is not measurable next to what the engine is
+	// already doing. The clamp lives in vk_image.cpp and always did.
+	r_ext_max_anisotropy				= Cvar_Get("r_ext_max_anisotropy",				"16",						CVAR_ARCHIVE_ND | CVAR_LATCH, "");
 	Cvar_CheckRange(r_ext_max_anisotropy, 1, 16, qtrue);
 	r_greyscale							= Cvar_Get("r_greyscale",						"0",						CVAR_ARCHIVE_ND, "");
 	Cvar_CheckRange(r_greyscale, -1, 1, qfalse);

@@ -718,7 +718,21 @@ void vk_initialize( void )
 	CL_RefPrintf( PRINT_ALL, "MSAA max: %dx, using %dx\n", vkMaxSamples, vkSamples );
 
 	// Anisotropy
-	CL_RefPrintf( PRINT_ALL, "Anisotropy max: %dx, using %dx\n\n", r_ext_max_anisotropy->integer, r_ext_texture_filter_anisotropic->integer );
+	// Three numbers and the line used to print two of them under each other's
+	// names. r_ext_max_anisotropy is what the PLAYER asked for, vk.maxAnisotropy
+	// is what the DEVICE allows, and the sampler gets the smaller of the two
+	// (vk_image.cpp). r_ext_texture_filter_anisotropic is the switch, not an
+	// amount, and it was being printed as "using %dx" - so an RTX 3070 that
+	// allows 16 and was actually filtering at 2 reported "max: 2x, using 16x",
+	// which is wrong twice and in opposite directions.
+	if ( r_ext_texture_filter_anisotropic->integer ) {
+		CL_RefPrintf( PRINT_ALL, "Anisotropy: filtering at %dx (asked for %d, this device allows %d)\n\n",
+			MIN( r_ext_max_anisotropy->integer, (int)vk.maxAnisotropy ),
+			r_ext_max_anisotropy->integer, (int)vk.maxAnisotropy );
+	} else {
+		CL_RefPrintf( PRINT_ALL, "Anisotropy: off (this device allows %d)\n\n",
+			(int)vk.maxAnisotropy );
+	}
 		
 	// Bloom
 	if ( r_bloom->integer )
