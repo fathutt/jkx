@@ -3283,8 +3283,45 @@ static void S_CheckDynamicMusicState(void)
 	S_HandleDynamicMusicStateChange();
 }
 
+// The raw buffer has one writer, and while a video is playing it is the video.
+//
+// s_rawsamples is a single ring that S_RawSamples writes into, and the first
+// writer of a frame ASSIGNS rather than adds - it overwrites what is there. The
+// cinematic player passes that flag, and so does the music. So with both
+// running they take turns stamping over each other's samples and advancing the
+// same s_rawend, and what comes out is the intro logo's audio and the menu
+// music cutting each other to pieces. Reported from the hardware in exactly
+// those words.
+//
+// It was invisible until now because until the track-length fix the music never
+// played at all, so the video always had the buffer to itself. One defect
+// uncovered by fixing another, which is the ordinary way of things here.
+//
+// The video wins, which is not arbitrary: a cinematic is a thing with its own
+// soundtrack that somebody chose to put in front of the player, and the engine
+// already agrees - CL_PlayCinematic_f calls S_StopAllSounds on the way in. What
+// it does not do is stop music that STARTS while a video is running, which is
+// what the main menu does behind the opening logos.
+//
+// Returning here rather than inside the reader leaves every counter alone, so
+// when the video ends the track carries on from where it was rather than from
+// wherever a partial read left it.
+static qboolean S_MusicWouldFightACinematic( void )
+{
+	extern clientStatic_t	cls;
+
+	if ( cls.state == CA_CINEMATIC ) {
+		return qtrue;
+	}
+	return CL_IsRunningInGameCinematic();
+}
+
 static void S_UpdateBackgroundTrack( void )
 {
+	if ( S_MusicWouldFightACinematic() ) {
+		return;
+	}
+
 	if (bMusic_IsDynamic)
 	{
 		if (s_debugdynamic->integer == 2)
