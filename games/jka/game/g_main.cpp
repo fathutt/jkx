@@ -168,6 +168,8 @@ cvar_t	*g_noFootSlideWalkScale;
 cvar_t	*g_noFootSlideMaxScale;
 cvar_t	*g_noFootSlideDebug;
 cvar_t	*g_moveTrace;
+cvar_t	*pmove_fixed;
+cvar_t	*pmove_msec;
 
 cvar_t	*g_nav1;
 cvar_t	*g_nav2;
@@ -661,6 +663,13 @@ void G_InitCvars( void ) {
 	// only on frames the console got to run. That was enough to see that a jump
 	// reaches a different height on a busy machine and not enough to measure by.
 	g_moveTrace = gi.cvar ( "g_moveTrace", "0", 0 );
+
+	// Cut a command's interval into fixed steps instead of integrating it in
+	// one. Named as the multiplayer branch names them, because that is where
+	// they come from and anyone who has met them there will look for these.
+	// Off by default; see the note above Pmove.
+	pmove_fixed = gi.cvar ( "pmove_fixed", "0", CVAR_ARCHIVE );
+	pmove_msec = gi.cvar ( "pmove_msec", "8", CVAR_ARCHIVE );
 
 	g_nav1 = gi.cvar ( "g_nav1", "", 0 );
 	g_nav2 = gi.cvar ( "g_nav2", "", 0 );

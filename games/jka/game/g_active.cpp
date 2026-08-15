@@ -5396,6 +5396,22 @@ extern cvar_t	*g_skippingcin;
 	pm.debugLevel = g_debugMove->integer;
 	pm.noFootsteps = qfalse;//( g_dmflags->integer & DF_NO_FOOTSTEPS ) > 0;
 
+	// Fixed movement steps, off unless asked. The lower bound is not
+	// politeness: a step of zero would make the loop in Pmove never reach the
+	// command's time.
+	{
+		extern cvar_t	*pmove_fixed;
+		extern cvar_t	*pmove_msec;
+
+		pm.pmove_fixed = ( pmove_fixed && pmove_fixed->integer ) ? qtrue : qfalse;
+		pm.pmove_msec = ( pmove_msec ) ? pmove_msec->integer : 8;
+		if ( pm.pmove_msec < 1 ) {
+			pm.pmove_msec = 1;
+		} else if ( pm.pmove_msec > 33 ) {
+			pm.pmove_msec = 33;
+		}
+	}
+
 	if ( ent->client && ent->NPC )
 	{
 		pm.cmd.weapon = ent->client->ps.weapon;

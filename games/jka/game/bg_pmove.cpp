@@ -14705,7 +14705,7 @@ Pmove
 Can be called by either the server or the client
 ================
 */
-void Pmove( pmove_t *pmove )
+static void PmoveSingle( pmove_t *pmove )
 {
 	Vehicle_t *pVeh = NULL;
 
@@ -15147,4 +15147,102 @@ void Pmove( pmove_t *pmove )
 			pm->ps->groundEntityNum, pm->mins[2], pm->maxs[2],
 			pm->ps->viewheight );
 	}
+}
+
+
+/*
+================
+Pmove
+
+One command in, one simulated interval out - but not necessarily in one step.
+
+Single player has always integrated a command in a single step whose length is
+the command's whole interval, and that interval is a rendered frame: usercmds
+are built once per client frame and ClientThink runs one per usercmd.
+Everything in the mover is scaled by pml.frametime, so the answer depends on
+how long the frame took. Measured with g_moveTrace, the same scripted jump
+reaches z = 11.95, 12.45 and 13.03 on an idle machine, where steps are 5 to
+26 ms, and z = 23.06 and 20.03 with the machine busy, where they are 39 to
+158 ms. Twenty per cent more jump for a slower computer.
+
+Cutting the interval into fixed steps is the multiplayer branch's answer and
+single player never got it. Off by default: with pmove_fixed at zero this is
+one call and the same clamp as before, so nothing moves for anyone who has not
+asked. Turning it on changes how the game feels, and nothing in a headless
+bench can judge that.
+
+WHAT IS DELIBERATELY NOT HERE. The reference implementation re-asserts the
+jump button between steps:
+
+    if ( pmove->ps->pm_flags & PMF_JUMP_HELD ) pmove->cmd.upmove = 20;
+
+In Quake 3 that is harmless - upmove in a sub-step only decides whether the
+player jumps again, and PMF_JUMP_HELD already prevents that. Here it is not.
+Force jump continues for as long as `pm->ps->forcePower && pm->cmd.upmove >= 10`
+(the condition at the top of the force-jump block in PM_CheckJump), and that
+block ASSIGNS the vertical velocity from the current height on every call it
+reaches. So synthesising upmove holds the force-jump window open for the whole
+of a command instead of for as long as the player actually held the key: a
+158 ms command under load becomes a window twenty times longer than an 8 ms one,
+and the jump goes higher the busier the machine is. That was measured too, with
+the line in: 12.24 and 15.64 idle against 29.93 and 33.54 loaded - worse than
+doing nothing.
+
+The command's own upmove is carried unchanged instead, so the window is
+measured in real time whatever the step size is.
+================
+*/
+void Pmove( pmove_t *pmove )
+{
+	int	finalTime;
+
+	if ( !pmove->pmove_fixed )
+	{
+		PmoveSingle( pmove );
+		return;
+	}
+
+	finalTime = pmove->cmd.serverTime;
+
+	if ( finalTime <= pmove->ps->commandTime )
+	{
+		// No time to simulate, and returning here would be a defect rather
+		// than an optimisation: ClientThink copies pm.mins into the entity
+		// after this call, unconditionally, and pm is memset before it. A path
+		// through here that never reaches PmoveSingle therefore writes a zero
+		// bounding box into the player and leaves it there for good - he sinks
+		// twenty-four units into the floor and stays. That is exactly what the
+		// first version of this function did, and the bench found it: the jump
+		// started from z = -63.9 instead of -39.8.
+		PmoveSingle( pmove );
+		return;
+	}
+
+	if ( finalTime > pmove->ps->commandTime + 200 )
+	{
+		// A hitch, a level load, or the first command after a spawn. The
+		// single-step path clamps the interval to 200 ms and this keeps that
+		// number rather than inventing another: with eight millisecond steps a
+		// second of arrears is a hundred and twenty-five runs of the mover for
+		// one command, which is worse for a frame than the gap it closes.
+		pmove->ps->commandTime = finalTime - 200;
+	}
+
+	while ( pmove->ps->commandTime != finalTime )
+	{
+		int	msec = finalTime - pmove->ps->commandTime;
+
+		if ( msec > pmove->pmove_msec )
+		{
+			msec = pmove->pmove_msec;
+		}
+
+		pmove->cmd.serverTime = pmove->ps->commandTime + msec;
+		PmoveSingle( pmove );
+	}
+
+	// The caller's command is an in/out parameter and the loop above has been
+	// writing to it. Put the time back before returning, or the next thing to
+	// read cmd.serverTime gets the last sub-step instead of the command.
+	pmove->cmd.serverTime = finalTime;
 }

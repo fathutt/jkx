@@ -141,6 +141,12 @@ typedef struct {
 	int			debugLevel;			// if set, diagnostic output will be printed
 	qboolean	noFootsteps;		// if the game is setup for no footsteps by the server
 
+	// Cut the command's interval into steps of pmove_msec milliseconds instead
+	// of integrating it in one. Zero keeps the single step, which is what this
+	// game has always done. See the note above Pmove.
+	qboolean	pmove_fixed;
+	int			pmove_msec;
+
 	// results (out)
 	int			numtouch;
 	int			touchents[MAXTOUCH];
