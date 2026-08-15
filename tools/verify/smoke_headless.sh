@@ -704,21 +704,46 @@ fi
 # So the default lane asks for fastlight, and PBR gets a lane of its own.
 # JKX_SMOKE_PBR=1 turns it on; it is not in the stage list yet, for the same
 # reason the vid_restart lane is not: it still has something to say.
-# The skin the gamecode set, against the shader baked into the model.
+# The character's skin is not checked here yet, and what is missing is written
+# down because it was nearly claimed twice.
 #
-# JKX_SMOKE_SKIN=1 asks for the character's default skin to be the one that
-# draws, and it currently FAILS - which is the point. G_SetSkin hands
-# G2API_SetSkin a configstring index where the renderer wants a skin handle
-# (tr_ghoul2.cpp resolves mCustomSkin through R_GetSkinByHandle), and the model
-# comes out wearing whatever its .glm names instead.
+# The defect is measured, and by the engine rather than by a frame. With the
+# three-part skin name this fixture cannot satisfy, G_SetG2PlayerModel printed
 #
-# Measured, not argued: model_default.skin names a green shader and the .glm
-# names a white one. The frame is white. Renaming the .glm's shader made the
-# model disappear rather than turn green, which is the other half of the same
-# answer - what is on screen is the baked shader and nothing else.
+#     "models/players/jkx/|head_a1|torso_a1|lower_a1" handle 0, configstring 1
 #
-# Out of the stage list until it passes. When it does, the default lane's white
-# check below becomes the green one and this goes away.
+# - RE_RegisterSkin said it could not register that skin, and the gamecode set a
+# custom skin of 1 anyway, which the renderer resolves as a skin HANDLE through
+# R_GetSkinByHandle. A model wearing whatever skin 1 happens to be.
+#
+# What cannot be shown from a picture yet, and why:
+#
+#   the character has not been identified in any frame here. The white blob this
+#   file checks is the FLOOR - the check a few lines up says so - and the frame
+#   is byte-identical with the skin path fixed and broken, which is the proof
+#   that the model is not what those pixels are;
+#
+#   and with the single skin this fixture has, the handle and the configstring
+#   index are BOTH 1. They agree by accident, which is the whole reason this
+#   defect survived - a fixture where the two numbering spaces cannot diverge
+#   cannot tell them apart.
+#
+# So: put the character in frame and identifiable, then register a second skin
+# first so the handle is not 1, and the colours below become the check. The
+# green, red and white are here for that.
+#
+# A lane was written that asserted the model wears model_default.skin - green in
+# this fixture, against the white baked into the .glm - and it failed, and the
+# failure was read as the mCustomSkin defect. It was not. Asking the engine
+# directly, with a print inside G_SetSkin, showed that G_SetSkin is never called
+# in this fixture at all: nothing sets a skin, so nothing can set the wrong one,
+# and the white on screen is the baked shader that was never overridden.
+#
+# So the frame proved nothing about mCustomSkin, and a lane whose message names
+# a defect it cannot see is worse than no lane. What it did find is bigger and
+# is now the open question: the character-model path does not run here. The
+# fixture keeps its colours - green skin, red alternate, white baked - because
+# they are what will make the answer visible once it does.
 if [ "${JKX_SMOKE_PBR:-0}" = "1" ]; then
     SET_STEP+=( +set r_normalMapping 1 +set r_specularMapping 1 )
 else
@@ -734,6 +759,8 @@ set +e
       +set fs_basepath "$RUN" +set fs_homepath "$RUN/home" \
       "${SOUND_STEP[@]}" +set com_errorDialog 0 +set con_notifytime 0 \
       +set cg_hudFiles ui/jkx_hud.txt +set g_char_model jkx \
+      +set g_char_skin_head model_default +set g_char_skin_torso model_default \
+      +set g_char_skin_legs model_default \
       +set helpUsObi 1 +set r_drawfog 0 \
       "${SET_STEP[@]}" \
       +wait 60 +screenshot_tga jkx_smoke \
@@ -850,30 +877,6 @@ if [ "${JKX_SMOKE_PLAIN:-0}" != "1" ] && [ -f "$RUN/home/base/screenshots/jkx_in
         "$RUN/home/base/screenshots/jkx_inmap.tga" \
         "255,255,255@0.3,0.75,0.7,1.0"; then
         report "the map's floor is not where it should be in jkx_inmap.tga"
-    fi
-fi
-
-# The character wearing the skin the gamecode set for it.
-#
-# model_default.skin names a green shader; the .glm has a white one baked into
-# its surface. Green means the skin was applied, white means it was ignored and
-# the baked shader is what is on screen.
-#
-# It is white today, which is why this lane is opt-in. G_SetSkin passes
-# G2API_SetSkin a configstring index where the renderer wants a skin handle -
-# tr_ghoul2.cpp resolves mCustomSkin through R_GetSkinByHandle - and the two
-# agree only while their counters happen to. The fixture had one skin and every
-# shader in it was white, so neither half of that could be seen from a frame.
-#
-# The other half of the measurement, which is what makes this a diagnosis rather
-# than a suspicion: renaming the shader baked into the .glm made the model
-# DISAPPEAR instead of turning green. What is drawn is the baked shader, and the
-# skin is not reaching the renderer at all.
-if [ "${JKX_SMOKE_SKIN:-0}" = "1" ] && [ -f "$RUN/home/base/screenshots/jkx_inmap.tga" ]; then
-    if ! python3 "$HERE/tga_colour_where.py" \
-        "$RUN/home/base/screenshots/jkx_inmap.tga" \
-        "0,255,0@0.3,0.75,0.7,1.0"; then
-        report "the character is not wearing the skin the gamecode set - see mCustomSkin"
     fi
 fi
 

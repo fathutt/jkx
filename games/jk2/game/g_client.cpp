@@ -792,7 +792,10 @@ void G_SetSkin( gentity_t *ent, const char *modelName, const char *customSkin )
 	{
 		// put it in the config strings
 		// and set the ghoul2 model to use it
-		gi.G2API_SetSkin( &ent->ghoul2[ent->playerModel], G_SkinIndex( skinName ), skin );
+		// The handle, not the configstring index - see G_SetG2PlayerModel in
+		// the Academy gamecode for the measurement behind this.
+		G_SkinIndex( skinName );
+		gi.G2API_SetSkin( &ent->ghoul2[ent->playerModel], skin, skin );
 	}
 }
 
@@ -1286,11 +1289,11 @@ void G_SetG2PlayerModel( gentity_t * const ent, const char *modelName, const cha
 	{
 		Com_sprintf( skinName, sizeof( skinName ), "models/players/%s/model_%s.skin", modelName, customSkin );
 	}
-	gi.RE_RegisterSkin( skinName );
+	const int skin = gi.RE_RegisterSkin( skinName );
 	//now generate the ghoul2 model this client should be.
 	//NOTE: for some reason, it still loads the default skin's tga's?  Because they're referenced in the .glm?
 	ent->playerModel = gi.G2API_InitGhoul2Model( ent->ghoul2, va("models/players/%s/model.glm", modelName),
-		G_ModelIndex( va("models/players/%s/model.glm", modelName) ), G_SkinIndex( skinName ), NULL_HANDLE, 0, 0 );
+		G_ModelIndex( va("models/players/%s/model.glm", modelName) ), ( G_SkinIndex( skinName ), skin ), NULL_HANDLE, 0, 0 );
 	if (ent->playerModel == -1)
 	{//try the stormtrooper as a default
 		modelName = "stormtrooper";
