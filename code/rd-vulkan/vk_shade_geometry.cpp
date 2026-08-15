@@ -975,6 +975,34 @@ void vk_bind_pipeline( uint32_t pipeline ) {
 
 	vkpipe = vk_gen_pipeline(pipeline);
 
+	// A pipeline that is not there is not a pipeline to bind. vk_gen_pipeline
+	// answers VK_NULL_HANDLE for an index past the end of the table and for a
+	// pipeline whose creation did not produce one, and vkCmdBindPipeline with
+	// a null handle is undefined behaviour that the NVIDIA driver takes
+	// literally: it dereferences it and the process is gone, inside the driver,
+	// with a stack that says nothing about which surface asked for it.
+	//
+	// Found on hardware, twice in one session and from two directions:
+	// r_depthPrepass 1 crashed on the first frame of a map, and so did
+	// vid_restart. Both stacks were identical - vk_bind_pipeline, then
+	// nvoglv64 reading address zero.
+	//
+	// Skipping the draw is not a fix for whatever produced no pipeline. It is
+	// the difference between a missing surface with a line in the console and
+	// a crash to the desktop, and it makes the thing that IS wrong findable:
+	// the message names the index, which is what a bisect needs.
+	if ( vkpipe == VK_NULL_HANDLE ) {
+		static uint32_t	complainedAbout = ~0U;
+
+		if ( complainedAbout != pipeline ) {
+			complainedAbout = pipeline;
+			Com_Printf( S_COLOR_YELLOW "vk_bind_pipeline: pipeline %u has no handle "
+				"for render pass %d - the surface using it will not be drawn\n",
+				pipeline, (int)vk.renderPassIndex );
+		}
+		return;
+	}
+
 	if (vkpipe != vk.cmd->last_pipeline) {
 		vkCmdBindPipeline(vk.cmd->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vkpipe);
 		vk.cmd->last_pipeline = vkpipe;
