@@ -474,3 +474,41 @@ if(BuildJKAEngine OR BuildJK2Engine)
 	endif(BuildJK2Engine)
 
 endif(BuildJKAEngine OR BuildJK2Engine)
+
+# ---------------------------------------------------------------------------
+# The launcher.
+#
+# One command that works out which game a directory holds and starts the
+# matching engine. It is a separate binary rather than a mode of the engine
+# because the engine is built twice - once per game - and the thing that has to
+# choose between them cannot be one of them.
+#
+# It links minizip and nothing else from the engine: the question it answers is
+# "which game's assets are these", and the answer is inside the archive.
+# ---------------------------------------------------------------------------
+if(BuildJKAEngine OR BuildJK2Engine)
+	set(LauncherName "jkx_launcher")
+	set(LauncherFiles
+		"${CodeDir}/launcher/jkx_install_scan.h"
+		"${CodeDir}/launcher/jkx_install_scan.cpp"
+		"${CodeDir}/launcher/jkx_launcher.cpp"
+		)
+
+	add_executable(${LauncherName} ${LauncherFiles})
+	# zlib as well as minizip: unzip.h includes zlib.h, and the engine picks
+	# these up through EngineIncludeDirectories, which the launcher is not part
+	# of. The MinGW cross-build is where that showed - it has no system zlib
+	# header to fall back on, which is the useful kind of build to have.
+	target_include_directories(${LauncherName} PRIVATE
+		${MINIZIP_INCLUDE_DIRS} ${ZLIB_INCLUDE_DIR})
+	# The engines carry the architecture in their names - jkx_jka.x86_64 - so
+	# the launcher has to know what this build calls it. Same string the engine
+	# gets, from the same variable, rather than a second copy of the rule.
+	target_compile_definitions(${LauncherName} PRIVATE "ARCH_STRING=\"${Architecture}\"")
+	target_link_libraries(${LauncherName} ${MINIZIP_LIBRARIES} ${ZLIB_LIBRARIES})
+	set_target_properties(${LauncherName} PROPERTIES
+		RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
+	install(TARGETS ${LauncherName}
+		DESTINATION ${JKAInstallDir}
+		COMPONENT ${JKAClientComponent})
+endif()
