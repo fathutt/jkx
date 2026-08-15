@@ -38,6 +38,7 @@ Foundation.
 
 #ifdef _WIN32
 #include <process.h>
+#include <windows.h>
 #define JKX_EXEC		_execv
 #define JKX_PATH_SEP	'\\'
 #define JKX_EXE_SUFFIX	".exe"
@@ -169,6 +170,25 @@ static void DirectoryOf( char *out, size_t outSize, const char *path )
 }
 
 
+// A console this program created for itself closes the instant it returns, so a
+// message printed on the way out is a message nobody reads. That is what
+// double-clicking it looked like: a window that flashes. GetConsoleProcessList
+// returning one says the console has no other owner, which is exactly the case
+// where waiting is right and the only one - run from a shell, it must not wait.
+static void WaitIfWeOwnTheConsole( void )
+{
+#ifdef _WIN32
+	DWORD	pids[2];
+
+	if ( GetConsoleProcessList( pids, 2 ) == 1 ) {
+		printf( "\nPress Enter to close." );
+		fflush( stdout );
+		(void)getchar();
+	}
+#endif
+}
+
+
 int main( int argc, char **argv )
 {
 	probeContext_t	ctx;
@@ -176,30 +196,59 @@ int main( int argc, char **argv )
 	installResult_t	result;
 	char			engine[JKX_MAX_PATH];
 	char			here[JKX_MAX_PATH];
-	const char		*name;
-	const char		*where = ( argc > 1 ) ? argv[1] : ".";
+	const char		*name = NULL;
 
 	if ( argc > 2 ) {
 		printf( "usage: %s [game directory]\n", argv[0] );
-		printf( "\nWith no argument it looks in the current directory. Give it the\n"
-			"folder that has base/ in it - for a Steam or GOG install that is\n"
-			"the one called GameData.\n" );
+		printf( "\nWith no argument it looks in the current directory, then beside\n"
+			"itself, then one folder up. Give it the folder that has base/ in it -\n"
+			"for a Steam or GOG install that is the one called GameData.\n" );
+		WaitIfWeOwnTheConsole();
 		return 2;
 	}
-
-	snprintf( ctx.root, sizeof( ctx.root ), "%s", where );
 
 	probe.fileExists = RealFileExists;
 	probe.archiveHas = RealArchiveHas;
 	probe.user = &ctx;
 
-	result = InstallScan_Identify( &probe );
-	name = EngineNames( result.kind, 0 );
+	DirectoryOf( here, sizeof( here ), argv[0] );
+
+	// Where to look, in the order a person would. Double-clicked from Explorer
+	// the current directory is wherever Explorer felt like, which is why its own
+	// folder and the folder above it are on the list: an engine sitting next to
+	// or inside a game install is the ordinary arrangement.
+	{
+		const char	*places[4];
+		int			count = 0;
+		char		up[JKX_MAX_PATH];
+
+		if ( argc > 1 ) {
+			places[count++] = argv[1];
+		} else {
+			DirectoryOf( up, sizeof( up ), here );
+
+			places[count++] = ".";
+			places[count++] = here;
+			places[count++] = up;
+		}
+
+		for ( int i = 0; i < count; i++ ) {
+			snprintf( ctx.root, sizeof( ctx.root ), "%s", places[i] );
+			result = InstallScan_Identify( &probe );
+			name = EngineNames( result.kind, 0 );
+			if ( name ) {
+				break;
+			}
+			printf( "%s: %s\n", ctx.root, result.reason );
+		}
+	}
 
 	if ( !name ) {
-		printf( "%s: %s\n", ctx.root, result.reason );
 		printf( "\nPoint this at the folder that contains base/ - for a Steam or GOG\n"
-			"install of either game that is the one called GameData.\n" );
+			"install of either game that is the one called GameData. Finding one by\n"
+			"itself, out of Steam's and GOG's own records, is the next step and is\n"
+			"not written yet.\n" );
+		WaitIfWeOwnTheConsole();
 		return 1;
 	}
 
@@ -208,7 +257,6 @@ int main( int argc, char **argv )
 	// The engine lives beside the launcher, not inside the game directory. A
 	// copy in the game directory is what a mod is, and the retail folder is
 	// not ours to write into.
-	DirectoryOf( here, sizeof( here ), argv[0] );
 	JoinPath( engine, sizeof( engine ), here, name );
 
 	{
@@ -238,5 +286,6 @@ int main( int argc, char **argv )
 
 	// Only reached when the engine could not be started at all.
 	printf( "could not start %s - is it beside this program?\n", engine );
+	WaitIfWeOwnTheConsole();
 	return 1;
 }
