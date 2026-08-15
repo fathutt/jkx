@@ -438,6 +438,24 @@ else
 
     INMAP_STEP+=( +screenshot_tga jkx_sky +wait 20 )
 
+    # Tearing the renderer down and building it again, with a map loaded.
+    #
+    # This bench has started the renderer several hundred times and shut it down
+    # once per run, at the end, on its way out. It had never once done the thing
+    # a player does from the video menu: destroy every Vulkan object while the
+    # game is running and make them all again. On the hardware that crashes, and
+    # so does quitting from the menu, and both crash reports name the same line
+    # - vkDestroyDevice inside vk_shutdown - so whatever it is, it is a thing
+    # this lane can reach and nothing here was reaching it.
+    #
+    # The wait afterwards is long because a restart reloads every shader, image
+    # and model, and under a software rasteriser with the validation layer on
+    # that is not quick. The screenshot is the evidence that the engine is still
+    # drawing on the other side of it rather than merely still running.
+    if [ "${JKX_SMOKE_VIDRESTART:-0}" = "1" ]; then
+        INMAP_STEP+=( +vid_restart +wait 240 +screenshot_tga jkx_vidrestart +wait 20 )
+    fi
+
     # The turned views belong to the sky, and are skipped when there is no sky.
     # That is not a dodge around frames that would not compare: a plain run draws
     # no sky, so three more headings are three more chances for the camera to be

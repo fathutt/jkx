@@ -604,6 +604,13 @@ static void RB_DrawItems( int numDrawItems, const DrawItem *drawItems )
 
 		vk_bind_pipeline( drawItem.pipeline );
 
+		// Nothing to draw with. vk_bind_pipeline has said which index and why;
+		// everything below issues commands against a pipeline that is not
+		// bound, and the first of them is a draw.
+		if ( vk.cmd->pipeline_missing ) {
+			continue;
+		}
+
 		if( drawItem.bind_count )
 			vkCmdBindVertexBuffers( vk.cmd->command_buffer, 
 			drawItem.bind_base, drawItem.bind_count, 

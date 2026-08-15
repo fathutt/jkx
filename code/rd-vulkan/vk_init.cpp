@@ -472,8 +472,27 @@ void vk_create_window( void ) {
 		gls.initTime = Sys_Milliseconds2();
 	}
 
-	if ( !vk.active && vk.instance ){
-		// might happen after REF_KEEP_WINDOW
+	// Everything Vulkan, again, whenever there is not a live one.
+	//
+	// This used to read "if ( !vk.active && vk.instance )", with a note saying
+	// it might happen after REF_KEEP_WINDOW - and after REF_KEEP_WINDOW is the
+	// one time it cannot happen, because that is exactly when vk.instance is
+	// zero. vid_restart calls RE_Shutdown with restarting set, which runs
+	// vk_shutdown - and vk_shutdown ends by wiping the whole vk struct,
+	// instance included - and then does NOT destroy the window, so
+	// glConfig.vidWidth is left alone and the branch above is skipped too.
+	//
+	// So on every vid_restart nothing initialised Vulkan at all, and the test
+	// below found no active device and raised an error whose text says the
+	// initialisation went wrong recursively. It did not go wrong; it did not
+	// happen. The engine then tore itself down over a renderer that was already
+	// gone, and that is the crash to the desktop.
+	//
+	// vk_initialize is self-contained given a window: vk_init_library creates
+	// the instance and asks SDL for a surface on the window that is still
+	// there. There is nothing to preserve across the restart and nothing to
+	// check beyond whether a device is live.
+	if ( !vk.active ) {
 		vk_initialize();
 		gls.initTime = Sys_Milliseconds2();
 	}
@@ -481,7 +500,7 @@ void vk_create_window( void ) {
 		vk_init_descriptors();
 	}
 	else {
-		Com_Error( ERR_FATAL, "Recursive error during Vulkan initialization" );
+		Com_Error( ERR_FATAL, "Vulkan initialization did not produce a device" );
 	}
 
 	glState.glStateBits = GLS_DEPTHTEST_DISABLE | GLS_DEPTHMASK_TRUE;

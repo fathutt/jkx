@@ -991,6 +991,13 @@ void vk_bind_pipeline( uint32_t pipeline ) {
 	// the difference between a missing surface with a line in the console and
 	// a crash to the desktop, and it makes the thing that IS wrong findable:
 	// the message names the index, which is what a bisect needs.
+	//
+	// And skipping the BIND is not skipping the draw, which is what the first
+	// version of this did. The caller goes on and issues its vkCmdDrawIndexed
+	// with whatever pipeline was bound last, or with none at all - which is the
+	// same undefined behaviour one step further along, and the validation layer
+	// says so: VUID-vkCmdDrawIndexed-None-08606, a draw with no graphics
+	// pipeline bound. The flag below is what the draw reads.
 	if ( vkpipe == VK_NULL_HANDLE ) {
 		static uint32_t	complainedAbout = ~0U;
 
@@ -1000,8 +1007,11 @@ void vk_bind_pipeline( uint32_t pipeline ) {
 				"for render pass %d - the surface using it will not be drawn\n",
 				pipeline, (int)vk.renderPassIndex );
 		}
+		vk.cmd->pipeline_missing = qtrue;
 		return;
 	}
+
+	vk.cmd->pipeline_missing = qfalse;
 
 	if (vkpipe != vk.cmd->last_pipeline) {
 		vkCmdBindPipeline(vk.cmd->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vkpipe);

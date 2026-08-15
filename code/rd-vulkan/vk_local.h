@@ -561,6 +561,11 @@ typedef struct vk_tess_s {
 	
 	uint32_t			num_indexes; // value from most recent vk_bind_index() call
 	VkPipeline			last_pipeline;
+	// Set when vk_bind_pipeline was asked for a pipeline that has no handle
+	// and could not bind one. The draw that follows has to be skipped too: a
+	// draw with no graphics pipeline bound is undefined behaviour whatever the
+	// bind did.
+	qboolean			pipeline_missing;
 	Vk_Depth_Range		depth_range;
 	VkRect2D			scissor_rect;
 
