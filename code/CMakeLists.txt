@@ -494,6 +494,8 @@ if(BuildJKAEngine OR BuildJK2Engine)
 		"${CodeDir}/launcher/jkx_install_scan.cpp"
 		"${CodeDir}/launcher/jkx_install_find.h"
 		"${CodeDir}/launcher/jkx_install_find.cpp"
+		"${CodeDir}/launcher/jkx_launcher_args.h"
+		"${CodeDir}/launcher/jkx_launcher_args.cpp"
 		"${CodeDir}/launcher/jkx_launcher.cpp"
 		"${CodeDir}/launcher/jkx_launcher_win32.cpp"
 		)

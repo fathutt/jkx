@@ -249,6 +249,18 @@ stage_tests_cxx() {
         "$ROOT/code/launcher/jkx_install_scan.cpp" || return 1
     "$out/install_scan_test" || return 1
 
+    # Which half of the launcher's command line is a directory and which half is
+    # the engine's. Four lines of code and nine cases, because a launcher is
+    # reached by dragging a folder onto it - so its argument list is whatever a
+    # file manager, a shortcut or a shell script handed over, including an empty
+    # word from an unset variable.
+    c++ -O1 -g -std=c++17 -Wall -Wextra -Werror \
+        -fsanitize=address,undefined -fno-sanitize-recover=all \
+        -o "$out/launcher_args_test" \
+        "$ROOT/tests/launcher_args_test.cpp" \
+        "$ROOT/code/launcher/jkx_launcher_args.cpp" || return 1
+    "$out/launcher_args_test" || return 1
+
     # And where a game might be, against a machine that does not exist: a
     # registry, a set of directories and a libraryfolders.vdf all written by the
     # test. None of that can be reached from here, which is exactly why the

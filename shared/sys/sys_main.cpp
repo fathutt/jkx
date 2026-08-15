@@ -418,62 +418,91 @@ enum SearchPathFlag
 	SEARCH_PATH_ROOT	= 1 << 2
 };
 
+// Looking for the game library, quietly until there is something to say.
+//
+// This printed a line per miss, at ordinary log level, in the operating system's
+// own words. A normal start on Windows produced five of these in a row -
+//
+//   Sys_LoadSPGameDll(...\base\jkagamex86_64.dll) failed: "The specified
+//   module was not found."
+//
+// - before finding the library beside the executable, where it lives, and
+// starting perfectly. Five failures and a phrase that reads like a broken
+// install, describing a search working exactly as designed. It is the first
+// thing in the log a person sends when something else is wrong, and it has
+// already cost one round of "is this the problem?" that it was not.
+//
+// Two things are wrong and only one of them is the message.
+//
+// The mod pass is the other. With no mod loaded fs_game is empty, and
+// FS_BuildOSPath falls back to BASEGAME for an empty directory - so the mod pass
+// builds exactly the paths the base pass is about to build, tries them, and
+// fails at all of them a second time. That is where two of the five came from.
+// A pass over the same paths twice cannot find anything the first pass missed.
+//
+// So: no mod pass when there is no mod, and the misses are collected rather than
+// printed. If something loads, one line says which file. If nothing does, every
+// path that was tried is printed together, which is the case where a person
+// actually needs them and the only case where the operating system's phrasing is
+// the answer rather than the noise.
 static void *Sys_LoadDllFromPaths( const char *filename, const char *gamedir, const char **searchPaths,
 									size_t numPaths, uint32_t searchFlags, const char *callerName )
 {
-	char *fn;
-	void *libHandle;
+	// Enough for every pass over every path. Three passes and a handful of
+	// paths; the cap is here so this is a fixed array rather than an allocation
+	// on a path that runs before most of the engine exists.
+	enum { MAX_TRIED = 32 };
+	char		tried[MAX_TRIED][MAX_OSPATH];
+	char		why[MAX_TRIED][256];
+	int			numTried = 0;
+	char		*fn;
+	void		*libHandle;
 
-	if ( searchFlags & SEARCH_PATH_MOD )
+	// A mod is a directory that is not the base game. Anything else means there
+	// is no mod, and the pass would repeat the one below it exactly.
+	const bool	haveMod = gamedir && gamedir[0] && Q_stricmp( gamedir, BASEGAME ) != 0;
+
+	for ( int pass = 0; pass < 3; pass++ )
 	{
+		if ( pass == 0 && ( !( searchFlags & SEARCH_PATH_MOD ) || !haveMod ) )
+			continue;
+		if ( pass == 1 && !( searchFlags & SEARCH_PATH_BASE ) )
+			continue;
+		if ( pass == 2 && !( searchFlags & SEARCH_PATH_ROOT ) )
+			continue;
+
 		for ( size_t i = 0; i < numPaths; i++ )
 		{
 			const char *libDir = searchPaths[i];
 			if ( !libDir[0] )
 				continue;
 
-			fn = FS_BuildOSPath( libDir, gamedir, filename );
+			if ( pass == 0 )
+				fn = FS_BuildOSPath( libDir, gamedir, filename );
+			else if ( pass == 1 )
+				fn = FS_BuildOSPath( libDir, BASEGAME, filename );
+			else
+				fn = va( "%s%c%s", libDir, PATH_SEP, filename );
+
 			libHandle = Sys_LoadLibrary( fn );
 			if ( libHandle )
+			{
+				Com_DPrintf( "%s: loaded %s\n", callerName, fn );
 				return libHandle;
+			}
 
-			Com_Printf( "%s(%s) failed: \"%s\"\n", callerName, fn, Sys_LibraryError() );
+			if ( numTried < MAX_TRIED )
+			{
+				Q_strncpyz( tried[numTried], fn, sizeof( tried[0] ) );
+				Q_strncpyz( why[numTried], Sys_LibraryError(), sizeof( why[0] ) );
+				numTried++;
+			}
 		}
 	}
 
-	if ( searchFlags & SEARCH_PATH_BASE )
-	{
-		for ( size_t i = 0; i < numPaths; i++ )
-		{
-			const char *libDir = searchPaths[i];
-			if ( !libDir[0] )
-				continue;
-
-			fn = FS_BuildOSPath( libDir, BASEGAME, filename );
-			libHandle = Sys_LoadLibrary( fn );
-			if ( libHandle )
-				return libHandle;
-
-			Com_Printf( "%s(%s) failed: \"%s\"\n", callerName, fn, Sys_LibraryError() );
-		}
-	}
-
-	if ( searchFlags & SEARCH_PATH_ROOT )
-	{
-		for ( size_t i = 0; i < numPaths; i++ )
-		{
-			const char *libDir = searchPaths[i];
-			if ( !libDir[0] )
-				continue;
-
-			fn = va( "%s%c%s", libDir, PATH_SEP, filename );
-			libHandle = Sys_LoadLibrary( fn );
-			if ( libHandle )
-				return libHandle;
-
-			Com_Printf( "%s(%s) failed: \"%s\"\n", callerName, fn, Sys_LibraryError() );
-		}
-	}
+	Com_Printf( "%s: could not load %s. Tried:\n", callerName, filename );
+	for ( int i = 0; i < numTried; i++ )
+		Com_Printf( "  %s\n      %s\n", tried[i], why[i] );
 
 	return NULL;
 }

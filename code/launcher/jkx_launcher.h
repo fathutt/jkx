@@ -48,7 +48,16 @@ const char *Launcher_GameName( installKind_t kind );
 void		Launcher_Remember( const char *here, const char *path );
 
 // Replaces this process with the engine. Only returns on failure.
-void		Launcher_Start( const char *here, const launcherFound_t *game );
+// How many of the person's own arguments are handed to the engine. The engine
+// itself takes far more than this; the number is here so the argument array is
+// a fixed size rather than an allocation in a program whose whole job is to
+// call exec.
+#define JKX_MAX_PASS	64
+
+// Start the engine for this game. Anything in pass[] goes on the command line
+// after the paths this program works out, so a person can override them.
+void		Launcher_Start( const char *here, const launcherFound_t *game,
+						char **pass, int passCount );
 
 // ---------------------------------------------------------------------------
 // Supplied per platform.

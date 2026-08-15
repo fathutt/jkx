@@ -36,6 +36,7 @@ Foundation.
 
 #include "jkx_launcher.h"
 #include "jkx_install_find.h"
+#include "jkx_launcher_args.h"
 
 #include "minizip/unzip.h"
 
@@ -434,7 +435,8 @@ static const char *EngineNames( installKind_t kind, int which )
 }
 
 
-void Launcher_Start( const char *here, const launcherFound_t *game )
+void Launcher_Start( const char *here, const launcherFound_t *game,
+					 char **pass, int passCount )
 {
 	char		engine[JKX_MAX_PATH];
 	const char	*name = EngineNames( game->kind, 0 );
@@ -474,23 +476,42 @@ void Launcher_Start( const char *here, const launcherFound_t *game )
 		// where saves and configs go and the engine picks that itself.
 		char	root[JKX_MAX_PATH];
 		char	own[JKX_MAX_PATH];
-		char	*args[8];
+		char	*args[8 + JKX_MAX_PASS];
 		char	set1[] = "+set";
 		char	set2[] = "+set";
 		char	fsbase[] = "fs_basepath";
 		char	fscd[] = "fs_cdpath";
+		int		n = 0;
 
 		snprintf( root, sizeof( root ), "%s", game->root );
 		snprintf( own, sizeof( own ), "%s", here );
 
-		args[0] = engine;
-		args[1] = set1;
-		args[2] = fsbase;
-		args[3] = own;
-		args[4] = set2;
-		args[5] = fscd;
-		args[6] = root;
-		args[7] = NULL;
+		args[n++] = engine;
+		args[n++] = set1;
+		args[n++] = fsbase;
+		args[n++] = own;
+		args[n++] = set2;
+		args[n++] = fscd;
+		args[n++] = root;
+
+		// Everything the person put after the directory, passed straight
+		// through.
+		//
+		// Without this the launcher was a door with no handle: the engine takes
+		// its whole configuration on the command line, so "+set logfile 0" or
+		// "+devmap t1_sour" had to be run by hand, and running it by hand meant
+		// working out fs_cdpath by hand, which is the one thing this program
+		// exists to know. That is how the first check of the log folder was
+		// done, and it should not have been.
+		//
+		// These go AFTER the two paths, so a person can override either. The
+		// engine takes the last setting of a cvar on the command line, and
+		// somebody typing fs_cdpath means it.
+		for ( int i = 0; i < passCount; i++ ) {
+			args[n++] = pass[i];
+		}
+
+		args[n] = NULL;
 
 		printf( "starting %s\n", engine );
 		fflush( stdout );
@@ -638,35 +659,50 @@ int main( int argc, char **argv )
 	int				count;
 	int				chosen;
 
-	if ( argc > 2 ) {
-		printf( "usage: %s [game directory]\n", argv[0] );
+	// What is a directory and what is for the engine. See jkx_launcher_args.h;
+	// the split is a unit of its own so that a test can hand it argument lists
+	// nobody would type by accident.
+	const launcherArgs_t	split = Launcher_SplitArgs( argc, argv );
+	const char				*directory = split.directory;
+	char					**pass = split.pass;
+	int						passCount = split.passCount;
+
+	if ( split.extra ) {
+		printf( "usage: %s [game directory] [+set name value ...]\n", argv[0] );
 		printf( "\nWith no argument it looks for the games itself - Steam's records,\n"
 			"GOG's, the folders installers used before either, and anywhere it has\n"
 			"started a game from before. Give it a directory to use that one: the\n"
 			"folder with base/ in it, which for a Steam or GOG install is the one\n"
-			"called GameData.\n" );
+			"called GameData.\n"
+			"\nAnything beginning with + or - is handed to the engine as it stands,\n"
+			"after the paths this program works out, so it can override them.\n" );
 		WaitIfWeOwnTheConsole();
 		return 2;
+	}
+
+	if ( passCount > JKX_MAX_PASS ) {
+		printf( "only the first %d argument(s) are passed on; the rest are dropped\n",
+				JKX_MAX_PASS );
+		passCount = JKX_MAX_PASS;
 	}
 
 	AttachToAnyConsole();
 
 	DirectoryOf( here, sizeof( here ), argv[0] );
 
-	count = Launcher_Search( here, ( argc > 1 ) ? argv[1] : NULL,
-							 found, JKX_MAX_FOUND );
+	count = Launcher_Search( here, directory, found, JKX_MAX_FOUND );
 
 	// The window, when there is one and the user did not already say which
 	// directory they meant. It can add to the list - there is a button on it
 	// for picking a folder - so it takes count by pointer.
-	if ( argc == 1 ) {
+	if ( directory == NULL ) {
 		chosen = Launcher_ChooseInWindow( found, &count, JKX_MAX_FOUND );
 
 		if ( chosen == JKX_UI_CLOSED ) {
 			return 0;
 		}
 		if ( chosen != JKX_UI_UNAVAILABLE ) {
-			Launcher_Start( here, &found[chosen] );
+			Launcher_Start( here, &found[chosen], pass, passCount );
 			WaitIfWeOwnTheConsole();
 			return 1;
 		}
@@ -684,7 +720,7 @@ int main( int argc, char **argv )
 	chosen = ChooseOnConsole( found, count );
 
 	printf( "%s: %s\n", found[chosen].root, found[chosen].reason );
-	Launcher_Start( here, &found[chosen] );
+	Launcher_Start( here, &found[chosen], pass, passCount );
 
 	WaitIfWeOwnTheConsole();
 	return 1;
