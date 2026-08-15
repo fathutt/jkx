@@ -343,7 +343,22 @@ static cvarTable_t cvarTable[] = {
 	{ &cg_autoswitch, "cg_autoswitch", "1", CVAR_ARCHIVE },
 	{ &cg_drawGun, "cg_drawGun", "1", CVAR_ARCHIVE },
 	{ &cg_fov, "cg_fov", "80", CVAR_ARCHIVE },
-	{ &cg_fovAspectAdjust, "cg_fovAspectAdjust", "0", CVAR_ARCHIVE },
+	// On, as it is in Jedi Academy, and the difference between the two was
+	// costing this game everything above the horizon.
+	//
+	// Without it cg_fov is taken as the HORIZONTAL angle whatever shape the
+	// window is, and the vertical is whatever is left after dividing by the
+	// aspect ratio. At 4:3 that is the picture the game was drawn for. At
+	// 5120x1440 it is 80 degrees across and twenty-six degrees down: the world
+	// is not wider, it is shorter, and everything in it - the weapon in the
+	// hands, the player in third person, the frame a cutscene was composed for -
+	// is enormous and too close. With it on, cg_fov keeps its meaning at 4:3 and
+	// a wider window shows MORE at the sides instead of less at the top.
+	//
+	// Academy has had it on since it was added. Outcast got the cvar and not the
+	// default, which is the kind of difference that survives because each game
+	// is looked at separately.
+	{ &cg_fovAspectAdjust, "cg_fovAspectAdjust", "1", CVAR_ARCHIVE },
 	{ &cg_stereoSeparation, "cg_stereoSeparation", "0.4", CVAR_ARCHIVE  },
 	{ &cg_shadows, "cg_shadows", "1", CVAR_ARCHIVE  },
 	{ &cg_cinematicBarTime, "cg_cinematicBarTime", "0", CVAR_ARCHIVE  },
