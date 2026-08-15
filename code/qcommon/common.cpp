@@ -192,11 +192,26 @@ void QDECL Com_Printf( const char *fmt, ... ) {
 		// logfile
 		if ( com_logfile && com_logfile->integer ) {
 			if ( !logfile && FS_Initialized() ) {
-				// In "logs" beside the other two. Everything this project
-				// writes about a run now lands in one folder under the home
-				// path; it used to be this file here and the crash reports
-				// somewhere else.
-				logfile = FS_FOpenFileWrite( "logs/qconsole.log" );
+				// In "logs" under the home path, beside the other two, and
+				// through the SV opener rather than the ordinary one - which is
+				// the whole difference between one folder and two.
+				//
+				// FS_FOpenFileWrite writes relative to the GAME directory, so
+				// this landed in homepath/base/logs while the crash report and
+				// the error log, which build their path from fs_homepath
+				// directly, landed in homepath/logs. Two folders called logs,
+				// one level apart, and which one a file was in depended on
+				// which layer wrote it. The intent was one folder and the
+				// comment here said so while the code did the other thing.
+				//
+				// The home path root is also where it belongs: base/ is a game
+				// directory, holding what the engine reads back as game data -
+				// saves, configs, downloaded paks. A log is not game data and a
+				// mod does not have its own.
+				//
+				// FS_SV_FOpenFileWrite is the same write without the game
+				// directory in front of it.
+				logfile = FS_SV_FOpenFileWrite( "logs/qconsole.log" );
 				if ( com_logfile->integer > 1 ) {
 					// force it to not buffer so we get valid
 					// data even if we are crashing

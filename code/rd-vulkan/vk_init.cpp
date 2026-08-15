@@ -827,6 +827,24 @@ void vk_initialize( void )
 	vk.active = qtrue;
 }
 
+// A line per teardown step, so the log names the one that did not come back.
+//
+// This exists because of a report that could not be read. The hardware crashes
+// inside the driver during shutdown - on quitting from the menu and on
+// vid_restart, at the same instruction both times - and the stack frame resolves
+// to a LINE rather than to a call. A frame holds the address to return TO, so
+// the line it symbolises is the one after the call that never returned, and
+// there are two candidates a line apart: vkDestroyDevice and
+// vkDestroySurfaceKHR. Which of the two it is changes what the defect can be.
+//
+// One print per shutdown, and logfile is on and flushed per line, so the last
+// line in the log is the step that died. Cheaper than a guess and it cannot be
+// misread.
+static void vk_shutdown_step( const char *what )
+{
+	CL_RefPrintf( PRINT_ALL, "vk_shutdown: %s\n", what );
+}
+
 // Shutdown vulkan subsystem by releasing resources acquired by Vk_Instance.
 void vk_shutdown( void )
 {
@@ -840,6 +858,7 @@ void vk_shutdown( void )
 	vk_destroy_pipelines( qtrue ); // reset counter
 	vk_destroy_render_passes();
 	vk_destroy_attachments();
+	vk_shutdown_step( "destroying the swapchain" );
 	vk_destroy_swapchain();
 #ifdef VK_CUBEMAP	
 	vk_destroy_cubemap_prefilter();
@@ -908,10 +927,19 @@ __cleanup:
 #ifdef USE_VK_OBJECT_TRACKER
 		vk_dump_tracked_objects();
 #endif // USE_VK_OBJECT_TRACKER
+		vk_shutdown_step( "destroying the device" );
 		vkDestroyDevice(vk.device, NULL);
+		// Cleared as it is destroyed, and so is everything below. A handle left
+		// in place after the object behind it is gone is a handle something can
+		// be asked to destroy a second time, and the second destroy walks freed
+		// driver memory - which is the shape of the fault being chased here.
+		vk.device = VK_NULL_HANDLE;
 	}
-	if (vk.surface != VK_NULL_HANDLE)
+	if (vk.surface != VK_NULL_HANDLE) {
+		vk_shutdown_step( "destroying the surface" );
 		vkDestroySurfaceKHR(vk.instance, vk.surface, NULL);
+		vk.surface = VK_NULL_HANDLE;
+	}
 
 #ifdef USE_VK_VALIDATION
 	#ifdef USE_DEBUG_REPORT
@@ -924,8 +952,13 @@ __cleanup:
 	#endif
 #endif
 
-	if (vk.instance != VK_NULL_HANDLE)
+	if (vk.instance != VK_NULL_HANDLE) {
+		vk_shutdown_step( "destroying the instance" );
 		vkDestroyInstance(vk.instance, NULL);
+		vk.instance = VK_NULL_HANDLE;
+	}
+
+	vk_shutdown_step( "done" );
 
 	Com_Memset(&vk, 0, sizeof(vk));
 	Com_Memset(&vk_world, 0, sizeof(vk_world));

@@ -284,4 +284,12 @@ void vk_destroy_swapchain ( void ) {
     }
 
     vkDestroySwapchainKHR( vk.device, vk.swapchain, NULL );
+
+    // And forgotten, which it was not. vk_restart_swapchain calls this and then
+    // builds a new one; a handle left behind is one that a second teardown -
+    // shutdown after a restart - hands to the driver again, and destroying a
+    // swapchain twice is the driver walking memory it has already released.
+    // Whether that is what the hardware is dying of is not yet known; that it is
+    // wrong is not in question.
+    vk.swapchain = VK_NULL_HANDLE;
 }
