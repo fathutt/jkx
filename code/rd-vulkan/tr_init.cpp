@@ -147,6 +147,8 @@ cvar_t	*r_showsky;
 cvar_t	*r_dissolveType;
 cvar_t	*r_dissolveFreeze;
 cvar_t	*r_depthPrepass;
+cvar_t	*r_weldModelNormals;
+cvar_t	*r_weldModelNormalsAngle;
 cvar_t	*r_shownormals;
 cvar_t	*r_finish;
 cvar_t	*r_clear;
@@ -1016,6 +1018,19 @@ void R_Register( void )
 	// it is a picture of a known thing. -1 runs it normally.
 	r_dissolveFreeze					= Cvar_Get( "r_dissolveFreeze",						"-1",						0, "" );
 	r_depthPrepass						= Cvar_Get( "r_depthPrepass",					"0",						CVAR_ARCHIVE_ND, "fill the depth buffer with opaque geometry before shading it" );
+	// The seams on a character, and the reason they are there. A vertex is
+	// duplicated wherever the texture mapping is cut and again wherever the body
+	// is cut into surfaces, and the exporter gave each copy its own normal, so
+	// the lighting steps across the join. Measured on the retail kyle: 859 of
+	// his 1725 distinct positions in LOD 0 carry more than one vertex.
+	//
+	// Latched, because it is applied once when a model is read.
+	r_weldModelNormals					= Cvar_Get( "r_weldModelNormals",				"1",						CVAR_ARCHIVE|CVAR_LATCH, "share one normal between coincident vertexes of a character model" );
+	// How far apart two normals may be and still be averaged. The angles in a
+	// real model run the whole way to a hundred and eighty degrees, and the wide
+	// ones are deliberate edges - fingers, a belt, the rim of a nostril, the caps
+	// that close a limb off. Sixty leaves those alone.
+	r_weldModelNormalsAngle				= Cvar_Get( "r_weldModelNormalsAngle",			"60",						CVAR_ARCHIVE|CVAR_LATCH, "the widest angle between two coincident normals that is still a smooth join" );
 	r_shownormals						= Cvar_Get( "r_shownormals",						"0",						CVAR_CHEAT, "" );
 	r_clear								= Cvar_Get( "r_clear",							"0",						CVAR_CHEAT, "" );
 	r_offsetFactor						= Cvar_Get( "r_offsetfactor",					"-1",						CVAR_CHEAT, "" );

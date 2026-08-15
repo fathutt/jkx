@@ -22,6 +22,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 #include "tr_local.h"
 #include "tr_ghoul2_bonemap.h"
+#include "rd-common/mdx_weld.h"
 #include "client/client.h"	//FIXME!! EVIL - just include the definitions needed
 #include "qcommon/matcomp.h"
 #include "qcommon/qcommon.h"
@@ -4105,6 +4106,40 @@ qboolean R_LoadMDXM( model_t *mod, void *buffer, const char *mod_name, qboolean 
 		CL_RefPrintf( PRINT_ALL, S_COLOR_YELLOW "R_LoadMDXM: %s has %i bone reference(s) "
 			"its skeleton %s cannot hold; those vertexes follow the root bone\n",
 			mod_name, remapFailures, mdxm->animName );
+	}
+
+	// One normal per point in space, rather than one per copy of it.
+	//
+	// This is where the hard edge across Kyle's shoulder and the one across his
+	// face have come from since 2003, and it is data rather than rendering: a
+	// vertex is duplicated wherever the texture mapping is cut and again
+	// wherever the body is cut into surfaces, and the exporter computed a normal
+	// for each copy instead of for the point. See mdx_weld.h for the numbers off
+	// the retail file.
+	//
+	// After the byte swapping and after the bone remap, because it reads the
+	// normals and the positions as floats; before the vertex buffer is built,
+	// because that is what copies them onto the device.
+	if ( r_weldModelNormals->integer )
+	{
+		const int welded = MDX_WeldNormals( (unsigned char *)mdxm, (size_t)size,
+			r_weldModelNormalsAngle->value );
+
+		// A refusal is worth a line. The offsets have already been walked twice
+		// by the time this runs, so the interesting case is not a broken file -
+		// it is an angle a player has typed that has no meaning, and a silent
+		// nothing would look exactly like a weld that found no seams.
+		if ( welded < 0 )
+		{
+			CL_RefPrintf( PRINT_DEVELOPER, S_COLOR_YELLOW "R_LoadMDXM: %s: no normals welded, "
+				"r_weldModelNormalsAngle is %g and has to be between 0 and 180\n",
+				mod_name, r_weldModelNormalsAngle->value );
+		}
+		else if ( welded > 0 )
+		{
+			CL_RefPrintf( PRINT_DEVELOPER, "R_LoadMDXM: %s: %i normal(s) welded\n",
+				mod_name, welded );
+		}
 	}
 
 #ifdef USE_VBO_GHOUL2

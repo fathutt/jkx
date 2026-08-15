@@ -291,6 +291,12 @@ jobs:
       # the thing the lane below tests for, so it would pass on a broken tool.
       - name: the model shader stripper
         run: python3 tools/verify/glm_strip_shaders.py --check
+      - name: model normal welding
+        run: |
+          c++ -O1 -g -std=c++17 -Wall -Wextra -Werror \
+            -fsanitize=address,undefined -fno-sanitize-recover=all \
+            -o mdx_weld_test tests/mdx_weld_test.cpp code/rd-common/mdx_weld.cpp
+          ./mdx_weld_test
       # The font atlas is generated, not authored, and its failure modes are
       # pictures - a flat sheet, a shape half a pixel off - that no build log
       # would mention. So the generator draws its own output back and compares

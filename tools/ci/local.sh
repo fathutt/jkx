@@ -227,6 +227,17 @@ stage_tests_cxx() {
         "$ROOT/code/rd-common/mdx_check.cpp" || return 1
     "$out/mdx_header_test" || return 1
 
+    # Welding the normals of coincident model vertexes, and - the half that
+    # matters - not welding the ones that are deliberate edges. The threshold is
+    # the feature: in the retail kyle the angle between coincident normals runs
+    # the whole way to a hundred and eighty degrees.
+    c++ -O1 -g -std=c++17 -Wall -Wextra -Werror \
+        -fsanitize=address,undefined -fno-sanitize-recover=all \
+        -o "$out/mdx_weld_test" \
+        "$ROOT/tests/mdx_weld_test.cpp" \
+        "$ROOT/code/rd-common/mdx_weld.cpp" || return 1
+    "$out/mdx_weld_test" || return 1
+
     # Which game is in a directory. The launcher's first question, driven
     # through a fake filesystem so that the shapes players actually have -
     # half-deleted installs, merged folders, a mod directory pointed at by
