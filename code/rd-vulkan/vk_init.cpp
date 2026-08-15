@@ -676,7 +676,16 @@ void vk_initialize( void )
 	if ( r_specularMapping->integer )
 		vk.specularMappingActive = qtrue;
 
-	if ( ( !vk.normalMappingActive && !vk.specularMappingActive ) || vk.maxBoundDescriptorSets < 11 ) {
+	// VK_DESC_COUNT, not a number typed next to it.
+	//
+	// The layout uses sets 0 through 9 and VK_DESC_COUNT says 10; this asked for
+	// 11, which is the count with the irradiance slot that is commented out. So
+	// a device reporting exactly 10 - enough for every set this renderer
+	// actually binds - had the whole PBR path switched off for a set nothing
+	// creates. The constant is the only thing that can be right by construction.
+	if ( ( !vk.normalMappingActive && !vk.specularMappingActive )
+		 || vk.maxBoundDescriptorSets < VK_DESC_COUNT
+		 || !vk.pushDescriptorAvailable ) {
 		vk.useFastLight = qtrue;
 	}
 
@@ -694,10 +703,16 @@ void vk_initialize( void )
 	// docs/CODING-STANDARDS.md section 8.2 forbids, and it is also what
 	// tools/verify/verify.py keys on to tell you which path was measured.
 	if ( vk.useFastLight ) {
-		if ( vk.maxBoundDescriptorSets < 11 ) {
+		if ( !vk.pushDescriptorAvailable ) {
+			CL_RefPrintf( PRINT_WARNING,
+				"JKX: lighting path = fastlight (PBR OFF): this device has no "
+				"%s, which is what lets the five material textures share one "
+				"descriptor set.\n", VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME );
+		} else if ( vk.maxBoundDescriptorSets < VK_DESC_COUNT ) {
 			CL_RefPrintf( PRINT_WARNING,
 				"JKX: lighting path = fastlight (PBR OFF): this device reports maxBoundDescriptorSets %i, "
-				"and the PBR path needs 11. Bindless removes this limit.\n", vk.maxBoundDescriptorSets );
+				"and the PBR path needs %i. Push descriptors remove this limit.\n",
+				vk.maxBoundDescriptorSets, VK_DESC_COUNT );
 		} else {
 			CL_RefPrintf( PRINT_ALL,
 				"JKX: lighting path = fastlight (PBR OFF): r_normalMapping and r_specularMapping are both off.\n" );
@@ -873,6 +888,12 @@ void vk_shutdown( void )
 	vkDestroyDescriptorSetLayout(vk.device, vk.set_layout_sampler, NULL);
 	vkDestroyDescriptorSetLayout(vk.device, vk.set_layout_uniform, NULL);
 	vkDestroyDescriptorSetLayout(vk.device, vk.set_layout_storage, NULL);
+#ifdef USE_VK_PBR
+	if ( vk.set_layout_pbr != VK_NULL_HANDLE ) {
+		vkDestroyDescriptorSetLayout( vk.device, vk.set_layout_pbr, NULL );
+		vk.set_layout_pbr = VK_NULL_HANDLE;
+	}
+#endif
 
 	vkDestroyPipelineLayout(vk.device, vk.pipeline_layout, NULL);
 	vkDestroyPipelineLayout(vk.device, vk.pipeline_layout_storage, NULL);

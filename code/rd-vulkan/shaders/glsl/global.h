@@ -32,13 +32,26 @@
 #define VK_DESC_TEXTURE2				3
 #define VK_DESC_FOG_COLLAPSE			4
 #ifdef USE_VK_PBR
-#define VK_DESC_PBR_BRDFLUT				5
-#define VK_DESC_PBR_NORMAL				6
-#define VK_DESC_PBR_PHYSICAL			7
-#define VK_DESC_PBR_CUBEMAP				8
-#define VK_DESC_PBR_DELUXE				9
-//#define VK_DESC_PBR_IRRADIANCE		10
-#define VK_DESC_COUNT					10	// use 11 for irradiance testing
+// One set for all of the physically-based textures, with a binding each,
+// instead of one set apiece.
+//
+// A descriptor SET is the scarce thing in Vulkan: the guaranteed minimum is
+// four and eight is what Intel integrated parts, MoltenVK and most mobile
+// report. Five sets holding one image each pushed the count to ten, so the
+// whole PBR path switched itself off on all of them - and on the software
+// rasteriser the bench runs, which is why nothing in this branch had ever been
+// looked at by the validation layer.
+//
+// Bindings are not scarce in the same way, so the same five images at
+// VK_DESC_PBR cost one set and the count comes down to six.
+#define VK_DESC_PBR						5
+#define VK_DESC_PBR_BRDFLUT_BINDING		0
+#define VK_DESC_PBR_NORMAL_BINDING		1
+#define VK_DESC_PBR_PHYSICAL_BINDING	2
+#define VK_DESC_PBR_CUBEMAP_BINDING		3
+#define VK_DESC_PBR_DELUXE_BINDING		4
+#define VK_DESC_PBR_BINDING_COUNT		5
+#define VK_DESC_COUNT					6
 #else
 #define VK_DESC_COUNT					5
 #endif

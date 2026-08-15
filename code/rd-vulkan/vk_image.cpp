@@ -1475,6 +1475,11 @@ void vk_update_descriptor_set( image_t *image, qboolean mipmap ) {
 	descriptor_write.pTexelBufferView = NULL;
 
 	vkUpdateDescriptorSets(vk.device, 1, &descriptor_write, 0, NULL);
+
+	// Kept alongside the set, for the callers that push the descriptor into a
+	// command buffer instead of binding a set: they need these three fields and
+	// this is the only place that knows which sampler this image ended up with.
+	image->descriptor_info = image_info;
 }
 
 void vk_create_image( image_t *image, int width, int height, int mip_levels ) {

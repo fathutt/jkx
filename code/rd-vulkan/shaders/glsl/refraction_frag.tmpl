@@ -21,7 +21,7 @@ layout(set = VK_DESC_TEXTURE0, binding = 0) uniform sampler2D texture0;
 // its own PBR samplers the same way; this file did not, and a headless run
 // under the validation layers is what said so.
 #if !defined(USE_FAST_LIGHT)
-layout(set = VK_DESC_PBR_PHYSICAL, binding = 0) uniform sampler2D physical_texture;
+layout(set = VK_DESC_PBR, binding = VK_DESC_PBR_PHYSICAL_BINDING) uniform sampler2D physical_texture;
 #endif
 
 layout(set = VK_DESC_UNIFORM, binding = VK_DESC_UNIFORM_GLOBAL_BINDING) uniform Global {

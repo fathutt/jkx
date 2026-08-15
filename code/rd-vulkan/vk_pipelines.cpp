@@ -132,6 +132,35 @@ void vk_create_descriptor_layout( void )
         vk_create_layout_binding( 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, &vk.set_layout_sampler, qfalse );
         vk_create_layout_binding( 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_VERTEX_BIT, &vk.set_layout_uniform, qtrue );
         vk_create_layout_binding( 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_VERTEX_BIT, &vk.set_layout_storage, qfalse );
+
+#ifdef USE_VK_PBR
+        // The five physically-based textures in one set, with a binding each,
+        // and marked as a PUSH descriptor set: nothing is ever allocated from a
+        // pool for it. The images are written straight into the command buffer
+        // at draw time, which is what makes one set possible at all - four of
+        // the five belong to the material and the fifth changes per surface, so
+        // a set holding all five could not be cached on either.
+        if ( vk.pushDescriptorAvailable ) {
+            VkDescriptorSetLayoutBinding    bind[VK_DESC_PBR_BINDING_COUNT];
+            VkDescriptorSetLayoutCreateInfo desc;
+            uint32_t                        i;
+
+            for ( i = 0; i < VK_DESC_PBR_BINDING_COUNT; i++ ) {
+                bind[i].binding = i;
+                bind[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+                bind[i].descriptorCount = 1;
+                bind[i].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+                bind[i].pImmutableSamplers = NULL;
+            }
+
+            desc.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+            desc.pNext = NULL;
+            desc.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR;
+            desc.bindingCount = VK_DESC_PBR_BINDING_COUNT;
+            desc.pBindings = bind;
+            VK_CHECK( vkCreateDescriptorSetLayout( vk.device, &desc, NULL, &vk.set_layout_pbr ) );
+        }
+#endif
     }
 }
 
@@ -152,12 +181,11 @@ void vk_create_pipeline_layout( void )
     set_layouts[2] = vk.set_layout_sampler; // lightmap / fog-only
     set_layouts[3] = vk.set_layout_sampler; // blend
     set_layouts[4] = vk.set_layout_sampler; // collapsed fog texture
-    set_layouts[5] = vk.set_layout_sampler; // empty or brdfLUT
-    set_layouts[6] = vk.set_layout_sampler; // normalMap
-    set_layouts[7] = vk.set_layout_sampler; // physicalMap
-    set_layouts[8] = vk.set_layout_sampler; // prefiltered envmap
-    set_layouts[9] = vk.set_layout_sampler; // deluxeMap
-    //set_layouts[10] = vk.set_layout_sampler; // irradiance envmap
+#ifdef USE_VK_PBR
+    // brdfLUT, normalMap, physicalMap, prefiltered envmap and deluxeMap, all in
+    // this one, one binding each.
+    set_layouts[VK_DESC_PBR] = vk.set_layout_pbr;
+#endif
 
     desc.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     desc.pNext = NULL;

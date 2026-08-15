@@ -505,6 +505,7 @@ static qboolean vk_create_device( VkPhysicalDevice physical_device, int device_i
 		qboolean memoryRequirements2 = qfalse;
 		qboolean debugMarker = qfalse;
 		qboolean toolingInfo = qfalse;
+	qboolean pushDescriptor = qfalse;
 #ifdef _DEBUG
 		qboolean timelineSemaphore = qfalse;
 		qboolean memoryModel = qfalse;
@@ -536,6 +537,9 @@ static qboolean vk_create_device( VkPhysicalDevice physical_device, int device_i
 			}
 			else if (strcmp( ext, VK_EXT_DEBUG_MARKER_EXTENSION_NAME ) == 0 ) {
 				debugMarker = qtrue; 
+			}
+			else if ( strcmp( ext, VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME ) == 0 ) {
+				pushDescriptor = qtrue;
 			}
 			else if ( strcmp( ext, VK_EXT_TOOLING_INFO_EXTENSION_NAME ) == 0 ) {
 				toolingInfo = qtrue;
@@ -595,6 +599,19 @@ static qboolean vk_create_device( VkPhysicalDevice physical_device, int device_i
 
 		if ( toolingInfo )
 			device_extension_list[device_extension_count++] = VK_EXT_TOOLING_INFO_EXTENSION_NAME;
+
+#ifdef USE_VK_PBR
+		// What lets the five physically-based textures live in one descriptor
+		// set instead of five, and so what decides whether the PBR path can run
+		// on a device that reports the common limit of eight bound sets. Every
+		// desktop driver has had it for years and it is core in Vulkan 1.4;
+		// where it is missing, vk_initialize says so and falls back to
+		// fastlight rather than binding sets that are not in the layout.
+		if ( pushDescriptor ) {
+			device_extension_list[device_extension_count++] = VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME;
+			vk.pushDescriptorAvailable = qtrue;
+		}
+#endif
 
 #ifdef _DEBUG
 		if ( timelineSemaphore ) {

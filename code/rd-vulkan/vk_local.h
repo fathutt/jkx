@@ -561,6 +561,19 @@ typedef struct vk_tess_s {
 	
 	uint32_t			num_indexes; // value from most recent vk_bind_index() call
 	VkPipeline			last_pipeline;
+#ifdef USE_VK_PBR
+	// The five physically-based textures for the next draw, pushed into the
+	// command buffer rather than bound as five sets. Rebuilt per draw, which is
+	// what the old five-set arrangement was doing anyway - it just spent five
+	// of the eight descriptor sets most devices have to do it.
+	VkDescriptorImageInfo	pbr_image[VK_DESC_PBR_BINDING_COUNT];
+	// Where each of those came from, when it came from an image. The view is
+	// read back through this at push time rather than trusted from the copy -
+	// see vk_update_pbr_descriptor.
+	const struct image_s	*pbr_source[VK_DESC_PBR_BINDING_COUNT];
+	qboolean				pbr_dirty;
+#endif
+
 	// Set when vk_bind_pipeline was asked for a pipeline that has no handle
 	// and could not bind one. The draw that follows has to be skipped too: a
 	// draw with no graphics pipeline bound is undefined behaviour whatever the
@@ -792,6 +805,14 @@ typedef struct {
 
 	VkDescriptorPool		descriptor_pool;
 	VkDescriptorSetLayout	set_layout_sampler;		// combined image sampler
+#ifdef USE_VK_PBR
+	// One set for all five physically-based textures, pushed rather than
+	// allocated - see VK_DESC_PBR in shaders/glsl/global.h for why there is
+	// one instead of five.
+	VkDescriptorSetLayout	set_layout_pbr;
+	VkDescriptorImageInfo	brdflut_descriptor_info;
+	qboolean				pushDescriptorAvailable;
+#endif
 	VkDescriptorSetLayout	set_layout_uniform;		// dynamic uniform buffer
 	VkDescriptorSetLayout	set_layout_storage;		// feedback buffer
 
@@ -1178,6 +1199,10 @@ void		vk_create_vertex_buffer( VkDeviceSize size );
 void		vk_create_indirect_buffer( VkDeviceSize size );
 VkBuffer	vk_get_vertex_buffer( void );
 void		vk_update_descriptor( int tmu, VkDescriptorSet curDesSet );
+#ifdef USE_VK_PBR
+void		vk_update_pbr_descriptor( int binding, const struct image_s *image );
+void		vk_update_pbr_descriptor_raw( int binding, const VkDescriptorImageInfo *info );
+#endif
 uint32_t	vk_find_pipeline_ext( uint32_t base, const Vk_Pipeline_Def *def, qboolean use );
 VkPipeline	vk_gen_pipeline( uint32_t index );
 void		vk_end_render_pass( void );

@@ -731,7 +731,11 @@ void vk_update_attachment_descriptors( void ) {
 			info.imageView = vk.brdflut_image_view;
 			desc.dstSet = vk.brdflut_image_descriptor;
 
-			vkUpdateDescriptorSets( vk.device, 1, &desc, 0, NULL );	
+			vkUpdateDescriptorSets( vk.device, 1, &desc, 0, NULL );
+
+			// The contents as well as the set: the PBR path pushes this one
+			// into the command buffer rather than binding it.
+			vk.brdflut_descriptor_info = info;
 
 			// cubemap
 			info.imageView = vk.cubeMap.color_image_view[0];
@@ -927,6 +931,61 @@ void vk_update_descriptor( int tmu, VkDescriptorSet curDesSet )
 	vk.cmd->descriptor_set.current[tmu] = curDesSet;
 }
 
+#ifdef USE_VK_PBR
+// One of the five physically-based textures for the next draw.
+//
+// The five used to be five descriptor SETS, one image apiece, which is what put
+// the layout at ten sets and switched the whole path off on every device that
+// reports the common limit of eight - including the software rasteriser this
+// project runs headless, so nothing in this branch had ever been through the
+// validation layer. They are one set with five bindings now, pushed into the
+// command buffer at draw time.
+//
+// Pushed rather than allocated because no set could be cached anyway: four of
+// the five belong to the material and the fifth, the cubemap, changes per
+// surface.
+void vk_update_pbr_descriptor( int binding, const image_t *image )
+{
+	if ( !vk.pushDescriptorAvailable || vk.useFastLight ) {
+		return;
+	}
+	if ( binding < 0 || binding >= VK_DESC_PBR_BINDING_COUNT || image == NULL ) {
+		return;
+	}
+
+	// The image rather than a copy of its descriptor, and the difference is a
+	// defect the bench found on the second PBR run it had ever done: an
+	// "Invalid VkImageView" from the validation layer, not a null one - a
+	// handle to a view that had been destroyed. An image_t outlives its
+	// VkImageView, which is remade whenever the texture is reloaded, so a
+	// descriptor cached beside the image goes stale without anything saying so.
+	//
+	// The sampler is stable for the life of the image and comes from the cached
+	// copy; the view is read at push time, from the image, where it is current.
+	vk.cmd->pbr_image[binding] = image->descriptor_info;
+	vk.cmd->pbr_source[binding] = image;
+	vk.cmd->pbr_dirty = qtrue;
+}
+
+// The BRDF lookup table is not an image_t - it is created with the attachments
+// and has no entry in the texture list - so it arrives as a descriptor and has
+// no view to read back. It is also created once per renderer life and never
+// reloaded, which is the property the image case does not have.
+void vk_update_pbr_descriptor_raw( int binding, const VkDescriptorImageInfo *info )
+{
+	if ( !vk.pushDescriptorAvailable || vk.useFastLight ) {
+		return;
+	}
+	if ( binding < 0 || binding >= VK_DESC_PBR_BINDING_COUNT ) {
+		return;
+	}
+
+	vk.cmd->pbr_image[binding] = *info;
+	vk.cmd->pbr_source[binding] = NULL;
+	vk.cmd->pbr_dirty = qtrue;
+}
+#endif
+
 void vk_update_descriptor_offset( int index, uint32_t offset )
 {
 	vk.cmd->descriptor_set.offset[index] = offset;
@@ -968,6 +1027,61 @@ void vk_bind_descriptor_sets( void )
 
 	vk.cmd->descriptor_set.end = 0;
 	vk.cmd->descriptor_set.start = ~0U;
+
+#ifdef USE_VK_PBR
+	// And the physically-based set, which is not bound but written straight
+	// into the command buffer. Every binding is filled every time: a push
+	// descriptor set has no state between draws, so a binding left out is a
+	// binding the shader reads and nothing wrote.
+	if ( vk.cmd->pbr_dirty ) {
+		VkWriteDescriptorSet	writes[VK_DESC_PBR_BINDING_COUNT];
+		uint32_t				i;
+
+		for ( i = 0; i < VK_DESC_PBR_BINDING_COUNT; i++ ) {
+			// A binding nothing wrote this draw.
+			//
+			// A pushed set holds no state between draws, so "the caller only
+			// sets the ones its material has" - which is what the five-set
+			// arrangement allowed, because a set left alone kept whatever was
+			// bound before - becomes an image info full of zeroes and a null
+			// handle handed to the driver. The validation layer said so nine
+			// hundred and twenty-four times on the first run: two VUIDs about
+			// the sampler and the view of a combined image sampler.
+			//
+			// White for the flat maps and the empty cubemap for the cube one,
+			// which is what the call sites above use for their own "not
+			// present" case.
+			if ( vk.cmd->pbr_source[i] != NULL ) {
+				vk.cmd->pbr_image[i].imageView = vk.cmd->pbr_source[i]->view;
+			}
+
+			if ( vk.cmd->pbr_image[i].imageView == VK_NULL_HANDLE ) {
+				const image_t *fallback = ( i == VK_DESC_PBR_CUBEMAP_BINDING )
+					? tr.emptyCubemap : tr.whiteImage;
+
+				vk.cmd->pbr_image[i] = fallback->descriptor_info;
+				vk.cmd->pbr_image[i].imageView = fallback->view;
+			}
+
+			writes[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+			writes[i].pNext = NULL;
+			writes[i].dstSet = VK_NULL_HANDLE;	// ignored for a pushed set
+			writes[i].dstBinding = i;
+			writes[i].dstArrayElement = 0;
+			writes[i].descriptorCount = 1;
+			writes[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+			writes[i].pImageInfo = &vk.cmd->pbr_image[i];
+			writes[i].pBufferInfo = NULL;
+			writes[i].pTexelBufferView = NULL;
+		}
+
+		vkCmdPushDescriptorSetKHR( vk.cmd->command_buffer,
+			VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipeline_layout,
+			VK_DESC_PBR, VK_DESC_PBR_BINDING_COUNT, writes );
+
+		vk.cmd->pbr_dirty = qfalse;
+	}
+#endif
 }
 
 void vk_bind_pipeline( uint32_t pipeline ) {
@@ -2964,16 +3078,16 @@ void RB_StageIteratorGeneric( void )
 			qboolean has_cubemap = ( !vk.useFastLight && tr.numCubemaps && tess.cubemapIndex > 0) ? qtrue : qfalse;
 
 			if ( def.vk_light_flags )
-				vk_update_descriptor( VK_DESC_PBR_BRDFLUT, vk.brdflut_image_descriptor);
+				vk_update_pbr_descriptor_raw( VK_DESC_PBR_BRDFLUT_BINDING, &vk.brdflut_descriptor_info );
 
 			if ( pStage->vk_pbr_flags & PBR_HAS_NORMALMAP )
-				vk_update_descriptor(  VK_DESC_PBR_NORMAL, pStage->normalMap->descriptor_set );
+				vk_update_pbr_descriptor( VK_DESC_PBR_NORMAL_BINDING, pStage->normalMap );
 
 			if ( pStage->vk_pbr_flags & PBR_HAS_PHYSICALMAP || pStage->vk_pbr_flags & PBR_HAS_SPECULARMAP )
-				vk_update_descriptor( VK_DESC_PBR_PHYSICAL, pStage->physicalMap->descriptor_set );
+				vk_update_pbr_descriptor( VK_DESC_PBR_PHYSICAL_BINDING, pStage->physicalMap );
 			else
 			{
-				vk_update_descriptor(VK_DESC_PBR_PHYSICAL, tr.whiteImage->descriptor_set);
+				vk_update_pbr_descriptor( VK_DESC_PBR_PHYSICAL_BINDING, tr.whiteImage );
 				
 				uniform_global.specularScale[0] = 0.0f;
 				uniform_global.specularScale[2] =
@@ -2982,14 +3096,14 @@ void RB_StageIteratorGeneric( void )
 			}
 
 			if ( !has_cubemap || backEnd.viewParms.targetCube != nullptr )
-				vk_update_descriptor( VK_DESC_PBR_CUBEMAP, tr.emptyCubemap->descriptor_set );
+				vk_update_pbr_descriptor( VK_DESC_PBR_CUBEMAP_BINDING, tr.emptyCubemap );
 			else 	
-				vk_update_descriptor( VK_DESC_PBR_CUBEMAP, tr.cubemaps[tess.cubemapIndex-1].prefiltered_image->descriptor_set );
+				vk_update_pbr_descriptor( VK_DESC_PBR_CUBEMAP_BINDING, tr.cubemaps[tess.cubemapIndex-1].prefiltered_image );
 		
 			if ( def.vk_light_flags & LIGHTDEF_USE_LIGHTMAP && def.vk_pbr_flags & PBR_HAS_DELUXEMAP )
-				vk_update_descriptor(  VK_DESC_PBR_DELUXE, pStage->bundle[1].deluxeMap->descriptor_set );
+				vk_update_pbr_descriptor( VK_DESC_PBR_DELUXE_BINDING, pStage->bundle[1].deluxeMap );
 			else
-				vk_update_descriptor(  VK_DESC_PBR_DELUXE, tr.whiteImage->descriptor_set );
+				vk_update_pbr_descriptor( VK_DESC_PBR_DELUXE_BINDING, tr.whiteImage );
 		}
 
 		Vk_Depth_Range depthRange = tess.depthRange;

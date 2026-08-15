@@ -123,11 +123,11 @@ layout (constant_id = 9) const float identity_color = 1.0;
 	layout (location = 13) in flat int Var_RenderMode;
 	layout (location = 14) in vec4 var_Tangent;
 
-	layout (set = VK_DESC_PBR_BRDFLUT,	binding = 0) uniform sampler2D brdflut_texture;
-	layout (set = VK_DESC_PBR_NORMAL,	binding = 0) uniform sampler2D normal_texture;
-	layout (set = VK_DESC_PBR_PHYSICAL,	binding = 0) uniform sampler2D physical_texture;
-	layout (set = VK_DESC_PBR_CUBEMAP,	binding = 0) uniform samplerCube env_texture;
-	layout (set = VK_DESC_PBR_DELUXE,	binding = 0) uniform sampler2D deluxe_texture;
+	layout (set = VK_DESC_PBR, binding = VK_DESC_PBR_BRDFLUT_BINDING)  uniform sampler2D brdflut_texture;
+	layout (set = VK_DESC_PBR, binding = VK_DESC_PBR_NORMAL_BINDING)   uniform sampler2D normal_texture;
+	layout (set = VK_DESC_PBR, binding = VK_DESC_PBR_PHYSICAL_BINDING) uniform sampler2D physical_texture;
+	layout (set = VK_DESC_PBR, binding = VK_DESC_PBR_CUBEMAP_BINDING)  uniform samplerCube env_texture;
+	layout (set = VK_DESC_PBR, binding = VK_DESC_PBR_DELUXE_BINDING)   uniform sampler2D deluxe_texture;
 
 	//layout(set = 10, binding = 0) uniform samplerCube irradiance_texture;
 	#include "common/pbr.glsl"

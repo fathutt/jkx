@@ -691,6 +691,25 @@ if [ "${JKX_SMOKE_PLAIN:-0}" = "1" ]; then
                 +set cg_runpitch 0 +set cg_runroll 0 )
 fi
 
+# Which lighting path this run measures, said out loud instead of inherited from
+# a device limit.
+#
+# Every picture in this file was taken under fastlight, and not because anybody
+# chose it: the PBR path needed more descriptor sets than lavapipe has, so it
+# switched itself off and nothing here ever exercised it. That is fixed - the
+# five material textures share one pushed set now - which means the default lane
+# would silently start measuring a different renderer than the one its expected
+# colours came from.
+#
+# So the default lane asks for fastlight, and PBR gets a lane of its own.
+# JKX_SMOKE_PBR=1 turns it on; it is not in the stage list yet, for the same
+# reason the vid_restart lane is not: it still has something to say.
+if [ "${JKX_SMOKE_PBR:-0}" = "1" ]; then
+    SET_STEP+=( +set r_normalMapping 1 +set r_specularMapping 1 )
+else
+    SET_STEP+=( +set r_normalMapping 0 +set r_specularMapping 0 )
+fi
+
 set +e
 ( cd "$RUN" && \
   DISPLAY="$DISPLAY_NUM" \

@@ -321,6 +321,11 @@ typedef struct image_s {
 	VmaAllocation			allocation;
 	VkImageView				view;
 	VkDescriptorSet			descriptor_set;
+	// The same sampler, view and layout that descriptor_set was written with,
+	// kept because a pushed descriptor needs the contents rather than the set.
+	// Filled by vk_update_descriptor_set, which is the one place that decides
+	// which sampler an image gets.
+	VkDescriptorImageInfo	descriptor_info;
 	qboolean				isLightmap;
 	uint32_t				mipLevels;		// gl texture binding
 	VkSamplerAddressMode	wrapClampMode;	
