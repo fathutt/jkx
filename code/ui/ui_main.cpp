@@ -4540,52 +4540,53 @@ static void UI_UpdateFightingStyleChoices ( void )
 }
 #endif // !JK2_MODE
 
-#define MAX_POWER_ENUMS 16
-
 typedef struct {
 	const char	*title;
 	short	powerEnum;
 } powerEnum_t;
 
-static powerEnum_t powerEnums[MAX_POWER_ENUMS] =
+// The Academy-only powers are grouped at the end rather than left in their
+// thematic places, so that five conditionals become one. Nothing depends on
+// the order: every index into this table comes from UI_GetForcePowerIndex,
+// which looks a name up, and the menu items are found by name too.
+//
+// The size is the initialiser's, and that is a fix rather than tidiness. It
+// used to be MAX_POWER_ENUMS, sixteen, with eleven entries under JK2_MODE -
+// so five entries were left zeroed and the loops below walked them anyway,
+// handing a NULL title to Q_stricmp and to Com_sprintf's %s. Nothing crashed
+// in the runs anyone did, which is the usual reason a thing like this survives
+// twenty years.
+static powerEnum_t powerEnums[] =
 {
-#ifndef JK2_MODE
-	{ "absorb",		FP_ABSORB },
-#endif // !JK2_MODE
-
 	{ "heal",			FP_HEAL },
-	{ "mindtrick",	FP_TELEPATHY },
-
-#ifndef JK2_MODE
-	{ "protect",		FP_PROTECT },
-#endif // !JK2_MODE
+	{ "mindtrick",		FP_TELEPATHY },
 
 				// Core powers
 	{ "jump",			FP_LEVITATION },
 	{ "pull",			FP_PULL },
 	{ "push",			FP_PUSH },
 
-#ifndef JK2_MODE
-	{ "sense",		FP_SEE },
-#endif // !JK2_MODE
-
-	{ "speed",		FP_SPEED },
-	{ "sabdef",		FP_SABER_DEFENSE },
-	{ "saboff",		FP_SABER_OFFENSE },
+	{ "speed",			FP_SPEED },
+	{ "sabdef",			FP_SABER_DEFENSE },
+	{ "saboff",			FP_SABER_OFFENSE },
 	{ "sabthrow",		FP_SABERTHROW },
 
 				// Dark powers
-#ifndef JK2_MODE
-	{ "drain",		FP_DRAIN },
-#endif // !JK2_MODE
-
 	{ "grip",			FP_GRIP },
-	{ "lightning",	FP_LIGHTNING },
+	{ "lightning",		FP_LIGHTNING },
 
 #ifndef JK2_MODE
+				// Jedi Academy added these five, and Outcast has no menu
+				// entries, no icons and no strings for them.
+	{ "absorb",			FP_ABSORB },
+	{ "protect",		FP_PROTECT },
+	{ "sense",			FP_SEE },
+	{ "drain",			FP_DRAIN },
 	{ "rage",			FP_RAGE },
 #endif // !JK2_MODE
 };
+
+#define NUM_POWER_ENUMS		( (int)ARRAY_LEN( powerEnums ) )
 
 
 // Find the index to the Force Power in powerEnum array
@@ -4594,7 +4595,7 @@ static qboolean UI_GetForcePowerIndex ( const char *forceName, short *forcePower
 	int i;
 
 	// Find a match for the forceName passed in
-	for (i=0;i<MAX_POWER_ENUMS;i++)
+	for (i=0;i<NUM_POWER_ENUMS;i++)
 	{
 		if ( !Q_stricmp(forceName, powerEnums[i].title ) )
 		{
@@ -4989,7 +4990,7 @@ static void UI_ShutdownForceHelp( void )
 	{
 		// We just decremented a field so turn all buttons back on
 		// Make it so all  buttons can be clicked
-		for (i=0;i<MAX_POWER_ENUMS;i++)
+		for (i=0;i<NUM_POWER_ENUMS;i++)
 		{
 			Com_sprintf (itemName, sizeof(itemName), "%s_fbutton", powerEnums[i].title);
 
@@ -5139,7 +5140,7 @@ static void UI_DecrementCurrentForcePower ( void )
 
 	// We just decremented a field so turn all buttons back on
 	// Make it so all  buttons can be clicked
-	for (i=0;i<MAX_POWER_ENUMS;i++)
+	for (i=0;i<NUM_POWER_ENUMS;i++)
 	{
 		Com_sprintf (itemName, sizeof(itemName), "%s_fbutton", powerEnums[i].title);
 		item = (itemDef_s *) Menu_FindItemByName(menu, itemName);
@@ -5245,7 +5246,7 @@ static void UI_AffectForcePowerLevel ( const char *forceName )
 		char itemName[128];
 
 		// Make it so none of the other buttons can be clicked
-		for (i=0;i<MAX_POWER_ENUMS;i++)
+		for (i=0;i<NUM_POWER_ENUMS;i++)
 		{
 			if (i==uiInfo.forcePowerUpdated)
 			{
@@ -5380,7 +5381,7 @@ static void UI_ResetForceLevels ( void )
 		char itemName[128];
 
 		// Make it so all  buttons can be clicked
-		for (i=0;i<MAX_POWER_ENUMS;i++)
+		for (i=0;i<NUM_POWER_ENUMS;i++)
 		{
 			Com_sprintf (itemName, sizeof(itemName), "%s_fbutton", powerEnums[i].title);
 			item = (itemDef_s *) Menu_FindItemByName(menu, itemName);

@@ -4,7 +4,7 @@
 # number comes down is by moving a difference somewhere it can be read.
 # Regenerate with: tools/ci/check_jk2mode.py --update
 
-# total: 199
+# total: 189
 
    3 code/api/ui_public.h
    2 code/client/cl_cgame.cpp
@@ -18,9 +18,10 @@
    4 code/ghoul2/ghoul2_shared.h
    1 code/qcommon/cm_load.cpp
    4 code/qcommon/common.cpp
+   1 code/qcommon/jkx_game_limits.h
+  10 code/qcommon/jkx_saved_game.cpp
    4 code/qcommon/msg.cpp
-  10 code/qcommon/ojk_saved_game.cpp
-  48 code/qcommon/q_shared.h
+  41 code/qcommon/q_shared.h
    1 code/qcommon/qcommon.h
    1 code/qcommon/stringed_ingame.cpp
    1 code/qcommon/strip.cpp
@@ -32,7 +33,7 @@
    4 code/server/sv_snapshot.cpp
    6 code/ui/ui_atoms.cpp
    2 code/ui/ui_connect.cpp
-  37 code/ui/ui_main.cpp
+  33 code/ui/ui_main.cpp
   18 code/ui/ui_shared.cpp
    1 games/jk2/cgame/cg_info.cpp
    1 games/jk2/game/g_savegame.cpp

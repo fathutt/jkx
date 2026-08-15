@@ -31,6 +31,8 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #include "qcommon/q_math.h"
 #include "qcommon/q_color.h"
 #include "qcommon/q_string.h"
+// The numbers that differ between Jedi Outcast and Jedi Academy, in one table.
+#include "qcommon/jkx_game_limits.h"
 
 #ifdef _MSC_VER
 
@@ -690,11 +692,7 @@ typedef struct {
 
 #define	MAX_MODELS			256
 
-#ifdef JK2_MODE
-#define MAX_SOUNDS (256)
-#else
-#define	MAX_SOUNDS			380
-#endif // JK2_MODE
+#define	MAX_SOUNDS			JKX_MAX_SOUNDS
 
 #define MAX_SUB_BSP			32
 
@@ -702,11 +700,7 @@ typedef struct {
 
 #define MAX_FX				128
 
-#ifdef JK2_MODE
-#define MAX_WORLD_FX (4)
-#else
-#define MAX_WORLD_FX		66		// was 16 // was 4
-#endif // JK2_MODE
+#define MAX_WORLD_FX		JKX_MAX_WORLD_FX
 
 /*
 Ghoul2 Insert Start
@@ -716,11 +710,7 @@ Ghoul2 Insert Start
 Ghoul2 Insert End
 */
 
-#ifdef JK2_MODE
-#define MAX_CONFIGSTRINGS (1024)
-#else
-#define	MAX_CONFIGSTRINGS	1300//1024 //rww - I had to up this for terrains
-#endif // JK2_MODE
+#define	MAX_CONFIGSTRINGS	JKX_MAX_CONFIGSTRINGS
 
 // these are the only configstrings that the system reserves, all the
 // other ones are strictly for servergame to clientgame communication
@@ -741,35 +731,13 @@ Ghoul2 Insert End
 
 #define	CS_MODELS			10
 
-#ifndef JK2_MODE
-#define	CS_SKYBOXORG		(CS_MODELS+MAX_MODELS)		//rww - skybox info
-#endif // !JK2_MODE
-
-#ifdef JK2_MODE
-#define CS_SOUNDS (CS_MODELS + MAX_MODELS)
-#else
-#define	CS_SOUNDS			(CS_SKYBOXORG+1)
-#endif // JK2_MODE
-
+// CS_SKYBOXORG, CS_SOUNDS, CS_BSP_MODELS and CS_EFFECTS are per game and live
+// together in jkx_game_limits.h: the two layouts are worth reading side by
+// side, and four conditionals interleaved with the shared slots are not a
+// layout anyone can read.
 #define	CS_PLAYERS			(CS_SOUNDS+MAX_SOUNDS)
 
 #define	CS_LIGHT_STYLES		(CS_PLAYERS+MAX_CLIENTS)
-
-#ifndef JK2_MODE
-// CS_TERRAINS was here, one slot wide, and nothing wrote it or read it: the
-// only reader was a loop in cg_main.cpp over an empty range. Removing it moves
-// every configstring after it down by one, which is a savegame format change
-// and is meant to be - this engine's saves are its own, the retail format was
-// given up deliberately, and a reserved slot for a feature that was cut before
-// the game shipped is not worth carrying to keep a number the same.
-#define CS_BSP_MODELS		(CS_LIGHT_STYLES + (MAX_LIGHT_STYLES*3))
-#endif // !JK2_MODE
-
-#ifdef JK2_MODE
-#define CS_EFFECTS (CS_LIGHT_STYLES + (MAX_LIGHT_STYLES * 3))
-#else
-#define CS_EFFECTS			(CS_BSP_MODELS + MAX_SUB_BSP)//(CS_LIGHT_STYLES + (MAX_LIGHT_STYLES*3))
-#endif // JK2_MODE
 
 /*
 Ghoul2 Insert Start
