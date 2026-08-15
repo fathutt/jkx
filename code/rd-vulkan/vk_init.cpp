@@ -880,9 +880,10 @@ void vk_shutdown( void )
 	vk_destroy_allocator();
 
 __cleanup:
-	// Before the engine unloads this module, which it does on every
-	// vid_restart and not only at exit.
-	vk_remove_crash_handler();
+	// The crash handler deliberately stays installed - see vk_crash.cpp. Taking
+	// it down here is what made vid_restart crash silently: everything below
+	// runs without a reporter, and so does the whole of the next start-up until
+	// vk_initialize puts it back.
 
 	if (vk.device != VK_NULL_HANDLE) {
 #ifdef USE_VK_OBJECT_TRACKER

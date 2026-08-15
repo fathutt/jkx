@@ -1488,7 +1488,10 @@ void RE_Shutdown( qboolean destroyWindow, qboolean restarting ) {
 		for ( size_t i = 0; i < numCommands; i++ )
 			Cmd_RemoveCommand( commands[i].cmd );
 
-		vk_remove_crash_handler();
+		// The crash handler stays installed here too - see vk_crash.cpp. This is
+		// the path taken when there is no Vulkan driver at all, and a machine
+		// that cannot start the renderer is exactly the machine whose next fault
+		// is worth a report.
 		Com_Memset( &tr, 0, sizeof( tr ) );
 		Com_Memset( &backEnd, 0, sizeof( backEnd ) );
 		Com_Memset( &tess, 0, sizeof( tess ) );

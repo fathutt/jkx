@@ -41,12 +41,20 @@ static LONG  jkx_crash_busy = 0;
 static char  jkx_crash_path[MAX_PATH];
 static bool  jkx_crash_symbols = false;
 
-// Both of these have to be given back before this module can be unloaded. The
-// engine unloads the renderer on every vid_restart (CL_ShutdownRef unloads
-// unconditionally, restarting or not), and a handler the operating system still
-// holds a pointer to, in memory that has been freed, is a jump into nothing on
-// the next exception of any kind - including the benign first-chance ones
-// Windows raises routinely. That is a crash introduced by the crash reporter.
+// Both of these have to be given back before this module can be unloaded: a
+// handler the operating system still holds a pointer to, in memory that has
+// been freed, is a jump into nothing on the next exception of any kind. That is
+// a crash introduced by the crash reporter.
+//
+// The renderer in this tree is a static library linked into the engine
+// (code/rd-vulkan/CMakeLists.txt, and CL_InitRef calls GetRefAPI directly), so
+// it is never unloaded and this never has to happen. It used to be called from
+// renderer shutdown anyway, on the reasoning that vid_restart unloads the
+// module - which was true of the dynamic renderer this replaced and is not true
+// here. The cost was exact: vid_restart crashed to the desktop and left no
+// report, because the handler was taken down at the top of the teardown and put
+// back at the bottom of the next initialisation, and the fault is in between.
+// So this is kept, and not called.
 static PVOID jkx_crash_vectored_handle = NULL;
 static LPTOP_LEVEL_EXCEPTION_FILTER jkx_crash_previous_filter = NULL;
 

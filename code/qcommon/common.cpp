@@ -1152,7 +1152,19 @@ void Com_Init( char *commandLine ) {
 		Cmd_AddCommand ("writeconfig", Com_WriteConfig_f );
 
 		com_developer = Cvar_Get ("developer", "0", CVAR_TEMP );
-		com_logfile = Cvar_Get ("logfile", "0", CVAR_TEMP );
+		// On, and flushed after every line, which is what the 2 means.
+		//
+		// The default was off, so the only record of a run was whatever the
+		// player thought to type condump into before the window went away - and
+		// a crash takes the console with it, which is precisely the run whose
+		// record is worth having. Asking somebody to reproduce a crash with
+		// logging switched on is asking them to have it happen twice.
+		//
+		// Flushed rather than buffered because a buffered log of a crash ends
+		// several hundred lines before the crash. The cost is one fflush per
+		// printed line, against a game that is doing rather more than that per
+		// frame. Turn it off with +set logfile 0.
+		com_logfile = Cvar_Get ("logfile", "2", CVAR_TEMP );
 		com_speedslog = Cvar_Get ("speedslog", "0", CVAR_TEMP );
 
 		// Registered here so it turns up in the cvar list; Sys_ErrorDialog reads
