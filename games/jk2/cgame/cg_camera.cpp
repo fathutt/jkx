@@ -1003,7 +1003,19 @@ CGCam_UpdateBarFade
 
 void CGCam_UpdateBarFade( void )
 {
-	if ( client_camera.bar_time + BAR_DURATION < cg.time )
+	// The bars slide in over a second while the fade from black that starts
+	// gameplay runs on a timer of its own, so at the moment a cutscene hands
+	// control back the two are visibly arguing. cg_cinematicBarTime 0 puts the
+	// bars there and takes them away at once and leaves the fade to do the
+	// transition by itself; the old behaviour is cg_cinematicBarTime 1000.
+	//
+	// A setting rather than a deletion because which of the two looks right is
+	// a question about how it looks, and that is answered by looking at it -
+	// live, both ways, without a rebuild between them.
+	const float fBarTime = ( cg_cinematicBarTime.value > 0.0f )
+						 ? cg_cinematicBarTime.value : 0.0f;
+
+	if ( fBarTime <= 0.0f || client_camera.bar_time + fBarTime < cg.time )
 	{
 		client_camera.bar_alpha = client_camera.bar_alpha_dest;
 		client_camera.info_state &= ~CAMERA_BAR_FADING;
@@ -1011,8 +1023,8 @@ void CGCam_UpdateBarFade( void )
 	}
 	else
 	{
-		client_camera.bar_alpha  = client_camera.bar_alpha_source + ( ( client_camera.bar_alpha_dest - client_camera.bar_alpha_source ) / BAR_DURATION ) * ( cg.time - client_camera.bar_time );;
-		client_camera.bar_height = client_camera.bar_height_source + ( ( client_camera.bar_height_dest - client_camera.bar_height_source ) / BAR_DURATION ) * ( cg.time - client_camera.bar_time );;
+		client_camera.bar_alpha  = client_camera.bar_alpha_source + ( ( client_camera.bar_alpha_dest - client_camera.bar_alpha_source ) / fBarTime ) * ( cg.time - client_camera.bar_time );
+		client_camera.bar_height = client_camera.bar_height_source + ( ( client_camera.bar_height_dest - client_camera.bar_height_source ) / fBarTime ) * ( cg.time - client_camera.bar_time );
 	}
 }
 

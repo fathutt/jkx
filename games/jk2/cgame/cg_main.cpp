@@ -241,6 +241,7 @@ vmCvar_t	cg_bobpitch;
 vmCvar_t	cg_bobroll;
 vmCvar_t	cg_swingSpeed;
 vmCvar_t	cg_shadows;
+vmCvar_t	cg_cinematicBarTime;
 vmCvar_t	cg_paused;
 vmCvar_t	cg_drawTimer;
 vmCvar_t	cg_drawFPS;
@@ -345,6 +346,7 @@ static cvarTable_t cvarTable[] = {
 	{ &cg_fovAspectAdjust, "cg_fovAspectAdjust", "0", CVAR_ARCHIVE },
 	{ &cg_stereoSeparation, "cg_stereoSeparation", "0.4", CVAR_ARCHIVE  },
 	{ &cg_shadows, "cg_shadows", "1", CVAR_ARCHIVE  },
+	{ &cg_cinematicBarTime, "cg_cinematicBarTime", "0", CVAR_ARCHIVE  },
 
 	{ &cg_draw2D, "cg_draw2D", "1", CVAR_ARCHIVE  },
 	{ &cg_drawStatus, "cg_drawStatus", "1", CVAR_ARCHIVE  },

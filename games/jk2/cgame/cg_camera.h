@@ -29,6 +29,10 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #define MAX_ACCEL_PER_FRAME			10.0f
 #define MAX_SHAKE_INTENSITY			16.0f
 #define	CAMERA_DEFAULT_FOV			90.0f
+// The default for cg_cinematicBarTime, kept here because this is where
+// somebody looking for the old constant will look. Nothing reads it any
+// more: the duration is a setting, so that how the bars meet the fade at
+// the start of gameplay can be answered by looking at both.
 #define	BAR_DURATION				1000.0f
 #define BAR_RATIO					48.0f
 

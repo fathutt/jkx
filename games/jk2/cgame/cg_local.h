@@ -560,6 +560,13 @@ extern	vmCvar_t		cg_bobpitch;
 extern	vmCvar_t		cg_bobroll;
 extern	vmCvar_t		cg_swingSpeed;
 extern	vmCvar_t		cg_shadows;
+// How long the cinematic bars take to slide in and out, in milliseconds.
+//
+// Zero puts them there and takes them away instantly, which is worth being able
+// to try: the bars animate over a second while the fade from black that starts
+// gameplay runs on its own timer, so the two are visibly arguing with each
+// other at the moment a cutscene hands control back.
+extern	vmCvar_t		cg_cinematicBarTime;
 extern	vmCvar_t		cg_paused;
 extern	vmCvar_t		cg_drawTimer;
 extern	vmCvar_t		cg_drawFPS;
