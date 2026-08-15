@@ -1647,6 +1647,30 @@ Ghoul2 Insert Start
 			break;
 		}
 		cgs.skins[i] = cgi_R_RegisterSkin( modelName );
+
+	// Do the two numbering spaces still agree?
+	//
+	// This is the whole of the character-skin problem in one line per skin, and
+	// it is measured here because here is the only place both numbers exist at
+	// once. The gamecode puts the CONFIGSTRING INDEX in mCustomSkin, and the
+	// renderer resolves mCustomSkin as a HANDLE. Those are different spaces, and
+	// characters have textures for as long as they happen to agree: the server
+	// creates configstring i for a skin, the client registers the same names in
+	// the same order, and handle i lands on the same skin.
+	//
+	// They stop agreeing when a registration fails, because RE_RegisterSkin
+	// allocates a handle and increments tr.numSkins BEFORE it parses the file -
+	// so a skin that did not load still takes a number, and from there every
+	// later skin is off by one and every character wearing one is drawn with
+	// somebody else's skin or with none.
+	//
+	// Nothing prints when they agree, so a healthy machine says nothing at all.
+		if ( cgs.skins[i] != (qhandle_t)i ) {
+			CG_Printf( S_COLOR_YELLOW "skin %i is handle %i: \"%s\". The gamecode "
+				"stores the index and the renderer reads a handle, so a character "
+				"wearing this one is drawn with the wrong skin or with none.\n",
+				i, (int)cgs.skins[i], modelName );
+		}
 	}
 
 /*

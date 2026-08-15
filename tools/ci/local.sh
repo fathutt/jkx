@@ -71,7 +71,7 @@ JOBS="${JOBS:-$(nproc)}"
 
 STAGES=( "$@" )
 if [ "${#STAGES[@]}" -eq 0 ]; then
-    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokepak move smokesan prepass fog noassets )
+    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokeskin smokepak move smokesan prepass fog noassets )
 fi
 
 failed=()
@@ -522,35 +522,29 @@ stage_smokepak() {
 # and asks for a three-part skin it does not have. Green means the fallback to
 # model_default.skin happened; anything else means it did not.
 #
-# NOT in the stage list, and that is the honest state rather than a red build
-# left to rot. It asks for something the shipped code does not do, the asking is
-# right, and the reason it cannot be met yet is worth more than the stage:
+# A character wearing a skin that does not exist, and the two numbering spaces
+# staying in step while it happens.
 #
-#   G2API_SetSkin takes two numbers. mCustomSkin - what the renderer draws with,
-#   resolved through R_GetSkinByHandle - and renderSkin, which only switches
-#   surfaces on and off. The file has always passed the CONFIGSTRING INDEX for
-#   the first and the renderer HANDLE for the second, which is two numbering
-#   spaces for one thing.
+# This lane has now found two separate defects and it is worth saying what each
+# was, because the second one only became visible after the first was fixed.
 #
-#   Making both the handle is more correct and broke a shipped build: for an NPC
-#   this runs on the server inside the window where tr has been wiped, so the
-#   handle is into a list about to be thrown away. Jan came up in black and
-#   white next to a Kyle who did not, in one frame, which is as clean a
-#   demonstration as this project has had.
+#   A .glm names no shaders of its own - all eighty-two surfaces of the retail
+#   kyle carry an empty shader name - so a skin that fails to register leaves a
+#   model with no materials at all rather than with its own. The gamecode falls
+#   back to model_default.skin now.
 #
-#   Making both the index is what this lane fails on: RE_RegisterSkin allocates
-#   a handle and increments tr.numSkins BEFORE it parses, so a skin that fails
-#   to register still consumes one - and from that point the two spaces are off
-#   by one and stay off. Which is exactly why the accident held for twenty years
-#   and why a fixture built to make a skin fail is the thing that broke it.
+#   And RE_RegisterSkin took a handle before it read the file, so a failed
+#   registration still consumed one. The gamecode stores a CONFIGSTRING INDEX in
+#   mCustomSkin and the renderer resolves it as a HANDLE; those agree only
+#   because both sides count the same skins in the same order, and one failure
+#   put them off by one for everything after it. That is the shape of the bug a
+#   person playing reported as "models with no textures", and it is why the
+#   coincidence held for twenty years and then did not.
 #
-# So the fix is neither number. It is either not consuming a handle for a skin
-# that did not register, or resolving the skin by name when the renderer is up
-# instead of capturing a number before it is. Both need the bench to be able to
-# spawn an NPC inside that window, which it cannot do yet.
-#
-# Mutation tested, and it still is: the check reports the colour absent and the
-# stage fails. Run it with tools/ci/local.sh smokeskin.
+# The lane makes a registration fail on purpose, which is exactly the input that
+# desynchronises them, so it measures both. Mutation tested twice: against the
+# build before the fallback the colour is absent, and against the build before
+# the handle was released it is absent again, for the second reason.
 stage_smokeskin() {
     JKX_SMOKE_SKINFALL=1 \
     JKX_SMOKE_DISPLAY="${JKX_SMOKE_SKIN_DISPLAY:-:88}" \

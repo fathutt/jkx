@@ -215,6 +215,8 @@ qhandle_t RE_RegisterSkin( const char *name ) {
 		CL_RefPrintf(PRINT_WARNING, "WARNING: RE_RegisterSkin( '%s' ) MAX_SKINS hit\n", name );
 		return 0;
 	}
+	const qhandle_t allocated = hSkin;
+
 	tr.numSkins++;
 	skin = (struct skin_s *)R_Hunk_Alloc( sizeof( skin_t ), h_low );
 	tr.skins[hSkin] = skin;
@@ -233,7 +235,8 @@ qhandle_t RE_RegisterSkin( const char *name ) {
 	char skinhead[MAX_QPATH]={0};
 	char skintorso[MAX_QPATH]={0};
 	char skinlower[MAX_QPATH]={0};
-	if ( RE_SplitSkins(name, (char*)&skinhead, (char*)&skintorso, (char*)&skinlower ) )
+	const qboolean threePart = RE_SplitSkins(name, (char*)&skinhead, (char*)&skintorso, (char*)&skinlower ) ? qtrue : qfalse;
+	if ( threePart )
 	{//three part
 		hSkin = RE_RegisterIndividualSkin(skinhead, hSkin);
 		if (hSkin && strcmp(skinhead, skintorso))
@@ -262,9 +265,50 @@ qhandle_t RE_RegisterSkin( const char *name ) {
 	// gamecode asks for a three-part skin first and falls back when there is
 	// none, so a miss here is often the question being asked rather than an
 	// answer being wrong.
-	if ( !hSkin ) {
-		CL_RefPrintf( PRINT_DEVELOPER, "RE_RegisterSkin: %s did not register; "
-			"a model with this skin has no textures of its own to fall back on\n", name );
+	// A skin that did not register gives its number back.
+	//
+	// This is the root of the character-skin problem, and it took a broken
+	// build on someone's machine to find. The gamecode stores the CONFIGSTRING
+	// INDEX of a skin's name in mCustomSkin and the renderer resolves
+	// mCustomSkin as a HANDLE. Two numbering spaces for one thing, and
+	// characters have textures for exactly as long as the two agree - which
+	// they do, because the server creates configstring i and the client then
+	// registers the same names in the same order, so handle i is the same skin.
+	//
+	// They stop agreeing the moment one registration fails, because the number
+	// was taken above, before the file was read. From that point every later
+	// skin is off by one, and a character is drawn with the skin belonging to
+	// somebody else or with none at all. That is twenty years of a coincidence
+	// holding, and one missing file ending it for everything registered
+	// afterwards.
+	//
+	// So the failed slot is released rather than kept. The two spaces walk in
+	// step again, the entry cannot be matched by name because the next
+	// registration overwrites the slot, and a second request for the same
+	// missing file costs one more FS_ReadFile that returns nothing.
+	//
+	// This is not the whole fix - two numbering spaces for one thing is still
+	// two - but it removes the way they come apart in practice, and it is a
+	// change the bench can see: JKX_SMOKE_SKINFALL makes a registration fail on
+	// purpose, which is exactly the input that used to desynchronise them.
+	if ( !hSkin && tr.numSkins == allocated + 1 ) {
+		tr.skins[allocated]->name[0] = '\0';
+		tr.numSkins = allocated;
+	}
+
+	//
+	// The first version of this printed at PRINT_DEVELOPER, which means it
+	// printed for nobody. It was added precisely so that a person playing could
+	// send back a log instead of a screenshot, and then it did not appear in
+	// their log. A diagnostic behind a switch that the person hitting the bug
+	// does not know to turn on is not a diagnostic.
+	//
+	// So it prints. The legitimate miss - the gamecode asking for a three-part
+	// skin before falling back - is the one case suppressed, because that one is
+	// the question being asked rather than an answer being wrong.
+	if ( !hSkin && !threePart ) {
+		CL_RefPrintf( PRINT_ALL, S_COLOR_YELLOW "RE_RegisterSkin: %s did not register; "
+			"a model wearing it has no textures of its own to fall back on\n", name );
 	}
 
 	return(hSkin);
