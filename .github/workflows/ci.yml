@@ -61,6 +61,12 @@ jobs:
       - name: Per-game branches (ratchet, and banned in the renderer)
         run: python3 tools/ci/check_jk2mode.py .
 
+      # An object still alive when vkDestroyDevice runs is a defect the
+      # compiler cannot see and lavapipe does not complain about. The hardware
+      # does, and it took a crash report and an evening to get there.
+      - name: Vulkan objects have something that destroys them
+        run: python3 tools/ci/check_vk_objects.py .
+
       # This one fails here in two seconds instead of failing in the Windows
       # job twenty minutes in, with an error message that names the wrong
       # token. Everything it looks for compiles cleanly on every compiler this

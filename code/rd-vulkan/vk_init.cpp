@@ -908,6 +908,10 @@ void vk_shutdown( void )
 
     vk_destroy_shader_modules();
 
+#ifdef VK_COMPUTE_NORMALMAP
+	vk_destroy_compute_normalmap_pipelines();
+#endif
+
 	R_DestroyImageScratch();
 
 	// Last, and it is the mirror of vk_create_allocator() being first. Every

@@ -331,4 +331,34 @@ void vk_dispatch_compute_normalmaps( void )
 		tr.compute_normalmaps_batch_num = 0;
     }
 }
+
+// The mirror of vk_create_compute_normalmap_pipelines, which did not have one.
+//
+// A pipeline, its layout and its descriptor set layout were created inside
+// vk_initialize and destroyed nowhere - so they were alive when vkDestroyDevice
+// ran, and a fresh set was made on every vid_restart. Found by a mechanical
+// sweep of the renderer for handles that reach a vkCreate and never a
+// vkDestroy; tools/ci/check_vk_objects.py does that sweep now, so this cannot
+// be the only one again without somebody saying so.
+//
+// Guarded on the handles rather than on r_genNormalMaps, because the cvar is
+// CVAR_LATCH and can have changed since the pipelines were made: what decides
+// whether there is something to destroy is whether there is something to
+// destroy.
+void vk_destroy_compute_normalmap_pipelines( void )
+{
+	if ( vk.compute_normalmap_pipeline != VK_NULL_HANDLE ) {
+		vkDestroyPipeline( vk.device, vk.compute_normalmap_pipeline, NULL );
+		vk.compute_normalmap_pipeline = VK_NULL_HANDLE;
+	}
+	if ( vk.pipeline_layout_compute_normalmap != VK_NULL_HANDLE ) {
+		vkDestroyPipelineLayout( vk.device, vk.pipeline_layout_compute_normalmap, NULL );
+		vk.pipeline_layout_compute_normalmap = VK_NULL_HANDLE;
+	}
+	if ( vk.set_layout_compute_normalmap != VK_NULL_HANDLE ) {
+		vkDestroyDescriptorSetLayout( vk.device, vk.set_layout_compute_normalmap, NULL );
+		vk.set_layout_compute_normalmap = VK_NULL_HANDLE;
+	}
+}
+
 #endif // VK_COMPUTE_NORMALMAP

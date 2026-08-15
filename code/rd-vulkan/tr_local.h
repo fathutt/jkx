@@ -3091,6 +3091,7 @@ void		vk_mikkt_mdv_generate( int numSurfaces, mdvVertex_t *verts, vec4_t *tangen
 #ifdef VK_COMPUTE_NORMALMAP
 // compute normalmap
 void		vk_create_compute_normalmap_pipelines( void );
+void		vk_destroy_compute_normalmap_pipelines( void );
 void		vk_dispatch_compute_normalmaps( void );
 void		vk_add_compute_normalmap( shaderStage_t *stage, image_t *albedo, imgFlags_t flags );
 #endif
