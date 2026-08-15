@@ -184,6 +184,7 @@ if(BuildJKAEngine OR BuildJK2Engine)
 
 		"${CodeDir}/qcommon/q_shared.cpp"
 		"${CodeDir}/qcommon/jkx_game_limits.h"
+		"${CodeDir}/qcommon/jkx_vec3.h"
 		"${CodeDir}/qcommon/q_shared.h"
 
 		"${CodeDir}/qcommon/sstring.h"

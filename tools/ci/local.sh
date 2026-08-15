@@ -221,6 +221,14 @@ stage_tests_cxx() {
         "$ROOT/code/rd-common/mdx_check.cpp" || return 1
     "$out/mdx_header_test" || return 1
 
+    # The vector type, against the array it replaces. Layout first - it is
+    # checked by writing through one view and reading through the other, not by
+    # asking the type about itself - then every operator against the same
+    # arithmetic spelled out the old way.
+    c++ -O2 -std=c++17 -Wall -Wextra -Werror \
+        -o "$out/vec3_test" "$ROOT/tests/vec3_test.cpp" || return 1
+    "$out/vec3_test" || return 1
+
     # The second pass over a model file: every LOD, every surface, every bone.
     # The header test above covers the top-level arrays; this covers what is
     # inside them, which is where both formats nest and where every offset is a
