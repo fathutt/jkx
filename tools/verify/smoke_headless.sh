@@ -558,19 +558,55 @@ python3 "$HERE/make_test_bsp.py" "$RUN/base/maps/jkx_room2.bsp" \
 # g_moveTrace prints the player's own origin and velocity once per server frame,
 # with the length of the step that produced them. Every step, full precision,
 # nothing between the simulation and the number.
+#
+# THE MEASUREMENT IS A FALL, not the jump, and that is the second version of
+# this lane. A jump looked like the sharpest symptom and is the wrong
+# instrument: force jump keeps assigning the vertical velocity for as long as
+# the key is held, and this script holds it for three FRAMES - which is 15 to 66
+# milliseconds on an idle machine and 100 to 220 on a busy one. So the input
+# itself changed with the frame rate, and the apex came back bimodal: 12.54,
+# 10.45, 12.63, 10.63, 10.45 on five identical runs.
+#
+# A fall has no input in it at all. The player is put in the air and gravity is
+# integrated until he lands, so what is measured is the integration and nothing
+# else.
+#
+# Two numbers come out and the IMPACT SPEED is the one to read. The distance is
+# fixed by the room, so how fast he is going when he arrives is a property of
+# the integration and of nothing else. Measured:
+#
+#   pmove_fixed 0, idle:     -615.2, -611.2   (73 and 64 steps)
+#   pmove_fixed 0, loaded:   -574.4, -600.8   (10 and 11 steps)
+#   pmove_fixed 1, idle:     -616.0, -619.2   (126 and 135 steps)
+#   pmove_fixed 1, loaded:   -615.2, -619.2   (92 and 81 steps)
+#
+# Ten integration steps for a whole fall is what a busy machine gives, and Euler
+# with a step that size arrives seven per cent slow. With fixed steps the
+# loaded runs land on the idle numbers.
+#
+# The duration is reported too but is the weaker number: under load the fixed
+# path also hits the 200 ms arrears clamp in Pmove, which discards simulated
+# time, so the fall covers fewer milliseconds without the trajectory being any
+# different. The speed at the floor does not care how many milliseconds the
+# simulation decided to run.
+#
+# The jump is still here, after the fall, and still gates - but on "he left the
+# ground", not on how high.
 if [ "${JKX_SMOKE_MOVE:-0}" = "1" ]; then
     {
-        echo "setviewpos 0 0 -15 90"
-        echo "wait 60"
-        echo "g_moveTrace 1"
+        # setviewpos takes an eye position and subtracts 25, so this puts the
+        # player's origin at 200 - about 240 units above where he comes to rest.
+        echo "setviewpos 0 0 225 90"
         echo "wait 5"
+        echo "g_moveTrace 1"
+        echo "wait 200"
         echo "+moveup"
         echo "wait 3"
         echo "-moveup"
-        echo "wait 120"
+        echo "wait 60"
         echo "g_moveTrace 0"
     } > "$RUN/base/jkx_move.cfg"
-    INMAP_STEP+=( +exec jkx_move.cfg +wait 200 )
+    INMAP_STEP+=( +exec jkx_move.cfg +wait 260 )
 fi
 
 # Everything above builds a game directory out of loose files, and every run so
@@ -1079,43 +1115,74 @@ for name in jkx_smoke jkx_wiped; do
     fi
 done
 
-# The jump, out of the trace. Five numbers, and the last three are the point:
-# the apex is what the framerate coupling moves, and the spread of the step
-# lengths is what moves it. Reporting the apex without the steps beside it would
-# be a number with no units.
+# The fall, out of the trace, and the jump after it.
 #
-# The gate is only that the player left the ground. The apex is not gated and
-# must not be until the steps are fixed - see stage_move in tools/ci/local.sh.
+# The fall is the measurement: how long it took, in simulated milliseconds, to
+# drop a distance the room fixes. Nothing is pressed during it, so the only
+# thing that can change the answer is the size of the integration step - which
+# is the whole question. The first airborne run of frames after the trace opens
+# is the fall; everything after it belongs to the jump.
+#
+# The jump only gates, and only on "he left the ground". How high is not gated
+# and must not be: it is measured through force jump, which keeps assigning the
+# vertical velocity for as long as the key is held, and the key is held for a
+# number of frames rather than milliseconds. See stage_move in tools/ci/local.sh.
 if [ "${JKX_SMOKE_MOVE:-0}" = "1" ]; then
     MOVE_STATS="$(awk '/movetrace /{
+            ground = ""
             for ( i = 1; i <= NF; i++ ) {
                 if ( substr( $i, 1, 5 ) == "msec=" ) { msec = substr( $i, 6 ) + 0 }
                 if ( substr( $i, 1, 4 ) == "org=" ) { z = $(i + 2) + 0 }
+                if ( substr( $i, 1, 4 ) == "vel=" ) { vz = $(i + 2) + 0 }
+                if ( substr( $i, 1, 7 ) == "ground=" ) { ground = substr( $i, 8 ) + 0 }
             }
             n++
-            if ( n == 1 || z > apex ) { apex = z }
+            # After the fall, so that the height he was dropped from is not
+            # reported as how high he jumped.
+            if ( fallDone && ( !apexSet || z > apex ) ) { apex = z; apexSet = 1 }
             if ( n == 1 || msec < lo ) { lo = msec }
             if ( n == 1 || msec > hi ) { hi = msec }
             total += msec
+
+            # 1023 is ENTITYNUM_NONE: no ground under him.
+            if ( !fallDone ) {
+                if ( ground == 1023 ) { fallMs += msec; fallSteps++; impact = vz }
+                else if ( fallSteps > 0 ) { fallDone = 1; restZ = z }
+            }
         }
-        END { if ( n ) printf "%d %.4f %d %d %.1f\n", n, apex, lo, hi, total / n }' \
-        "$RUN/run.log" )"
+        END {
+            if ( n ) {
+                printf "%d %.4f %d %d %.1f %d %d %.1f %.4f\n",
+                    n, apex, lo, hi, total / n,
+                    fallMs, fallSteps, impact, restZ
+            }
+        }' "$RUN/run.log" )"
 
     if [ -z "$MOVE_STATS" ]; then
         report "the movement lane produced no trace at all"
     else
         set -- $MOVE_STATS
         MOVE_SAMPLES="$1"; MOVE_APEX="$2"; MOVE_LO="$3"; MOVE_HI="$4"; MOVE_MEAN="$5"
-        echo "  jump apex z=$MOVE_APEX over $MOVE_SAMPLES server frame(s), step $MOVE_LO-$MOVE_HI ms, mean $MOVE_MEAN"
+        MOVE_FALLMS="$6"; MOVE_FALLSTEPS="$7"; MOVE_IMPACT="$8"; MOVE_REST="$9"
+        echo "  fall $MOVE_FALLMS ms over $MOVE_FALLSTEPS step(s), impact $MOVE_IMPACT, rest z=$MOVE_REST"
+        echo "  jump apex z=$MOVE_APEX, step $MOVE_LO-$MOVE_HI ms, mean $MOVE_MEAN, $MOVE_SAMPLES frame(s)"
         if [ -n "${JKX_SMOKE_MOVE_OUT:-}" ]; then
             printf '%s\n' "$MOVE_STATS" > "$JKX_SMOKE_MOVE_OUT"
         fi
         if [ "$MOVE_SAMPLES" -lt 30 ]; then
             report "the movement lane got only $MOVE_SAMPLES server frame(s)"
         fi
-        # The spawn is at z = -40, standing on a floor whose surface is at -64.
-        # A jump that did not happen never rises above -40; one that fell through
-        # the floor goes well below it. Both have happened here.
+        if [ "$MOVE_FALLSTEPS" -lt 10 ]; then
+            report "the player did not fall: $MOVE_FALLSTEPS airborne step(s)"
+        fi
+        # He is dropped from an origin of 200 and the floor puts him at about
+        # -39.9. A rest position anywhere else means the floor moved or he went
+        # through it, and both have happened here.
+        if ! awk -v z="$MOVE_REST" 'BEGIN { exit !( z < -39 && z > -41 ) }'; then
+            report "the player came to rest at z=$MOVE_REST, not on the floor"
+        fi
+        # The spawn is at z = -40. A jump that did not happen never rises above
+        # it.
         if ! awk -v a="$MOVE_APEX" 'BEGIN { exit !( a > -30 ) }'; then
             report "the player did not leave the ground: apex z=$MOVE_APEX"
         fi

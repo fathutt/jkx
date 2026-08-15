@@ -397,19 +397,26 @@ stage_smokesave() {
         bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
 }
 
-# The player walks and jumps, which he could not do until the fixture had a
-# floor - see make_test_bsp.py's brushsides(). Until then every trace from
-# inside the room came back allsolid, so pmove could not move him at all and
-# half the game's logic was outside this bench without anything saying so.
+# The player falls, and then jumps.
 #
-# What this gates is only "he left the ground". The apex itself is not a gate
-# and must not become one: measured at the same settings it comes back 44, 48,
-# 49, 49 on an idle machine and 53, 55 with eight busy processes on it. That
-# spread is the defect this lane exists to point at - single player integrates
-# movement once per rendered frame with the frame's own duration as the step -
-# but the number is also blunted by sampling, since the true apex falls between
-# two frames. A sharper instrument is wanted before anything is asserted about
-# the value; backlog 46.2.
+# The fall is the measurement and the jump is the gate. A fall has no input in
+# it: the player is dropped and gravity is integrated until he lands, so the
+# speed he arrives at is a property of the integration alone. On a busy machine
+# a whole fall takes ten steps and arrives seven per cent slow; with
+# pmove_fixed on, the loaded runs land on the idle numbers. The figures are in
+# smoke_headless.sh beside the code that produces them.
+#
+# Nothing here is gated on either number yet, and that is deliberate: the fix
+# they measure is off by default, so a gate would be asserting the defect. What
+# is gated is that he fell at all, that he came to rest ON the floor rather than
+# through it, and that the jump left the ground - which is what caught the
+# fixture having no collision in the first place.
+#
+# The jump's height is not gated and should not be until the input is held for
+# a stated number of milliseconds rather than three frames: force jump keeps
+# assigning the vertical velocity while the key is down, so the input itself
+# changes with the frame rate. Five identical runs gave 12.54, 10.45, 12.63,
+# 10.63, 10.45.
 stage_move() {
     JKX_SMOKE_MOVE=1 \
     JKX_SMOKE_PLAIN=1 \
