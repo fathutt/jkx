@@ -322,6 +322,120 @@ INMAP_STEP+=( +testmodel models/jkx/anim.md3 1 +wait 30 +screenshot_tga jkx_md3_
               +wait 10 +testmodel +wait 10 )
 fi
 
+# The character, framed so that a person can see what he is wearing.
+#
+# Every other shot in this file is of the room. The player is in most of them -
+# single player forces the third-person camera - but he is small, off centre and
+# the same colour as the floor, so no assertion here has ever been about him and
+# the two false reproductions of the custom-skin defect both came from reading
+# floor pixels as model pixels.
+#
+# So: pin the camera, push it back far enough that the whole model fits, drop the
+# pitch so the camera looks at him rather than over him, and take one shot from
+# behind and one from the front. Nothing is asserted about the result - this is a
+# lane for looking, and it is the only honest kind of lane for a question whose
+# answer is "does his face have the right texture on it".
+#
+# The three shots are on real time only through the camera damping, which
+# setviewpos resets exactly, so the wait after each is the ordinary
+# screenshot-lands-a-frame-later wait and nothing more.
+#
+# It goes into a config file rather than onto the command line, and that is not
+# tidiness. The command line here is already long enough that adding ten more
+# "+" arguments overflows the command buffer, and what the engine says when it
+# does is "were dropped and will not run" - one line among several hundred, with
+# every screenshot still written and every check still passing on frames that
+# were taken with half the setup missing. A cfg is executed a line at a time and
+# has no such limit.
+
+# A player model with no textures of its own, and a skin name that will not
+# register. This is the retail shape, and until it was measured this bench had
+# the opposite of it.
+#
+# Every surface in the retail kyle/model.glm carries an EMPTY shader name - all
+# eighty-two of them, read out of the file with a struct reader. The comment in
+# the gamecode said the other thing ("it still loads the default skin's tga's
+# because they're referenced in the .glm") and had said it since 2003. So a skin
+# that fails to register is not a model falling back to its own materials, it is
+# a model with no materials, drawn through the default shader: the black and
+# white man in the frames that found this.
+#
+# The fixture's committed model.glm bakes jkx/smoke into its one surface, which
+# means it can never show that failure. Rather than change the committed model -
+# every other lane's expected colours come from it - this puts a second player
+# model beside it with the shader names taken out, which is the retail shape, and
+# gives it one skin file.
+#
+# It is a copy of the committed model rather than a fresh one from
+# make_test_glm.py's defaults, and that was learned the hard way: a model built
+# with the defaults has no tags and the wrong bone count, G_SetG2PlayerModelInfo
+# rejects it, the gamecode quietly falls back to a mouse md3 and the frame
+# contains no character at all. Which duly failed the check below, for a reason
+# that had nothing to do with skins.
+#
+# Then the lane asks for a three-part skin the model does not have. Anything
+# other than model_default takes the "|head|torso|legs" branch in the Academy
+# gamecode, and a model with no such parts registers nothing. What should happen
+# is the fallback to model_default.skin - green here. What used to happen is no
+# skin at all.
+#
+# No retail data, so this one can live in CI.
+if [ "${JKX_SMOKE_SKINFALL:-0}" = "1" ]; then
+    mkdir -p "$RUN/base/models/players/jkxbare"
+    python3 "$HERE/glm_strip_shaders.py" \
+        "$RUN/base/models/players/jkx/model.glm" \
+        "$RUN/base/models/players/jkxbare/model.glm" >/dev/null
+    printf '// The only place this model has any textures at all.\nbody,jkx/skin_body\n' \
+        > "$RUN/base/models/players/jkxbare/model_default.skin"
+    JKX_SMOKE_CHAR=jkxbare
+    JKX_SMOKE_CHAR_SKIN=a1
+    JKX_SMOKE_CHARSHOT=1
+fi
+
+if [ "${JKX_SMOKE_CHARSHOT:-0}" = "1" ]; then
+    {
+        echo "cg_thirdPersonRange 55"
+        echo "cg_thirdPersonVertOffset -12"
+        echo "cg_thirdPersonPitchOffset 0"
+        echo "setviewpos 0 0 -15 90"
+        echo "wait 60"
+        echo "screenshot_tga jkx_char_back"
+        echo "wait 20"
+        echo "cg_thirdPersonAngle 180"
+        echo "setviewpos 0 0 -15 90"
+        echo "wait 60"
+        echo "screenshot_tga jkx_char_front"
+        echo "wait 20"
+        # And a close-up of the head and shoulder, which is where the other two
+        # questions about this model live: the faceting at texture seams that
+        # has been there since 2003, and whether the face animates or cuts.
+        # The vertical offset raises the CAMERA and leaves the aim where it was,
+        # so a bigger number does not frame something higher - it looks down
+        # from further up, and the man slides towards the bottom of the picture.
+        # Measured: at range 24 an offset of -30 fills the frame with his belt
+        # and +12 puts the top of his head at three quarters of the way down.
+        # The aim is what has to move, and that is the pitch offset - positive
+        # is downwards, the same sign convention as every other pitch here.
+        #
+        # Three of them in one pass, because a run of this lane is a quarter of
+        # an hour and guessing twice costs half an hour.
+        for pitch in 0 10 20; do
+            echo "cg_thirdPersonRange 30"
+            echo "cg_thirdPersonVertOffset 20"
+            echo "cg_thirdPersonPitchOffset $pitch"
+            echo "setviewpos 0 0 -15 90"
+            echo "wait 50"
+            echo "screenshot_tga jkx_char_face$pitch"
+            echo "wait 20"
+        done
+        echo "cg_thirdPersonPitchOffset 0"
+        echo "cg_thirdPersonAngle 0"
+        echo "cg_thirdPersonRange 50"
+        echo "cg_thirdPersonVertOffset 16"
+    } > "$RUN/base/jkx_char.cfg"
+    INMAP_STEP+=( +exec jkx_char.cfg +wait 200 )
+fi
+
 if [ "${JKX_SMOKE_SAVELOAD:-0}" = "1" ]; then
     # And then stop. The second map below is there to move the media level
     # counter, which the run without the round trip already checks; doing both
@@ -627,6 +741,39 @@ if [ "${JKX_SMOKE_MOVE:-0}" = "1" ]; then
     INMAP_STEP+=( +exec jkx_move.cfg +wait 260 )
 fi
 
+# Retail data, for a run that is a diagnosis rather than a check.
+#
+# Everything this bench draws is generated, and the second entry in the blind
+# spot list says why that matters: a fixture without variety measures nothing
+# beyond itself. The character path is the sharpest case. The generated .glm has
+# one skin with one part, so the renderer's skin HANDLE and the configstring
+# INDEX are both 1 - the two numbering spaces agree by accident, which is
+# precisely why passing one where the other belongs survived for years and could
+# not be seen from a picture here.
+#
+# JKX_SMOKE_EXTRA_BASE names directories - colon separated - whose contents are
+# copied over the fixture's base/ before the run. Nothing from them is committed
+# and nothing here goes looking for them: a retail install is not redistributable
+# and must not enter this repository. Point it at an unpacked copy in /tmp when
+# there is a question only real data can answer, and leave it unset otherwise, so
+# the lane list stays runnable on a machine that owns no copy of the game.
+#
+# This is deliberately dumb - a copy, not a search path - because the thing being
+# tested is what the engine does with the files, and an extra layer between the
+# files and the engine is one more thing that can be wrong.
+if [ -n "${JKX_SMOKE_EXTRA_BASE:-}" ]; then
+    IFS=':' read -r -a EXTRA_DIRS <<< "$JKX_SMOKE_EXTRA_BASE"
+    for extra in "${EXTRA_DIRS[@]}"; do
+        [ -n "$extra" ] || continue
+        if [ ! -d "$extra" ]; then
+            echo "JKX_SMOKE_EXTRA_BASE names $extra, which is not a directory" >&2
+            exit 2
+        fi
+        cp -r "$extra"/. "$RUN/base/"
+        echo "extra base data: $extra"
+    done
+fi
+
 # Everything above builds a game directory out of loose files, and every run so
 # far has read it that way. A pk3 is a zip, and it is how the retail assets
 # arrive and how every downloaded mod arrives - so the archive half of the
@@ -750,6 +897,34 @@ else
     SET_STEP+=( +set r_normalMapping 0 +set r_specularMapping 0 )
 fi
 
+# Which character, and which skin on him.
+#
+# The three parts are pinned to model_default here because that is the only skin
+# the generated .glm has. JKX_SMOKE_CHAR_SKIN takes either one name for all three
+# or three separated by "|", and the word "retail" leaves all three unset so the
+# engine's own defaults apply - head_a1, torso_a1, lower_a1, which is what a
+# player actually starts with and which is the input that produced the wrong
+# custom skin. Those three names build the "|head|torso|legs" form, and a model
+# that has no such parts fails to register, which is the whole case.
+CHAR_STEP=( +set g_char_model "${JKX_SMOKE_CHAR:-jkx}" )
+CHAR_SKIN="${JKX_SMOKE_CHAR_SKIN:-model_default}"
+if [ "$CHAR_SKIN" != "retail" ]; then
+    case "$CHAR_SKIN" in
+        *"|"*)
+            CHAR_HEAD="${CHAR_SKIN%%|*}"
+            CHAR_REST="${CHAR_SKIN#*|}"
+            CHAR_TORSO="${CHAR_REST%%|*}"
+            CHAR_LEGS="${CHAR_REST#*|}"
+            ;;
+        *)
+            CHAR_HEAD="$CHAR_SKIN"; CHAR_TORSO="$CHAR_SKIN"; CHAR_LEGS="$CHAR_SKIN"
+            ;;
+    esac
+    CHAR_STEP+=( +set g_char_skin_head "$CHAR_HEAD"
+                 +set g_char_skin_torso "$CHAR_TORSO"
+                 +set g_char_skin_legs "$CHAR_LEGS" )
+fi
+
 set +e
 ( cd "$RUN" && \
   DISPLAY="$DISPLAY_NUM" \
@@ -758,9 +933,7 @@ set +e
   timeout -k 10 "${JKX_SMOKE_TIMEOUT:-600}" "./$(basename "$ENGINE")" \
       +set fs_basepath "$RUN" +set fs_homepath "$RUN/home" \
       "${SOUND_STEP[@]}" +set com_errorDialog 0 +set con_notifytime 0 \
-      +set cg_hudFiles ui/jkx_hud.txt +set g_char_model jkx \
-      +set g_char_skin_head model_default +set g_char_skin_torso model_default \
-      +set g_char_skin_legs model_default \
+      +set cg_hudFiles ui/jkx_hud.txt "${CHAR_STEP[@]}" \
       +set helpUsObi 1 +set r_drawfog 0 \
       "${SET_STEP[@]}" \
       +wait 60 +screenshot_tga jkx_smoke \
@@ -877,6 +1050,28 @@ if [ "${JKX_SMOKE_PLAIN:-0}" != "1" ] && [ -f "$RUN/home/base/screenshots/jkx_in
         "$RUN/home/base/screenshots/jkx_inmap.tga" \
         "255,255,255@0.3,0.75,0.7,1.0"; then
         report "the map's floor is not where it should be in jkx_inmap.tga"
+    fi
+fi
+
+# The character wearing something, after being asked for a skin that does not
+# exist.
+#
+# jkx/skin_body is rgbGen const ( 0 1 0 ), so it is exactly 0,255,0 whatever the
+# light grid is doing - which is why the fixture's skins are written that way and
+# why this can be an equality rather than a tolerance. The model beside it names
+# no shader of its own, so if the fallback to model_default.skin is not there
+# these pixels are not green, they are the default shader.
+#
+# Green anywhere in the middle of the frame is the whole assertion. Where exactly
+# a man stands in it depends on the third-person camera, and this check is about
+# what he is wearing.
+if [ "${JKX_SMOKE_SKINFALL:-0}" = "1" ]; then
+    if [ ! -f "$RUN/home/base/screenshots/jkx_char_front.tga" ]; then
+        report "the character was never photographed, so nothing here was checked"
+    elif ! python3 "$HERE/tga_colour_where.py" \
+        "$RUN/home/base/screenshots/jkx_char_front.tga" \
+        "0,255,0@0.25,0.0,0.75,1.0"; then
+        report "a skin that would not register left the model with no textures - the fallback to model_default.skin is missing"
     fi
 fi
 

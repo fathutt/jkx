@@ -285,6 +285,12 @@ jobs:
       # are written blind against Windows.
       - name: verification tool
         run: python3 tools/verify/selftest.py
+      # Removing the shader names from a model has to remove nothing else. A
+      # version of it that zeroed the wrong sixty-four bytes would still produce
+      # a model that loads and still produce a model with no textures - which is
+      # the thing the lane below tests for, so it would pass on a broken tool.
+      - name: the model shader stripper
+        run: python3 tools/verify/glm_strip_shaders.py --check
       # The font atlas is generated, not authored, and its failure modes are
       # pictures - a flat sheet, a shape half a pixel off - that no build log
       # would mention. So the generator draws its own output back and compares
@@ -409,6 +415,21 @@ jobs:
           JKX_SMOKE_MOVE: '1'
           JKX_SMOKE_PLAIN: '1'
           JKX_SMOKE_DISPLAY: ':87'
+          JKX_SMOKE_NO_VALIDATION: '1'
+        run: bash tools/verify/smoke_headless.sh build
+
+      # A character wearing a skin that does not exist.
+      #
+      # The gamecode said a model falls back to its own textures when a skin
+      # fails to register. It does not: every surface in a retail .glm has an
+      # empty shader name, so a failed skin leaves the model with no materials
+      # at all. Reproduced with retail files, then made reproducible without
+      # them - the lane strips the shader names out of the fixture's own model
+      # and asks for a three-part skin it has not got.
+      - name: A skin that will not register
+        env:
+          JKX_SMOKE_SKINFALL: '1'
+          JKX_SMOKE_DISPLAY: ':88'
           JKX_SMOKE_NO_VALIDATION: '1'
         run: bash tools/verify/smoke_headless.sh build
 

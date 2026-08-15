@@ -866,6 +866,17 @@ static void G_SetSkin( gentity_t *ent )
 
 	// lets see if it's out there
 	int skin = gi.RE_RegisterSkin( skinName );
+
+	// And the same fallback as G_SetG2PlayerModel, for the same reason: a
+	// three-part name whose parts are not there registers nothing, and nothing
+	// is not "the model's own textures" - the .glm has none. See the long note
+	// there.
+	if ( !skin )
+	{
+		Com_sprintf( skinName, sizeof( skinName ), "models/players/%s/model_default.skin", g_char_model->string );
+		skin = gi.RE_RegisterSkin( skinName );
+	}
+
 	if ( skin )
 	{//what if this returns 0 because *one* part of a multi-skin didn't load?
 		// put it in the config strings
@@ -1754,6 +1765,37 @@ void G_SetG2PlayerModel( gentity_t * const ent, const char *modelName, const cha
 		}
 	}
 	int skin = gi.RE_RegisterSkin( skinName );
+
+	// A skin that will not register leaves the model with NO textures, not with
+	// its own.
+	//
+	// That is worth stating plainly because the opposite was written down here,
+	// in a comment that survived from 2003: "it still loads the default skin's
+	// tga's because they're referenced in the .glm". It does not. Every one of
+	// the eighty-two surfaces in the retail kyle/model.glm carries an EMPTY
+	// shader name - checked with a reader over the file - so the .skin is not a
+	// re-texturing of a model that already has textures, it is the only place
+	// the textures come from. No skin, no material, default shader, and a
+	// character drawn in black and white.
+	//
+	// The three-part form is what reaches this. "|head|torso|legs" builds a skin
+	// out of three files and needs all three; jedi_tf, the default player model,
+	// has head_a1, torso_a1 and lower_a1, and kyle has none of them - he has
+	// model_default, model_red, model_blue and model_menu. So the moment
+	// g_char_model names a model whose skins are not in parts, while
+	// g_char_skin_* still hold the defaults, the player is untextured. Measured
+	// on the bench with the retail files: kyle plus head_a1/torso_a1/lower_a1
+	// draws a black and white man.
+	//
+	// Every player model has model_default.skin. Falling back to it turns a
+	// character with no textures into a character with his own, which is the
+	// worst case worth having.
+	if ( !skin && customSkin )
+	{
+		Com_sprintf( skinName, sizeof( skinName ), "models/players/%s/model_default.skin", modelName );
+		skin = gi.RE_RegisterSkin( skinName );
+	}
+
 	//now generate the ghoul2 model this client should be.
 	if ( ent->client->NPC_class == CLASS_VEHICLE )
 	{//vehicles actually grab their model from the appropriate vehicle data entry
@@ -1766,7 +1808,10 @@ void G_SetG2PlayerModel( gentity_t * const ent, const char *modelName, const cha
 	}
 	else
 	{
-		//NOTE: it still loads the default skin's tga's because they're referenced in the .glm.
+		// The .glm references no textures at all - every surface in it has an
+		// empty shader name - so what the skin registered above resolves to is
+		// the whole of this model's appearance. The note that used to be here
+		// said the opposite.
 		G_SkinIndex( skinName );
 		ent->playerModel = gi.G2API_InitGhoul2Model( ent->ghoul2, va("models/players/%s/model.glm", modelName), G_ModelIndex( va("models/players/%s/model.glm", modelName) ), skin, NULL_HANDLE, 0, 0 );
 	}

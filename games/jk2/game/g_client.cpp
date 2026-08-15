@@ -788,6 +788,11 @@ void G_SetSkin( gentity_t *ent, const char *modelName, const char *customSkin )
 	}
 	// lets see if it's out there
 	int skin = gi.RE_RegisterSkin( skinName );
+	if ( !skin && customSkin )
+	{
+		Com_sprintf( skinName, sizeof( skinName ), "models/players/%s/model_default.skin", modelName );
+		skin = gi.RE_RegisterSkin( skinName );
+	}
 	if ( skin )
 	{
 		// put it in the config strings
@@ -1289,9 +1294,25 @@ void G_SetG2PlayerModel( gentity_t * const ent, const char *modelName, const cha
 	{
 		Com_sprintf( skinName, sizeof( skinName ), "models/players/%s/model_%s.skin", modelName, customSkin );
 	}
-	const int skin = gi.RE_RegisterSkin( skinName );
+	int skin = gi.RE_RegisterSkin( skinName );
+
+	// The same fallback the Academy gamecode has, and here for the same reason
+	// rather than for symmetry: a .glm carries no shader names of its own, so a
+	// skin that will not register means a character with no textures at all.
+	// Outcast cannot reach it the way Academy can - it has no three-part skin
+	// names, only model_<custom>.skin - but "outcast happens not to have the
+	// input that breaks it" is not the same as "outcast cannot break", and the
+	// two files should not drift apart on a question this cheap to answer.
+	if ( !skin && customSkin )
+	{
+		Com_sprintf( skinName, sizeof( skinName ), "models/players/%s/model_default.skin", modelName );
+		skin = gi.RE_RegisterSkin( skinName );
+	}
+
 	//now generate the ghoul2 model this client should be.
-	//NOTE: for some reason, it still loads the default skin's tga's?  Because they're referenced in the .glm?
+	// Not because they are referenced in the .glm - they are not. Every
+	// surface in a retail .glm has an empty shader name, so the skin above is
+	// where all of this model's textures come from.
 	ent->playerModel = gi.G2API_InitGhoul2Model( ent->ghoul2, va("models/players/%s/model.glm", modelName),
 		G_ModelIndex( va("models/players/%s/model.glm", modelName) ), ( G_SkinIndex( skinName ), skin ), NULL_HANDLE, 0, 0 );
 	if (ent->playerModel == -1)

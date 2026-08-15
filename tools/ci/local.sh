@@ -71,7 +71,7 @@ JOBS="${JOBS:-$(nproc)}"
 
 STAGES=( "$@" )
 if [ "${#STAGES[@]}" -eq 0 ]; then
-    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokepak move smokesan prepass fog noassets )
+    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokeskin smokepak move smokesan prepass fog noassets )
 fi
 
 failed=()
@@ -174,6 +174,7 @@ stage_tests() {
     python3 "$ROOT/tools/verify/make_test_bsp.py" --check &&
     python3 "$ROOT/tools/verify/make_test_glm.py" --check &&
     python3 "$ROOT/tools/verify/make_test_gla.py" --check &&
+    python3 "$ROOT/tools/verify/glm_strip_shaders.py" --check &&
     stage_tests_cxx
 }
 
@@ -494,6 +495,31 @@ stage_smokepak() {
 # passed s_initsound 0, so the mixer, the codecs and the ambient set code had
 # never executed under a sanitizer at all - which is the cheapest place to look
 # at a subsystem the bench has been walking past.
+# A character wearing a skin that does not exist.
+#
+# This lane exists because of a sentence in the gamecode that was wrong and had
+# been wrong since 2003: "it still loads the default skin's tga's because
+# they're referenced in the .glm". A retail model references nothing - every one
+# of the eighty-two surfaces in kyle/model.glm has an empty shader name - so a
+# skin that fails to register does not leave a model with its own textures, it
+# leaves a model with none, drawn through the default shader.
+#
+# The Academy gamecode reaches that every time g_char_model names a model whose
+# skins are not in three parts while g_char_skin_* still hold their defaults.
+# Reproduced with the retail files on the bench, and then made reproducible
+# without them: the lane strips the shader names out of the fixture's own model
+# and asks for a three-part skin it does not have. Green means the fallback to
+# model_default.skin happened; anything else means it did not.
+#
+# Mutation tested. Against the build from before the fallback existed the check
+# reports the colour absent and the stage fails.
+stage_smokeskin() {
+    JKX_SMOKE_SKINFALL=1 \
+    JKX_SMOKE_DISPLAY="${JKX_SMOKE_SKIN_DISPLAY:-:88}" \
+    JKX_SMOKE_NO_VALIDATION=1 \
+        bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
+}
+
 stage_smokesan() {
     JKX_SMOKE_DISPLAY="${JKX_SMOKE_DISPLAY:-:98}" \
     JKX_SMOKE_NO_VALIDATION=1 \
