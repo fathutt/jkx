@@ -232,6 +232,17 @@ stage_tests_cxx() {
         "$ROOT/code/launcher/jkx_install_scan.cpp" || return 1
     "$out/install_scan_test" || return 1
 
+    # And where a game might be, against a machine that does not exist: a
+    # registry, a set of directories and a libraryfolders.vdf all written by the
+    # test. None of that can be reached from here, which is exactly why the
+    # search takes it through callbacks.
+    c++ -O1 -g -std=c++17 -Wall -Wextra -Werror \
+        -fsanitize=address,undefined -fno-sanitize-recover=all \
+        -o "$out/install_find_test" \
+        "$ROOT/tests/install_find_test.cpp" \
+        "$ROOT/code/launcher/jkx_install_find.cpp" || return 1
+    "$out/install_find_test" || return 1
+
     # The vector type, against the array it replaces. Layout first - it is
     # checked by writing through one view and reading through the other, not by
     # asking the type about itself - then every operator against the same

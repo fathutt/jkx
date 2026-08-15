@@ -489,12 +489,36 @@ endif(BuildJKAEngine OR BuildJK2Engine)
 if(BuildJKAEngine OR BuildJK2Engine)
 	set(LauncherName "jkx_launcher")
 	set(LauncherFiles
+		"${CodeDir}/launcher/jkx_launcher.h"
 		"${CodeDir}/launcher/jkx_install_scan.h"
 		"${CodeDir}/launcher/jkx_install_scan.cpp"
+		"${CodeDir}/launcher/jkx_install_find.h"
+		"${CodeDir}/launcher/jkx_install_find.cpp"
 		"${CodeDir}/launcher/jkx_launcher.cpp"
+		"${CodeDir}/launcher/jkx_launcher_win32.cpp"
 		)
 
 	add_executable(${LauncherName} ${LauncherFiles})
+
+	# A window, not a console window.
+	#
+	# The subsystem is what decides whether Windows opens a black rectangle
+	# behind the launcher, and a launcher that flashes a console before showing
+	# its window looks broken. main() stays as the entry point - the alternative
+	# is a WinMain that exists only to call it, and then the same program has
+	# two shapes depending on the platform.
+	#
+	# It still prints: when it is started from a console it attaches to that
+	# one, and everything below has something to write to either way.
+	if(WIN32)
+		target_link_libraries(${LauncherName} shell32 ole32 advapi32)
+		if(MSVC)
+			set_target_properties(${LauncherName} PROPERTIES
+				LINK_FLAGS "/SUBSYSTEM:WINDOWS /ENTRY:mainCRTStartup")
+		else()
+			set_target_properties(${LauncherName} PROPERTIES LINK_FLAGS "-mwindows")
+		endif()
+	endif()
 	# zlib as well as minizip: unzip.h includes zlib.h, and the engine picks
 	# these up through EngineIncludeDirectories, which the launcher is not part
 	# of. The MinGW cross-build is where that showed - it has no system zlib

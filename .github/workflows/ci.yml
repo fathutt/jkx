@@ -253,6 +253,17 @@ jobs:
                  third_party/stb/stb_vorbis.c
           ./snd_codec_test tools/verify/fixtures
 
+      - name: launcher install discovery
+        run: |
+          c++ -O1 -std=c++17 -Wall -Wextra -Werror -fsanitize=address,undefined \
+              -o install_find_test tests/install_find_test.cpp \
+                 code/launcher/jkx_install_find.cpp
+          ./install_find_test
+          c++ -O1 -std=c++17 -Wall -Wextra -Werror -fsanitize=address,undefined \
+              -o install_scan_test tests/install_scan_test.cpp \
+                 code/launcher/jkx_install_scan.cpp
+          ./install_scan_test
+
       - name: render graph core
         run: |
           g++ -std=c++20 -Wall -Wextra -fsanitize=address,undefined -I third_party/volk \
