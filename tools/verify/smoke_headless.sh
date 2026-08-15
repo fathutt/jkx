@@ -549,21 +549,26 @@ python3 "$HERE/make_test_bsp.py" "$RUN/base/maps/jkx_room2.bsp" \
 # step, so a different number of steps between leaving the floor and coming back
 # gives a different apex.
 #
-# Sampled every frame rather than at a fixed count, because the apex lands
-# between frames and "between frames" is exactly what differs.
+# The trajectory is read from the game rather than from the console. The first
+# version of this lane asked for "viewpos" once a frame, and that answer is the
+# third-person CAMERA - rounded to whole units, damped towards the player over
+# real time, and only produced on the frames the console buffer got to run. It
+# was enough to see that the apex moves and not enough to measure by.
+#
+# g_moveTrace prints the player's own origin and velocity once per server frame,
+# with the length of the step that produced them. Every step, full precision,
+# nothing between the simulation and the number.
 if [ "${JKX_SMOKE_MOVE:-0}" = "1" ]; then
     {
         echo "setviewpos 0 0 -15 90"
         echo "wait 60"
+        echo "g_moveTrace 1"
+        echo "wait 5"
         echo "+moveup"
         echo "wait 3"
         echo "-moveup"
-        i=0
-        while [ "$i" -lt 60 ]; do
-            echo "viewpos"
-            echo "wait 1"
-            i=$(( i + 1 ))
-        done
+        echo "wait 120"
+        echo "g_moveTrace 0"
     } > "$RUN/base/jkx_move.cfg"
     INMAP_STEP+=( +exec jkx_move.cfg +wait 200 )
 fi
@@ -1074,24 +1079,44 @@ for name in jkx_smoke jkx_wiped; do
     fi
 done
 
-# The jump, reduced to one number. viewpos prints "<map> (x y z) : yaw", so the
-# apex is the largest z among the samples; the count goes with it because a run
-# that produced two samples would give a confident answer about nothing.
+# The jump, out of the trace. Five numbers, and the last three are the point:
+# the apex is what the framerate coupling moves, and the spread of the step
+# lengths is what moves it. Reporting the apex without the steps beside it would
+# be a number with no units.
+#
+# The gate is only that the player left the ground. The apex is not gated and
+# must not be until the steps are fixed - see stage_move in tools/ci/local.sh.
 if [ "${JKX_SMOKE_MOVE:-0}" = "1" ]; then
-    MOVE_SAMPLES="$(grep -c "maps/jkx_room2.bsp (" "$RUN/run.log" || true)"
-    MOVE_APEX="$(sed -n 's/.*maps\/jkx_room2\.bsp (-\?[0-9]* -\?[0-9]* \(-\?[0-9]*\)).*/\1/p' \
-        "$RUN/run.log" | sort -n | tail -1)"
-    if [ -z "$MOVE_APEX" ] || [ "$MOVE_SAMPLES" -lt 30 ]; then
-        report "the movement lane got $MOVE_SAMPLES sample(s) and no apex"
+    MOVE_STATS="$(awk '/movetrace /{
+            for ( i = 1; i <= NF; i++ ) {
+                if ( substr( $i, 1, 5 ) == "msec=" ) { msec = substr( $i, 6 ) + 0 }
+                if ( substr( $i, 1, 4 ) == "org=" ) { z = $(i + 2) + 0 }
+            }
+            n++
+            if ( n == 1 || z > apex ) { apex = z }
+            if ( n == 1 || msec < lo ) { lo = msec }
+            if ( n == 1 || msec > hi ) { hi = msec }
+            total += msec
+        }
+        END { if ( n ) printf "%d %.4f %d %d %.1f\n", n, apex, lo, hi, total / n }' \
+        "$RUN/run.log" )"
+
+    if [ -z "$MOVE_STATS" ]; then
+        report "the movement lane produced no trace at all"
     else
-        echo "  jump apex z=$MOVE_APEX from $MOVE_SAMPLES sample(s)"
+        set -- $MOVE_STATS
+        MOVE_SAMPLES="$1"; MOVE_APEX="$2"; MOVE_LO="$3"; MOVE_HI="$4"; MOVE_MEAN="$5"
+        echo "  jump apex z=$MOVE_APEX over $MOVE_SAMPLES server frame(s), step $MOVE_LO-$MOVE_HI ms, mean $MOVE_MEAN"
         if [ -n "${JKX_SMOKE_MOVE_OUT:-}" ]; then
-            printf '%s\n' "$MOVE_APEX" > "$JKX_SMOKE_MOVE_OUT"
+            printf '%s\n' "$MOVE_STATS" > "$JKX_SMOKE_MOVE_OUT"
         fi
-        # The floor is at z = -64 and the camera sits about 52 above the player,
-        # so a jump that did not happen reads about 12 and one that went through
-        # the floor reads negative. Both have happened here.
-        if [ "$MOVE_APEX" -lt 20 ]; then
+        if [ "$MOVE_SAMPLES" -lt 30 ]; then
+            report "the movement lane got only $MOVE_SAMPLES server frame(s)"
+        fi
+        # The spawn is at z = -40, standing on a floor whose surface is at -64.
+        # A jump that did not happen never rises above -40; one that fell through
+        # the floor goes well below it. Both have happened here.
+        if ! awk -v a="$MOVE_APEX" 'BEGIN { exit !( a > -30 ) }'; then
             report "the player did not leave the ground: apex z=$MOVE_APEX"
         fi
     fi

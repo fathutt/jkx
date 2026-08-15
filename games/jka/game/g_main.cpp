@@ -167,6 +167,7 @@ cvar_t	*g_noFootSlideRunScale;
 cvar_t	*g_noFootSlideWalkScale;
 cvar_t	*g_noFootSlideMaxScale;
 cvar_t	*g_noFootSlideDebug;
+cvar_t	*g_moveTrace;
 
 cvar_t	*g_nav1;
 cvar_t	*g_nav2;
@@ -650,6 +651,16 @@ void G_InitCvars( void ) {
 	// much the cycle had to be clamped. The reference speeds are guesses - see
 	// the FIXME in bg_panimate.cpp - and this is how they stop being guesses.
 	g_noFootSlideDebug = gi.cvar ( "g_noFootSlideDebug", "0", 0 );
+	// One line per server frame for the player: how long the step was, where he
+	// is and how fast. Movement is integrated once per rendered frame with that
+	// frame's duration as the step, so the only honest way to say whether a
+	// change to that helped is to compare the same jump step by step.
+	//
+	// The bench used to ask the console for "viewpos" once a frame instead,
+	// which answers with the third-person CAMERA rounded to whole units and
+	// only on frames the console got to run. That was enough to see that a jump
+	// reaches a different height on a busy machine and not enough to measure by.
+	g_moveTrace = gi.cvar ( "g_moveTrace", "0", 0 );
 
 	g_nav1 = gi.cvar ( "g_nav1", "", 0 );
 	g_nav2 = gi.cvar ( "g_nav2", "", 0 );

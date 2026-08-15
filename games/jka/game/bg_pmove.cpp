@@ -140,6 +140,7 @@ extern qboolean		player_locked;
 extern qboolean		MatrixMode;
 qboolean		waterForceJump;
 extern cvar_t	*g_timescale;
+extern cvar_t	*g_moveTrace;
 extern cvar_t	*g_speederControlScheme;
 extern cvar_t	*d_slowmodeath;
 extern cvar_t	*g_debugMelee;
@@ -15124,5 +15125,26 @@ void Pmove( pmove_t *pmove )
 	if ( pm->ps->pm_flags & PMF_SLOW_MO_FALL )
 	{//half grav
 		pm->ps->gravity *= 2;
+	}
+
+	// One line per simulated step for the player, when asked.
+	//
+	// Here rather than beside the caller, and that is the whole point of it:
+	// ClientThink sees one command, this sees every step the command was cut
+	// into, so the trace says what was actually integrated. Printed from the
+	// end so the numbers are the result of the step rather than its input, and
+	// with pml.msec rather than the command's interval, because when the steps
+	// are fixed those two are different numbers and the interesting one is this.
+	//
+	// The bench reads these; see the movement lane in smoke_headless.sh and
+	// backlog 46.2.
+	if ( g_moveTrace && g_moveTrace->integer && pm->ps->clientNum == 0 )
+	{
+		Com_Printf( "movetrace t=%i msec=%i org=%.4f %.4f %.4f vel=%.4f %.4f %.4f ground=%i mins=%.2f maxs=%.2f vh=%i\n",
+			pm->ps->commandTime, pml.msec,
+			pm->ps->origin[0], pm->ps->origin[1], pm->ps->origin[2],
+			pm->ps->velocity[0], pm->ps->velocity[1], pm->ps->velocity[2],
+			pm->ps->groundEntityNum, pm->mins[2], pm->maxs[2],
+			pm->ps->viewheight );
 	}
 }
