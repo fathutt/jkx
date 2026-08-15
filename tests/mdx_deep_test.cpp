@@ -82,6 +82,8 @@ unsigned int nextRandom( unsigned int *state )
 
 const int MAX_QPATH = 64;
 
+const int MD3_IDENT = ( '3' << 24 ) + ( 'P' << 16 ) + ( 'D' << 8 ) + 'I';
+const int MD3_VERSION = 15;
 const int MDXM_IDENT = ( '2' << 24 ) + ( 'L' << 16 ) + ( 'G' << 8 ) + 'M';
 const int MDXA_IDENT = ( '2' << 24 ) + ( 'L' << 16 ) + ( 'G' << 8 ) + 'A';
 const int MDXM_VERSION = 6;
@@ -306,6 +308,85 @@ std::vector<unsigned char> buildMDXA( int numBones, int numFrames, int poolEntri
 }
 
 
+// A prop or a weapon: numFrames of vertices per surface, plus tags. The vertex
+// array is sized numVerts * numFrames, which is the part that is easy to get
+// wrong in both directions - the format's own comment calls the two frame
+// counts something that "should" match.
+std::vector<unsigned char> buildMD3( int numSurfaces, int numFrames, int numTags,
+	int numVerts, int numTris )
+{
+	std::vector<unsigned char>	m;
+
+	putLong( m, MD3_IDENT );
+	putLong( m, MD3_VERSION );
+	putName( m, "models/jkx/test.md3" );
+	putLong( m, 0 );			// flags
+	putLong( m, numFrames );
+	putLong( m, numTags );
+	putLong( m, numSurfaces );
+	putLong( m, 0 );			// numSkins, which nothing reads
+	const size_t ofsFramesAt = m.size();
+	putLong( m, 0 );
+	const size_t ofsTagsAt = m.size();
+	putLong( m, 0 );
+	const size_t ofsSurfacesAt = m.size();
+	putLong( m, 0 );
+	const size_t ofsEndAt = m.size();
+	putLong( m, 0 );
+
+	setLong( m, ofsFramesAt, (int)m.size() );
+	pad( m, (size_t)numFrames * 56 );			// md3Frame_t
+
+	setLong( m, ofsTagsAt, (int)m.size() );
+	pad( m, (size_t)numTags * numFrames * 112 );	// md3Tag_t, per frame
+
+	setLong( m, ofsSurfacesAt, (int)m.size() );
+	for ( int s = 0; s < numSurfaces; s++ ) {
+		const size_t	surfAt = m.size();
+
+		putLong( m, MD3_IDENT );
+		putName( m, "surface" );
+		putLong( m, 0 );			// flags
+		putLong( m, numFrames );
+		putLong( m, 1 );			// numShaders
+		putLong( m, numVerts );
+		putLong( m, numTris );
+		const size_t ofsTrisAt = m.size();
+		putLong( m, 0 );
+		const size_t ofsShadersAt = m.size();
+		putLong( m, 0 );
+		const size_t ofsStAt = m.size();
+		putLong( m, 0 );
+		const size_t ofsXyzAt = m.size();
+		putLong( m, 0 );
+		const size_t ofsSurfEndAt = m.size();
+		putLong( m, 0 );
+
+		setLong( m, ofsShadersAt, (int)( m.size() - surfAt ) );
+		putName( m, "textures/jkx/test" );
+		putLong( m, 0 );			// shaderIndex
+
+		setLong( m, ofsTrisAt, (int)( m.size() - surfAt ) );
+		for ( int t = 0; t < numTris; t++ ) {
+			putLong( m, 0 );
+			putLong( m, ( numVerts > 1 ) ? 1 : 0 );
+			putLong( m, ( numVerts > 2 ) ? 2 : 0 );
+		}
+
+		setLong( m, ofsStAt, (int)( m.size() - surfAt ) );
+		pad( m, (size_t)numVerts * 8 );
+
+		setLong( m, ofsXyzAt, (int)( m.size() - surfAt ) );
+		pad( m, (size_t)numVerts * numFrames * 8 );
+
+		setLong( m, ofsSurfEndAt, (int)( m.size() - surfAt ) );
+	}
+
+	setLong( m, ofsEndAt, (int)m.size() );
+	return m;
+}
+
+
 bool accepted( const std::vector<unsigned char> &m, const char **why )
 {
 	// Exactly the size of the model, from the heap: a byte either side is a
@@ -346,6 +427,18 @@ void testValidModelsAreAccepted()
 		"a skeleton the shape of the retail humanoid is accepted" );
 	if ( why ) {
 		printf( "  the humanoid-shaped skeleton was refused: %s\n", why );
+	}
+
+	check( accepted( buildMD3( 1, 1, 0, 3, 1 ), &why ),
+		"the smallest prop is accepted" );
+	if ( why ) {
+		printf( "  the smallest prop was refused: %s\n", why );
+	}
+
+	check( accepted( buildMD3( 3, 8, 2, 40, 20 ), &why ),
+		"a prop with several surfaces, frames and tags is accepted" );
+	if ( why ) {
+		printf( "  the larger prop was refused: %s\n", why );
 	}
 }
 
@@ -436,6 +529,39 @@ void testNamedDefects()
 			"a bone whose parent is not one of this skeleton's is refused" );
 	}
 
+	// An MD3 surface claiming fewer frames than its model. The vertex array is
+	// sized by the surface's count and indexed by the model's, so every frame
+	// past the surface's end is a read past the array - and the format's own
+	// comment says the two "should" agree, which is the kind of should that
+	// nothing checked.
+	{
+		std::vector<unsigned char>	m = buildMD3( 1, 4, 0, 3, 1 );
+		const int					ofsSurfaces = (int)( (unsigned int)m[100]
+			| ( (unsigned int)m[101] << 8 ) | ( (unsigned int)m[102] << 16 )
+			| ( (unsigned int)m[103] << 24 ) );
+
+		check( accepted( m, NULL ), "the prop is valid before it is broken" );
+		setLong( m, (size_t)ofsSurfaces + 72, 1 );
+		check( !accepted( m, NULL ),
+			"a surface with fewer frames than its model is refused" );
+	}
+
+	// An MD3 triangle pointing at a vertex the surface does not have.
+	{
+		std::vector<unsigned char>	m = buildMD3( 1, 1, 0, 3, 1 );
+		const int					ofsSurfaces = (int)( (unsigned int)m[100]
+			| ( (unsigned int)m[101] << 8 ) | ( (unsigned int)m[102] << 16 )
+			| ( (unsigned int)m[103] << 24 ) );
+		const int					ofsTris = (int)( (unsigned int)m[ofsSurfaces + 88]
+			| ( (unsigned int)m[ofsSurfaces + 89] << 8 )
+			| ( (unsigned int)m[ofsSurfaces + 90] << 16 )
+			| ( (unsigned int)m[ofsSurfaces + 91] << 24 ) );
+
+		setLong( m, (size_t)ofsSurfaces + ofsTris, 99 );
+		check( !accepted( m, NULL ),
+			"a triangle pointing past the vertex array is refused" );
+	}
+
 	// A LOD that says it ends where it began. The walk adds this to get to the
 	// next LOD, so zero is a loop that never advances.
 	{
@@ -458,9 +584,15 @@ void testMutations( int rounds )
 		unsigned int				state = (unsigned int)round * 2654435761u + 11u;
 		std::vector<unsigned char>	m;
 
-		// Alternate between the two formats, and vary the shape so that the
+		// Round-robin the three formats, and vary the shape so that the
 		// mutations land on different fields from round to round.
-		if ( ( round & 1 ) == 0 ) {
+		if ( ( round % 3 ) == 2 ) {
+			m = buildMD3( 1 + (int)( nextRandom( &state ) % 3 ),
+				1 + (int)( nextRandom( &state ) % 8 ),
+				(int)( nextRandom( &state ) % 3 ),
+				1 + (int)( nextRandom( &state ) % 20 ),
+				(int)( nextRandom( &state ) % 10 ) );
+		} else if ( ( round & 1 ) == 0 ) {
 			m = buildMDXM( 1 + (int)( nextRandom( &state ) % 4 ),
 				1 + (int)( nextRandom( &state ) % 3 ),
 				1 + (int)( nextRandom( &state ) % 8 ),

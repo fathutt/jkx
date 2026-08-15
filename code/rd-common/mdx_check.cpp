@@ -55,6 +55,14 @@ Foundation.
 // mdxaSkel_t up to children: name, flags, parent, two 3x4 matrices, numChildren.
 #define MDX_MDXA_SKEL		( MDX_MAX_QPATH + 4 + 4 + 48 + 48 + 4 )
 
+// MD3's records, all measured rather than counted by eye.
+#define MDX_MD3_SURF		108		// md3Surface_t
+#define MDX_MD3_SHADER		68		// md3Shader_t: a name and an index
+#define MDX_MD3_TRI			12		// md3Triangle_t
+#define MDX_MD3_ST			8		// md3St_t, two floats
+#define MDX_MD3_XYZ			8		// md3XyzNormal_t, four shorts
+#define MDX_MD3_TAG			112		// md3Tag_t
+
 // The loader's own ceilings, from qfiles.h. R_LoadMDXM refuses a surface past
 // them, so a checker that allowed more would be answering a different question
 // than the code it protects.
@@ -545,6 +553,98 @@ static const char *MDX_CheckMDXADeep( const unsigned char *data )
 }
 
 
+static const char *MDX_CheckMD3Deep( const unsigned char *data )
+{
+	const int	numFrames	= MDX_ReadLong( data + 76 );
+	const int	numSurfaces	= MDX_ReadLong( data + 84 );
+	const int	ofsSurfaces	= MDX_ReadLong( data + 100 );
+	const int	ofsEnd		= MDX_ReadLong( data + 104 );
+	int			at, i;
+
+	at = ofsSurfaces;
+	for ( i = 0; i < numSurfaces; i++ ) {
+		int	surfFrames, numShaders, numVerts, numTriangles;
+		int	ofsTriangles, ofsShaders, ofsSt, ofsXyzNormals, surfEnd, j;
+
+		if ( !MDX_Fits( at, MDX_MD3_SURF, (size_t)ofsEnd ) ) {
+			return MDX_ComplainAt( "surface", i );
+		}
+
+		surfFrames		= MDX_ReadLong( data + at + 72 );
+		numShaders		= MDX_ReadLong( data + at + 76 );
+		numVerts		= MDX_ReadLong( data + at + 80 );
+		numTriangles	= MDX_ReadLong( data + at + 84 );
+		ofsTriangles	= MDX_ReadLong( data + at + 88 );
+		ofsShaders		= MDX_ReadLong( data + at + 92 );
+		ofsSt			= MDX_ReadLong( data + at + 96 );
+		ofsXyzNormals	= MDX_ReadLong( data + at + 100 );
+		surfEnd			= MDX_ReadLong( data + at + 104 );
+
+		// The loader's ceilings, and it uses >= rather than >, so this does
+		// too: a checker that accepted the boundary would be handing the
+		// loader a file it is about to refuse, which is a different answer
+		// from the one this gives.
+		if ( numVerts < 0 || numVerts >= MDX_MAX_VERTEXES ) {
+			return "a surface with more vertices than the renderer can hold";
+		}
+		// The multiplication is widened deliberately: numTriangles is a number
+		// out of the file, and (int)838860803 * 3 overflows - which is signed
+		// overflow, undefined, and was caught here by ubsan on the first run of
+		// the mutation loop rather than by reading the line.
+		if ( numTriangles < 0 || (long long)numTriangles * 3 >= MDX_MAX_INDEXES ) {
+			return "a surface with more triangles than the renderer can hold";
+		}
+		if ( numShaders < 0 || numShaders > 0xffff ) {
+			return "a surface with an impossible number of shaders";
+		}
+
+		// Every surface carries its own frame count and the vertex array is
+		// sized by it, but the renderer indexes that array with the MODEL's
+		// frame number. A surface claiming fewer frames than the model is
+		// therefore a read past the array on every frame past its end - and
+		// the format's own comment says the two "should" agree, which is the
+		// kind of should that nothing checks.
+		if ( surfFrames != numFrames ) {
+			return "a surface with a different number of frames from its model";
+		}
+
+		if ( surfEnd < MDX_MD3_SURF || !MDX_Fits( at, surfEnd, (size_t)ofsEnd ) ) {
+			return MDX_ComplainAt( "end of surface", i );
+		}
+
+		// Everything a surface points at is inside the surface, so its own end
+		// is the limit rather than the file's.
+		if ( !MDX_Fits( ofsShaders, (long long)numShaders * MDX_MD3_SHADER, (size_t)surfEnd ) ) {
+			return "a surface whose shaders run past its end";
+		}
+		if ( !MDX_Fits( ofsTriangles, (long long)numTriangles * MDX_MD3_TRI, (size_t)surfEnd ) ) {
+			return "a surface whose triangles run past its end";
+		}
+		if ( !MDX_Fits( ofsSt, (long long)numVerts * MDX_MD3_ST, (size_t)surfEnd ) ) {
+			return "a surface whose texture coordinates run past its end";
+		}
+		if ( !MDX_Fits( ofsXyzNormals,
+				(long long)numVerts * numFrames * MDX_MD3_XYZ, (size_t)surfEnd ) ) {
+			return "a surface whose vertices run past its end";
+		}
+
+		// The indices are used to index the vertex array, and the renderer
+		// does not look at them either.
+		for ( j = 0; j < numTriangles * 3; j++ ) {
+			const int index = MDX_ReadLong( data + at + ofsTriangles + j * 4 );
+
+			if ( index < 0 || index >= numVerts ) {
+				return "a triangle pointing at a vertex the surface does not have";
+			}
+		}
+
+		at += surfEnd;
+	}
+
+	return NULL;
+}
+
+
 const char *MDX_CheckModel( const unsigned char *data, size_t len )
 {
 	const char	*bad = MDX_CheckHeader( data, len );
@@ -566,10 +666,9 @@ const char *MDX_CheckModel( const unsigned char *data, size_t len )
 		return MDX_CheckMDXADeep( data );
 	}
 
-	// MD3's surfaces are a second pass of their own and nothing here has needed
-	// one yet: the surfaces are walked by R_LoadMD3 through their own ofsEnd,
-	// exactly as MDXM's are, and that walk deserves the same treatment. Left
-	// undone rather than half done, and said out loud so the next person does
-	// not read the absence as a decision that it is safe.
+	if ( ident == MDX_MD3_IDENT ) {
+		return MDX_CheckMD3Deep( data );
+	}
+
 	return NULL;
 }

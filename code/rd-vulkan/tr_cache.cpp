@@ -123,6 +123,12 @@ qboolean CModelCacheManager::LoadFile( const char *pFileName, void **ppFileBuffe
 	static_assert( offsetof( mdxaSkel_t, children ) == 172,
 		"mdxaSkel_t up to children" );
 	static_assert( sizeof( mdxaCompQuatBone_t ) == 14, "mdxaCompQuatBone_t" );
+	static_assert( sizeof( md3Surface_t ) == 108, "md3Surface_t" );
+	static_assert( sizeof( md3Shader_t ) == 68, "md3Shader_t" );
+	static_assert( sizeof( md3Triangle_t ) == 12, "md3Triangle_t" );
+	static_assert( sizeof( md3St_t ) == 8, "md3St_t" );
+	static_assert( sizeof( md3XyzNormal_t ) == 8, "md3XyzNormal_t" );
+	static_assert( sizeof( md3Tag_t ) == 112, "md3Tag_t" );
 
 	{
 		const char *bad = MDX_CheckModel( (const unsigned char *)*ppFileBuffer, (size_t)len );

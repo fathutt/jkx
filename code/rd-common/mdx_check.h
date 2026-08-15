@@ -65,7 +65,8 @@ Foundation.
 const char *MDX_CheckHeader( const unsigned char *data, size_t len );
 
 // The same, and then the second pass: the surface hierarchy and every LOD and
-// surface of an MDXM, the bone table and every frame index of an MDXA. Where
+// surface of an MDXM, the bone table and every frame index of an MDXA, every
+// surface and every triangle index of an MD3. Where
 // the header check asks whether the top-level arrays are inside the file, this
 // asks whether the loader can walk what is in them - both formats nest, and
 // every level down carries offsets of its own that nothing compared against
