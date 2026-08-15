@@ -1,0 +1,6 @@
+// A second skin, so the two numbering spaces have something to disagree about.
+//
+// With one skin file a configstring index and a renderer handle can both be 1
+// and the defect in G_SetSkin hides behind the coincidence. This one is red
+// where the default is green.
+body,jkx/skin_body_alt

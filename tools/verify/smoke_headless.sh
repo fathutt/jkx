@@ -704,6 +704,21 @@ fi
 # So the default lane asks for fastlight, and PBR gets a lane of its own.
 # JKX_SMOKE_PBR=1 turns it on; it is not in the stage list yet, for the same
 # reason the vid_restart lane is not: it still has something to say.
+# The skin the gamecode set, against the shader baked into the model.
+#
+# JKX_SMOKE_SKIN=1 asks for the character's default skin to be the one that
+# draws, and it currently FAILS - which is the point. G_SetSkin hands
+# G2API_SetSkin a configstring index where the renderer wants a skin handle
+# (tr_ghoul2.cpp resolves mCustomSkin through R_GetSkinByHandle), and the model
+# comes out wearing whatever its .glm names instead.
+#
+# Measured, not argued: model_default.skin names a green shader and the .glm
+# names a white one. The frame is white. Renaming the .glm's shader made the
+# model disappear rather than turn green, which is the other half of the same
+# answer - what is on screen is the baked shader and nothing else.
+#
+# Out of the stage list until it passes. When it does, the default lane's white
+# check below becomes the green one and this goes away.
 if [ "${JKX_SMOKE_PBR:-0}" = "1" ]; then
     SET_STEP+=( +set r_normalMapping 1 +set r_specularMapping 1 )
 else
@@ -835,6 +850,30 @@ if [ "${JKX_SMOKE_PLAIN:-0}" != "1" ] && [ -f "$RUN/home/base/screenshots/jkx_in
         "$RUN/home/base/screenshots/jkx_inmap.tga" \
         "255,255,255@0.3,0.75,0.7,1.0"; then
         report "the map's floor is not where it should be in jkx_inmap.tga"
+    fi
+fi
+
+# The character wearing the skin the gamecode set for it.
+#
+# model_default.skin names a green shader; the .glm has a white one baked into
+# its surface. Green means the skin was applied, white means it was ignored and
+# the baked shader is what is on screen.
+#
+# It is white today, which is why this lane is opt-in. G_SetSkin passes
+# G2API_SetSkin a configstring index where the renderer wants a skin handle -
+# tr_ghoul2.cpp resolves mCustomSkin through R_GetSkinByHandle - and the two
+# agree only while their counters happen to. The fixture had one skin and every
+# shader in it was white, so neither half of that could be seen from a frame.
+#
+# The other half of the measurement, which is what makes this a diagnosis rather
+# than a suspicion: renaming the shader baked into the .glm made the model
+# DISAPPEAR instead of turning green. What is drawn is the baked shader, and the
+# skin is not reaching the renderer at all.
+if [ "${JKX_SMOKE_SKIN:-0}" = "1" ] && [ -f "$RUN/home/base/screenshots/jkx_inmap.tga" ]; then
+    if ! python3 "$HERE/tga_colour_where.py" \
+        "$RUN/home/base/screenshots/jkx_inmap.tga" \
+        "0,255,0@0.3,0.75,0.7,1.0"; then
+        report "the character is not wearing the skin the gamecode set - see mCustomSkin"
     fi
 fi
 

@@ -104,3 +104,46 @@ textures/jkx/anim
 		rgbGen const ( 0.0 1.0 1.0 )
 	}
 }
+
+// The player character's skin, in a colour nothing else here is.
+//
+// It used to be jkx/smoke, which is white - and so is almost everything else in
+// this fixture, so a model drawn with the WRONG skin looked exactly like a
+// model drawn with the right one. That matters because of a defect this bench
+// could not see: G_SetSkin hands G2API_SetSkin a configstring index where the
+// renderer expects a skin handle (tr_ghoul2.cpp reads mCustomSkin through
+// R_GetSkinByHandle), and the two agree only while their counters happen to.
+//
+// Green here and red in the alternate skin, so "the wrong skin" is a colour and
+// not a shrug.
+jkx/skin_body
+{
+	{
+		map $whiteimage
+		rgbGen const ( 0.0 1.0 0.0 )
+	}
+}
+
+jkx/skin_body_alt
+{
+	{
+		map $whiteimage
+		rgbGen const ( 1.0 0.0 0.0 )
+	}
+}
+
+// What the .glm itself names on its one surface, and a third colour on purpose.
+//
+// With this blue, the default skin green and the alternate skin red, one
+// screenshot answers a three-way question instead of a yes/no: blue means the
+// skin was never applied, green means it was applied correctly, and red or
+// anything else means a skin was applied and it was the wrong one. The fixture
+// used to have the model, the skin and half the world all drawn in white, so
+// none of those three could be told from the others.
+jkx/glm_baked
+{
+	{
+		map $whiteimage
+		rgbGen const ( 0.0 0.0 1.0 )
+	}
+}
