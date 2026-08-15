@@ -346,6 +346,8 @@ qboolean S_CodecStreamOpen( soundStream_t *pStream, const void *pvData, int iDat
 		pStream->rate		= (int)info.sample_rate;
 		pStream->writePos	= 0;
 		pStream->windowPos	= 0;
+		pStream->sourceData	= (const byte *)pvData;
+		pStream->sourceLen	= iDataLen;
 		return qtrue;
 	}
 
@@ -374,6 +376,8 @@ qboolean S_CodecStreamOpen( soundStream_t *pStream, const void *pvData, int iDat
 	pStream->rate		= (int)pStream->mp3.sampleRate;
 	pStream->writePos	= 0;
 	pStream->windowPos	= 0;
+	pStream->sourceData	= (const byte *)pvData;
+	pStream->sourceLen	= iDataLen;
 	return qtrue;
 }
 
@@ -483,6 +487,71 @@ void S_CodecStreamClose( soundStream_t *pStream )
 	pStream->codec		= CODEC_NONE;
 	pStream->writePos	= 0;
 	pStream->windowPos	= 0;
+	pStream->sourceData	= NULL;
+	pStream->sourceLen	= 0;
+}
+
+
+// How wide one frame of this stream's OUTPUT is. The source's channel count and
+// the caller's request are different questions and this is the answer to both
+// of them together, which is the number every offset in the window is in.
+static int S_Codec_OutBytesPerFrame( const soundStream_t *pStream )
+{
+	const qboolean bStereoOut = (qboolean)( pStream->wantStereo && pStream->channels == 2 );
+	return (int)sizeof( short ) * ( bStereoOut ? 2 : 1 );
+}
+
+
+qboolean S_CodecStreamClone( soundStream_t *pDest, const soundStream_t *pSrc )
+{
+	if ( pDest == pSrc ) {
+		return qtrue;
+	}
+
+	S_CodecStreamClose( pDest );
+
+	if ( !pSrc->open || !pSrc->sourceData ) {
+		return qfalse;
+	}
+
+	// A stream that owns its bytes is one that read them out of a file, and the
+	// clone would be pointing at a buffer the source frees on close. Refusing is
+	// the honest answer: the caller that needs this - the music crossfader - only
+	// ever has memory-resident dynamic music, and a caller that does not is
+	// better told no than handed a pointer with someone else's lifetime.
+	if ( pSrc->ownedData ) {
+		return qfalse;
+	}
+
+	if ( !S_CodecStreamOpen( pDest, pSrc->sourceData, pSrc->sourceLen, pSrc->wantStereo ) ) {
+		return qfalse;
+	}
+
+	// The window is plain bytes and copies exactly. What has to be made true
+	// afterwards is the decoder: it must be sitting at the frame immediately
+	// after the last one in the copied window, or the next packet decoded into
+	// the clone would repeat audio the window already holds.
+	const int iBytesPerFrame = S_Codec_OutBytesPerFrame( pSrc );
+	const drmp3_uint64 iNextFrame =
+		(drmp3_uint64)( pSrc->windowPos + pSrc->writePos ) / (drmp3_uint64)iBytesPerFrame;
+
+	qboolean bSought;
+	if ( pDest->codec == CODEC_VORBIS ) {
+		bSought = (qboolean)( stb_vorbis_seek( pDest->vorbis, (unsigned int)iNextFrame ) != 0 );
+	} else {
+		bSought = (qboolean)( drmp3_seek_to_pcm_frame( &pDest->mp3, iNextFrame ) != 0 );
+	}
+
+	if ( !bSought ) {
+		S_CodecStreamClose( pDest );
+		return qfalse;
+	}
+
+	memcpy( pDest->window, pSrc->window, (size_t)pSrc->writePos );
+	pDest->writePos		= pSrc->writePos;
+	pDest->windowPos	= pSrc->windowPos;
+
+	return qtrue;
 }
 
 // One packet forward into the window. Returns bytes written, 0 at end of
@@ -525,8 +594,7 @@ qboolean S_CodecStreamRead( soundStream_t *pStream, int iFirstFrame, int iFrames
 	const int iQuarter		=  (int)sizeof( pStream->window ) / 4;
 	const int iThreeQuarters= ( (int)sizeof( pStream->window ) * 3 ) / 4;
 
-	const qboolean bStereoOut = (qboolean)( pStream->wantStereo && pStream->channels == 2 );
-	const int iBytesPerFrame = (int)sizeof( short ) * ( bStereoOut ? 2 : 1 );
+	const int iBytesPerFrame = S_Codec_OutBytesPerFrame( pStream );
 
 	int iCount = iFrames * iBytesPerFrame;
 	int iStart = iFirstFrame * iBytesPerFrame;

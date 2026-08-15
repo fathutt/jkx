@@ -221,6 +221,17 @@ stage_tests_cxx() {
         "$ROOT/code/rd-common/mdx_check.cpp" || return 1
     "$out/mdx_header_test" || return 1
 
+    # Which game is in a directory. The launcher's first question, driven
+    # through a fake filesystem so that the shapes players actually have -
+    # half-deleted installs, merged folders, a mod directory pointed at by
+    # mistake - can be asked about at all.
+    c++ -O1 -g -std=c++17 -Wall -Wextra -Werror \
+        -fsanitize=address,undefined -fno-sanitize-recover=all \
+        -o "$out/install_scan_test" \
+        "$ROOT/tests/install_scan_test.cpp" \
+        "$ROOT/code/launcher/jkx_install_scan.cpp" || return 1
+    "$out/install_scan_test" || return 1
+
     # The vector type, against the array it replaces. Layout first - it is
     # checked by writing through one view and reading through the other, not by
     # asking the type about itself - then every operator against the same

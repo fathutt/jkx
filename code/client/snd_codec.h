@@ -80,6 +80,23 @@ qboolean		S_CodecStreamOpen( soundStream_t *pStream, const void *pvData, int iDa
 qboolean		S_CodecStreamOpenFile( soundStream_t *pStream, fileHandle_t f, qboolean bWantStereo );
 void			S_CodecStreamClose( soundStream_t *pStream );
 
+// A second decoder over the same bytes, sitting at the same place, with the
+// same window contents. The two are independent from then on: reading one does
+// not move the other, and closing one does not touch the other's memory.
+//
+// This exists because the music crossfader used to duplicate a stream by
+// copying the struct that holds it. That copies a decoder whose every internal
+// pointer belongs to the original - so the fader and the track it was fading
+// out decoded through one window at two different offsets, and whichever of
+// them asked second was asking for audio the other had already scrolled past.
+// The answer to that is silence, and it is also reported as end of stream, so
+// the track ended and looped and ended again. Music stopped on the first
+// crossfade of a level and did not come back.
+//
+// Only a stream opened over memory the caller owns can be cloned; anything else
+// returns qfalse and leaves the destination closed.
+qboolean		S_CodecStreamClone( soundStream_t *pDest, const soundStream_t *pSrc );
+
 // Reads iFrames whole frames starting at iFirstFrame, which may be anywhere at
 // or after the start of the window. Returns qfalse at end of stream, having
 // zeroed whatever it could not fill.

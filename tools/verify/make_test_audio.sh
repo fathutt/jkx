@@ -49,4 +49,29 @@ data[at + 8:at + 12] = (0).to_bytes(4, "big")
 open(path, "wb").write(bytes(data))
 PATCH
 
-echo "wrote $dir/tone.mp3, $dir/tone.ogg and $dir/tone_zerocount.mp3"
+# Music is stereo at 44,100 Hz and everything else in these fixtures is mono at
+# 22,050, which is how a whole class of arithmetic stayed invisible: every offset
+# the streaming window works in is a count of OUTPUT frames, and a mono frame is
+# two bytes while a stereo one is four. A test that only ever sees two-byte
+# frames cannot tell the two apart, and neither could the test that was here.
+#
+# Four seconds, so the 50,000-byte window - which holds 0.28 seconds of stereo -
+# scrolls a dozen times while the test walks it. Different tones in the two
+# channels, so a downmix, a swap or a half-speed read is a wrong frequency in a
+# named channel rather than a vague failure.
+ffmpeg -f lavfi -i "sine=frequency=440:sample_rate=44100:duration=4.0" \
+       -f lavfi -i "sine=frequency=660:sample_rate=44100:duration=4.0" \
+       -filter_complex "[0:a][1:a]amerge=inputs=2[a]" -map "[a]" \
+       -ac 2 -b:a 64k -write_xing 0 -id3v2_version 0 -y "$dir/tone_stereo.mp3"
+
+# The same four seconds as Vorbis. Both formats matter here for a reason the
+# MP3 alone does not show: a memory-backed MP3 decoder holds no allocation of
+# its own and so survives being copied byte for byte, while a Vorbis decoder is
+# a pointer to a heap object and does not. The stream-cloning checks only
+# discriminate when they are run against this one.
+ffmpeg -f lavfi -i "sine=frequency=440:sample_rate=44100:duration=4.0" \
+       -f lavfi -i "sine=frequency=660:sample_rate=44100:duration=4.0" \
+       -filter_complex "[0:a][1:a]amerge=inputs=2[a]" -map "[a]" \
+       -ac 2 -c:a libvorbis -b:a 80k -y "$dir/tone_stereo.ogg"
+
+echo "wrote $dir/tone.mp3, $dir/tone.ogg, $dir/tone_zerocount.mp3, $dir/tone_stereo.mp3 and $dir/tone_stereo.ogg"

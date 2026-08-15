@@ -359,6 +359,175 @@ static int RunFixture( const char *psFixture, soundCodec_t expectCodec )
 	return 0;
 }
 
+// Music, which is the only stereo thing the engine streams and the only thing
+// that gets cloned.
+//
+// Everything above ran against one second of 22 kHz mono, and a mono output
+// frame is two bytes while a stereo one is four. Every offset the sliding window
+// works in is a byte count derived from a frame count, so a test that only ever
+// sees two-byte frames cannot distinguish frames from samples anywhere - and the
+// buffer it hands the reader is half the size a stereo read needs, which is a
+// heap overflow the moment a real music file is put through it. That is what
+// happened: the first retail .mp3 handed to this test overran its output buffer
+// before it could report anything about the audio.
+static void RunStereo( const char *psFixture )
+{
+	static const int kStereoRate	= 44100;
+	static const float kLeftHz		= 440.0f;
+	static const float kRightHz		= 660.0f;
+
+	FILE *f = fopen( psFixture, "rb" );
+	if ( !f ) {
+		printf( "cannot open fixture %s\n", psFixture );
+		s_failures++;
+		return;
+	}
+	fseek( f, 0, SEEK_END );
+	const long lLen = ftell( f );
+	fseek( f, 0, SEEK_SET );
+	std::vector<unsigned char> data( (size_t)lLen );
+	if ( fread( data.data(), 1, (size_t)lLen, f ) != (size_t)lLen ) {
+		printf( "short read on fixture\n" );
+		fclose( f );
+		s_failures++;
+		return;
+	}
+	fclose( f );
+
+	printf( "fixture %s, %ld bytes\n", psFixture, lLen );
+
+	soundStream_t *pStream	= (soundStream_t *)calloc( 1, sizeof( soundStream_t ) );
+	soundStream_t *pClone	= (soundStream_t *)calloc( 1, sizeof( soundStream_t ) );
+
+	CHECK( S_CodecStreamOpen( pStream, data.data(), (int)lLen, qtrue ) == qtrue,
+		   "stereo stream open failed" );
+	CHECK( pStream->channels == 2, "stereo fixture reports %d channel(s)", pStream->channels );
+	CHECK( pStream->rate == kStereoRate, "stereo fixture rate %d, expected %d",
+		   pStream->rate, kStereoRate );
+
+	// The music path asks for 1024 frames at a time and counts frames from the
+	// start of the track, which is what this imitates. 4096 frames of stereo is
+	// 16,384 bytes, so the 50,000-byte window scrolls on the way through and
+	// keeps scrolling.
+	const int	iBlock		= 1024;
+	const int	iBlocks		= 128;
+	std::vector<short> left, right;
+	std::vector<short> block( (size_t)iBlock * 2 );
+
+	for ( int i = 0; i < iBlocks; i++ ) {
+		const qboolean bOk = S_CodecStreamRead( pStream, i * iBlock, iBlock, block.data() );
+		CHECK( bOk == qtrue, "stereo read %d of %d reported end of stream", i, iBlocks );
+		if ( !bOk ) {
+			break;
+		}
+		for ( int j = 0; j < iBlock; j++ ) {
+			left.push_back( block[j * 2] );
+			right.push_back( block[j * 2 + 1] );
+		}
+	}
+
+	if ( left.size() == (size_t)iBlock * iBlocks ) {
+		const int iSkip = 2048;
+		const float fLeft = MeasureFrequency( left.data() + iSkip,
+											  (int)left.size() - iSkip, kStereoRate );
+		const float fRight = MeasureFrequency( right.data() + iSkip,
+											   (int)right.size() - iSkip, kStereoRate );
+
+		// Named channels, so the failure says which way it went wrong: both at
+		// 440 is a left channel copied over the right, both at 550 is a downmix,
+		// half of each is a frame read as a sample.
+		CHECK( fabsf( fLeft - kLeftHz ) < 5.0f,
+			   "left channel measured at %.1f Hz, expected %.1f", fLeft, kLeftHz );
+		CHECK( fabsf( fRight - kRightHz ) < 5.0f,
+			   "right channel measured at %.1f Hz, expected %.1f", fRight, kRightHz );
+	}
+
+	// --- cloning ------------------------------------------------------------
+
+	// What the crossfader needs and what it used to do by copying the struct
+	// that holds the decoder. The two have to be independent in all three ways
+	// that matter, and each one of them was broken by the copy.
+	const int iAt = iBlock * iBlocks;
+
+	CHECK( S_CodecStreamClone( pClone, pStream ) == qtrue, "clone failed" );
+
+	std::vector<short> fromClone( (size_t)iBlock * 2 );
+	std::vector<short> fromSource( (size_t)iBlock * 2 );
+
+	// One: the clone continues from where the source was, sample for sample.
+	CHECK( S_CodecStreamRead( pClone, iAt, iBlock, fromClone.data() ) == qtrue,
+		   "the clone reported end of stream on its first read" );
+	CHECK( S_CodecStreamRead( pStream, iAt, iBlock, fromSource.data() ) == qtrue,
+		   "the source reported end of stream after being cloned" );
+	CHECK( memcmp( fromClone.data(), fromSource.data(), fromClone.size() * sizeof( short ) ) == 0,
+		   "the clone and the source disagree about the same frames" );
+
+	// Two: rewinding the source does not move the clone. This is the exact
+	// shape of the defect - the fader kept playing the end of a track while the
+	// track it was copied from went back to the beginning - and with a shared
+	// window the read below came from before the window and returned silence.
+	CHECK( S_CodecStreamRewind( pStream ) == qtrue, "rewind of the source failed" );
+
+	std::vector<short> afterRewind( (size_t)iBlock * 2 );
+	CHECK( S_CodecStreamRead( pClone, iAt + iBlock, iBlock, afterRewind.data() ) == qtrue,
+		   "the clone stopped when the source was rewound" );
+	CHECK( Rms( afterRewind.data(), iBlock * 2 ) > 1000.0f,
+		   "the clone went silent when the source was rewound, rms %.1f",
+		   Rms( afterRewind.data(), iBlock * 2 ) );
+
+	// Three: closing one does not free anything the other is using. The check is
+	// that the read below works and that the sanitiser stage says nothing; a
+	// struct copy of a decoder fails this by freeing the same buffers twice.
+	S_CodecStreamClose( pStream );
+
+	CHECK( S_CodecStreamRead( pClone, iAt + iBlock * 2, iBlock, afterRewind.data() ) == qtrue,
+		   "the clone stopped when the source was closed" );
+
+	S_CodecStreamClose( pClone );
+
+	// A stream that is not backed by memory the caller owns cannot be cloned,
+	// and says so rather than handing back a pointer with someone else's
+	// lifetime.
+	s_file		= data.data();
+	s_fileLen	= (int)lLen;
+	s_filePos	= 0;
+	CHECK( S_CodecStreamOpenFile( pStream, (fileHandle_t)1, qtrue ) == qtrue,
+		   "file-backed stereo open failed" );
+	CHECK( S_CodecStreamClone( pClone, pStream ) == qfalse,
+		   "a file-backed stream reported that it could be cloned" );
+	S_CodecStreamClose( pStream );
+
+	// --- downmix ------------------------------------------------------------
+
+	// The same frames asked for as mono. This is exact rather than approximate:
+	// the mixer positions every non-music sound itself and cannot be handed
+	// stereo, so the fold is defined, and comparing against the stereo pair the
+	// test already has proves the mono path reads the same place in the file.
+	CHECK( S_CodecStreamOpen( pStream, data.data(), (int)lLen, qfalse ) == qtrue,
+		   "downmixed stream open failed" );
+
+	{
+		std::vector<short> mono( (size_t)iBlock );
+		CHECK( S_CodecStreamRead( pStream, 0, iBlock, mono.data() ) == qtrue,
+			   "downmixed read reported end of stream" );
+
+		int iWrong = 0;
+		for ( int j = 0; j < iBlock; j++ ) {
+			const short sExpect = (short)( ( (int)left[j] + (int)right[j] ) / 2 );
+			if ( mono[j] != sExpect ) {
+				iWrong++;
+			}
+		}
+		CHECK( iWrong == 0, "%d of %d downmixed frames are not the mean of the pair",
+			   iWrong, iBlock );
+	}
+
+	S_CodecStreamClose( pStream );
+
+	free( pClone );
+	free( pStream );
+}
+
 int main( int argc, char **argv )
 {
 	const char *psDir = ( argc > 1 ) ? argv[1] : "tools/verify/fixtures";
@@ -392,11 +561,28 @@ int main( int argc, char **argv )
 		return 2;
 	}
 
+	// Four seconds of 44 kHz stereo, which is the shape music actually has, and
+	// the only shape in which the window scrolls with four-byte frames.
+	snprintf( sPath, sizeof( sPath ), "%s/tone_stereo.mp3", psDir );
+	RunStereo( sPath );
+
+	// And in the other format, which is where cloning stops being a convenience.
+	// A memory-backed MP3 decoder happens to survive being copied byte for byte
+	// - it holds no allocation of its own - so the copy the crossfader used to
+	// make was wrong in principle and worked in practice, which is why it lived
+	// this long. A Vorbis decoder is a pointer to a heap object: copy the struct
+	// and two readers share one decoder, and closing either frees it under the
+	// other. Running this fixture is what makes the three independence checks
+	// below discriminate rather than describe.
+	snprintf( sPath, sizeof( sPath ), "%s/tone_stereo.ogg", psDir );
+	RunStereo( sPath );
+
 	if ( s_failures ) {
 		printf( "%d check(s) failed\n", s_failures );
 		return 1;
 	}
 
-	printf( "OK: both formats - sniffing, whole-file decode, window scrolling, seeking, file streaming\n" );
+	printf( "OK: both formats - sniffing, whole-file decode, window scrolling, seeking, "
+			"file streaming, stereo, cloning, downmix\n" );
 	return 0;
 }

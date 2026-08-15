@@ -134,6 +134,13 @@ typedef struct soundStream_s
 	// copy of it. NULL when the caller's buffer is being used directly.
 	byte		*ownedData;
 
+	// The compressed bytes this was opened over, when it was opened over bytes
+	// rather than a file handle. Remembered so a stream can be cloned: a second
+	// decoder over the same source, positioned at the same place, which is what
+	// the music crossfader needs and had been doing by copying the struct.
+	const byte	*sourceData;
+	int			sourceLen;
+
 	// The decode window. Typical back-request is -3072, so roughly double that
 	// is 6000 for safety, then doubled again so the 6K position sits in the
 	// middle. Byte offsets, not frames: writePos is how much of the window is

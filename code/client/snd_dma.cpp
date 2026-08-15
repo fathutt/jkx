@@ -117,6 +117,23 @@ typedef struct MusicInfo_s
 		s_backgroundSamples = sfxMP3_Bgrnd.iSoundLengthInSamples;
 	}
 
+	// A MusicInfo_t points into itself: chMP3_Bgrnd.stream at streamState_Bgrnd
+	// and chMP3_Bgrnd.thesfx at sfxMP3_Bgrnd, both a few fields above. It also
+	// holds pLoadedData, which exactly one slot may free.
+	//
+	// So assigning one to another is never right, and it was done twice - both
+	// times to load the crossfader with the track being faded out. The copy took
+	// the pointers with it, so the fader decoded through the original's window
+	// while the original went on reading from it at its own offset; one of them
+	// always asked for audio the other had scrolled past, got silence and the end
+	// of stream that goes with it, and looped. That is why music stopped on the
+	// first crossfade and never came back.
+	//
+	// Deleting this is not a style choice. The two sites are fixed below in
+	// S_Music_CopyToFader, and nothing stops a third from being written the
+	// obvious way except the compiler refusing it.
+	MusicInfo_s &operator=( const MusicInfo_s & ) = delete;
+
 } MusicInfo_t;
 
 static void S_SetDynamicMusicState( MusicState_e musicState );
@@ -2579,11 +2596,56 @@ static qboolean S_StartBackgroundTrack_Actual( MusicInfo_t *pMusicInfo, qboolean
 }
 
 
+// Load the crossfader with a track that is going away, so it can keep playing
+// while its volume comes down.
+//
+// The fader needs everything the source had except the three things that cannot
+// be shared: the decoder, which becomes a clone of the source's positioned at
+// the same place; the two pointers a MusicInfo_t aims at its own insides; and
+// ownership of the loaded file, which stays with the slot that read it.
+//
+// A fader that cannot get its own decoder is not started at all. Silence for one
+// second at the end of a track is a worse outcome than a crossfade and a better
+// one than two readers sharing a window, which is silence for the level.
+static void S_Music_CopyToFader( MusicInfo_t *pFade, const MusicInfo_t *pSrc )
+{
+	const soundStream_t *pSource = pSrc->chMP3_Bgrnd.stream;
+
+	if ( pFade == pSrc ) {
+		return;
+	}
+
+	// Everything by bytes, then the parts that are wrong afterwards. Assignment
+	// is deleted on this type precisely so that this is the only place that has
+	// to know which parts those are.
+	memcpy( (void *)pFade, (const void *)pSrc, sizeof( *pFade ) );
+
+	// The byte image of the source's decode state came with it, and every
+	// pointer inside that image belongs to the source. Forget it wholesale
+	// rather than closing it, which would free the source's buffers under it.
+	memset( &pFade->streamState_Bgrnd, 0, sizeof( pFade->streamState_Bgrnd ) );
+	pFade->chMP3_Bgrnd.stream	= &pFade->streamState_Bgrnd;
+	pFade->chMP3_Bgrnd.thesfx	= &pFade->sfxMP3_Bgrnd;
+
+	// The compressed file belongs to the slot that loaded it and is freed by
+	// name from there. A second slot holding the same pointer is a double free
+	// waiting for the next S_UnCacheDynamicMusic.
+	pFade->pLoadedData			= NULL;
+	pFade->iLoadedDataLen		= 0;
+	pFade->sLoadedDataName[0]	= '\0';
+	pFade->s_backgroundFile		= -1;
+
+	if ( !S_CodecStreamClone( pFade->chMP3_Bgrnd.stream, pSource ) ) {
+		pFade->bActive = qfalse;
+	}
+}
+
+
 static void S_SwitchDynamicTracks( MusicState_e eOldState, MusicState_e eNewState, qboolean bNewTrackStartsFullVolume )
 {
 	// copy old track into fader...
 	//
-	tMusic_Info[ eBGRNDTRACK_FADE ] = tMusic_Info[ eOldState ];
+	S_Music_CopyToFader( &tMusic_Info[ eBGRNDTRACK_FADE ], &tMusic_Info[ eOldState ] );
 //	tMusic_Info[ eBGRNDTRACK_FADE ].bActive = qtrue;	// inherent
 //	tMusic_Info[ eBGRNDTRACK_FADE ].bExists = qtrue;	// inherent
 	tMusic_Info[ eBGRNDTRACK_FADE ].iXFadeVolumeSeekTime= Sys_Milliseconds();
@@ -3293,7 +3355,7 @@ static void S_UpdateBackgroundTrack( void )
 						//
 						// copy current track to fader...
 						//
-						*pMusicInfoFadeOut = *pMusicInfoCurrent;	// struct copy
+						S_Music_CopyToFader( pMusicInfoFadeOut, pMusicInfoCurrent );
 						pMusicInfoFadeOut->iXFadeVolumeSeekTime	= Sys_Milliseconds();
 						pMusicInfoFadeOut->iXFadeVolumeSeekTo	= 0;
 						//
