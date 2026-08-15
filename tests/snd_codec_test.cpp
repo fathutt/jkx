@@ -201,6 +201,55 @@ static int RunFixture( const char *psFixture, soundCodec_t expectCodec )
 		   "frame count %d, expected between %d and %d",
 		   iCount, kFrames - 1152, kFrames + 2 * 1152 );
 
+	// --- length, which is a different question from the frame count ---------
+
+	// The frame count above is answered by walking the file. The length a
+	// STREAM reports is answered from a field the decoder filled in at open,
+	// and the two had drifted apart without anything noticing, because nothing
+	// asked the second question.
+	//
+	// dr_mp3 has two ways of saying it does not know: zero, when a Xing header
+	// carries a frame count of zero, and DRMP3_UINT64_MAX when there is no
+	// usable header at all. The open code handled the first and not the second,
+	// so every file without a Xing header - which is most of them, and all of
+	// the retail music - reported a length of zero seconds while decoding
+	// perfectly well. The dynamic music driver loops a track when fewer than two
+	// seconds of it remain, so a track that always had zero remaining was rewound
+	// on every frame and never became audible.
+	//
+	// Both fixtures that lack a header would have failed this from the day they
+	// were committed.
+	{
+		soundStream_t *pLen = (soundStream_t *)calloc( 1, sizeof( soundStream_t ) );
+
+		CHECK( S_CodecStreamOpen( pLen, data.data(), (int)lLen, qfalse ) == qtrue,
+			   "stream open failed while checking length" );
+
+		const float fLength		= S_CodecStreamLengthSeconds( pLen );
+		const float fExpected	= (float)iCount / (float)kRate;
+
+		CHECK( fLength > 0.0f, "the stream reports a length of %.3f s - "
+			   "the decoder was not asked to count the frames it could not read "
+			   "from a header", fLength );
+		CHECK( fabsf( fLength - fExpected ) < 0.15f,
+			   "stream length %.3f s, frame count says %.3f s", fLength, fExpected );
+
+		// And the same for a stream reading off a file handle, which is a
+		// separate open and had never been asked at all.
+		S_CodecStreamClose( pLen );
+		s_file		= data.data();
+		s_fileLen	= (int)lLen;
+		s_filePos	= 0;
+		CHECK( S_CodecStreamOpenFile( pLen, (fileHandle_t)1, qfalse ) == qtrue,
+			   "file stream open failed while checking length" );
+		CHECK( fabsf( S_CodecStreamLengthSeconds( pLen ) - fExpected ) < 0.15f,
+			   "file stream length %.3f s, frame count says %.3f s",
+			   S_CodecStreamLengthSeconds( pLen ), fExpected );
+
+		S_CodecStreamClose( pLen );
+		free( pLen );
+	}
+
 	// --- whole-file decode --------------------------------------------------
 
 	short *psPcm = NULL;

@@ -286,7 +286,12 @@ int S_CodecFrameCount( const void *pvData, int iDataLen )
 	// which is why the defect arrived with us rather than being found earlier.
 	drmp3_uint64 iFrames;
 
-	if ( dec.totalPCMFrameCount == 0 ) {
+	// Both ways of not knowing, not just the one. A Xing header whose count says
+	// zero leaves this at 0; no usable header at all leaves it at
+	// DRMP3_UINT64_MAX. They mean the same thing here and they used to take
+	// different branches, so a file with no header was having its start-up delay
+	// counted as audio.
+	if ( dec.totalPCMFrameCount == 0 || dec.totalPCMFrameCount == DRMP3_UINT64_MAX ) {
 		dec.totalPCMFrameCount = DRMP3_UINT64_MAX;
 
 		// The walk counts every frame the encoder wrote, and the encoder wrote
@@ -322,6 +327,34 @@ asked for a packet of PCM no longer has to be an MP3.
 
 ===============================================================================
 */
+
+// How long the file is, when the file did not say.
+//
+// dr_mp3 has TWO ways of not knowing, and this code knew about one of them. A
+// Xing header whose frame count field says zero - which is what every .mp3 the
+// retail games ship carries - leaves totalPCMFrameCount at 0. No usable header
+// at all leaves it at DRMP3_UINT64_MAX. Handling only the first meant every
+// retail music track reported a length of zero seconds while decoding perfectly,
+// and a length of zero is not a cosmetic complaint: the dynamic music driver
+// loops the current track when fewer than two seconds remain, so a track whose
+// remaining time is always zero was rewound on every single frame. Music
+// restarted sixty times a second and never became audible. That is the whole of
+// "the music did not appear".
+//
+// Counted once, at open. The walk restores the read position and nothing else in
+// the stream's life is a good moment for a pass over the file.
+static void S_Codec_CountFramesIfUnknown( drmp3 *pDec )
+{
+	if ( pDec->totalPCMFrameCount != 0 && pDec->totalPCMFrameCount != DRMP3_UINT64_MAX ) {
+		return;
+	}
+
+	// The walk itself needs the field to say "unknown" rather than "zero", or it
+	// answers with the zero it was given.
+	pDec->totalPCMFrameCount = DRMP3_UINT64_MAX;
+	pDec->totalPCMFrameCount = drmp3_get_pcm_frame_count( pDec );
+}
+
 
 qboolean S_CodecStreamOpen( soundStream_t *pStream, const void *pvData, int iDataLen,
 							qboolean bWantStereo )
@@ -359,15 +392,7 @@ qboolean S_CodecStreamOpen( soundStream_t *pStream, const void *pvData, int iDat
 		return qfalse;
 	}
 
-	// The same lying Xing header as in S_CodecFrameCount, and here it costs a
-	// length rather than a load: S_CodecStreamLengthSeconds reads this field, so
-	// every streamed line of dialogue would report as zero seconds long. Counted
-	// once, at open, because the walk restores the read position and nothing
-	// else in the stream's life is a good moment for a pass over the file.
-	if ( pStream->mp3.totalPCMFrameCount == 0 ) {
-		pStream->mp3.totalPCMFrameCount = DRMP3_UINT64_MAX;
-		pStream->mp3.totalPCMFrameCount = drmp3_get_pcm_frame_count( &pStream->mp3 );
-	}
+	S_Codec_CountFramesIfUnknown( &pStream->mp3 );
 
 	pStream->codec		= CODEC_MP3;
 	pStream->open		= qtrue;
@@ -456,6 +481,12 @@ qboolean S_CodecStreamOpenFile( soundStream_t *pStream, fileHandle_t f, qboolean
 					  NULL, (void *)(intptr_t)f, &s_codecAlloc ) ) {
 		return qfalse;
 	}
+
+	// The same two ways of not knowing a length as in S_CodecStreamOpen, and
+	// this path never asked at all. Non-dynamic music streams off the disk
+	// through here, so it had the same zero length and the same driver looping
+	// it on every frame.
+	S_Codec_CountFramesIfUnknown( &pStream->mp3 );
 
 	pStream->codec		= CODEC_MP3;
 	pStream->open		= qtrue;

@@ -3332,10 +3332,22 @@ static void S_UpdateBackgroundTrack( void )
 					}
 				}
 
-				float fRemainingTimeInSeconds = S_CodecStreamRemainingSeconds( pMusicInfoCurrent->chMP3_Bgrnd.stream );
-				// Com_Printf("Remaining: %3.3f\n",fRemainingTimeInSeconds);
+				const float fTrackLengthInSeconds = S_CodecStreamLengthSeconds( pMusicInfoCurrent->chMP3_Bgrnd.stream );
+				const float fRemainingTimeInSeconds = S_CodecStreamRemainingSeconds( pMusicInfoCurrent->chMP3_Bgrnd.stream );
 
-				if ( fRemainingTimeInSeconds < fDYNAMIC_XFADE_SECONDS*2 )
+				// A stream whose length is not known reports nothing remaining,
+				// which reads here as "about to end" - and this is a track that
+				// has just started. Every frame it was loaded into the fader and
+				// rewound, so it restarted sixty times a second and was never
+				// audible for long enough to be heard at all.
+				//
+				// The length is the fix and is in snd_codec.cpp. This is the
+				// guard: a length that is not known is a reason to leave the
+				// track alone, not a reason to loop it. Running off the end is
+				// still handled - the decoder says so and qbForceFinish above
+				// carries it - so nothing is lost by waiting to be told.
+				if ( fTrackLengthInSeconds > 0.0f
+					 && fRemainingTimeInSeconds < fDYNAMIC_XFADE_SECONDS*2 )
 				{
 					// now either loop current track, switch if finishing a transition, or stop if finished a death...
 					//
