@@ -269,16 +269,33 @@ int main( int argc, char **argv )
 	}
 
 	{
-		char	*args[6];
-		char	basepath[] = "+set";
+		// Two paths, not one, and which is which matters.
+		//
+		// The retail folder goes in fs_cdpath and OUR folder in fs_basepath.
+		// The engine searches cdpath, then basepath, then homepath, and each
+		// one it adds takes priority over the last - so the retail assets are
+		// found and everything this package ships overrides them. Putting the
+		// retail folder in fs_basepath, which is what this did first, drops our
+		// own directory out of the search entirely: shaders.pak lives there,
+		// the renderer loads it at startup, and the game stops on the first
+		// pipeline it tries to build.
+		//
+		// Nothing is written into the retail folder either way. fs_homepath is
+		// where saves and configs go and the engine picks that itself.
+		char	*args[8];
+		char	set1[] = "+set";
+		char	set2[] = "+set";
 		char	fsbase[] = "fs_basepath";
+		char	fscd[] = "fs_cdpath";
 
 		args[0] = engine;
-		args[1] = basepath;
+		args[1] = set1;
 		args[2] = fsbase;
-		args[3] = ctx.root;
-		args[4] = NULL;
-		args[5] = NULL;
+		args[3] = here;
+		args[4] = set2;
+		args[5] = fscd;
+		args[6] = ctx.root;
+		args[7] = NULL;
 
 		printf( "starting %s\n", engine );
 		JKX_EXEC( engine, args );

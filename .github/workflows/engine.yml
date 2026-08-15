@@ -3,9 +3,17 @@
 # Everything is built from this repository now. Until phase 2 bring-up landed
 # the renderer could only be compiled inside a checkout of the fork it came
 # from, and this workflow synced it there; that is gone along with the harness.
-# The output is a zip that unpacks over a retail install: engine, both
-# renderers, gamecode, and the shader pak the modernised renderer loads at
-# startup.
+# The output is one directory holding both engines, both gamecode libraries,
+# the launcher that chooses between them, and the shader pak the renderer loads
+# at startup.
+#
+# Both games, which needed saying because it was not always true here. The
+# Outcast engine was switched off in the configure step below while it was
+# being brought up, and stayed off after it started working - so the ci
+# workflow, which builds with the defaults, produced a package containing
+# jkx_jk2 while THIS workflow, the one whose output people actually install,
+# did not. Two artifacts of the same commit disagreeing about what the project
+# contains is worse than either answer.
 
 name: engine
 
@@ -159,8 +167,8 @@ jobs:
           -DBuildJKAEngine=ON
           -DBuildJKAGame=ON
           -DBuildRdVulkan=ON
-          -DBuildJK2Engine=OFF
-          -DBuildJK2Game=OFF
+          -DBuildJK2Engine=ON
+          -DBuildJK2Game=ON
           -DJKX_VK_TRACE=${{ inputs.trace && 'ON' || 'OFF' }}
           -DCMAKE_C_COMPILER_LAUNCHER=sccache
           -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
@@ -208,7 +216,7 @@ jobs:
       - name: Stage the shader pak
         shell: bash
         run: |
-          tree=$(find "$GITHUB_WORKSPACE/package" -maxdepth 2 -type d -name JediAcademy | head -1)
+          tree=$(find "$GITHUB_WORKSPACE/package" -maxdepth 2 -type d -name JKX | head -1)
           if [ -z "$tree" ]; then
               echo "install tree not found under $GITHUB_WORKSPACE/package" >&2
               echo "what is there:" >&2

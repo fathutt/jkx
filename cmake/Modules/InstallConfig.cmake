@@ -16,9 +16,20 @@
 # along with this program; if not, see <http://www.gnu.org/licenses/>.
 #============================================================================
 
-# Subdirectories to package JK2 and JKA into
-set(JKAInstallDir "JediAcademy")
-set(JK2InstallDir "JediOutcast")
+# One directory, holding both games.
+#
+# These were two - JediAcademy and JediOutcast - which is right when the two
+# engines are two products that never meet. Here they are two executables and a
+# launcher that chooses between them, and the launcher looks for the engine
+# BESIDE ITSELF, because a copy of the engine inside a retail folder is what a
+# mod is. Split across two trees it can only ever find one of them.
+#
+# The names do not collide: jkx_jka and jkx_jk2, jkagamex86_64 and
+# jk2gamex86_64. What the two games do not share is the retail assets, and those
+# are not in this package - the engine is pointed at them by fs_basepath, which
+# is exactly what the launcher sets.
+set(JKAInstallDir "JKX")
+set(JK2InstallDir "JKX")
 
 # Install components.
 #
