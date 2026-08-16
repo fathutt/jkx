@@ -457,6 +457,12 @@ void CalcMuzzlePoint( gentity_t *const ent, vec3_t wpFwd, vec3_t right, vec3_t w
 	AddLeanOfs(ent, muzzlePoint);
 }
 
+// Worked out by cgame, once a frame, from the camera. See the note at the point
+// of use below and the one beside the trace that fills it.
+extern vec3_t	cg_crosshairAimPoint;
+extern qboolean	cg_crosshairAimValid;
+extern vmCvar_t	cg_aimAtCrosshair;
+
 //---------------------------------------------------------
 void FireWeapon( gentity_t *ent, qboolean alt_fire )
 //---------------------------------------------------------
@@ -568,6 +574,41 @@ void FireWeapon( gentity_t *ent, qboolean alt_fire )
 
 	ent->alt_fire = alt_fire;
 	CalcMuzzlePoint ( ent, wpFwd, wpVright, wpUp, wpMuzzle , 0);
+
+	// The player's shot goes where the crosshair is, not parallel to it.
+	//
+	// The crosshair is pinned to the middle of the screen, and the middle of the
+	// screen is a ray from the CAMERA - which in third person stands behind the
+	// player and off to one side. The gun is in front of him. Aiming the gun
+	// along the player's view makes those two rays parallel, and parallel rays
+	// never meet: the shot lands beside the crosshair by the width of that
+	// offset, at every distance. Reported from play as "the crosshair turns red
+	// slightly past the man".
+	//
+	// So the gun aims AT the point the camera ray reaches. cgame works that
+	// point out once a frame - game and cgame are one library here - and this
+	// turns it into a direction from the muzzle.
+	//
+	// Three checks before trusting it, each a way the correction could be worse
+	// than the fault: the player and only the player, because every NPC aims at
+	// something it chose and none of them has a camera; the point has to be in
+	// front, because a camera pushed into a wall traces a few units and aiming
+	// there would swing the barrel round; and far enough in front that the angle
+	// asked for is small, because up close the muzzle offset is a large fraction
+	// of the distance. Sixty-four units is about a body's width.
+	if ( ent->s.number == 0 && cg_aimAtCrosshair.integer && cg_crosshairAimValid )
+	{
+		vec3_t	toAim;
+
+		VectorSubtract( cg_crosshairAimPoint, wpMuzzle, toAim );
+
+		if ( DotProduct( toAim, wpFwd ) > 64.0f )
+		{
+			VectorNormalize( toAim );
+			VectorCopy( toAim, wpFwd );
+			MakeNormalVectors( wpFwd, wpVright, wpUp );
+		}
+	}
 
 	// fire the specific weapon
 	switch( ent->s.weapon )

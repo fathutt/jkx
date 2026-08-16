@@ -21,6 +21,9 @@ pixels are the ones where red clearly leads.
   --max-step   fail if the biggest step is at least this. Without it the number
                is printed and nothing is asserted, which is the right mode when
                establishing what the number is.
+  --erode      how many pixels of rim to drop before measuring, default 2. An
+               antialiased outline is a blend of the model and the background
+               and still passes the colour test; it is not a seam.
 
 Targa stores blue, green, red. That is handled here, and it matters: a channel
 mix-up would silently select the background instead of the model and then
@@ -71,6 +74,41 @@ def in_shape(pixel, lead, margin):
     return all(pixel[lead] - o >= margin for o in others)
 
 
+def erode(mask, width, height, radius):
+    """Keep only pixels whose whole neighbourhood is inside the shape.
+
+    The outline of a model is not a seam and never will be, and the colour test
+    on its own cannot say so once anything smooths the picture: with
+    multisampling on, the pixels along an edge are blends of the model and
+    whatever is behind it, and a blend of a red model with a dark room is still
+    red-dominant. So they pass the test, sit next to the interior, and produce a
+    step of sixty - which is what happened the first time multisampling was
+    turned on by default, with the weld on and working. The gate went from 1 to
+    59 and neither the engine nor the model had changed.
+
+    Eroding by a couple of pixels removes the blended rim and leaves the inside,
+    which is the only place a shading seam can be.
+    """
+    out = list(mask)
+
+    for y in range(height):
+        for x in range(width):
+            if not mask[y * width + x]:
+                continue
+            for dy in range(-radius, radius + 1):
+                for dx in range(-radius, radius + 1):
+                    nx, ny = x + dx, y + dy
+                    if nx < 0 or ny < 0 or nx >= width or ny >= height \
+                            or not mask[ny * width + nx]:
+                        out[y * width + x] = False
+                        break
+                else:
+                    continue
+                break
+
+    return out
+
+
 def main():
     argv = sys.argv[1:]
 
@@ -83,6 +121,7 @@ def main():
     lead = CHANNEL["r"]
     margin = 40
     limit = None
+    erosion = 2
 
     i = 1
     while i < len(argv):
@@ -95,11 +134,17 @@ def main():
         elif argv[i] == "--max-step" and i + 1 < len(argv):
             limit = int(argv[i + 1])
             i += 2
+        elif argv[i] == "--erode" and i + 1 < len(argv):
+            erosion = int(argv[i + 1])
+            i += 2
         else:
             print("unknown argument: %s" % argv[i], file=sys.stderr)
             return 2
 
     width, height, rows = read_tga(path)
+
+    mask = [in_shape(rows[y][x], lead, margin) for y in range(height) for x in range(width)]
+    mask = erode(mask, width, height, erosion)
 
     worst = 0
     where = None
@@ -110,7 +155,7 @@ def main():
             a = rows[y][x]
             b = rows[y][x + 1]
 
-            if not in_shape(a, lead, margin) or not in_shape(b, lead, margin):
+            if not mask[y * width + x] or not mask[y * width + x + 1]:
                 continue
 
             counted += 1

@@ -1026,11 +1026,22 @@ void R_Register( void )
 	//
 	// Latched, because it is applied once when a model is read.
 	r_weldModelNormals					= Cvar_Get( "r_weldModelNormals",				"1",						CVAR_ARCHIVE|CVAR_LATCH, "share one normal between coincident vertexes of a character model" );
-	// How far apart two normals may be and still be averaged. The angles in a
-	// real model run the whole way to a hundred and eighty degrees, and the wide
-	// ones are deliberate edges - fingers, a belt, the rim of a nostril, the caps
-	// that close a limb off. Sixty leaves those alone.
-	r_weldModelNormalsAngle				= Cvar_Get( "r_weldModelNormalsAngle",			"60",						CVAR_ARCHIVE|CVAR_LATCH, "the widest angle between two coincident normals that is still a smooth join" );
+	// How far apart two normals may be and still be averaged.
+	//
+	// The angles in a real model run the whole way to a hundred and eighty
+	// degrees, and the wide ones look like deliberate edges - fingers, a belt,
+	// the rim of a nostril, the caps that close a limb off. Sixty was chosen to
+	// leave all of those alone and it left too much: measured on the retail
+	// kyle, the join between his torso and his shoulder has thirteen coincident
+	// vertices whose normals are up to a hundred and ten degrees apart, which is
+	// not a fold in a jumper - it is what the exporter wrote. Those are the ones
+	// a person sees.
+	//
+	// A hundred and twenty was tried on hardware before it was set here, and the
+	// report was that the shoulder improved with nothing visibly worse. It is
+	// still short of a hundred and eighty, where a normal would be averaged with
+	// its own opposite.
+	r_weldModelNormalsAngle				= Cvar_Get( "r_weldModelNormalsAngle",			"120",						CVAR_ARCHIVE|CVAR_LATCH, "the widest angle between two coincident normals that is still a smooth join" );
 	r_shownormals						= Cvar_Get( "r_shownormals",						"0",						CVAR_CHEAT, "" );
 	r_clear								= Cvar_Get( "r_clear",							"0",						CVAR_CHEAT, "" );
 	r_offsetFactor						= Cvar_Get( "r_offsetfactor",					"-1",						CVAR_CHEAT, "" );
@@ -1056,7 +1067,19 @@ void R_Register( void )
 	r_device->modified					= qfalse;
 
 	//r_stencilbits						= Cvar_Get("r_stencilbits",						"8",						CVAR_ARCHIVE_ND | CVAR_LATCH, "");
-	r_ext_multisample					= Cvar_Get("r_ext_multisample",					"0",						CVAR_ARCHIVE_ND | CVAR_LATCH, "");
+	// Four samples, not none.
+	//
+	// The log on a machine with a 3070 said "MSAA max: 15x, using 1x", and
+	// that is not a choice anybody made - it is the retail default from an
+	// era when multisampling cost something. This game is twenty-three years
+	// old and the geometry it draws has hard silhouette edges everywhere: a
+	// shoulder against a dark cockpit, a railing against a skybox. Tried on
+	// hardware before changing it, and the report was better with nothing
+	// visibly worse.
+	//
+	// Still latched and still archived, so a machine that cannot afford it
+	// says so once and keeps the answer.
+	r_ext_multisample					= Cvar_Get("r_ext_multisample",					"4",						CVAR_ARCHIVE_ND | CVAR_LATCH, "how many samples per pixel at the edges of geometry");
 	Cvar_CheckRange(r_ext_multisample, 0, 64, qtrue);
 	r_ext_supersample					= Cvar_Get("r_ext_supersample",					"0",						CVAR_ARCHIVE_ND | CVAR_LATCH, "");
 	Cvar_CheckRange(r_ext_supersample, 0, 1, qtrue);

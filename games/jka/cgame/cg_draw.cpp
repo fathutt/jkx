@@ -2970,6 +2970,16 @@ CG_ScanForCrosshairEntity
 */
 extern Vehicle_t *G_IsRidingVehicle( gentity_t *ent );
 extern float forcePushPullRadius[];
+// The point the middle of the screen is over, for the weapon code to aim at.
+//
+// Game and cgame are one library in single player, so this is read directly
+// rather than sent anywhere. It is written once a frame by the scan below and
+// is only meaningful while the dynamic crosshair is on and a gun is out;
+// cg_crosshairAimValid says whether it means anything at all.
+vec3_t		cg_crosshairAimPoint;
+qboolean	cg_crosshairAimValid = qfalse;
+static trace_t	cg_crosshairAim;
+
 static void CG_ScanForCrosshairEntity( qboolean scanAll )
 {
 	trace_t		trace;
@@ -2982,6 +2992,12 @@ static void CG_ScanForCrosshairEntity( qboolean scanAll )
 	//FIXME: debounce this to about 10fps?
 
 	cg_forceCrosshair = qfalse;
+
+	// Stale until this frame says otherwise. The weapon code reads the aim
+	// point below, and a point left over from a frame where the camera was
+	// somewhere else is worse than no point at all - it would bend the shot
+	// towards where the player used to be looking.
+	cg_crosshairAimValid = qfalse;
 	if ( cg_entities[0].gent && cg_entities[0].gent->client ) // <-Mike said it should always do this   //if (cg_crosshairForceHint.integer &&
 	{//try to check for force-affectable stuff first
 		vec3_t d_f, d_rt, d_up;
@@ -3121,6 +3137,48 @@ static void CG_ScanForCrosshairEntity( qboolean scanAll )
 			//VectorCopy( g_entities[0].client->renderInfo.muzzlePoint, start );
 			//FIXME: increase this?  Increase when zoom in?
 			VectorMA( start, 4096, d_f, end );//was 8192
+
+			// Where the middle of the screen is pointing, which is not where
+			// the gun is pointing.
+			//
+			// The crosshair is pinned to the centre of the frame. The centre of
+			// the frame is a ray from the CAMERA, and in third person the camera
+			// stands behind the player and off to one side, while the shot
+			// leaves the barrel of a gun held in front of him. Two rays from two
+			// different places: aiming the gun along the player's view makes
+			// them parallel, and parallel rays never meet, so the shot lands
+			// beside the crosshair by the width of that offset at every
+			// distance. Reported from play as "the crosshair turns red slightly
+			// past the man", which is the same fact seen from the other end -
+			// the highlight follows the gun and the drawing follows the camera.
+			//
+			// Pinning the crosshair was half a change. This is the other half:
+			// find the point the centre of the screen is over, and let the gun
+			// aim AT it rather than parallel to it. Then the two rays meet
+			// exactly where the player is looking, which is what a pinned
+			// crosshair promises.
+			//
+			// The trace is from the camera because that is what the middle of
+			// the screen means. Its result is read by the weapon code, which is
+			// in this same module - game and cgame are one library here.
+			{
+				vec3_t	camEnd;
+
+				VectorMA( cg.refdef.vieworg, 8192, cg.refdef.viewaxis[0], camEnd );
+
+				gi.trace( &cg_crosshairAim, cg.refdef.vieworg, vec3_origin, vec3_origin,
+					camEnd, ignoreEnt,
+					MASK_OPAQUE|CONTENTS_TERRAIN|CONTENTS_SHOTCLIP|CONTENTS_BODY|CONTENTS_ITEM,
+					G2_NOCOLLIDE, 10 );
+
+				// A camera pushed into a wall traces almost nowhere, and aiming
+				// at a point a few units in front of the lens would swing the
+				// gun wildly. In that case there is nothing better than the old
+				// behaviour, so say so rather than guess.
+				VectorCopy( cg_crosshairAim.endpos, cg_crosshairAimPoint );
+				cg_crosshairAimValid = ( !cg_crosshairAim.startsolid && !cg_crosshairAim.allsolid )
+					? qtrue : qfalse;
+			}
 		}
 		else
 		{//old way

@@ -1183,6 +1183,13 @@ void WP_FireScepter( gentity_t *ent, qboolean alt_fire )
 }
 
 extern Vehicle_t *G_IsRidingVehicle( gentity_t *ent );
+
+// Worked out by cgame, once a frame, from the camera. See the note at the
+// point of use below and the one beside the trace that fills it.
+extern vec3_t	cg_crosshairAimPoint;
+extern qboolean	cg_crosshairAimValid;
+extern vmCvar_t	cg_aimAtCrosshair;
+
 //---------------------------------------------------------
 void FireWeapon( gentity_t *ent, qboolean alt_fire )
 //---------------------------------------------------------
@@ -1377,6 +1384,48 @@ void FireWeapon( gentity_t *ent, qboolean alt_fire )
 		else
 		{
 			CalcMuzzlePoint ( ent, forwardVec, vrightVec, up, muzzle , 0);
+
+			// The player's shot goes where the crosshair is, not parallel to it.
+			//
+			// The crosshair is pinned to the middle of the screen, and the
+			// middle of the screen is a ray from the CAMERA - which in third
+			// person stands behind the player and off to one side. The gun is in
+			// front of him. Aiming the gun along the player's view makes those
+			// two rays parallel, and parallel rays never meet: the shot lands
+			// beside the crosshair by the width of that offset, at every
+			// distance. That is what "the crosshair turns red slightly past the
+			// man" is, reported from play.
+			//
+			// So the gun aims AT the point the camera ray reaches. cgame works
+			// that point out once a frame - game and cgame are one library here -
+			// and this turns it into a direction from the muzzle.
+			//
+			// Three things are checked before trusting it, and each is a way the
+			// correction could be worse than the fault:
+			//
+			//   the player, and only the player. Every NPC already aims at
+			//   something it chose, and none of them has a camera;
+			//
+			//   the point has to be IN FRONT. A camera pushed into a wall traces
+			//   a few units and aiming at that would swing the barrel round;
+			//
+			//   and far enough in front that the correction is a correction. Up
+			//   close the muzzle offset is a large fraction of the distance and
+			//   the angle it asks for is large; the shot would visibly cross the
+			//   view. Sixty-four units is about a body's width.
+			if ( ent->s.number == 0 && cg_aimAtCrosshair.integer && cg_crosshairAimValid )
+			{
+				vec3_t	toAim;
+
+				VectorSubtract( cg_crosshairAimPoint, muzzle, toAim );
+
+				if ( DotProduct( toAim, forwardVec ) > 64.0f )
+				{
+					VectorNormalize( toAim );
+					VectorCopy( toAim, forwardVec );
+					MakeNormalVectors( forwardVec, vrightVec, up );
+				}
+			}
 		}
 	}
 

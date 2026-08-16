@@ -260,6 +260,7 @@ vmCvar_t	cg_crosshairX;
 vmCvar_t	cg_crosshairY;
 vmCvar_t	cg_crosshairDotSize;
 vmCvar_t	cg_crosshairTrace;
+vmCvar_t	cg_aimAtCrosshair;
 vmCvar_t	cg_draw2D;
 vmCvar_t	cg_drawStatus;
 vmCvar_t	cg_drawHUD;
@@ -405,6 +406,7 @@ static cvarTable_t cvarTable[] = {
 	// Draw the crosshair where the weapon trace lands rather than at the centre
 	// of the screen. That was the only behaviour until now; see CG_DrawCrosshair.
 	{ &cg_crosshairTrace, "cg_crosshairTrace", "0", CVAR_ARCHIVE },
+	{ &cg_aimAtCrosshair, "cg_aimAtCrosshair", "1", CVAR_ARCHIVE },
 	{ &cg_crosshairX, "cg_crosshairX", "0", CVAR_ARCHIVE },
 	{ &cg_crosshairY, "cg_crosshairY", "0", CVAR_ARCHIVE },
 	{ &cg_simpleItems, "cg_simpleItems", "0", CVAR_ARCHIVE },
@@ -1319,6 +1321,52 @@ HUDMenuItem_t otherHUDBits[] =
 */
 extern void CG_NPC_Precache ( gentity_t *spawner );
 qboolean NPCsPrecached = qfalse;
+// One entity's worth of translation, and the reason it is a whole function.
+//
+// A model carries mCustomSkin, which the renderer resolves as a handle and the
+// gamecode filled with a configstring index. cgs.skins turns one into the other.
+// Doing it in place means it must happen exactly once - a second pass would
+// treat a handle as an index and translate it again - so this runs from one
+// place, at the one moment the map is loaded and the client has just built the
+// table.
+static void CG_TranslateSkinHandles( void )
+{
+	int	translated = 0;
+
+	for ( int i = 0; i < MAX_GENTITIES; i++ )
+	{
+		gentity_t *ent = cg_entities[i].gent;
+
+		if ( !ent || !ent->ghoul2.IsValid() )
+		{
+			continue;
+		}
+
+		for ( int m = 0; m < ent->ghoul2.size(); m++ )
+		{
+			const qhandle_t stored = ent->ghoul2[m].mCustomSkin;
+
+			// Zero means no custom skin and is not an index into anything.
+			if ( stored <= 0 || stored >= MAX_CHARSKINS )
+			{
+				continue;
+			}
+
+			if ( cgs.skins[stored] && cgs.skins[stored] != stored )
+			{
+				ent->ghoul2[m].mCustomSkin = cgs.skins[stored];
+				translated++;
+			}
+		}
+	}
+
+	if ( translated )
+	{
+		CG_Printf( "%i model skin(s) renumbered from configstring indexes to "
+			"renderer handles\n", translated );
+	}
+}
+
 /*
 =================
 CG_PrepRefresh
@@ -1328,6 +1376,7 @@ This function may execute for a couple of minutes with a slow disk.
 =================
 */
 void CG_CreateMiscEnts(void);
+
 static void CG_RegisterGraphics( void ) {
 	int			i;
 	char		items[MAX_ITEMS+1];
@@ -1687,6 +1736,35 @@ Ghoul2 Insert Start
 			}
 		}
 	}
+
+	// Put the right number into every model that already has the wrong one.
+	//
+	// The two spaces do not line up and now it is known why. From a log on a
+	// real installation, with skinlist beside it:
+	//
+	//     0: <default skin>
+	//     1: models/players/luke/model_menu.skin
+	//     2: models/players/kyle/model_menu.skin
+	//     3: models/players/protocol/model_menu.skin
+	//     4: models/players/rebel_pilot/model_default.skin
+	//     5: models/players/alora/model_default.skin   <- configstring 1
+	//
+	// The loading screen shows a character, and registering him takes four
+	// handles before this loop asks for its first. From there every configstring
+	// index is four short of the handle for the same skin, and a character wears
+	// whatever belongs to the skin four places earlier.
+	//
+	// The gamecode cannot store the handle instead: it builds these models on
+	// the SERVER while the map spawns, which is inside the window where tr has
+	// been wiped, so any handle it takes is into a list about to be thrown away.
+	// That was tried and it broke Outcast. See G_SetG2PlayerModel.
+	//
+	// The client can, and this is the first moment anyone can: the map's
+	// entities exist, the renderer is up, and cgs.skins is exactly the map from
+	// one space to the other. So every model built during the load gets its
+	// number translated once, here. Models built afterwards are made while the
+	// renderer is alive and take the handle directly - see G_SkinHandleFor.
+	CG_TranslateSkinHandles();
 
 /*
 Ghoul2 Insert End

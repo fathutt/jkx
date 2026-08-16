@@ -159,16 +159,28 @@ def build(shader="textures/jkx/lit", seam=True):
         left = base - half if seam else base
         right = base + half if seam else base
 
-        # A gap between pairs, so the only places two vertices share are the
-        # joins inside a pair. Without it the last column of one pair sits on
-        # the first column of the next with a base normal thirty degrees away -
-        # which is another seam, and a real one, but it means the model built
-        # with --no-seam still has divergent normals in it and the check that
-        # is supposed to reject that model accepts it. A negative control that
-        # cannot fail is not a control.
+        # A wide gap between pairs, and the width is not cosmetic.
+        #
+        # The gap exists so the only places two vertices share are the joins
+        # inside a pair: without it the last column of one pair sits on the
+        # first column of the next with a base normal thirty degrees away, which
+        # means the model built with --no-seam still has divergent normals and
+        # the check that is supposed to reject it accepts it. A negative control
+        # that cannot fail is not a control.
+        #
+        # It is wide because a narrow one is not a gap once anything smooths the
+        # picture. With multisampling on - it is on by default now - the pixels
+        # across a thin gap are blends of the two pairs either side, they still
+        # read as model rather than background, and the measurement sees a step
+        # between two pairs that were never meant to touch. That turned the gate
+        # from 1 to 59 the first time multisampling was switched on, which is the
+        # fixture being fragile rather than the engine being wrong.
+        #
+        # Two fifths of each pair's slot is empty. At the size testmodel draws
+        # this, that is tens of pixels of background.
         y0 = -SIZE + pair * pair_width
-        y1 = y0 + pair_width * 0.4
-        y2 = y0 + pair_width * 0.8
+        y1 = y0 + pair_width * 0.3
+        y2 = y0 + pair_width * 0.6
 
         first = len(verts)
         verts += [
