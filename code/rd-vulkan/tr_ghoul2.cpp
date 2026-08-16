@@ -3422,14 +3422,44 @@ void R_AddGhoulSurfaces( trRefEntity_t *ent, int entityNum ) {
 			else
 			{
 				cust_shader = NULL;
-				// figure out the custom skin thing
-				if (ghoul2[i].mCustomSkin)
+
+				// A skin, and only if it is one.
+				//
+				// The test used to be "is it non-zero", and the range check three
+				// lines down - which is the correct one, and was already here - was
+				// applied to mSkin and not to the two above it. That asymmetry has a
+				// symptom somebody reported: the lightsaber hilt in the menu has no
+				// texture on it, in every build, always.
+				//
+				// The path is short. ui_shared.cpp says "turn off custom skin" and
+				// writes MINUS ONE:
+				//
+				//     DC->g2_SetSkin( &item->ghoul2[0], -1, 0 );
+				//
+				// which the default saber takes every time, because sabers.cfg gives
+				// it no customSkin line. Minus one is not zero, so the old test read
+				// it as "there is a skin"; R_GetSkinByHandle clamps anything out of
+				// range to tr.skins[0], the default skin, whose one surface is named
+				// "" and carries tr.defaultShader; and the surface loop in
+				// RenderSurfaces starts at tr.defaultShader and leaves it only if a
+				// name matches. Nothing on a hilt is called "", so every surface of
+				// it came out untextured.
+				//
+				// Zero means no skin, and so does anything that is not a handle. A
+				// model with no skin draws with the shaders baked into it, which is
+				// what "turn off custom skin" was asking for - and it is the right
+				// answer for a handle that is stale rather than absent as well. A
+				// skin index that has drifted out of range is exactly the shape of
+				// "models with no textures", and the model's own materials are a
+				// better answer than painting the whole thing with the default
+				// shader.
+				if ( ghoul2[i].mCustomSkin > 0 && ghoul2[i].mCustomSkin < tr.numSkins )
 				{
-					skin = R_GetSkinByHandle(ghoul2[i].mCustomSkin );
+					skin = R_GetSkinByHandle( ghoul2[i].mCustomSkin );
 				}
-				else if (ent->e.customSkin)
+				else if ( ent->e.customSkin > 0 && ent->e.customSkin < tr.numSkins )
 				{
-					skin = R_GetSkinByHandle(ent->e.customSkin );
+					skin = R_GetSkinByHandle( ent->e.customSkin );
 				}
 				else if ( ghoul2[i].mSkin > 0 && ghoul2[i].mSkin < tr.numSkins )
 				{
