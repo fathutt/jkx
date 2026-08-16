@@ -480,6 +480,15 @@ jobs:
           JKX_SMOKE_NO_VALIDATION: '1'
         run: bash tools/verify/smoke_headless.sh build
 
+      # A Ghoul2 model drawn by the menu system. Item_Model_Paint, its own
+      # refdef and light, and the asset_model path had never executed here.
+      - name: A model in a menu
+        env:
+          JKX_SMOKE_MENUMODEL: '1'
+          JKX_SMOKE_DISPLAY: ':85'
+          JKX_SMOKE_NO_VALIDATION: '1'
+        run: bash tools/verify/smoke_headless.sh build
+
       # The same fixture out of a pk3. Every run before this one read loose
       # files, so FS_LoadZipFile, the per-pack hash table, the pak branch of
       # FS_FOpenFileRead and unzReadCurrentFile in FS_Read had never executed in

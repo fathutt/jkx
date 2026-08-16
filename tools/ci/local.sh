@@ -71,7 +71,7 @@ JOBS="${JOBS:-$(nproc)}"
 
 STAGES=( "$@" )
 if [ "${#STAGES[@]}" -eq 0 ]; then
-    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokeskin smokelightmap smokemapent smokepak move smokesan prepass fog noassets )
+    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokeskin smokelightmap smokemapent smokemenumodel smokepak move smokesan prepass fog noassets )
 fi
 
 failed=()
@@ -365,20 +365,46 @@ stage_smoke() {
 # above the noise and an order of magnitude below the smallest thing worth
 # catching, which is the whole of the argument for it.
 #
-# Multisampling is off here, and that is scope rather than convenience.
+# Multisampling is off here, and jkx_sky.tga is out of the comparison. Both are
+# scope rather than convenience, and the second one cost three wrong guesses,
+# which is worth writing down because the wrong guesses were all plausible.
 #
 # The moment the fixture's floor became visible - it had been culled and never
-# drawn, see make_test_bsp.py's drawindexes() - this lane went red on 1134
-# pixels, all of them on the one-pixel line where the floor's far edge meets the
-# sky. The disagreement is a quarter of the way from black to white and never
-# more, which is one sample of four: the two runs resolve that edge with one
-# sample's difference in coverage. With r_ext_multisample 0 the same comparison
-# is two pixels in the whole frame.
+# drawn, see make_test_bsp.py's drawindexes() - this lane went red on the sky
+# frame, and only on the sky frame. Every other frame in the lane compares at
+# zero.
 #
-# So the edge is a multisampling question and this lane is a depth question, and
-# folding one into the other would mean widening the tolerance past the size of
-# the defects it exists to find. The measurement is written down in
-# Where-We-Are so it does not get lost, and the gate stays exact.
+#   Guess one: multisampling. The 1134 differing pixels were a quarter of the
+#   way from black to white and never more, which is one sample of four. Turning
+#   multisampling off took it to two pixels and looked like the answer. It was
+#   not: it came back at 52.
+#
+#   Guess two: the screen wipe. The shot is taken after r_dissolveFreeze is set
+#   back to -1, and how far a wipe gets in a given number of frames is a
+#   question about real time. The wait went from twenty frames to two hundred.
+#   Identical failure, same pixels.
+#
+#   Then the measurement, which should have come first. Dumping the differing
+#   pixels: single pixels scattered along the line where the white floor meets
+#   the black sky, white in one run and black in the other. And the control that
+#   settles it - r_depthPrepass 0 against r_depthPrepass 0, the SAME setting on
+#   both sides - differs by NINETY pixels on that frame, which is more than the
+#   A/B comparison it was failing on.
+#
+# So this frame is not measuring the depth pre-pass. It is measuring where the
+# floor's silhouette lands, which moves sub-pixel between runs and has done ever
+# since there was a floor to have a silhouette. The pin in smoke_headless.sh -
+# setviewpos before the shot - used to be enough when the frame was sky against
+# nothing; it is not enough now.
+#
+# Skipping it keeps the other eight frames exact, which is what the lane is for.
+# Widening the tolerance instead would have put it above ninety, and the
+# defects this stage exists to catch - a surface that vanishes because its two
+# passes disagree about depth - start at a few hundred contiguous pixels. That
+# is not a margin, that is an overlap.
+#
+# What would earn the frame back: making the silhouette deterministic, which is
+# a fixture question and is written down as one rather than left as a skip.
 
 stage_prepass() {
     local a b rc
@@ -399,7 +425,8 @@ stage_prepass() {
     prepass_run 1 "${JKX_SMOKE_PREPASS_DISPLAY_B:-:93}" "$b" || rc=1
 
     if [ "$rc" -eq 0 ]; then
-        python3 "$ROOT/tools/verify/ab_frames.py" "$a" "$b" --max-pixels 16 || rc=1
+        python3 "$ROOT/tools/verify/ab_frames.py" "$a" "$b" --max-pixels 16 \
+            --skip jkx_sky.tga || rc=1
     else
         echo "  one of the runs failed on its own terms; see it alone first"
     fi
@@ -622,6 +649,23 @@ stage_smokelightmap() {
 stage_smokemapent() {
     JKX_SMOKE_MAPENT=1 \
     JKX_SMOKE_DISPLAY="${JKX_SMOKE_MAPENT_DISPLAY:-:86}" \
+    JKX_SMOKE_NO_VALIDATION=1 \
+        bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
+}
+
+# A Ghoul2 model drawn by the menu system.
+#
+# Item_Model_Paint, its own refdef, its own light and ItemParse_asset_model_go
+# had never executed on this bench. The menu system itself always has - the
+# first screenshot of every run is the fixture's main menu - but every item in
+# it was a coloured rectangle until now.
+#
+# It is honest about what it is not: it was written to measure the untextured
+# lightsaber hilt and it does not, which the mutation test showed. See
+# tools/verify/fixtures/base/ui/jkx_model.menu.
+stage_smokemenumodel() {
+    JKX_SMOKE_MENUMODEL=1 \
+    JKX_SMOKE_DISPLAY="${JKX_SMOKE_MENUMODEL_DISPLAY:-:85}" \
     JKX_SMOKE_NO_VALIDATION=1 \
         bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
 }

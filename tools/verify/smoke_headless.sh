@@ -490,6 +490,30 @@ if [ "${JKX_SMOKE_SKINFALL:-0}" = "1" ]; then
     JKX_SMOKE_CHARSHOT=1
 fi
 
+# A Ghoul2 model standing in a menu, which is a subsystem this bench has never
+# drawn through.
+#
+# The menu SYSTEM does run here - the fixture's mainMenu is what the first
+# screenshot of every run is a picture of - but every item in it until now was a
+# coloured rectangle. Item_Model_Paint, its own refdef, its own light and the
+# whole of the asset_model and model_g2skin path had never executed, and that is
+# where the untextured lightsaber hilt lived.
+#
+# The model is generated with jkx/glm_baked, which is pure blue and which
+# nothing else in this fixture draws, so "the model kept its own materials" is a
+# colour rather than an impression. See ui/jkx_model.menu for what the empty
+# model_g2skin line is doing and why it is the whole point.
+if [ "${JKX_SMOKE_MENUMODEL:-0}" = "1" ]; then
+    mkdir -p "$RUN/base/models/players/jkxmenu"
+    # The same skeleton the rest of the fixture's characters use: a .glm names
+    # its .gla and the loader refuses a name it cannot find, so this cannot be
+    # left at the generator's default.
+    python3 "$HERE/make_test_glm.py" \
+        "$RUN/base/models/players/jkxmenu/model.glm" \
+        --shader jkx/glm_baked \
+        --model-name models/players/jkxmenu/model.glm >/dev/null
+fi
+
 if [ "${JKX_SMOKE_CHARSHOT:-0}" = "1" ]; then
     {
         echo "cg_thirdPersonRange 55"
@@ -590,10 +614,24 @@ else
     # changes the frame that gets written. That is measurable - the shots in the
     # run that found this were each one step ahead of the value they were named
     # after.
+    # The wait after unfreezing is SETTLE and not twenty, and that number cost
+    # three red builds to arrive at.
+    #
+    # r_dissolveFreeze holds the wipe at forty-five per cent for the shot above;
+    # setting it back to -1 lets it run to the end, and how far it gets in a
+    # given number of frames is a question about real time rather than about
+    # frames. Twenty was not always enough. What was left was the wipe's
+    # boundary, a few pixels wide, down the left edge of the sky shot - and the
+    # depth pre-pass stage, which compares two runs frame for frame, saw it as
+    # 56 to 1134 pixels of disagreement at x = 2 to 5 with a channel delta of
+    # 255. It read as a renderer defect and it is the fixture not waiting.
+    #
+    # It only started failing when the map's floor became visible, because until
+    # then there was nothing behind the boundary for it to differ against.
     INMAP_STEP+=( +set r_dissolveType 1 +set r_dissolveFreeze 45
                   +wait 20 +map jkx_room2 +wait $SETTLE
                   +screenshot_tga jkx_wipe +wait 20
-                  +set r_dissolveFreeze -1 +wait 20 )
+                  +set r_dissolveFreeze -1 +wait $SETTLE )
 
     # A plain run pins the camera before this shot, and the reason is worth
     # writing down because it was read as a renderer defect twice.
@@ -976,6 +1014,13 @@ for pair in ${JKX_SMOKE_SET:-}; do
     SET_STEP+=( +set "${pair%%=*}" "${pair#*=}" )
 done
 
+# A different menu set, which is what makes the menu-model lane opt-in. The
+# ordinary one is ui/menus.txt and every other lane loads it, so the frame all
+# the other checks are written against does not change.
+if [ "${JKX_SMOKE_MENUMODEL:-0}" = "1" ]; then
+    SET_STEP+=( +set ui_menuFiles ui/jkx_model.txt )
+fi
+
 # JKX_SMOKE_PLAIN draws the scene and only the scene - no sky, no interface -
 # and asserts nothing about the picture. It exists for comparing one run against
 # another rather than for checking either one on its own, and everything it
@@ -1284,6 +1329,32 @@ r_mapOverBrightBits say it should be"
             "128,128,128@0.3,0.75,0.7,1.0"; then
             report "the lightmapped floor is not where the floor should be"
         fi
+    fi
+fi
+
+# A Ghoul2 model in a menu, wearing the materials baked into it.
+#
+# jkx_smoke.tga is the first screenshot of every run and it is a picture of the
+# fixture's main menu; in this lane that menu has a model in it. The model's own
+# shader is pure blue and nothing else in the fixture draws blue, so the check
+# is an equality on a colour rather than a judgement about a picture.
+#
+# What it does NOT measure is written out at length in ui/jkx_model.menu, and it
+# matters: this lane was built to catch the untextured lightsaber hilt and it
+# does not. Putting the old renderer test back leaves the frame identical to the
+# pixel, so mCustomSkin is not -1 by the time this model is drawn. The lane
+# earns its place on what it does cover - Item_Model_Paint and the asset_model
+# path, neither of which had ever executed here - and the hilt is still waiting
+# on a fixture sabers.cfg.
+#
+# Two thousand pixels: the model fills a 240 by 240 box in a 640 by 480 space,
+# which is a great deal more than that at any window size this bench uses, and
+# far more than any stray blend could produce.
+if [ "${JKX_SMOKE_MENUMODEL:-0}" = "1" ]; then
+    if ! python3 "$HERE/tga_has_colour.py" \
+        "$RUN/home/base/screenshots/jkx_smoke.tga" "0,0,255:2000"; then
+        report "the menu's model is not wearing its own materials; a model with \
+no custom skin is being given the default shader instead"
     fi
 fi
 

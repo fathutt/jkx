@@ -1,0 +1,95 @@
+// The main menu with a Ghoul2 model standing in it.
+//
+// This is ui/jkx_smoke.menu with one more item, and it is a separate file
+// rather than an addition to that one because every other lane's frame is that
+// one: the smoke shot is compared against itself in the depth pre-pass stage
+// and counted for colours in three places, and a model in it would be a change
+// to all of them for the sake of a lane none of them run.
+//
+// WHAT IT COVERS, which is new: Item_Model_Paint, its own refdef and its own
+// light, ItemParse_asset_model_go, and a Ghoul2 model drawn by the menu system
+// rather than by the game. The menu SYSTEM has always run here - the fixture's
+// mainMenu is what the first screenshot of every run is a picture of - but
+// every item in it until now was a coloured rectangle.
+//
+// WHAT IT DOES NOT COVER, and this is worth more than the coverage.
+//
+// It was written to measure the untextured lightsaber hilt: ui_shared writes
+// MINUS ONE into mCustomSkin to mean "no custom skin", and the renderer used to
+// read -1 as "there is one" and hand the default shader to every surface. The
+// model below asks for no skin with an empty model_g2skin, which is the same
+// branch of ItemParse_model_g2skin_go, so it looked like the right fixture.
+//
+// It is not. Mutation tested by putting the old renderer test back: the frame
+// is identical, to the pixel, 24948 blue either way. So mCustomSkin is not -1
+// by the time this model is drawn, and the most likely reason is order - the
+// saber path calls ItemParse_asset_model_go and THEN writes the -1, while here
+// the -1 is written during the parse and anything that rebuilds the item's
+// Ghoul2 instance afterwards starts it at zero again.
+//
+// The lane stays, because what it does cover was uncovered. But it does not
+// measure the hilt, and it is written down here rather than left to be inferred
+// from the lane's name. What would measure it is a fixture sabers.cfg naming
+// this model as a saberModel with no customSkin line, and a menu item that
+// takes UI_UpdateSaberHilt - which is the only caller that writes the -1 after
+// the model exists.
+//
+// The colour is still the right colour for both questions: jkx/glm_baked is
+// pure blue and nothing else in this fixture draws blue, so "the model kept its
+// own materials" is an equality rather than an impression.
+{
+menuDef
+{
+	name					"mainMenu"
+	fullScreen				1
+	rect					0 0 640 480
+	visible					1
+	style					WINDOW_STYLE_FILLED
+	backcolor				0.2 0.2 0.6 1
+
+	itemDef
+	{
+		name				smokebox
+		rect				64 64 512 352
+		background			"jkx/smoke"
+		style				WINDOW_STYLE_FILLED
+		backcolor			1 0.3 0.1 1
+		forecolor			1 1 1 1
+		visible				1
+		decoration
+	}
+
+	// No model_rotationspeed, deliberately. Item_Model_Paint turns the model by
+	// realTime divided by that number when it is set, and a picture that turns
+	// on the clock cannot be compared with another run of the same binary.
+	//
+	// The bounds, and both lines are here for a reason that is measured rather
+	// than understood.
+	//
+	// A Ghoul2 model carries no bounds - Item_Model_Paint says so - and what it
+	// falls back to when all six numbers are zero decides how far away it puts
+	// the camera. So these have to be given.
+	//
+	// model_g2mins does not parse. PC_ParseFloat does not take a leading minus,
+	// the tokeniser hands back the punctuation and then the digits, and the log
+	// says "Unknown item keyword '-16'" three times per run. That noise is
+	// expected and is not worth removing, because removing the line changes the
+	// picture: 24948 blue pixels with it and 263 without, measured twice each.
+	// Why a line the parser rejects changes anything is not established, and
+	// saying so here is better than a tidy file that quietly measures a tenth
+	// as much. It is the next thing to look at in this lane.
+	itemDef
+	{
+		name				g2model
+		type				ITEM_TYPE_MODEL
+		rect				200 120 240 240
+		asset_model			"models/players/jkxmenu/model.glm"
+		model_g2skin		""
+		model_g2mins		-16 -16 -16
+		model_g2maxs		16 16 16
+		model_angle			90
+		visible				1
+		decoration
+	}
+}
+}

@@ -1,0 +1,10 @@
+// The menu set for the lane that draws a Ghoul2 model in a menu.
+//
+// ui_menuFiles points here instead of at ui/menus.txt, which is what makes this
+// opt-in: every other lane loads the ordinary set and sees the ordinary frame.
+{
+	loadmenu
+	{
+		"ui/jkx_model.menu"
+	}
+}

@@ -10,12 +10,18 @@ difference between that and a hole in a wall you happen not to be facing.
 So this compares two directories of screenshots and fails if they disagree by
 more than a stated amount.
 
-    ab_frames.py <dir a> <dir b> [--max-pixels N] [--threshold T]
+    ab_frames.py <dir a> <dir b> [--max-pixels N] [--threshold T] [--skip NAME]
 
 --threshold is the per-channel difference at which a pixel counts as different
 at all (default 32, which is well above dither and well below anything a person
 would call the same colour). --max-pixels is how many such pixels are tolerated
 per frame before the comparison fails.
+
+--skip drops a frame from the comparison by name, and it is not a way of hiding
+a failure: a frame whose two identical-settings runs disagree is not measuring
+the setting under test, and asserting on it means asserting on the noise. The
+caller has to say what it measured before it earns a skip - see the note about
+jkx_sky.tga where this is used.
 
 The tolerance is meant to be earned rather than chosen, and the order in which
 this was built is the point. It started out comparing runs that disagreed by
@@ -79,12 +85,13 @@ def compare(path_a, path_b, threshold):
 def main(argv):
     if len(argv) < 3:
         sys.stderr.write("usage: %s <dir a> <dir b> "
-                         "[--max-pixels N] [--threshold T]\n" % argv[0])
+                         "[--max-pixels N] [--threshold T] [--skip NAME]\n" % argv[0])
         return 2
 
     dir_a, dir_b = argv[1], argv[2]
     max_pixels = 0
     threshold = 32
+    skip = set()
 
     rest = argv[3:]
     while rest:
@@ -93,6 +100,8 @@ def main(argv):
             max_pixels = int(rest.pop(0))
         elif flag == "--threshold":
             threshold = int(rest.pop(0))
+        elif flag == "--skip":
+            skip.add(rest.pop(0))
         else:
             sys.stderr.write("unknown option: %s\n" % flag)
             return 2
@@ -101,7 +110,11 @@ def main(argv):
     # timestamped screenshot behind, and comparing against a file the other run
     # never produced reports a difference that is really an early exit.
     names = sorted(n for n in os.listdir(dir_a)
-                   if n.startswith("jkx_") and n.endswith(".tga"))
+                   if n.startswith("jkx_") and n.endswith(".tga")
+                   and n not in skip)
+
+    for name in sorted(skip):
+        print("  %-22s skipped by request" % name)
     if not names:
         sys.stderr.write("no screenshots in %s - the run did not get that far\n"
                          % dir_a)
