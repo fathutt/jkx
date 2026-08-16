@@ -610,7 +610,25 @@ else
     # that is not quick. The screenshot is the evidence that the engine is still
     # drawing on the other side of it rather than merely still running.
     if [ "${JKX_SMOKE_VIDRESTART:-0}" = "1" ]; then
-        INMAP_STEP+=( +vid_restart +wait 240 +screenshot_tga jkx_vidrestart +wait 20 )
+        # Markers, because "it crashes somewhere in the next two hundred and
+        # forty frames" is not a place.
+        #
+        # The restart is followed by a run of short waits with an echo between
+        # each, so the last line in the log says how far the engine got. The
+        # frames are what matters: a fault during re-initialisation dies before
+        # the first marker, and one that needs drawing dies after some number of
+        # them. Through a config file - the command line has a limit and this
+        # bench has overflowed it twice.
+        {
+            echo "vid_restart"
+            for n in 1 2 3 5 10 20 40 80 160; do
+                echo "wait $n"
+                echo "echo JKXMARK frames $n"
+            done
+            echo "screenshot_tga jkx_vidrestart"
+            echo "wait 20"
+        } > "$RUN/base/jkx_vidrestart.cfg"
+        INMAP_STEP+=( +exec jkx_vidrestart.cfg +wait 360 )
     fi
 
     # The turned views belong to the sky, and are skipped when there is no sky.
@@ -857,6 +875,23 @@ fi
 #
 # Note that a latched cvar only takes here because it is set on the command
 # line before the renderer starts.
+# Tearing the renderer down before anything has been loaded.
+#
+# The lane above restarts with a map up, and it crashes. Four things have been
+# ruled out by running it without them - the validation layer, PBR, the present
+# mode, and destroying the instance and surface - so the next question is whether
+# the crash needs a world at all. If it happens here too, nothing about the map,
+# its models, its lightgrid or the screen wipe can be the cause, and the search
+# is over a much smaller piece of code. If it does not, the difference between
+# the two lanes is the answer.
+#
+# JKX_SMOKE_VIDRESTART=menu, and it is a separate word rather than a second lane
+# because it is the same question asked in one fewer place.
+MENU_RESTART_STEP=()
+if [ "${JKX_SMOKE_VIDRESTART:-0}" = "menu" ]; then
+    MENU_RESTART_STEP=( +vid_restart +wait 240 +screenshot_tga jkx_menurestart +wait 20 )
+fi
+
 SET_STEP=()
 for pair in ${JKX_SMOKE_SET:-}; do
     SET_STEP+=( +set "${pair%%=*}" "${pair#*=}" )
@@ -1010,7 +1045,8 @@ set +e
       +set cg_hudFiles ui/jkx_hud.txt "${CHAR_STEP[@]}" \
       +set helpUsObi 1 +set r_drawfog 0 \
       "${SET_STEP[@]}" \
-      +wait 60 +screenshot_tga jkx_smoke \
+      +wait 60 +screenshot_tga jkx_smoke +wait 20 \
+      "${MENU_RESTART_STEP[@]}" \
       "${CONSOLE_STEP[@]}" \
       +wait 20 +map jkx_smoke +wait 12 +screenshot_tga jkx_wiping \
       +wait $SETTLE +screenshot_tga jkx_wiped \
