@@ -146,7 +146,15 @@ def texcoords():
 
 
 def triangles():
-    return struct.pack("<6i", 0, 1, 2, 0, 2, 3)
+    """The drawn quad, wound the way this engine's front faces are wound.
+
+    The reverse of the corner order in vertices(), which is the convention every
+    generator here now follows - a face listed anticlockwise from the front is a
+    back face and is culled. Deliberately NOT applied to tag_triangles(): a tag
+    is not drawn, its three corners are the axes of a bolt matrix, and turning
+    them round turns everything bolted to it.
+    """
+    return struct.pack("<6i", 0, 2, 1, 0, 3, 2)
 
 
 def build(surface="body", shader="jkx/smoke",

@@ -71,7 +71,7 @@ JOBS="${JOBS:-$(nproc)}"
 
 STAGES=( "$@" )
 if [ "${#STAGES[@]}" -eq 0 ]; then
-    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokeskin smokepak move smokesan prepass fog noassets )
+    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokeskin smokelightmap smokepak move smokesan prepass fog noassets )
 fi
 
 failed=()
@@ -364,6 +364,21 @@ stage_smoke() {
 # hundreds to thousands of contiguous pixels. Sixteen sits an order of magnitude
 # above the noise and an order of magnitude below the smallest thing worth
 # catching, which is the whole of the argument for it.
+#
+# Multisampling is off here, and that is scope rather than convenience.
+#
+# The moment the fixture's floor became visible - it had been culled and never
+# drawn, see make_test_bsp.py's drawindexes() - this lane went red on 1134
+# pixels, all of them on the one-pixel line where the floor's far edge meets the
+# sky. The disagreement is a quarter of the way from black to white and never
+# more, which is one sample of four: the two runs resolve that edge with one
+# sample's difference in coverage. With r_ext_multisample 0 the same comparison
+# is two pixels in the whole frame.
+#
+# So the edge is a multisampling question and this lane is a depth question, and
+# folding one into the other would mean widening the tolerance past the size of
+# the defects it exists to find. The measurement is written down in
+# Where-We-Are so it does not get lost, and the gate stays exact.
 
 stage_prepass() {
     local a b rc
@@ -372,7 +387,7 @@ stage_prepass() {
     rc=0
 
     prepass_run() {
-        JKX_SMOKE_SET="r_depthPrepass=$1" \
+        JKX_SMOKE_SET="r_depthPrepass=$1 r_ext_multisample=0" \
         JKX_SMOKE_PLAIN=1 \
         JKX_SMOKE_NO_VALIDATION=1 \
         JKX_SMOKE_DISPLAY="$2" \
@@ -561,6 +576,29 @@ stage_smokepak() {
 stage_smokeskin() {
     JKX_SMOKE_SKINFALL=1 \
     JKX_SMOKE_DISPLAY="${JKX_SMOKE_SKIN_DISPLAY:-:88}" \
+    JKX_SMOKE_NO_VALIDATION=1 \
+        bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
+}
+
+# The world lit by a real lightmap, which had never happened here.
+#
+# Every surface in the fixture map was LIGHTMAP_BY_VERTEX with an empty lightmap
+# lump, so R_LoadLightmaps, the lightmap atlas, the atlas texture coordinates
+# and every lightmapped shader permutation were outside this bench entirely -
+# and that is how every real map in both games is lit.
+#
+# It also makes the map's brightness a number. The ordinary floor is white by
+# design, which is what makes the pixel checks exact and what makes "is the map
+# brighter" unanswerable; the lightmap page is a flat 32 and its shader draws
+# the page and nothing else, so the floor comes out at exactly
+# 32 * 2^r_mapOverBrightBits. That question arrived from a player report about
+# maps being too dark and the bench could not answer it at the time.
+#
+# Mutation tested: with the page at 200 instead of 32 the lane fails, and with
+# r_mapOverBrightBits at anything but 2 it fails.
+stage_smokelightmap() {
+    JKX_SMOKE_LIGHTMAP=1 \
+    JKX_SMOKE_DISPLAY="${JKX_SMOKE_LIGHTMAP_DISPLAY:-:92}" \
     JKX_SMOKE_NO_VALIDATION=1 \
         bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
 }

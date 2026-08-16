@@ -21,7 +21,7 @@ code/qcommon/cm_load.cpp (collision) and code/rd-vulkan/tr_bsp.cpp (drawing);
 both were read while writing this, and where a field has a value that is not
 obviously right, the comment says which of the two demanded it.
 
-    make_test_bsp.py <out.bsp> [--shader NAME] [--sky NAME]
+    make_test_bsp.py <out.bsp> [--shader NAME] [--sky NAME] [--lightmap]
     make_test_bsp.py --check
 
 --sky adds a second drawn surface: a wall across the far end of the room
@@ -291,6 +291,50 @@ def sky_wall_corners(normal):
     )
 
 
+# A real lightmap page, and the reason there was not one.
+#
+# Every surface in this fixture has been LIGHTMAP_BY_VERTEX since it was written,
+# with its vertex colours at full white, and the lightmap lump has been empty.
+# That is a whole subsystem the bench has never executed: R_LoadLightmaps, the
+# lightmap atlas, the lightmap texture coordinates, and every USE_LIGHTMAP
+# variant the shader generator builds. It is also how EVERY real map is lit.
+#
+# The second cost is that the world here cannot be measured. Its surfaces are
+# white by design - a flat colour makes a pixel check exact - so "did the map get
+# brighter" runs into 255 and stops. That came up the moment a question about
+# overbright bits needed an answer and the bench could not give one.
+#
+# So: one page, one grey, everywhere. Grey rather than white because the point is
+# to have somewhere to go in both directions, and one value rather than a pattern
+# because what is being measured is a level, not a placement - the placement is
+# what the sky faces and the crosshair checks are for.
+LIGHTMAP_SIZE = 128
+
+# Thirty-two, and the number is chosen so nothing clips.
+#
+# R_ColorShiftLightingBytes shifts a lightmap left by
+# ( r_mapOverBrightBits - tr.overbrightBits ) and then, if any channel has gone
+# over 255, divides all three by the largest - so a value that saturates does not
+# just stop getting brighter, it stops being measurable. At 32 the three settings
+# that matter give 32, 64 and 128, which are far apart, exact, and all inside the
+# range. At 64 the last of them would be 256 and would come back as 255, and the
+# check would read "the knob does nothing" when it had done everything.
+LIGHTMAP_GREY = 32
+
+
+def lightmaps(present):
+    """One page of LIGHTMAP_SIZE squared, three bytes per texel.
+
+    R_LoadLightmaps takes the page count from the lump length divided by that
+    size, so a lump that is not a whole number of pages is not an error - it is
+    a page count that disagrees with the surfaces referring to it.
+    """
+    if not present:
+        return b""
+
+    return bytes([LIGHTMAP_GREY, LIGHTMAP_GREY, LIGHTMAP_GREY]) * (LIGHTMAP_SIZE * LIGHTMAP_SIZE)
+
+
 def drawverts(sky=False):
     """Four corners of the floor.
 
@@ -334,18 +378,41 @@ def drawindexes(sky=False):
     corrupts the heap rather than failing: the first run of this fixture with a
     sky in it died in glibc with "corrupted double-linked list" during the map
     load, several allocations after the damage was done.
+
+    The order is 0,2,1 rather than 0,1,2, and that one transposition is the
+    difference between a floor and no floor.
+
+    The corners of every surface here are listed anticlockwise seen from the
+    front, which is the order a right-handed normal comes out of and the order
+    that reads correctly on paper. It is not the order this engine draws: a
+    world face is wound the other way, and a face wound the way it looked right
+    is a back face and is culled. So the floor of this fixture was never once
+    drawn - not in a single run since the map generator was written - and
+    nothing said so, because everything in the fixture that IS visible is
+    two-sided: the animated square and the lit model both say `cull none`, and
+    the sky does not go through face culling at all.
+
+    What made it invisible instead of obvious is the check that was supposed to
+    catch exactly this. jkx_inmap.tga is asserted to have white near the bottom
+    of the frame and called "the map's floor"; the white it was finding is the
+    player's model, which stands there and is baked white. Changing the floor's
+    shader - to a lightmap, to flat green - left the frame byte for byte
+    identical, which is what finally said it.
     """
-    out = struct.pack("<6i", 0, 1, 2, 0, 2, 3)
+    out = struct.pack("<6i", 0, 2, 1, 0, 3, 2)
     if sky:
-        out += struct.pack("<6i", 0, 1, 2, 0, 2, 3) * len(SKY_WALLS)
+        out += struct.pack("<6i", 0, 2, 1, 0, 3, 2) * len(SKY_WALLS)
     return out
 
 
-def surfaces(sky=False, fog=False):
-    """One planar quad, lit per vertex.
+def surfaces(sky=False, fog=False, lightmap=False):
+    """One planar quad, lit per vertex or from a lightmap page.
 
-    lightmapNum is LIGHTMAP_BY_VERTEX in every slot: with no lightmap lump, any
-    other value sends R_LoadSurfaces looking for a page that is not there.
+    lightmapNum is LIGHTMAP_BY_VERTEX in every slot by default: with no lightmap
+    lump, any other value sends R_LoadSurfaces looking for a page that is not
+    there. With one, the floor points at page zero and the sky walls do not -
+    a sky surface is not lit and asking for a lightmap on one would only test
+    that the renderer ignores it.
     """
     # fogNum is stored one less than the index the renderer uses: the loader does
     # fogIndex = fogNum + 1, so -1 is "no fog" and 0 is the first one.
@@ -354,10 +421,17 @@ def surfaces(sky=False, fog=False):
     out += struct.pack("<2i", 0, 6)                 # indexes
     out += bytes([LS_NORMAL] + [LS_NONE] * 3)       # lightmapStyles
     out += bytes([LS_NORMAL] + [LS_NONE] * 3)       # vertexStyles
-    out += struct.pack("<4i", *([LIGHTMAP_BY_VERTEX] * MAXLIGHTMAPS))
+    if lightmap:
+        out += struct.pack("<4i", 0, LIGHTMAP_BY_VERTEX,
+                           LIGHTMAP_BY_VERTEX, LIGHTMAP_BY_VERTEX)
+    else:
+        out += struct.pack("<4i", *([LIGHTMAP_BY_VERTEX] * MAXLIGHTMAPS))
     out += struct.pack("<4i", *([0] * MAXLIGHTMAPS))    # lightmapX
     out += struct.pack("<4i", *([0] * MAXLIGHTMAPS))    # lightmapY
-    out += struct.pack("<2i", 0, 0)                     # lightmapWidth/Height
+    if lightmap:
+        out += struct.pack("<2i", LIGHTMAP_SIZE, LIGHTMAP_SIZE)
+    else:
+        out += struct.pack("<2i", 0, 0)                 # lightmapWidth/Height
     out += struct.pack("<3f", -HALF, -HALF, FLOOR_Z)    # lightmapOrigin
     out += struct.pack("<3f", 1.0, 0.0, 0.0)            # lightmapVecs
     out += struct.pack("<3f", 0.0, 1.0, 0.0)
@@ -513,7 +587,7 @@ def entities():
     )
 
 
-def build(visible_shader, sky_shader=None, fog_shader=None):
+def build(visible_shader, sky_shader=None, fog_shader=None, lightmap=False):
     sky = bool(sky_shader)
     count = 1 + len(SKY_WALLS) if sky else 1
     lumps = {
@@ -530,8 +604,8 @@ def build(visible_shader, sky_shader=None, fog_shader=None):
         LUMP_DRAWVERTS: drawverts(sky),
         LUMP_DRAWINDEXES: drawindexes(sky),
         LUMP_FOGS: fogs(fog_shader),
-        LUMP_SURFACES: surfaces(sky, bool(fog_shader)),
-        LUMP_LIGHTMAPS: b"",
+        LUMP_SURFACES: surfaces(sky, bool(fog_shader), lightmap),
+        LUMP_LIGHTMAPS: lightmaps(lightmap),
         LUMP_LIGHTGRID: lightgrid(),
         LUMP_VISIBILITY: visibility(),
         LUMP_LIGHTARRAY: lightarray(),
@@ -634,6 +708,41 @@ def check():
         if len(failures) != before:
             failures[before:] = ["%s: %s" % (label, f) for f in failures[before:]]
 
+    # The lightmap lump against the surface that refers to it.
+    #
+    # R_LoadLightmaps divides the lump length by one page to get the page count
+    # and does not otherwise check it, so a lump that is not a whole number of
+    # pages is not an error there - it is a page count that silently disagrees
+    # with the surfaces, and the surface either draws a page that was never
+    # uploaded or falls back to vertex lighting without saying so.
+    lit = build("jkx/lightmapped", lightmap=True)
+    page = LIGHTMAP_SIZE * LIGHTMAP_SIZE * 3
+    lofs, llen = struct.unpack_from("<2i", lit, 8 + LUMP_LIGHTMAPS * 8)
+
+    if llen != page:
+        failures.append("the lightmap lump is %d bytes, not the one %d byte page "
+                        "the floor asks for" % (llen, page))
+    elif set(lit[lofs:lofs + llen]) != {LIGHTMAP_GREY}:
+        failures.append("the lightmap page is not one flat value, so what reaches "
+                        "the screen is not a measurement of the engine's scaling")
+
+    # lightmapNum sits after the two four-byte style arrays, which is why this
+    # is 36 rather than 32: getting it wrong reads vertexStyles and every value
+    # is a sensible-looking small number.
+    LIGHTMAPNUM_AT = 36
+
+    def first_lightmap(bsp):
+        at = struct.unpack_from("<2i", bsp, 8 + LUMP_SURFACES * 8)[0]
+        return struct.unpack_from("<i", bsp, at + LIGHTMAPNUM_AT)[0]
+
+    if first_lightmap(lit) != 0:
+        failures.append("the floor's first lightmapNum is %d, not page zero"
+                        % first_lightmap(lit))
+
+    if first_lightmap(build("jkx/smoke")) != LIGHTMAP_BY_VERTEX:
+        failures.append("without --lightmap the floor should still be lit by its "
+                        "vertices; anything else points at a page that is not there")
+
     data = build("jkx/smoke")
 
     if data[:4] != BSP_IDENT:
@@ -676,6 +785,7 @@ def main(argv):
     visible = "jkx/smoke"
     sky = None
     fog = None
+    lightmap = False
     path = None
     i = 0
     while i < len(args):
@@ -688,6 +798,9 @@ def main(argv):
         elif args[i] == "--fog" and i + 1 < len(args):
             fog = args[i + 1]
             i += 2
+        elif args[i] == "--lightmap":
+            lightmap = True
+            i += 1
         elif path is None:
             path = args[i]
             i += 1
@@ -696,16 +809,18 @@ def main(argv):
             return 2
 
     if path is None:
-        print("usage: %s <out.bsp> [--shader NAME] [--sky NAME] [--fog NAME]"
+        print("usage: %s <out.bsp> [--shader NAME] [--sky NAME] [--fog NAME] [--lightmap]"
               % argv[0],
               file=sys.stderr)
         return 2
 
-    data = build(visible, sky, fog)
+    data = build(visible, sky, fog, lightmap)
     with open(path, "wb") as f:
         f.write(data)
-    print("%s: %d bytes, shader %s%s"
-          % (path, len(data), visible, ", sky %s" % sky if sky else ""))
+    print("%s: %d bytes, shader %s%s%s"
+          % (path, len(data), visible, ", sky %s" % sky if sky else "",
+             ", lightmap %dx%d at %d" % (LIGHTMAP_SIZE, LIGHTMAP_SIZE, LIGHTMAP_GREY)
+             if lightmap else ""))
     return 0
 
 

@@ -136,14 +136,19 @@ def build(shader="textures/jkx/anim", seam=True):
     surf += qpath(shader) + struct.pack("<i", 0)
 
     # Two triangles, wound so the +X normal above faces the camera.
-    surf += struct.pack("<3i", 0, 1, 2)
-    surf += struct.pack("<3i", 0, 2, 3)
+    #
+    # The order is the reverse of the corner order, and that is the engine's
+    # convention rather than a slip: a face listed anticlockwise from the front
+    # is a BACK face here and is culled. Nothing in this fixture noticed for a
+    # long time, because every shader it draws through was two-sided.
+    surf += struct.pack("<3i", 0, 2, 1)
+    surf += struct.pack("<3i", 0, 3, 2)
 
     if seam:
         # Two more, sharing the two right-hand corners in space but using the
         # duplicated vertices, which carry the turned normals.
-        surf += struct.pack("<3i", 1, 4, 2)
-        surf += struct.pack("<3i", 4, 5, 2)
+        surf += struct.pack("<3i", 1, 2, 4)
+        surf += struct.pack("<3i", 4, 2, 5)
 
     coords = [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)]
     if seam:

@@ -90,10 +90,26 @@ textures/jkx/fog
 	fogParms ( 0.9 0.1 0.9 ) 512
 }
 
-// The two-frame model from make_test_md3.py, in a colour nothing else in the
-// fixture uses. It has to be unmistakable: the check on it is that the square
-// is somewhere else in the second frame, and a white square against a white
-// floor cannot answer that.
+// The floor, lit by a lightmap and by nothing else.
+//
+// One stage, and it is the lightmap itself: what lands on the screen is the
+// lightmap texel with whatever scaling the engine applies on the way, and
+// nothing from a texture, a vertex colour or a light grid is mixed in to
+// confuse the reading. That is what makes the map's brightness a number rather
+// than an impression, and the numbers it gives are exact: with the fixture's
+// page at 32, r_mapOverBrightBits 0, 1, 2 and 3 put 32, 64, 128 and 255 on the
+// screen.
+//
+// It is used only by the lightmap lane, because the ordinary fixture's floor is
+// white on purpose - a flat colour is what makes the pixel checks exact.
+jkx/lightmapped
+{
+	{
+		map $lightmap
+		rgbGen identity
+	}
+}
+
 // The one material in this fixture whose colour depends on a normal.
 //
 // Every other shader here is rgbGen const, which is deliberate - a flat colour
@@ -108,22 +124,42 @@ textures/jkx/fog
 // fixture is deliberately red, so a model under this shader is red and its
 // SHADE varies across the surface - and the variation is the measurement.
 //
-// Two-sided for the same reason as the animated square: which way testmodel's
-// yaw happens to leave it is not part of what this measures.
+// Single-sided, and that is a change. It used to say `cull none`, and so did
+// every other material here that draws geometry, and between them they hid the
+// fact that this whole fixture was built inside out: every generated model and
+// the map's floor were wound the wrong way round, so their front faces pointed
+// away from the camera. Nothing could see it, because nothing was culled.
+//
+// The floor is what gave it away - it is single-sided and it was simply never
+// drawn, in any run, since the map generator was written. What was being
+// checked instead was a white shape near the bottom of the frame that is not
+// the floor.
+//
+// So the windings are fixed and the two-sidedness is gone with them. Keeping it
+// would mean this stays unmeasurable, and it is not a detail: a tangent basis
+// comes out of the winding and the texture coordinates together, so an inside
+// out model has its handedness inverted, and this is the model the normal
+// mapping work gets measured on.
+//
+// What this costs: the lane now depends on testmodel leaving the model facing
+// the camera, which is what its default yaw does. If that ever changes, these
+// two lanes go dark rather than wrong, and that is the message.
 textures/jkx/lit
 {
-	cull none
 	{
 		map $whiteimage
 		rgbGen lightingDiffuse
 	}
 }
 
+// The two-frame model from make_test_md3.py, in a colour nothing else in the
+// fixture uses. It has to be unmistakable: the check on it is that the square
+// is somewhere else in the second frame, and a white square against a white
+// floor cannot answer that.
+//
+// Single-sided for the reason written out above textures/jkx/lit.
 textures/jkx/anim
 {
-	// Two-sided, so that which way the square happens to face after testmodel's
-	// yaw is not part of what this measures.
-	cull none
 	{
 		map $whiteimage
 		rgbGen const ( 0.0 1.0 1.0 )

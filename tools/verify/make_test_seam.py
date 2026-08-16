@@ -194,9 +194,22 @@ def build(shader="textures/jkx/lit", seam=True, frames=2):
             (y2,  SIZE, base),      # g  outer top, right quad
             (y2, -SIZE, base),      # h  outer bottom, right quad
         ]
+        # Wound the way this engine draws, which is the opposite of the order
+        # the corners are listed in above.
+        #
+        # It mattered as soon as it was looked at: with `cull none` taken off
+        # textures/jkx/lit, the model built the other way round vanished from
+        # the frame entirely and the seam measurement had nothing to measure.
+        # Every model in this fixture was inside out and none of it showed,
+        # because every shader it uses was two-sided.
+        #
+        # Two-sided is no longer the arrangement here, and the reason is not
+        # tidiness: a tangent basis is derived from the winding and the texture
+        # coordinates together, so a reversed winding is a reversed handedness,
+        # and this is the model the normal-mapping work will be measured on.
         tris += [
-            (first + 0, first + 1, first + 3), (first + 0, first + 3, first + 2),
-            (first + 4, first + 5, first + 7), (first + 4, first + 7, first + 6),
+            (first + 0, first + 3, first + 1), (first + 0, first + 2, first + 3),
+            (first + 4, first + 7, first + 5), (first + 4, first + 6, first + 7),
         ]
         # The duplicated pair differ in s, which is what makes them a texture
         # cut rather than a mistake.

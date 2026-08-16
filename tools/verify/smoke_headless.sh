@@ -728,7 +728,25 @@ python3 "$HERE/make_test_sky.py" --wide "$RUN/base/textures/jkx/wide.tga" >/dev/
 #
 # jkx_smoke.bsp stays committed, because it is not this generator's output - it
 # is a deliberately truncated file, and the point of it is to be broken.
-python3 "$HERE/make_test_bsp.py" "$RUN/base/maps/jkx_room.bsp" >/dev/null
+if [ "${JKX_SMOKE_LIGHTMAP:-0}" = "1" ]; then
+    # The same room, lit by a real lightmap page instead of by white vertices.
+    #
+    # This closes a subsystem the bench had never executed once: R_LoadLightmaps,
+    # the lightmap atlas, the lightmap texture coordinates, and every USE_LIGHTMAP
+    # variant the shader generator builds - which is how every real map in the
+    # game is lit. The fixture had LIGHTMAP_BY_VERTEX on every surface and an
+    # empty lightmap lump.
+    #
+    # It also makes the map's brightness a number. The ordinary floor is white by
+    # design, so "did the map get brighter" runs into 255 and stops; that is
+    # exactly where a question about overbright bits ran aground. The lightmap is
+    # a flat 32, and the floor's shader draws the lightmap and nothing else, so
+    # what comes out is the engine's scaling and nothing else.
+    python3 "$HERE/make_test_bsp.py" "$RUN/base/maps/jkx_room.bsp" \
+        --shader jkx/lightmapped --lightmap >/dev/null
+else
+    python3 "$HERE/make_test_bsp.py" "$RUN/base/maps/jkx_room.bsp" >/dev/null
+fi
 # The fog is opt-in, and that is not shyness. A global fog repaints the clear
 # colour for the whole map - RB_BeginDrawingView clears to it once there is a
 # scene - so putting one in the shared fixture moves every other colour check in
@@ -1155,11 +1173,56 @@ SHOTS+=( "jkx_debugview 2" )
 # not just presence - a sky face drawn upside down or on the wrong axis has
 # exactly the same pixels as a correct one, which is the whole reason the faces
 # are not flat colours.
+#
+# The count is the second half of that, and it is here because the position on
+# its own was satisfied by the wrong thing for months. The floor was wound
+# backwards, so it was culled and never drawn once; what the centroid check kept
+# finding was a white shape of about six and a half thousand pixels near the
+# bottom of the frame that is not the floor at all. Changing the floor's shader
+# left the frame byte for byte identical, which is what finally settled it.
+#
+# A drawn floor is a quarter of a million pixels. A hundred thousand is well
+# under that and far above anything else white in the frame, so the check can no
+# longer be answered by something standing in the right place.
 if [ "${JKX_SMOKE_PLAIN:-0}" != "1" ] && [ -f "$RUN/home/base/screenshots/jkx_inmap.tga" ]; then
-    if ! python3 "$HERE/tga_colour_where.py" \
-        "$RUN/home/base/screenshots/jkx_inmap.tga" \
-        "255,255,255@0.3,0.75,0.7,1.0"; then
-        report "the map's floor is not where it should be in jkx_inmap.tga"
+    if [ "${JKX_SMOKE_LIGHTMAP:-0}" != "1" ]; then
+        if ! python3 "$HERE/tga_colour_where.py" \
+            "$RUN/home/base/screenshots/jkx_inmap.tga" \
+            "255,255,255@0.3,0.75,0.7,1.0"; then
+            report "the map's floor is not where it should be in jkx_inmap.tga"
+        fi
+        if ! python3 "$HERE/tga_has_colour.py" \
+            "$RUN/home/base/screenshots/jkx_inmap.tga" \
+            "255,255,255:100000"; then
+            report "too little of jkx_inmap.tga is floor; a culled floor leaves \
+just enough white in the right place to pass the position check"
+        fi
+    else
+        # The lightmap lane's whole point, in one number.
+        #
+        # The page is a flat 32 and the floor's shader draws the page and
+        # nothing else, so what reaches the screen is the engine's own scaling
+        # of a lightmap and nothing but. R_ColorShiftLightingBytes shifts left
+        # by ( r_mapOverBrightBits - tr.overbrightBits ) and the shader then
+        # multiplies by ( 1 << tr.overbrightBits ), so the two exponents cancel
+        # and the answer is 32 * 2^r_mapOverBrightBits: 32, 64, 128, 255 for the
+        # four settings, measured. The default here is 2.
+        #
+        # An equality, not a range. This is the check that says the world is lit
+        # by its lightmap rather than by a white texture standing in for one -
+        # and the difference between those two is the difference between 128 and
+        # 255, which no tolerance worth having would swallow.
+        if ! python3 "$HERE/tga_has_colour.py" \
+            "$RUN/home/base/screenshots/jkx_inmap.tga" \
+            "128,128,128:100000"; then
+            report "the lightmapped floor is not at the brightness its page and \
+r_mapOverBrightBits say it should be"
+        fi
+        if ! python3 "$HERE/tga_colour_where.py" \
+            "$RUN/home/base/screenshots/jkx_inmap.tga" \
+            "128,128,128@0.3,0.75,0.7,1.0"; then
+            report "the lightmapped floor is not where the floor should be"
+        fi
     fi
 fi
 
