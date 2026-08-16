@@ -143,11 +143,20 @@ fi
 
 # The validation layer, if this machine has one. Enabled through the loader
 # rather than by the engine, so that a plain release build is what gets tested.
+#
+# Two variables and not one. VK_LOADER_LAYERS_ENABLE is the current spelling and
+# the loader has only honoured it since 1.3.234; VK_INSTANCE_LAYERS is the old
+# one, deprecated and still obeyed everywhere. On a loader too old for the first
+# there is no error and no layer - the run comes back silent, and silent is
+# exactly what a clean run looks like. That is the shape of defect this bench
+# keeps finding in itself, so it is worth the second line: a check that cannot
+# fail loudly should at least not fail quietly.
 VALIDATION=0
 if [ -f /usr/share/vulkan/explicit_layer.d/VkLayer_khronos_validation.json ] &&
    [ "${JKX_SMOKE_NO_VALIDATION:-0}" != "1" ]; then
     VALIDATION=1
     export VK_LOADER_LAYERS_ENABLE='*validation*'
+    export VK_INSTANCE_LAYERS='VK_LAYER_KHRONOS_validation'
 fi
 
 Xvfb "$DISPLAY_NUM" -screen 0 ${JKX_SMOKE_SCREEN:-1280x720}x24 >/dev/null 2>&1 &
@@ -1718,6 +1727,10 @@ if [ "$VALIDATION" = "1" ]; then
     if grep -qE 'VUID-|Validation Error|Validation Warning' "$RUN/run.log"; then
         report "the validation layer had something to say:"
         grep -oE 'VUID-[A-Za-z0-9-]+' "$RUN/run.log" | sort | uniq -c | sort -rn | head -10
+    else
+        # Said out loud, because until now a clean run under the layer and a run
+        # where the layer never attached printed the same thing: nothing.
+        echo "  (validation layer on, no complaints)"
     fi
 elif [ "${JKX_SMOKE_NO_VALIDATION:-0}" = "1" ]; then
     echo "  (validation switched off by JKX_SMOKE_NO_VALIDATION)"

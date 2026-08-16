@@ -396,6 +396,15 @@ jobs:
       # No GPU and no retail assets, and neither is needed to answer what this
       # asks: does the engine still draw frames on this renderer, and does the
       # validation layer have anything to say about how it does it.
+      #
+      # Every smoke step from here down runs under the layer. Until today only
+      # this one did: JKX_SMOKE_NO_VALIDATION sat in eight of the nine, put
+      # there by copying rather than by a reason, and the layer had meanwhile
+      # named the two worst crashes of the last two days in one line each. All
+      # of them were surveyed with it on before the flag came out and every one
+      # was already clean - so this is a small change that removes a large blind
+      # spot, which is the good kind. Only the sanitizer step keeps the flag,
+      # and only because the sanitizers and the layer are both slow.
       - name: The engine draws on the Vulkan renderer
         run: |
           JKX_SMOKE_KEEP_SHOT="$PWD/jkx_smoke.tga" \
@@ -419,7 +428,6 @@ jobs:
         env:
           JKX_SMOKE_GAME: jk2
           JKX_SMOKE_DISPLAY: ':96'
-          JKX_SMOKE_NO_VALIDATION: '1'
         run: bash tools/verify/smoke_headless.sh build
 
       # The player walks and jumps. Until the fixture had a floor - one brush
@@ -433,7 +441,6 @@ jobs:
           JKX_SMOKE_MOVE: '1'
           JKX_SMOKE_PLAIN: '1'
           JKX_SMOKE_DISPLAY: ':87'
-          JKX_SMOKE_NO_VALIDATION: '1'
         run: bash tools/verify/smoke_headless.sh build
 
       # A character wearing a skin that does not exist.
@@ -449,7 +456,6 @@ jobs:
         env:
           JKX_SMOKE_SKINFALL: '1'
           JKX_SMOKE_DISPLAY: ':88'
-          JKX_SMOKE_NO_VALIDATION: '1'
         run: bash tools/verify/smoke_headless.sh build
 
       # The world lit by a lightmap page instead of by white vertices. Until
@@ -463,7 +469,6 @@ jobs:
         env:
           JKX_SMOKE_LIGHTMAP: '1'
           JKX_SMOKE_DISPLAY: ':92'
-          JKX_SMOKE_NO_VALIDATION: '1'
         run: bash tools/verify/smoke_headless.sh build
 
       # A model the map owns. Everything else this bench draws is put on
@@ -477,7 +482,6 @@ jobs:
         env:
           JKX_SMOKE_MAPENT: '1'
           JKX_SMOKE_DISPLAY: ':86'
-          JKX_SMOKE_NO_VALIDATION: '1'
         run: bash tools/verify/smoke_headless.sh build
 
       # A Ghoul2 model drawn by the menu system. Item_Model_Paint, its own
@@ -486,7 +490,6 @@ jobs:
         env:
           JKX_SMOKE_MENUMODEL: '1'
           JKX_SMOKE_DISPLAY: ':85'
-          JKX_SMOKE_NO_VALIDATION: '1'
         run: bash tools/verify/smoke_headless.sh build
 
       # The physically-based renderer actually drawing something. Until this
@@ -497,7 +500,6 @@ jobs:
         env:
           JKX_SMOKE_PBRCHAR: '1'
           JKX_SMOKE_DISPLAY: ':84'
-          JKX_SMOKE_NO_VALIDATION: '1'
         run: bash tools/verify/smoke_headless.sh build
 
       # The same fixture out of a pk3. Every run before this one read loose
@@ -511,7 +513,6 @@ jobs:
           JKX_SMOKE_PK3: '1'
           JKX_SMOKE_SOUND: '1'
           JKX_SMOKE_DISPLAY: ':89'
-          JKX_SMOKE_NO_VALIDATION: '1'
         run: bash tools/verify/smoke_headless.sh build
 
       # Building the sanitizers and never running them checks nothing. The first
@@ -526,6 +527,10 @@ jobs:
           cmake --build build-san --target jkx_jka.x86_64 jkagamex86_64 \
             rdsp-vulkan_x86_64 --parallel
 
+      # The one step that still switches the validation layer off, and the only
+      # reason is arithmetic: the sanitizers already multiply the run and the
+      # layer multiplies it again. A Vulkan usage error here would be caught by
+      # the release step above anyway - what this one is for is the memory.
       - name: The same frames, under the sanitizers
         env:
           JKX_SMOKE_DISPLAY: ':98'

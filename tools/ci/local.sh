@@ -333,6 +333,34 @@ stage_tests_cxx() {
     "$out/snd_codec_test" "$ROOT/tools/verify/fixtures" || return 1
 }
 
+# Every smoke lane below this line runs under the Vulkan validation layer, and
+# until today only this one did.
+#
+# JKX_SMOKE_NO_VALIDATION=1 sat in fourteen of the fifteen lanes. It got there
+# by copying: the first lane that needed it needed it for a real reason, and
+# every lane written afterwards started from that lane's four lines. What it
+# cost is not theoretical. The layer named the two worst crashes of the last two
+# days in one line each - the physically-based path binding a descriptor set it
+# had not filled, and the sky drawing with set zero unbound - and in both cases
+# the lane that would have caught it first had the layer switched off.
+#
+# Before switching them on, all fifteen were surveyed with it on, and the result
+# is the reason this is a small change rather than a project: THIRTEEN OF THEM
+# WERE ALREADY CLEAN. Not one validation message between them. The two that are
+# not:
+#
+#   smokevidrestart   13 x VUID-vkCmdDrawIndexed-None-02721
+#                     10 x VUID-vkCmdDrawIndexed-None-04007
+#                      1 x VUID-vkCmdDrawIndexed-viewType-07752
+#                     the missing sky after a restart, which is what that lane
+#                     is currently for. It stays out of the stage list.
+#
+#   smokesan          not surveyed and still off - the sanitizers and the layer
+#                     are both slow and this bench has two cores.
+#
+# The cost is time, and it was measured rather than feared: with the layer on a
+# lane takes between forty-four and ninety seconds, which is inside every
+# timeout as they stand. No lane needed its timeout raised.
 stage_smoke() {
     bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
 }
@@ -416,7 +444,6 @@ stage_prepass() {
     prepass_run() {
         JKX_SMOKE_SET="r_depthPrepass=$1 r_ext_multisample=0" \
         JKX_SMOKE_PLAIN=1 \
-        JKX_SMOKE_NO_VALIDATION=1 \
         JKX_SMOKE_DISPLAY="$2" \
         JKX_SMOKE_SHOT_DIR="$3" \
             bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release" >/dev/null
@@ -448,7 +475,6 @@ stage_prepass() {
 # fog-coloured in the other.
 stage_fog() {
     JKX_SMOKE_FOG=1 \
-    JKX_SMOKE_NO_VALIDATION=1 \
     JKX_SMOKE_DISPLAY="${JKX_SMOKE_FOG_DISPLAY:-:91}" \
         bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
 }
@@ -461,7 +487,6 @@ stage_fog() {
 stage_noassets() {
     JKX_SMOKE_NO_SHADERS=1 \
     JKX_SMOKE_SOUND=1 \
-    JKX_SMOKE_NO_VALIDATION=1 \
     JKX_SMOKE_DISPLAY="${JKX_SMOKE_NOASSETS_DISPLAY:-:90}" \
         bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
 }
@@ -469,7 +494,6 @@ stage_noassets() {
 stage_smokewide() {
     JKX_SMOKE_DISPLAY="${JKX_SMOKE_WIDE_DISPLAY:-:97}" \
     JKX_SMOKE_SCREEN=2560x720 \
-    JKX_SMOKE_NO_VALIDATION=1 \
         bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
 }
 
@@ -480,7 +504,6 @@ stage_smokewide() {
 stage_smokejk2() {
     JKX_SMOKE_GAME=jk2 \
     JKX_SMOKE_DISPLAY="${JKX_SMOKE_JK2_DISPLAY:-:96}" \
-    JKX_SMOKE_NO_VALIDATION=1 \
         bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
 }
 
@@ -488,15 +511,15 @@ stage_smokejk2() {
 # it: the level counter's second map and a save-load round trip in one pass push
 # a software rasteriser past the timeout.
 #
-# Validation is off, and that is still an exception rather than a preference:
-# four device objects survive to vkDestroyDevice on this path. Three separate
-# causes have been found and fixed under it and this one is not yet among them -
-# backlog section 21 names the two creations exactly. Turn this back on when it
-# is closed.
+# This stage used to say "validation is off, and that is an exception rather
+# than a preference: four device objects survive to vkDestroyDevice on this
+# path". They do not any more. The whole lane runs clean under the layer, and
+# the note is left here rather than deleted because the sequence is worth
+# keeping: the objects were named by a lane that had the layer switched off, and
+# what closed them was three unrelated fixes elsewhere. Nobody went looking.
 stage_smokesave() {
     JKX_SMOKE_SAVELOAD=1 \
     JKX_SMOKE_DISPLAY="${JKX_SMOKE_SAVE_DISPLAY:-:95}" \
-    JKX_SMOKE_NO_VALIDATION=1 \
         bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
 }
 
@@ -524,7 +547,6 @@ stage_move() {
     JKX_SMOKE_MOVE=1 \
     JKX_SMOKE_PLAIN=1 \
     JKX_SMOKE_DISPLAY="${JKX_SMOKE_MOVE_DISPLAY:-:87}" \
-    JKX_SMOKE_NO_VALIDATION=1 \
         bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
 }
 
@@ -549,7 +571,6 @@ stage_smokepak() {
     JKX_SMOKE_PK3=1 \
     JKX_SMOKE_SOUND=1 \
     JKX_SMOKE_DISPLAY="${JKX_SMOKE_PAK_DISPLAY:-:89}" \
-    JKX_SMOKE_NO_VALIDATION=1 \
         bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
 }
 
@@ -604,7 +625,6 @@ stage_smokepak() {
 stage_smokeskin() {
     JKX_SMOKE_SKINFALL=1 \
     JKX_SMOKE_DISPLAY="${JKX_SMOKE_SKIN_DISPLAY:-:88}" \
-    JKX_SMOKE_NO_VALIDATION=1 \
         bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
 }
 
@@ -627,7 +647,6 @@ stage_smokeskin() {
 stage_smokelightmap() {
     JKX_SMOKE_LIGHTMAP=1 \
     JKX_SMOKE_DISPLAY="${JKX_SMOKE_LIGHTMAP_DISPLAY:-:92}" \
-    JKX_SMOKE_NO_VALIDATION=1 \
         bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
 }
 
@@ -650,7 +669,6 @@ stage_smokelightmap() {
 stage_smokemapent() {
     JKX_SMOKE_MAPENT=1 \
     JKX_SMOKE_DISPLAY="${JKX_SMOKE_MAPENT_DISPLAY:-:86}" \
-    JKX_SMOKE_NO_VALIDATION=1 \
         bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
 }
 
@@ -667,7 +685,6 @@ stage_smokemapent() {
 stage_smokemenumodel() {
     JKX_SMOKE_MENUMODEL=1 \
     JKX_SMOKE_DISPLAY="${JKX_SMOKE_MENUMODEL_DISPLAY:-:85}" \
-    JKX_SMOKE_NO_VALIDATION=1 \
         bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
 }
 
@@ -696,7 +713,6 @@ stage_smokemenumodel() {
 stage_smokepbrchar() {
     JKX_SMOKE_PBRCHAR=1 \
     JKX_SMOKE_DISPLAY="${JKX_SMOKE_PBRCHAR_DISPLAY:-:84}" \
-    JKX_SMOKE_NO_VALIDATION=1 \
         bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
 }
 
@@ -717,20 +733,27 @@ stage_smokepbrchar() {
 # NOT in the stage list yet, and the reason is the good kind. It no longer
 # crashes - it now reports the next defect instead: after a restart the SKY is
 # not drawn, its three turned views come back with no sky colour in them at all.
-# The validation layer names two causes, both after the restart: vertex binding
-# 10 unbound, fifteen thousand times, and an image view of type CUBE handed to a
-# shader that declares 2D, fifteen hundred times.
+# The validation layer names two causes, both after the restart: a vertex
+# binding that is never bound (VUID-vkCmdDrawIndexed-None-04007) and an image
+# view of type CUBE handed to a shader that declares 2D
+# (VUID-vkCmdDrawIndexed-viewType-07752), with a third that follows from them
+# (02721).
 #
 # So the lane is doing its job and the job is not finished. It goes into the
-# list when the sky survives a restart. Run it by name meanwhile.
+# list when the sky survives a restart. Run it by name meanwhile - and it runs
+# under the layer now, because those three lines ARE the diagnosis.
 stage_smokevidrestart() {
     JKX_SMOKE_VIDRESTART=1 \
     JKX_SMOKE_DISPLAY="${JKX_SMOKE_VIDRESTART_DISPLAY:-:83}" \
-    JKX_SMOKE_NO_VALIDATION=1 \
     JKX_SMOKE_TIMEOUT=900 \
         bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
 }
 
+# The one lane that still switches the validation layer off, and the only reason
+# is arithmetic: this bench has two cores, the sanitizers already multiply the
+# run, and the layer multiplies it again. Every other lane runs under it, so a
+# Vulkan usage error here would be caught by its release twin anyway - what this
+# lane is for is the memory, not the API.
 stage_smokesan() {
     JKX_SMOKE_DISPLAY="${JKX_SMOKE_DISPLAY:-:98}" \
     JKX_SMOKE_NO_VALIDATION=1 \
