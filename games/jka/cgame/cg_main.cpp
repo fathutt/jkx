@@ -1329,6 +1329,21 @@ qboolean NPCsPrecached = qfalse;
 // treat a handle as an index and translate it again - so this runs from one
 // place, at the one moment the map is loaded and the client has just built the
 // table.
+// Whether a renderer skin handle taken right now is worth keeping.
+//
+// False while a map loads, because the server builds its entities inside the
+// window where tr has been wiped, and any handle it takes then is into a list
+// about to be thrown away. Those are repaired by the pass below instead.
+//
+// True once this client has registered the map's skins, which is also the
+// moment the renderer is up. From then on the gamecode stores the handle
+// directly, so anything spawned during play - a script's NPC, a cutscene's
+// cast, an animal - gets the right number when it is made. Without that half,
+// the pass below fixes the map's own entities and nothing else, which is
+// exactly what a person reported: most characters right, the ones a script
+// brings in still wrong.
+qboolean	cg_skinHandlesAreLive = qfalse;
+
 static void CG_TranslateSkinHandles( void )
 {
 	int	translated = 0;
@@ -1765,6 +1780,7 @@ Ghoul2 Insert Start
 	// number translated once, here. Models built afterwards are made while the
 	// renderer is alive and take the handle directly - see G_SkinHandleFor.
 	CG_TranslateSkinHandles();
+	cg_skinHandlesAreLive = qtrue;
 
 /*
 Ghoul2 Insert End

@@ -11,34 +11,35 @@ to it either way.
 
 So this generates the missing fixture, and it has three properties on purpose.
 
-STILL. Two frames that are byte for byte the same, which is stranger than it
-looks and is deliberate.
+STILL. Two frames that are byte for byte the same, which looks like a mistake
+and is not.
 
 Still matters because the character in this fixture breathes on real time, which
 puts twenty-six thousand pixels between two runs of the identical binary - see
 the note by the character lane in smoke_headless.sh. A model that does not move
 can be compared with itself.
 
-Two frames rather than one matters because of where the engine sends each. From
-tr_mesh.cpp:
+Two frames rather than one decides which draw path the engine uses. From
+tr_mesh.cpp, a model with numFrames <= 1 goes through the vertex buffer and
+anything else through the batch. Both are worth having a fixture for, so this
+generator writes either: --frames 1 for the buffer, two by default for the batch.
 
-    if ( vk.vboMdvActive && model->numFrames <= 1 )
-        R_AddDrawSurf( &model->vboSurfaces[i], ... );   // the buffer path
-    else
-        R_AddDrawSurf( surface, ... );                  // the batch path
+A CORRECTION lives here, because the first version of this comment asserted that
+the buffer path does not light a model at all - RB_SurfaceVBOMDVMesh never fills
+tess.normal, CalcColor in the shader has no case for lightingDiffuse, and a
+one-frame model measured 255,94,94 across its whole face. Three things that fit,
+and the conclusion was still wrong. The one-frame model that measured flat was
+the EARLIER version of this fixture, whose normals all sat within twenty degrees
+of the light: a cosine barely changes near zero, so it would have been nearly
+flat down any path. Once the strip below pointed its normals around a circle, the
+one-frame model came out with a range of a hundred and twenty-seven shades. It is
+lit, through some route other than CalcColor, and a shader case added to "fix" it
+changed the picture without being needed - which the mutation test caught by not
+failing.
 
-and the buffer path never fills tess.normal - RB_SurfaceVBOMDVMesh sets up a
-multidraw and returns. So RB_CalcDiffuseColor, which is what rgbGen
-lightingDiffuse runs, has no normals to read for a single-frame model. Measured
-before this comment was written: a one-frame version of this model came out at
-255,94,94 across its whole surface, varying by two units out of 255 and
-symmetrically, which is to say not from its normals at all.
-
-That is a defect in its own right and a large one - every prop, every weapon on
-the ground, every piece of debris is a single-frame MD3 - and it is written down
-in the backlog rather than worked around here. This fixture only needs to reach
-the path where normals are read, and a second identical frame does that without
-moving a pixel.
+Recorded rather than deleted, because the mistake is the same one this whole file
+exists to prevent: a fixture whose inputs are all alike cannot tell you which
+input mattered.
 
 LIT. Its shader is rgbGen lightingDiffuse, so the colour of a pixel is a
 function of the normal there and of the light grid. That is the whole point: it
@@ -69,7 +70,7 @@ The two copies at each join are 40 degrees apart, inside the default weld
 threshold of 60 and far outside anything that could be called rounding.
 
 Usage:
-    make_test_seam.py <out.md3> [--shader NAME] [--no-seam]
+    make_test_seam.py <out.md3> [--shader NAME] [--no-seam] [--frames N]
     make_test_seam.py --check
 """
 
@@ -131,7 +132,7 @@ SEAM_PAIRS = 6
 SEAM_BASE_STEP = 30.0
 
 
-def build(shader="textures/jkx/lit", seam=True):
+def build(shader="textures/jkx/lit", seam=True, frames=2):
     """A strip of quad pairs, each with a duplicated, split middle edge.
 
     One pair, looking along +X, all in the YZ plane:
@@ -210,10 +211,13 @@ def build(shader="textures/jkx/lit", seam=True):
     num_verts = len(verts)
     num_tris = len(tris)
 
-    # Two, and they are identical. See the note at the top: one frame goes
-    # through the vertex buffer, and the vertex buffer path does not read
-    # normals. Nothing moves between these two.
-    num_frames = 2
+    # Two by default, and they are identical. See the note at the top: one frame
+    # goes through the vertex buffer and two go through the batch, and for a
+    # long time only the batch read normals. Nothing moves between these two.
+    #
+    # One frame is asked for on purpose by the lane that checks the buffer path
+    # is lit at all, which is the defect this fixture found.
+    num_frames = frames
 
     surf_header_size = 4 + MAX_QPATH + 4 * 10
     shaders_size = (MAX_QPATH + 4) * 1
@@ -315,9 +319,9 @@ def check(data):
         raise ValueError("not an MD3")
 
     num_frames, num_tags, num_surfaces = struct.unpack_from("<3i", data, 8 + MAX_QPATH + 4)
-    if num_frames != 2:
-        raise ValueError("this model wants two frames, not %d - see the note at "
-                         "the top about which draw path reads normals" % num_frames)
+    if num_frames not in (1, 2):
+        raise ValueError("this model wants one frame or two, not %d - see the note "
+                         "at the top about which draw path reads normals" % num_frames)
 
     ofs_surfaces = struct.unpack_from("<i", data, 8 + MAX_QPATH + 4 + 4 * 5)[0]
     s = ofs_surfaces
@@ -328,7 +332,7 @@ def check(data):
     # And the frames really are identical, or "still" is a claim rather than a
     # property.
     frame_size = 8 * s_verts
-    if data[s + ofs_xyz:s + ofs_xyz + frame_size] != \
+    if num_frames == 2 and data[s + ofs_xyz:s + ofs_xyz + frame_size] != \
             data[s + ofs_xyz + frame_size:s + ofs_xyz + 2 * frame_size]:
         raise ValueError("the two frames differ, so the model does not hold still")
 
@@ -383,11 +387,16 @@ def main():
     out = argv[0]
     shader = "textures/jkx/lit"
     seam = True
+    frames = 2
 
     i = 1
     while i < len(argv):
         if argv[i] == "--shader" and i + 1 < len(argv):
             shader = argv[i + 1]
+            i += 2
+            continue
+        if argv[i] == "--frames" and i + 1 < len(argv):
+            frames = int(argv[i + 1])
             i += 2
             continue
         if argv[i] == "--no-seam":
@@ -397,12 +406,12 @@ def main():
         print("unknown argument: %s" % argv[i], file=sys.stderr)
         return 2
 
-    data = build(shader, seam)
+    data = build(shader, seam, frames)
     with open(out, "wb") as f:
         f.write(data)
 
-    print("%s: %d bytes, shader %s, seam %s"
-          % (out, len(data), shader, "yes" if seam else "no"))
+    print("%s: %d bytes, %d frame(s), shader %s, seam %s"
+          % (out, len(data), frames, shader, "yes" if seam else "no"))
     return 0
 
 

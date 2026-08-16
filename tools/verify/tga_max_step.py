@@ -24,6 +24,10 @@ pixels are the ones where red clearly leads.
   --erode      how many pixels of rim to drop before measuring, default 2. An
                antialiased outline is a blend of the model and the background
                and still passes the colour test; it is not a seam.
+  --min-range  fail if the whole shape spans fewer shades than this. This is the
+               other question: not "is there a hard edge" but "is this lit at
+               all". A surface that ignores its normals is one flat colour, and
+               one flat colour has no steps in it either.
 
 Targa stores blue, green, red. That is handled here, and it matters: a channel
 mix-up would silently select the background instead of the model and then
@@ -122,6 +126,7 @@ def main():
     margin = 40
     limit = None
     erosion = 2
+    min_range = None
 
     i = 1
     while i < len(argv):
@@ -137,6 +142,9 @@ def main():
         elif argv[i] == "--erode" and i + 1 < len(argv):
             erosion = int(argv[i + 1])
             i += 2
+        elif argv[i] == "--min-range" and i + 1 < len(argv):
+            min_range = int(argv[i + 1])
+            i += 2
         else:
             print("unknown argument: %s" % argv[i], file=sys.stderr)
             return 2
@@ -149,6 +157,8 @@ def main():
     worst = 0
     where = None
     counted = 0
+    lowest = 255
+    highest = 0
 
     for y in range(height):
         for x in range(width - 1):
@@ -159,6 +169,15 @@ def main():
                 continue
 
             counted += 1
+
+            # The spread across the shape, which answers a different question
+            # from the step: whether the thing is lit at all. A model that
+            # ignores its own normals is one colour, and one colour has no
+            # steps in it either - so a step check alone passes it.
+            for v in (a[lead], b[lead]):
+                lowest = min(lowest, v)
+                highest = max(highest, v)
+
             step = max(abs(a[c] - b[c]) for c in range(3))
 
             if step > worst:
@@ -170,9 +189,16 @@ def main():
               % path, file=sys.stderr)
         return 1
 
-    print("%s: %d neighbouring pair(s) inside the shape, biggest step %d%s"
+    print("%s: %d neighbouring pair(s) inside the shape, biggest step %d%s, "
+          "range %d..%d"
           % (path, counted, worst,
-             (" at %d,%d" % where) if where else ""))
+             (" at %d,%d" % where) if where else "", lowest, highest))
+
+    if min_range is not None and ( highest - lowest ) < min_range:
+        print("%s: the whole shape spans %d shade(s); a lit surface with normals "
+              "pointing in different directions cannot be that flat"
+              % (path, highest - lowest), file=sys.stderr)
+        return 1
 
     if limit is not None and worst >= limit:
         print("%s: a step of %d is a visible seam; the limit here is %d"

@@ -773,6 +773,43 @@ void Player_RestoreFromPrevLevel(gentity_t *ent)
 /*
 Ghoul2 Insert Start
 */
+// Which number to put in mCustomSkin for a skin that has just registered.
+//
+// There are two, they live in different spaces, and neither is right at all
+// times - which is the whole of this defect.
+//
+// The renderer resolves mCustomSkin as a HANDLE. The gamecode has always stored
+// the CONFIGSTRING INDEX, and that worked because both sides count the same
+// skins in the same order. They stopped agreeing when the loading screen began
+// registering four of its own first: measured on a real installation, every
+// index was four short of its handle, and every character wore what belonged to
+// the skin four places earlier.
+//
+// The handle cannot simply be stored instead. This runs on the SERVER, and while
+// a map spawns that is inside the window where tr has been wiped - a handle
+// taken there is into a list about to be thrown away. That was tried and it left
+// the other game's NPCs with no textures at all.
+//
+// So: whichever is meaningful at the moment of asking. During the load, the
+// index, and cgame renumbers those once when it has the table. During play the
+// renderer is up and the handle is exact, so the handle - which is the only way
+// anything spawned by a script or a cutscene can be right, because the renumber
+// pass has already been and gone. That second half is what was missing, and a
+// person playing described its absence exactly: most characters right, the ones
+// a script brings in still wrong.
+static int G_SkinNumberFor( const char *skinName, int handle )
+{
+	extern qboolean	cg_skinHandlesAreLive;
+
+	const int index = G_SkinIndex( skinName );
+
+	if ( cg_skinHandlesAreLive && handle ) {
+		return handle;
+	}
+
+	return index;
+}
+
 void G_SetSkin( gentity_t *ent, const char *modelName, const char *customSkin )
 {
 	char	skinName[MAX_QPATH];
@@ -807,7 +844,7 @@ void G_SetSkin( gentity_t *ent, const char *modelName, const char *customSkin )
 		// arrived with: mCustomSkin is the configstring index, renderSkin is
 		// the renderer's handle and is used only to switch surfaces on and off
 		// from the skin file. Passing the handle for both is what broke Jan.
-		gi.G2API_SetSkin( &ent->ghoul2[ent->playerModel], G_SkinIndex( skinName ), skin );
+		gi.G2API_SetSkin( &ent->ghoul2[ent->playerModel], G_SkinNumberFor( skinName, skin ), skin );
 	}
 }
 
@@ -1321,7 +1358,7 @@ void G_SetG2PlayerModel( gentity_t * const ent, const char *modelName, const cha
 	// surface in a retail .glm has an empty shader name, so the skin above is
 	// where all of this model's textures come from.
 	ent->playerModel = gi.G2API_InitGhoul2Model( ent->ghoul2, va("models/players/%s/model.glm", modelName),
-		G_ModelIndex( va("models/players/%s/model.glm", modelName) ), G_SkinIndex( skinName ), NULL_HANDLE, 0, 0 );
+		G_ModelIndex( va("models/players/%s/model.glm", modelName) ), G_SkinNumberFor( skinName, skin ), NULL_HANDLE, 0, 0 );
 	if (ent->playerModel == -1)
 	{//try the stormtrooper as a default
 		modelName = "stormtrooper";

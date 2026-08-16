@@ -917,7 +917,21 @@ void R_Register( void )
 	r_texturebits						= Cvar_Get( "r_texturebits",						"0",						CVAR_ARCHIVE_ND|CVAR_LATCH, "" );
 	r_texturebitslm						= Cvar_Get( "r_texturebitslm",					"0",						CVAR_ARCHIVE_ND|CVAR_LATCH, "" );
 	r_overBrightBits					= Cvar_Get( "r_overBrightBits",					"0",						CVAR_ARCHIVE_ND|CVAR_LATCH, "" );
-	r_mapOverBrightBits					= Cvar_Get( "r_mapOverBrightBits",				"0",						CVAR_ARCHIVE_ND|CVAR_LATCH, "" );
+	// Two, which is what the maps were lit for.
+	//
+	// This scales the lightmap as it is read - R_ColorShiftLightingBytes
+	// shifts by ( r_mapOverBrightBits - tr.overbrightBits ) - and the shader
+	// then multiplies by ( 1 << tr.overbrightBits ). The two exponents cancel:
+	// what reaches the screen is 2^r_mapOverBrightBits, whatever
+	// r_overBrightBits is set to. Retail ran 1 and 2, which is four; this tree
+	// ran 0 and 0, which is one, and that is why the maps were dark.
+	//
+	// Being an exponent on the LIGHTMAP is also why it does not touch
+	// characters: a model is not lightmapped, it is lit from the light grid.
+	// Tried on hardware in Outcast before being set here, and the report was
+	// the map much better lit with no NPC looking wrong - which is exactly
+	// what the arithmetic predicts and is worth more than the arithmetic.
+	r_mapOverBrightBits					= Cvar_Get( "r_mapOverBrightBits",				"2",						CVAR_ARCHIVE_ND|CVAR_LATCH, "how much brighter the map is drawn than its lightmap says" );
 	r_simpleMipMaps						= Cvar_Get( "r_simpleMipMaps",					"1",						CVAR_ARCHIVE_ND|CVAR_LATCH, "" );
 	r_vertexLight						= Cvar_Get( "r_vertexLight",						"0",						CVAR_ARCHIVE|CVAR_LATCH, "" );
 	r_uiFullScreen						= Cvar_Get( "r_uifullscreen",					"0",						CVAR_NONE, "" );

@@ -325,8 +325,27 @@ INMAP_STEP+=( +testmodel models/jkx/anim.md3 1 +wait 30 +screenshot_tga jkx_md3_
 # colour. One frame, so it can be compared with itself; two quads sharing a
 # middle edge whose vertices are duplicated with normals forty degrees apart, so
 # there is a seam to close.
-INMAP_STEP+=( +testmodel models/jkx/seam.md3 +wait 30 +screenshot_tga jkx_seam
-              +wait 10 +testmodel +wait 10 )
+#
+# Through a config file, because the command line has a limit and this went over
+# it: the engine said "were dropped and will not run", one line among several
+# hundred, and every screenshot after that point was taken with half the setup
+# missing. The bench's own check caught it, which is the second time - the same
+# thing happened when the character shots were added. Anything adding more than a
+# couple of steps belongs in a cfg from the start.
+{
+    echo "testmodel models/jkx/seam.md3"
+    echo "wait 30"
+    echo "screenshot_tga jkx_seam"
+    echo "wait 10"
+    echo "testmodel"
+    echo "wait 10"
+    echo "testmodel models/jkx/seam1.md3"
+    echo "wait 30"
+    echo "screenshot_tga jkx_seam1"
+    echo "wait 10"
+    echo "testmodel"
+} > "$RUN/base/jkx_seam.cfg"
+INMAP_STEP+=( +exec jkx_seam.cfg +wait 120 )
 fi
 
 # The character, framed so that a person can see what he is wearing.
@@ -660,6 +679,12 @@ python3 "$HERE/make_test_md3.py" "$RUN/base/models/jkx/anim.md3" >/dev/null
 # be the noise floor of an animated character, precisely because there was no
 # still, lit model to look at instead. See make_test_seam.py.
 python3 "$HERE/make_test_seam.py" "$RUN/base/models/jkx/seam.md3" >/dev/null
+
+# The same model with ONE frame, which is what sends it through the vertex buffer
+# instead of the batch - two different draw paths, and until this fixture existed
+# only one of them had ever been looked at. Every prop, every weapon on the
+# ground and every piece of debris in the game is a single-frame MD3.
+python3 "$HERE/make_test_seam.py" "$RUN/base/models/jkx/seam1.md3" --frames 1 >/dev/null
 
 # The screen wipe used to need a mask picture here, and without it the engine
 # printed "no screen wipe" and skipped the whole dissolve path - which is how a
@@ -1148,6 +1173,30 @@ if [ "${JKX_SMOKE_PLAIN:-0}" != "1" ] && [ "${JKX_SMOKE_FOG:-0}" != "1" ] \
         "$RUN/home/base/screenshots/jkx_seam.tga" \
         --dominant r --min 40 --max-step 20; then
         report "the model's shading has a hard step across a seam its normals should have closed"
+    fi
+fi
+
+# The same model, drawn through the other path, lit at all.
+#
+# One frame instead of two decides which of two draw paths the engine uses
+# (tr_mesh.cpp): the vertex buffer for a single frame, the batch for more. They
+# arrive at a colour by different routes and only one of them was ever exercised
+# here.
+#
+# The check is on RANGE rather than on a step, and that is the point: the strip's
+# pairs point their normals around a circle, so a model that is lit has light and
+# dark parts, and a model whose shading ignores its normals is one flat colour -
+# which has no steps in it either, so a step check alone would pass it.
+#
+# Measured: a hundred and twenty-seven shades down this path. The threshold is
+# thirty, which is far above the two or three units a flat surface produces and
+# far below what a working one gives.
+if [ "${JKX_SMOKE_PLAIN:-0}" != "1" ] && [ "${JKX_SMOKE_FOG:-0}" != "1" ] \
+   && [ -f "$RUN/home/base/screenshots/jkx_seam1.tga" ]; then
+    if ! python3 "$HERE/tga_max_step.py" \
+        "$RUN/home/base/screenshots/jkx_seam1.tga" \
+        --dominant r --min 40 --min-range 30; then
+        report "a model drawn through the vertex buffer is not lit by its normals"
     fi
 fi
 
