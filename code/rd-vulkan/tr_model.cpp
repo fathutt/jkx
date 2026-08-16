@@ -24,6 +24,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 #include "tr_local.h"
 #include "tr_cache.h"
+#include "rd-common/mdx_weld.h"
 #include "qcommon/sstring.h"	// #include <string>
 
 #include <vector>
@@ -1192,6 +1193,69 @@ static qboolean R_LoadMD3 ( model_t *mod, int lod, void *buffer, const char *mod
 		md3Surf = (md3Surface_t *) ((byte *) md3Surf + md3Surf->ofsEnd);
 		surf++;
 	}
+
+	// One normal per point in space, for props and weapons too.
+	//
+	// The Ghoul2 side of this was measured on a retail character and the same
+	// thing is true here: a vertex is duplicated wherever the texture mapping is
+	// cut, and an MD3 exporter gave each copy its own normal, so the lighting
+	// steps across the join. See mdx_weld.h.
+	//
+	// Three differences from the character case, and the first two are why this
+	// is not one call.
+	//
+	// An MD3 holds every frame of an animation in one array - frame f begins at
+	// f * numVerts - and the frames are separate poses, so each is welded on its
+	// own. Welding across them would average a normal from one moment with a
+	// normal from another.
+	//
+	// And its normals arrive as eight bits of latitude and eight of longitude,
+	// unpacked into floats above. That lattice has a step of about a degree and
+	// a half, which shows on a smooth curve as banding; unpacking cannot recover
+	// what the quantiser threw away, but averaging coincident vertices does move
+	// them off the lattice, so this quietly helps that too.
+	//
+	// Third: surfaces are gathered together, because an MD3 seam can run between
+	// two of them the same way a character's does.
+	if ( r_weldModelNormals->integer && mdvModel->numFrames > 0 ) {
+		int	welded = 0;
+
+		for ( int frame = 0; frame < mdvModel->numFrames; frame++ ) {
+			std::vector<weldVertex_t> gathered;
+
+			surf = mdvModel->surfaces;
+			for ( int s = 0; s < mdvModel->numSurfaces; s++, surf++ ) {
+				mdvVertex_t *first = surf->verts + (size_t)frame * surf->numVerts;
+
+				for ( int j = 0; j < surf->numVerts; j++ ) {
+					weldVertex_t	entry;
+
+					entry.position = first[j].xyz;
+					entry.normal = first[j].normal;
+					gathered.push_back( entry );
+				}
+			}
+
+			const int moved = MDX_WeldVertexNormals(
+				gathered.empty() ? NULL : &gathered[0], (int)gathered.size(),
+				r_weldModelNormalsAngle->value );
+
+			if ( moved > 0 ) {
+				welded += moved;
+			} else if ( moved < 0 ) {
+				CL_RefPrintf( PRINT_DEVELOPER, S_COLOR_YELLOW "R_LoadMD3: %s: no normals welded, "
+					"r_weldModelNormalsAngle is %g and has to be between 0 and 180\n",
+					mod_name, r_weldModelNormalsAngle->value );
+				break;
+			}
+		}
+
+		if ( welded > 0 ) {
+			CL_RefPrintf( PRINT_DEVELOPER, "R_LoadMD3: %s: %i normal(s) welded\n",
+				mod_name, welded );
+		}
+	}
+
 #ifdef USE_VBO_MDV
 	R_BuildMD3( mod, mdvModel );
 #endif

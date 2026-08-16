@@ -64,25 +64,47 @@ def frame(radius):
     return out
 
 
-def xyz_normal(x, y, z):
-    """Position in 1/64 units, plus a packed normal pointing at +X.
+def xyz_normal(x, y, z, lng=0):
+    """Position in 1/64 units, plus a packed normal.
 
     The normal is two bytes: latitude in the high byte, longitude in the low,
     both as 255ths of a turn. +X is lat 0, lng 0 - the encoding puts z along
     cos(lat), so lat 64 (a quarter turn) is the XY plane and lng 0 is +X.
+
+    lng turns the normal within that plane, which is how the seam below gets two
+    different normals at one point.
     """
     lat = 64
-    lng = 0
     packed = ((lat & 0xFF) << 8) | (lng & 0xFF)
     return struct.pack("<3h", int(round(x / MD3_XYZ_SCALE)),
                        int(round(y / MD3_XYZ_SCALE)),
                        int(round(z / MD3_XYZ_SCALE))) + struct.pack("<H", packed)
 
 
-def build(shader="textures/jkx/anim"):
+# The seam.
+#
+# A square with four corners has no duplicated vertex, so a bench built on it
+# measures nothing about welding normals - which is exactly what happened: the
+# first run of the MD3 weld changed zero pixels and could have been read as
+# "it works".
+#
+# So the square gets a fifth and sixth vertex at the same two places as two of
+# its corners, carrying normals turned away by a fixed angle, and a second pair
+# of triangles that uses them. That is what a texture cut looks like in a real
+# model: one point in space, two vertices, two normals, and a visible step in
+# the lighting between them.
+#
+# The angle is 45 degrees, chosen to sit inside the default weld threshold of 60
+# and outside anything that could be called rounding. In the packed encoding one
+# step of longitude is 360/256 of a turn, so 32 steps is a right angle and 16 is
+# 45 degrees.
+SEAM_LNG = 16
+
+
+def build(shader="textures/jkx/anim", seam=True):
     num_frames = 2
-    num_verts = 4
-    num_tris = 2
+    num_verts = 6 if seam else 4
+    num_tris = 4 if seam else 2
 
     # The surface, whose offsets are all relative to its own start.
     surf_header_size = 4 + MAX_QPATH + 4 * 10
@@ -117,7 +139,19 @@ def build(shader="textures/jkx/anim"):
     surf += struct.pack("<3i", 0, 1, 2)
     surf += struct.pack("<3i", 0, 2, 3)
 
-    for st in ((0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)):
+    if seam:
+        # Two more, sharing the two right-hand corners in space but using the
+        # duplicated vertices, which carry the turned normals.
+        surf += struct.pack("<3i", 1, 4, 2)
+        surf += struct.pack("<3i", 4, 5, 2)
+
+    coords = [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)]
+    if seam:
+        # The duplicates sit at the same place and a different texture
+        # coordinate, which is what makes them duplicates rather than a mistake.
+        coords += [(0.0, 0.0), (0.0, 1.0)]
+
+    for st in coords:
         surf += struct.pack("<2f", st[0], st[1])
 
     # Frame 0 to one side, frame 1 to the other. The square stands in the YZ
@@ -127,6 +161,10 @@ def build(shader="textures/jkx/anim"):
         dy = -SHIFT if f == 0 else SHIFT
         for corner in ((-SIZE, -SIZE), (SIZE, -SIZE), (SIZE, SIZE), (-SIZE, SIZE)):
             surf += xyz_normal(0.0, dy + corner[0], corner[1])
+        if seam:
+            # Same two places as corners 1 and 2, normals turned away.
+            surf += xyz_normal(0.0, dy + SIZE, -SIZE, SEAM_LNG)
+            surf += xyz_normal(0.0, dy + SIZE, SIZE, SEAM_LNG)
 
     assert len(surf) == ofs_end
 

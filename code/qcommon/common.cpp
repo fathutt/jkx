@@ -191,7 +191,28 @@ void QDECL Com_Printf( const char *fmt, ... ) {
 
 		// logfile
 		if ( com_logfile && com_logfile->integer ) {
-			if ( !logfile && FS_Initialized() ) {
+			// Opening the log prints, and printing opens the log.
+			//
+			// FS_SV_FOpenFileWrite says "writing to: <path>" through
+			// Com_DPrintf on its way to fopen. That lands back here with
+			// logfile still zero, which opens it again, which prints again -
+			// and the stack runs out. The engine dies before the renderer
+			// starts, with several hundred copies of one line in the log.
+			//
+			// It needs developer to be on, which is why it has never happened:
+			// Com_DPrintf returns immediately otherwise, so the cycle has no
+			// second step. Nothing on this bench had ever set it, and the first
+			// run that did found this in one go - which puts "the engine has
+			// never been started with developer 1" on the list of things nobody
+			// had tried, beside vid_restart and the rest.
+			//
+			// It matters more than a switch nobody uses: developer 1 is exactly
+			// what a person is asked to turn on when something needs
+			// diagnosing, so this was a trap laid in the path out of trouble.
+			static qboolean	opening = qfalse;
+
+			if ( !logfile && FS_Initialized() && !opening ) {
+				opening = qtrue;
 				// In "logs" under the home path, beside the other two, and
 				// through the SV opener rather than the ordinary one - which is
 				// the whole difference between one folder and two.
@@ -217,6 +238,7 @@ void QDECL Com_Printf( const char *fmt, ... ) {
 					// data even if we are crashing
 					FS_ForceFlush(logfile);
 				}
+				opening = qfalse;
 			}
 			if ( logfile ) {
 				FS_Write(line, strlen(line), logfile);

@@ -88,7 +88,12 @@ static std::vector<unsigned char> BuildModel( const std::vector< std::vector<Ver
 
 	const int numSurfaces = (int)surfaces.size();
 
-	out.push_back( 'M' ); out.push_back( 'G' ); out.push_back( 'L' ); out.push_back( '2' );
+	// The bytes a real file starts with, in the order a real file has them.
+	// These were the other way round and the weld's own constant was too, so the
+	// two agreed and nine passing tests were run against a model that no loader
+	// would accept. The negative control for this is not another test - it is
+	// running the thing against a file off disk, which is what found it.
+	out.push_back( '2' ); out.push_back( 'L' ); out.push_back( 'G' ); out.push_back( 'M' );
 	PutInt( out, 6 );							// version
 	out.resize( out.size() + 64, 0 );			// name
 	out.resize( out.size() + 64, 0 );			// animName
@@ -214,6 +219,25 @@ static Vertex MakeVertex( float angleDegrees, float x, float y, float z )
 }
 
 // ---------------------------------------------------------------------------
+
+static void TestTheModelLooksLikeAModel()
+{
+	// The first four bytes, as text, in the order a file has them.
+	//
+	// This exists because both the weld and this test had the ident written
+	// backwards, agreed with each other, and passed nine cases against a model
+	// no loader would accept - while the real function returned -1 for every
+	// real file. An assertion a person can read is worth more here than a
+	// constant compared against another constant.
+	std::vector< std::vector<Vertex> > surfaces( 1 );
+	surfaces[0].push_back( MakeVertex( 0.0f, 1.0f, 1.0f, 1.0f ) );
+
+	const std::vector<unsigned char> model = BuildModel( surfaces );
+
+	Check( model.size() > 4 && model[0] == '2' && model[1] == 'L'
+		   && model[2] == 'G' && model[3] == 'M',
+		   "a Ghoul2 model begins with the four characters 2LGM" );
+}
 
 static void TestSmoothPairIsWelded()
 {
@@ -440,6 +464,7 @@ int main( void )
 {
 	printf( "mdx_weld_test\n" );
 
+	TestTheModelLooksLikeAModel();
 	TestSmoothPairIsWelded();
 	TestHardEdgeSurvives();
 	TestPerVertexDecision();

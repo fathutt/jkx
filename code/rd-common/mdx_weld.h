@@ -45,6 +45,28 @@ Foundation.
 // mdx_check.cpp does: it is then a unit that a test can build on its own, with
 // a model the test wrote itself, and no renderer behind it.
 
+// One vertex, as a place and a normal that can be changed.
+//
+// The callers hold their vertices differently - an MDXM is a byte walk through
+// a file, an MD3 has been unpacked into structs by the time it gets here, and
+// its frames are separate arrays - so what they share is a list of pointers
+// rather than a layout. Gathering that list is a few lines at each call site
+// and it keeps the part worth testing in one place.
+typedef struct {
+	const float	*position;		// three floats, compared on their exact bits
+	float		*normal;		// three floats, replaced when it welds
+} weldVertex_t;
+
+// Weld the normals of coincident vertices in a gathered list.
+//
+// Vertices are matched on the exact bits of their position, which is what an
+// exporter that duplicated a point writes: not a near-match, the same three
+// floats. Every vertex is averaged from the normals the list arrived with, so
+// the result does not depend on the order they sit in.
+//
+// Returns how many normals changed, or -1 if the angle has no meaning.
+int MDX_WeldVertexNormals( const weldVertex_t *verts, int count, float maxAngleDegrees );
+
 // Weld the normals of coincident vertices in every LOD of an MDXM.
 //
 // The data must already have passed MDX_CheckModel - this trusts the offsets it

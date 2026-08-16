@@ -336,9 +336,26 @@ fi
 # lane for looking, and it is the only honest kind of lane for a question whose
 # answer is "does his face have the right texture on it".
 #
-# The three shots are on real time only through the camera damping, which
-# setviewpos resets exactly, so the wait after each is the ordinary
-# screenshot-lands-a-frame-later wait and nothing more.
+# This lane is for LOOKING, and it cannot be used for comparing. Measured, after
+# a claim was made on it that turned out to be false: two runs of the identical
+# binary with the identical settings differ by
+#
+#     jkx_char_front   26321 pixels
+#     jkx_char_face    5842 pixels
+#     jkx_char_back    4025 pixels
+#
+# because the character is ANIMATED. His idle plays against real time, so two
+# runs are at different points in it, and no amount of pinning the camera changes
+# that - setviewpos resets the camera damping exactly and the man is still
+# breathing. A difference of forty thousand pixels was read here as the effect of
+# a change and it was the floor.
+#
+# So: to prove something about a model's shading from a picture, the model has to
+# hold still. What is missing is a fixture model that is static, LIT - the
+# fixture's own models are rgbGen const, which ignores normals entirely, so no
+# change to a normal can ever show on one - and carrying a duplicated vertex.
+# Written down rather than worked around, because a lane that cannot see a thing
+# must not be used to say the thing happened.
 #
 # It goes into a config file rather than onto the command line, and that is not
 # tidiness. The command line here is already long enough that adding ten more

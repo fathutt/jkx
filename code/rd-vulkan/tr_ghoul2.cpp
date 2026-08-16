@@ -4131,9 +4131,22 @@ qboolean R_LoadMDXM( model_t *mod, void *buffer, const char *mod_name, qboolean 
 		// nothing would look exactly like a weld that found no seams.
 		if ( welded < 0 )
 		{
-			CL_RefPrintf( PRINT_DEVELOPER, S_COLOR_YELLOW "R_LoadMDXM: %s: no normals welded, "
-				"r_weldModelNormalsAngle is %g and has to be between 0 and 180\n",
-				mod_name, r_weldModelNormalsAngle->value );
+			// Two different refusals and they used to share one sentence, which
+			// cost an hour: the message named the angle, the angle was fine,
+			// and the real answer was that the walk did not recognise the file
+			// at all. A message that names the wrong cause is worse than none.
+			const bool angleIsSilly = !( r_weldModelNormalsAngle->value > 0.0f )
+				|| r_weldModelNormalsAngle->value >= 180.0f;
+
+			if ( angleIsSilly ) {
+				CL_RefPrintf( PRINT_ALL, S_COLOR_YELLOW "r_weldModelNormalsAngle is %g "
+					"and has to be between 0 and 180; no normals are being welded\n",
+					r_weldModelNormalsAngle->value );
+			} else {
+				CL_RefPrintf( PRINT_DEVELOPER, S_COLOR_YELLOW "R_LoadMDXM: %s: the normal weld "
+					"could not walk this model, so its normals are as they arrived\n",
+					mod_name );
+			}
 		}
 		else if ( welded > 0 )
 		{
