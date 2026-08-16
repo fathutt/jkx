@@ -267,10 +267,16 @@ INMAP_STEP=( +wait 20 +map jkx_room +wait $SETTLE
 #     +16   prop 5749   floor 140031     the wipe clearing
 #     +30   prop 5776   floor 271225     and from here to +646, unchanged
 #
-# So the wipe is over by thirty and nothing about the picture moves afterwards.
-# An earlier shot would only be measuring the wipe, which is what the first
-# attempt at this did - it found the prop "absent" at ten frames and the floor
-# absent with it.
+# That series was taken on an idle machine. Under CI load the same thirty frames
+# landed at 5700 rather than 5776 - the wipe was not quite finished - and the
+# equality below failed on seventy-six pixels of edge. So the number is sixty,
+# not thirty: still a fraction of the two hundred the settled shot waits, and
+# far enough past the wipe that how busy the machine is does not decide it.
+#
+# The floor under this is the wipe itself. Nothing can be measured while the
+# screen is covered, so "as early as possible" means "as early as the wipe
+# allows", and pinning an equality to an instant that moves with machine load is
+# the same mistake the sky frame in the depth pre-pass lane cost a day on.
 #
 # What the pair says as it stands: on this bench a prop the MAP owns is drawn in
 # the same frame the floor is, and the two counts are equal at thirty frames and
@@ -291,7 +297,7 @@ INMAP_STEP=( +wait 20 +map jkx_room +wait $SETTLE
 # shot needs no arrangement at all: jkx_inmap IS the settled frame of this map.
 if [ "${JKX_SMOKE_MAPENT:-0}" = "1" ]; then
     INMAP_STEP=( +wait 20 +map jkx_room
-                 +wait 30 +screenshot_tga jkx_prop_early
+                 +wait 60 +screenshot_tga jkx_prop_early
                  +wait $SETTLE +screenshot_tga jkx_inmap )
 fi
 
@@ -1424,7 +1430,7 @@ if [ "${JKX_SMOKE_MAPENT:-0}" = "1" ]; then
         a="$(count "$early")"
         b="$(count "$late")"
         if [ -n "$a" ] && [ -n "$b" ] && [ "$a" != "$b" ]; then
-            report "the map's prop is $a pixel(s) thirty frames in and $b at two \
+            report "the map's prop is $a pixel(s) sixty frames in and $b at two \
 hundred; it is still settling after the level has appeared"
         fi
     fi

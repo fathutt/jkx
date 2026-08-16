@@ -449,6 +449,33 @@ static void DrawSkySideCube( image_t *cube, const int mins[2], const int maxs[2]
 		item.polygonOffset = qfalse;
 		item.identifier = 7;
 
+		// The uniform set, asked for explicitly, which the two sky items were
+		// the only ones in the renderer not to do.
+		//
+		// A DrawItem records the descriptor sets that were MARKED since the
+		// last item, not the ones that are current: RB_AddDrawItemUniformBinding
+		// copies the range and then resets it to empty. vk_update_descriptor
+		// only widens that range when the set actually CHANGES. So an item
+		// whose textures happen to be the same ones the previous item used
+		// marks nothing, records an empty range, and RB_BindDescriptorSets
+		// binds nothing at all for it.
+		//
+		// In a command buffer that is written straight through, nothing binds
+		// nothing and the previously bound sets stay bound, which is why this
+		// was survivable. Items are recorded and replayed, and after a
+		// vid_restart the sets from before are not there to inherit. The
+		// validation layer says it plainly, fifteen times:
+		//
+		//     VUID-vkCmdDrawIndexed-None-08600: uses set #0 but that set is
+		//     not bound
+		//
+		// Measured before the fix: twenty draws per run with no sets at all,
+		// every one of them this item, and in ORDINARY runs as well as after a
+		// restart. They survived because R_SkyCubePipeline() has no pipeline
+		// in the ordinary case, so vk_bind_pipeline skips the draw and nothing
+		// reads the empty state. A rebuilt renderer has the pipeline.
+		item.reset_uniform = qtrue;
+
 		RB_AddDrawItemIndexBinding( item );
 		RB_AddDrawItemVertexBinding( item );
 		RB_AddDrawItemUniformBinding( item, backEnd.currentEntity );
@@ -484,6 +511,11 @@ static void DrawSkySide( image_t *image, const int mins[2], const int maxs[2] )
 			item.depthRange = r_showsky->integer ? DEPTH_RANGE_ZERO : DEPTH_RANGE_ONE;
 			item.polygonOffset = tess.shader->polygonOffset;
 			item.identifier = 6;
+
+			// See the note on the cubemap item above: an item that marks no
+			// descriptor sets binds none, and a sky face is drawn at the start
+			// of a view with nothing before it to inherit from.
+			item.reset_uniform = qtrue;
 		
 			RB_AddDrawItemIndexBinding( item );
 			RB_AddDrawItemVertexBinding( item );

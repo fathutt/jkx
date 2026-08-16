@@ -551,9 +551,44 @@ void RB_BindDescriptorSets( const DrawItem& drawItem )
 	uint32_t offsets[VK_DESC_UNIFORM_COUNT + 1], offset_count;
 	uint32_t start, end, count;
 
+	// An item that marked no descriptor sets binds none, and that is worth
+	// saying out loud rather than returning from quietly.
+	//
+	// A DrawItem records the range of sets that were MARKED since the previous
+	// item, not the ones that are current, and vk_update_descriptor only marks
+	// a set when it CHANGES. So an item whose textures happen to match the
+	// previous item's marks nothing and inherits nothing - because the items
+	// are replayed later, and RB_BindDescriptorSets binding nothing means the
+	// pipeline runs against whatever the last vkCmdBindDescriptorSets left, or
+	// against nothing at all when the renderer has just been rebuilt.
+	//
+	// This is what the vid_restart crash was. Both sky items were the only ones
+	// in the renderer that did not ask for their uniform set, so they recorded
+	// an empty range - twenty draws a run, in ordinary runs too. They got away
+	// with it because the cubemap sky pipeline does not exist in the ordinary
+	// case and the draw is skipped; a renderer rebuilt by vid_restart has it,
+	// and then the draw goes out with set zero unbound. The validation layer:
+	// VUID-vkCmdDrawIndexed-None-08600, "uses set #0 but that set is not
+	// bound". Lavapipe answers that with a segmentation fault in a rasteriser
+	// thread, main thread in vk_present_frame.
+	//
+	// Once per run, at ordinary print level and not behind a developer flag,
+	// because a diagnostic nobody turns on is not a diagnostic - this project
+	// has paid for that lesson twice. It fires zero times today: the fog item
+	// is the only other one that does not reset its uniform set and it always
+	// marks its own texture. If it ever fires, the identifier names the caller.
 	start = drawItem.descriptor_set.start;
-	if (start == ~0U)
+	if (start == ~0U) {
+		static qboolean said = qfalse;
+
+		if ( !said ) {
+			said = qtrue;
+			CL_RefPrintf( PRINT_WARNING, "WARNING: draw item %d bound no descriptor "
+				"sets; it will run against whatever was bound last, or against "
+				"nothing after a renderer restart\n", drawItem.identifier );
+		}
 		return;
+	}
 
 	end = drawItem.descriptor_set.end;
 

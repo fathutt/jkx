@@ -700,6 +700,37 @@ stage_smokepbrchar() {
         bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
 }
 
+# Tearing the renderer down with a map loaded and building it again.
+#
+# This lane crashed from the day it was written and was kept out of the stage
+# list for it. What it was: both sky draw items were the only ones in the
+# renderer that did not ask for their uniform descriptor set, so they recorded
+# an empty range and RB_BindDescriptorSets bound nothing for them. In an
+# ordinary run the cubemap sky pipeline does not exist and the draw is skipped;
+# a renderer rebuilt by vid_restart has it, and the draw goes out with set zero
+# unbound. VUID-vkCmdDrawIndexed-None-08600, and a segmentation fault in a
+# lavapipe rasteriser thread.
+#
+# Mutation tested: put either sky item back to the old value and the lane
+# segfaults again.
+#
+# NOT in the stage list yet, and the reason is the good kind. It no longer
+# crashes - it now reports the next defect instead: after a restart the SKY is
+# not drawn, its three turned views come back with no sky colour in them at all.
+# The validation layer names two causes, both after the restart: vertex binding
+# 10 unbound, fifteen thousand times, and an image view of type CUBE handed to a
+# shader that declares 2D, fifteen hundred times.
+#
+# So the lane is doing its job and the job is not finished. It goes into the
+# list when the sky survives a restart. Run it by name meanwhile.
+stage_smokevidrestart() {
+    JKX_SMOKE_VIDRESTART=1 \
+    JKX_SMOKE_DISPLAY="${JKX_SMOKE_VIDRESTART_DISPLAY:-:83}" \
+    JKX_SMOKE_NO_VALIDATION=1 \
+    JKX_SMOKE_TIMEOUT=900 \
+        bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
+}
+
 stage_smokesan() {
     JKX_SMOKE_DISPLAY="${JKX_SMOKE_DISPLAY:-:98}" \
     JKX_SMOKE_NO_VALIDATION=1 \
