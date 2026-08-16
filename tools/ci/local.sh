@@ -71,7 +71,7 @@ JOBS="${JOBS:-$(nproc)}"
 
 STAGES=( "$@" )
 if [ "${#STAGES[@]}" -eq 0 ]; then
-    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokeskin smokelightmap smokepak move smokesan prepass fog noassets )
+    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokeskin smokelightmap smokemapent smokepak move smokesan prepass fog noassets )
 fi
 
 failed=()
@@ -599,6 +599,29 @@ stage_smokeskin() {
 stage_smokelightmap() {
     JKX_SMOKE_LIGHTMAP=1 \
     JKX_SMOKE_DISPLAY="${JKX_SMOKE_LIGHTMAP_DISPLAY:-:92}" \
+    JKX_SMOKE_NO_VALIDATION=1 \
+        bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
+}
+
+# A model the MAP owns, which is a path this bench had never taken.
+#
+# Everything drawn here until now was put on screen by the console - testmodel -
+# or was the player himself. A map's prop is a different route in every respect
+# that matters: G_ModelIndex gives it a CONFIGSTRING index at spawn, and cgame
+# turns that index into a renderer handle in two separate places, the loop in
+# CG_RegisterGraphics behind the loading screen and CG_ConfigStringModified
+# afterwards. Which of the two a prop goes through is the difference between a
+# level that is furnished when it appears and one where the furniture arrives a
+# moment later in front of the player, which is what was reported from hardware.
+#
+# The lane photographs the same scene at thirty frames and at two hundred and
+# requires them to agree. What it says today is a negative and worth having:
+# the plain configstring path is NOT the pop-in - the prop is drawn in the same
+# frame as the floor and the two counts are equal. Mutation tested by building
+# the map without the prop.
+stage_smokemapent() {
+    JKX_SMOKE_MAPENT=1 \
+    JKX_SMOKE_DISPLAY="${JKX_SMOKE_MAPENT_DISPLAY:-:86}" \
     JKX_SMOKE_NO_VALIDATION=1 \
         bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
 }

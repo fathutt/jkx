@@ -240,6 +240,61 @@ SETTLE=200
 INMAP_STEP=( +wait 20 +map jkx_room +wait $SETTLE
              +screenshot_tga jkx_inmap )
 
+# The map's own furniture, photographed twice: as early as a frame can be had,
+# and again once everything has settled.
+#
+# Two frames rather than one, because the question is not whether a prop draws.
+# It is WHEN. A misc_model_breakable gets its model through G_ModelIndex, which
+# is a configstring index, and cgame turns that index into a renderer handle in
+# two different places: the loop in CG_RegisterGraphics, which runs behind the
+# loading screen, and CG_ConfigStringModified, which runs when a configstring
+# arrives afterwards. A prop that goes through the first is there when the level
+# appears. A prop that goes through the second arrives late, visibly, in front
+# of the player - which is what was reported from hardware about the tree in the
+# first mission, and about characters missing from cutscenes.
+#
+# So the early shot is the measurement and jkx_inmap, the settled frame of the
+# same map, is its control. The
+# prop is cyan and nothing else in this fixture is; if the colour is in the late
+# frame and not in the early one, the pop-in is reproduced without a retail map,
+# and if it is in both then whatever is happening on hardware is not this.
+#
+# Thirty frames rather than zero, and the number is measured. Shots every few
+# frames after the map command give, in cyan pixels of prop and white pixels of
+# floor:
+#
+#     +6    prop 0      floor 0          the screen wipe, covering everything
+#     +16   prop 5749   floor 140031     the wipe clearing
+#     +30   prop 5776   floor 271225     and from here to +646, unchanged
+#
+# So the wipe is over by thirty and nothing about the picture moves afterwards.
+# An earlier shot would only be measuring the wipe, which is what the first
+# attempt at this did - it found the prop "absent" at ten frames and the floor
+# absent with it.
+#
+# What the pair says as it stands: on this bench a prop the MAP owns is drawn in
+# the same frame the floor is, and the two counts are equal at thirty frames and
+# at two hundred. The pop-in reported from hardware is therefore NOT the plain
+# configstring path - a model named in a map entity goes through
+# CG_RegisterGraphics behind the loading screen and is ready when the level
+# appears. Whatever arrives late there arrives by some other route, and the
+# candidates left are an entity a script spawns after the level has started,
+# whose G_ModelIndex lands after that loop has run, or a model list long enough
+# for something in it to be missed. Neither is reachable from a fixture with two
+# models in it and no scripts; this lane is what will notice if the route that
+# DOES work stops working.
+#
+# The early shot goes INSIDE the load this file already does rather than after a
+# second one of its own. That was the first arrangement and it cost the lane
+# more than three minutes of wall clock - a whole extra map load and settle, on
+# a software rasteriser - for a frame that was already available. The settled
+# shot needs no arrangement at all: jkx_inmap IS the settled frame of this map.
+if [ "${JKX_SMOKE_MAPENT:-0}" = "1" ]; then
+    INMAP_STEP=( +wait 20 +map jkx_room
+                 +wait 30 +screenshot_tga jkx_prop_early
+                 +wait $SETTLE +screenshot_tga jkx_inmap )
+fi
+
 
 
 # The crosshair, twice: once absent, once drawn large enough that nothing else
@@ -744,6 +799,12 @@ if [ "${JKX_SMOKE_LIGHTMAP:-0}" = "1" ]; then
     # what comes out is the engine's scaling and nothing else.
     python3 "$HERE/make_test_bsp.py" "$RUN/base/maps/jkx_room.bsp" \
         --shader jkx/lightmapped --lightmap >/dev/null
+elif [ "${JKX_SMOKE_MAPENT:-0}" = "1" ]; then
+    # The same room with one piece of furniture in it. See the note above
+    # INMAP_STEP for what the two shots of it are for; the model is the
+    # fixture's own animated square, which is cyan and nothing else here is.
+    python3 "$HERE/make_test_bsp.py" "$RUN/base/maps/jkx_room.bsp" \
+        --prop models/jkx/anim.md3 >/dev/null
 else
     python3 "$HERE/make_test_bsp.py" "$RUN/base/maps/jkx_room.bsp" >/dev/null
 fi
@@ -1222,6 +1283,48 @@ r_mapOverBrightBits say it should be"
             "$RUN/home/base/screenshots/jkx_inmap.tga" \
             "128,128,128@0.3,0.75,0.7,1.0"; then
             report "the lightmapped floor is not where the floor should be"
+        fi
+    fi
+fi
+
+# The map's furniture, and whether it is there when the level appears.
+#
+# Two frames of the same scene, thirty frames apart and two hundred frames
+# apart, and the whole assertion is that they agree. A prop that is in the
+# settled frame and not in the early one is a prop that arrived after the level
+# did - which is the shape of what was reported from hardware, a tree in the
+# first mission that is not there and then is.
+#
+# An equality on the count rather than presence in both, because "arrived late"
+# is not the only way to be wrong and the others are cheaper to catch here than
+# anywhere else: a prop drawn at the wrong LOD, or drawn and then re-registered
+# under a different handle, changes the count without ever being absent.
+if [ "${JKX_SMOKE_MAPENT:-0}" = "1" ]; then
+    early="$RUN/home/base/screenshots/jkx_prop_early.tga"
+    late="$RUN/home/base/screenshots/jkx_inmap.tga"
+
+    if [ ! -f "$early" ] || [ ! -f "$late" ]; then
+        report "the map's prop was never photographed, so nothing here was checked"
+    else
+        # Cyan, and nothing else in this fixture is. Five thousand is well under
+        # the five thousand seven hundred odd it measures and far above any
+        # stray blend at its edge, so this fails on a missing prop rather than
+        # on antialiasing.
+        for shot in "$early" "$late"; do
+            if ! python3 "$HERE/tga_has_colour.py" "$shot" "0,255,255:5000"; then
+                report "the map's own model entity is not in $(basename "$shot")"
+            fi
+        done
+
+        count() {
+            python3 "$HERE/tga_has_colour.py" "$1" "0,255,255:1" 2>/dev/null \
+                | sed -n 's/.*x\([0-9]*\)$/\1/p'
+        }
+        a="$(count "$early")"
+        b="$(count "$late")"
+        if [ -n "$a" ] && [ -n "$b" ] && [ "$a" != "$b" ]; then
+            report "the map's prop is $a pixel(s) thirty frames in and $b at two \
+hundred; it is still settling after the level has appeared"
         fi
     fi
 fi

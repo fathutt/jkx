@@ -22,6 +22,7 @@ both were read while writing this, and where a field has a value that is not
 obviously right, the comment says which of the two demanded it.
 
     make_test_bsp.py <out.bsp> [--shader NAME] [--sky NAME] [--lightmap]
+                      [--prop MODEL]
     make_test_bsp.py --check
 
 --sky adds a second drawn surface: a wall across the far end of the room
@@ -558,8 +559,19 @@ def visibility():
     return struct.pack("<2i", 1, 1) + bytes([0xFF])
 
 
-def entities():
-    """Worldspawn and one player start, standing on the floor.
+# Where the map's own model entity stands: in front of the player start, along
+# the way he faces, and far enough back to be whole in the frame rather than
+# filling it.
+#
+# The player start is at ( 0, 0, FLOOR_Z + 24 ) facing +Y, and the camera in
+# third person sits behind him, so a hundred and sixty units ahead puts this
+# comfortably inside the view without touching him.
+PROP_Y = 160.0
+PROP_Z = FLOOR_Z + 32
+
+
+def entities(prop_model=None):
+    """Worldspawn, one player start, and optionally a prop the MAP owns.
 
     Standing, not forty units above it. The player's box reaches 24 below his
     origin and the floor is at FLOOR_Z, so this is exactly where he ends up
@@ -573,8 +585,29 @@ def entities():
     hundred and fifty pixels along the floor's edge - which is the size of a
     difference worth catching, so the harness could not be allowed to produce one
     on its own.
+
+    The prop is misc_model_breakable, and it is here because until now not one
+    entity in this fixture carried a model. Everything the bench has drawn was
+    put on screen by the console - testmodel - or by the player himself, and
+    that is a different path in every respect that matters: a map's prop gets
+    its model through G_ModelIndex, which is a CONFIGSTRING index, and cgame
+    turns that into a renderer handle in two separate places - the loop in
+    CG_RegisterGraphics during the load, and CG_ConfigStringModified afterwards.
+    Which of the two a given prop goes through is exactly the difference between
+    a level that is furnished when it appears and one where the furniture
+    arrives a moment later, in front of the player. That was reported from
+    hardware and this fixture could not say anything about it.
+
+    misc_model_breakable rather than misc_model, because misc_model is compiled
+    into the BSP by the map compiler and does not exist at runtime at all - a
+    generated map cannot have one. The breakable is a real entity with a real
+    modelindex, which is the thing being measured.
+
+    SOLID is off deliberately: a prop the player can walk through cannot change
+    where he ends up standing, and the determinism of every other check in this
+    fixture depends on him ending up in the same place.
     """
-    return (
+    out = (
         b'{\n'
         b'"classname" "worldspawn"\n'
         b'"message" "JKX headless fixture"\n'
@@ -583,15 +616,29 @@ def entities():
         b'"classname" "info_player_start"\n'
         + b'"origin" "0 0 %d"\n' % int(FLOOR_Z + 24) +
         b'"angle" "90"\n'
-        b'}\n\0'
+        b'}\n'
     )
 
+    if prop_model:
+        out += (
+            b'{\n'
+            b'"classname" "misc_model_breakable"\n'
+            + b'"model" "%s"\n' % prop_model.encode("ascii") +
+            b'"origin" "0 %d %d"\n' % (int(PROP_Y), int(PROP_Z)) +
+            b'"angle" "270"\n'
+            b'"spawnflags" "0"\n'
+            b'}\n'
+        )
 
-def build(visible_shader, sky_shader=None, fog_shader=None, lightmap=False):
+    return out + b'\0'
+
+
+def build(visible_shader, sky_shader=None, fog_shader=None, lightmap=False,
+          prop_model=None):
     sky = bool(sky_shader)
     count = 1 + len(SKY_WALLS) if sky else 1
     lumps = {
-        LUMP_ENTITIES: entities(),
+        LUMP_ENTITIES: entities(prop_model),
         LUMP_SHADERS: shaders(visible_shader, sky_shader),
         LUMP_PLANES: planes(),
         LUMP_NODES: nodes(),
@@ -786,6 +833,7 @@ def main(argv):
     sky = None
     fog = None
     lightmap = False
+    prop = None
     path = None
     i = 0
     while i < len(args):
@@ -801,6 +849,9 @@ def main(argv):
         elif args[i] == "--lightmap":
             lightmap = True
             i += 1
+        elif args[i] == "--prop" and i + 1 < len(args):
+            prop = args[i + 1]
+            i += 2
         elif path is None:
             path = args[i]
             i += 1
@@ -809,18 +860,20 @@ def main(argv):
             return 2
 
     if path is None:
-        print("usage: %s <out.bsp> [--shader NAME] [--sky NAME] [--fog NAME] [--lightmap]"
+        print("usage: %s <out.bsp> [--shader NAME] [--sky NAME] [--fog NAME] "
+              "[--lightmap] [--prop MODEL]"
               % argv[0],
               file=sys.stderr)
         return 2
 
-    data = build(visible, sky, fog, lightmap)
+    data = build(visible, sky, fog, lightmap, prop)
     with open(path, "wb") as f:
         f.write(data)
-    print("%s: %d bytes, shader %s%s%s"
+    print("%s: %d bytes, shader %s%s%s%s"
           % (path, len(data), visible, ", sky %s" % sky if sky else "",
              ", lightmap %dx%d at %d" % (LIGHTMAP_SIZE, LIGHTMAP_SIZE, LIGHTMAP_GREY)
-             if lightmap else ""))
+             if lightmap else "",
+             ", prop %s" % prop if prop else ""))
     return 0
 
 
