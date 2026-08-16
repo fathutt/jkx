@@ -1457,7 +1457,21 @@ static void QuickSort(int* pSortBuffer, int iLeft, int iRight, unsigned int uSee
 
 	// Random
 	unsigned int t=uSeed&31;
-	t=(uSeed<<t)|(uSeed>>(32-t));
+	// A rotate written as two shifts, and undefined for a rotation of zero:
+	// t is uSeed&31, so t==0 makes this shift a 32-bit value by 32.
+	// UndefinedBehaviorSanitizer, on the first model this bench ever drew
+	// that needed tangents:
+	//
+	//   shift exponent 32 is too large for 32-bit type 'unsigned int'
+	//
+	// On x86 the shift count is masked to five bits, so >>32 is >>0 and the
+	// expression happens to give back uSeed, which is what a rotation of zero
+	// should give. On a machine that shifts in zeroes instead - ARM does -
+	// it gives uSeed unchanged too, by luck of the OR. So nothing was ever
+	// wrong on screen and nothing will be; it is undefined behaviour in a
+	// pseudo-random pivot, which is the cheapest possible kind. Written out
+	// so it means what it says.
+	t = t ? ( (uSeed<<t) | (uSeed>>(32-t)) ) : uSeed;
 	uSeed=uSeed+t+3;
 	// Random end
 
@@ -1664,7 +1678,21 @@ static void QuickSortEdges(SEdge * pSortBuffer, int iLeft, int iRight, const int
 
 	// Random
 	t=uSeed&31;
-	t=(uSeed<<t)|(uSeed>>(32-t));
+	// A rotate written as two shifts, and undefined for a rotation of zero:
+	// t is uSeed&31, so t==0 makes this shift a 32-bit value by 32.
+	// UndefinedBehaviorSanitizer, on the first model this bench ever drew
+	// that needed tangents:
+	//
+	//   shift exponent 32 is too large for 32-bit type 'unsigned int'
+	//
+	// On x86 the shift count is masked to five bits, so >>32 is >>0 and the
+	// expression happens to give back uSeed, which is what a rotation of zero
+	// should give. On a machine that shifts in zeroes instead - ARM does -
+	// it gives uSeed unchanged too, by luck of the OR. So nothing was ever
+	// wrong on screen and nothing will be; it is undefined behaviour in a
+	// pseudo-random pivot, which is the cheapest possible kind. Written out
+	// so it means what it says.
+	t = t ? ( (uSeed<<t) | (uSeed>>(32-t)) ) : uSeed;
 	uSeed=uSeed+t+3;
 	// Random end
 

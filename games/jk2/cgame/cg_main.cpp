@@ -1429,6 +1429,7 @@ Ghoul2 Insert Start
 */
 	CG_LoadingString("skins");
 	// register all the server specified models
+	qboolean reported = qfalse;
 	for (i=1 ; i<MAX_CHARSKINS ; i++) {
 		const char		*modelName;
 
@@ -1460,6 +1461,20 @@ Ghoul2 Insert Start
 				"stores the index and the renderer reads a handle, so a character "
 				"wearing this one is drawn with the wrong skin or with none.\n",
 				i, (int)cgs.skins[i], modelName );
+
+			// And what took the earlier handles, once, because that is the
+			// question the numbers above raise and cannot answer.
+			//
+			// A log from a real installation reported handle = index + 4 for
+			// every one of twelve skins - a constant offset, not a drift, which
+			// says four skins were registered before this loop reached the
+			// first configstring. Which four is the whole of the remaining
+			// question, and the renderer has had a command that answers it
+			// since before any of this: skinlist.
+			if ( !reported ) {
+				reported = qtrue;
+				cgi_SendConsoleCommand( "skinlist\n" );
+			}
 		}
 	}
 
