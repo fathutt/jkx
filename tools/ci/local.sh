@@ -174,6 +174,7 @@ stage_tests() {
     python3 "$ROOT/tools/verify/make_test_bsp.py" --check &&
     python3 "$ROOT/tools/verify/make_test_glm.py" --check &&
     python3 "$ROOT/tools/verify/make_test_gla.py" --check &&
+    python3 "$ROOT/tools/verify/make_test_seam.py" --check &&
     python3 "$ROOT/tools/verify/glm_strip_shaders.py" --check &&
     stage_tests_cxx
 }

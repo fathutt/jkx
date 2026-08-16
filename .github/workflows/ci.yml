@@ -289,6 +289,11 @@ jobs:
       # version of it that zeroed the wrong sixty-four bytes would still produce
       # a model that loads and still produce a model with no textures - which is
       # the thing the lane below tests for, so it would pass on a broken tool.
+      # The fixture that can see shading, and its negative control: the same
+      # generator asked for a model with no seam has to be rejected by the same
+      # check, or the check proves nothing.
+      - name: the shading seam fixture
+        run: python3 tools/verify/make_test_seam.py --check
       - name: the model shader stripper
         run: python3 tools/verify/glm_strip_shaders.py --check
       - name: launcher command line

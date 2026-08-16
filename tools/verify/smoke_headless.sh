@@ -320,6 +320,13 @@ INMAP_STEP+=( +testmodel models/jkx/anim.md3 1 +wait 30 +screenshot_tga jkx_md3_
               +wait 10
               +testmodel models/jkx/anim.md3 0 +wait 30 +screenshot_tga jkx_md3_b
               +wait 10 +testmodel +wait 10 )
+
+# The lit one, which is the only picture on this bench where a normal decides a
+# colour. One frame, so it can be compared with itself; two quads sharing a
+# middle edge whose vertices are duplicated with normals forty degrees apart, so
+# there is a seam to close.
+INMAP_STEP+=( +testmodel models/jkx/seam.md3 +wait 30 +screenshot_tga jkx_seam
+              +wait 10 +testmodel +wait 10 )
 fi
 
 # The character, framed so that a person can see what he is wearing.
@@ -644,6 +651,15 @@ python3 "$HERE/make_test_sky.py" "$RUN/base/textures/jkx" sky >/dev/null
 # nothing here had a second frame to be frozen at. See make_test_md3.py.
 mkdir -p "$RUN/base/models/jkx"
 python3 "$HERE/make_test_md3.py" "$RUN/base/models/jkx/anim.md3" >/dev/null
+
+# And a model whose shading can be measured: still, lit, and seamed.
+#
+# Everything else in this fixture is rgbGen const, which means no change to a
+# normal, a light or a shading term could alter one pixel of any model here. A
+# weld of model normals was landed and reported with a number that turned out to
+# be the noise floor of an animated character, precisely because there was no
+# still, lit model to look at instead. See make_test_seam.py.
+python3 "$HERE/make_test_seam.py" "$RUN/base/models/jkx/seam.md3" >/dev/null
 
 # The screen wipe used to need a mask picture here, and without it the engine
 # printed "no screen wipe" and skipped the whole dissolve path - which is how a
@@ -1105,6 +1121,33 @@ if [ "${JKX_SMOKE_SKINFALL:-0}" = "1" ]; then
         "$RUN/home/base/screenshots/jkx_char_front.tga" \
         "0,255,0@0.25,0.0,0.75,1.0"; then
         report "a skin that would not register left the model with no textures - the fallback to model_default.skin is missing"
+    fi
+fi
+
+# A shading seam, closed.
+#
+# This is the first check on this bench that can see a lighting change at all.
+# Every other model here is rgbGen const, so no normal, light or shading term
+# could move a pixel of one; the seam model is lit through the light grid and
+# its colour is a function of its normals. See make_test_seam.py.
+#
+# What is measured is the biggest jump between two neighbouring pixels inside the
+# model - not a colour, because both sides of a seam are the same material lit
+# differently. Measured, with the model held still and everything else identical:
+#
+#     r_weldModelNormals 0    biggest step 94
+#     r_weldModelNormals 1    biggest step  1
+#
+# so the gate sits at twenty: far above what a welded model produces and far
+# below an unwelded one. It is a real A/B rather than a guess at a tolerance, and
+# it is the negative control for the weld as well - turn the cvar off and this
+# stage fails.
+if [ "${JKX_SMOKE_PLAIN:-0}" != "1" ] && [ "${JKX_SMOKE_FOG:-0}" != "1" ] \
+   && [ -f "$RUN/home/base/screenshots/jkx_seam.tga" ]; then
+    if ! python3 "$HERE/tga_max_step.py" \
+        "$RUN/home/base/screenshots/jkx_seam.tga" \
+        --dominant r --min 40 --max-step 20; then
+        report "the model's shading has a hard step across a seam its normals should have closed"
     fi
 fi
 

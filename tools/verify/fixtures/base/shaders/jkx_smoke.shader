@@ -94,6 +94,31 @@ textures/jkx/fog
 // fixture uses. It has to be unmistakable: the check on it is that the square
 // is somewhere else in the second frame, and a white square against a white
 // floor cannot answer that.
+// The one material in this fixture whose colour depends on a normal.
+//
+// Every other shader here is rgbGen const, which is deliberate - a flat colour
+// is what makes a pixel check say something exact - and the cost of it is that
+// this bench could not see a lighting change at all. Not a normal, not a light,
+// not a shading term. A weld of model normals was landed and measured against a
+// number that turned out to be the noise floor of an animated character, and
+// the reason no frame could settle it is this line missing.
+//
+// rgbGen lightingDiffuse asks the entity lighting for the colour, which comes
+// from the light grid and from the normal at each vertex. The grid in this
+// fixture is deliberately red, so a model under this shader is red and its
+// SHADE varies across the surface - and the variation is the measurement.
+//
+// Two-sided for the same reason as the animated square: which way testmodel's
+// yaw happens to leave it is not part of what this measures.
+textures/jkx/lit
+{
+	cull none
+	{
+		map $whiteimage
+		rgbGen lightingDiffuse
+	}
+}
+
 textures/jkx/anim
 {
 	// Two-sided, so that which way the square happens to face after testmodel's
