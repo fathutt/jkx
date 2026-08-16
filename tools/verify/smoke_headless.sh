@@ -490,6 +490,36 @@ if [ "${JKX_SMOKE_SKINFALL:-0}" = "1" ]; then
     JKX_SMOKE_CHARSHOT=1
 fi
 
+# A character wearing a material with a normal map on it.
+#
+# The bench ran the physically-based renderer for weeks and never drew a single
+# physically-based draw. A shader permutation is generated from what a material
+# asks for, and no material here asked for a normal map, so the permutation that
+# reads descriptor set five was never generated and the code that binds set five
+# was never run. It was wrong - the DrawItem path bound sets zero to four and
+# pushed nothing into five - and the first draw that exercised it was a
+# segmentation fault in a lavapipe worker thread, found with a retail model.
+#
+# This lane produces such a draw with no retail data: two flat maps from
+# make_test_material.py and the jkx/pbr_body material that names them, on the
+# fixture's own character.
+if [ "${JKX_SMOKE_PBRCHAR:-0}" = "1" ]; then
+    mkdir -p "$RUN/base/models/players/jkxpbr" "$RUN/base/textures/jkx"
+    python3 "$HERE/make_test_material.py" "$RUN/base/textures/jkx" >/dev/null
+
+    # The committed model with its shader names taken out, so the only material
+    # it can get is the one the skin file names. Same tool the skin lane uses.
+    python3 "$HERE/glm_strip_shaders.py" \
+        "$RUN/base/models/players/jkx/model.glm" \
+        "$RUN/base/models/players/jkxpbr/model.glm" >/dev/null
+    printf '// The material with the normal map, and nothing else.\nbody,jkx/pbr_body\n' \
+        > "$RUN/base/models/players/jkxpbr/model_default.skin"
+
+    JKX_SMOKE_CHAR=jkxpbr
+    JKX_SMOKE_CHARSHOT=1
+    JKX_SMOKE_PBR=1
+fi
+
 # A Ghoul2 model standing in a menu, which is a subsystem this bench has never
 # drawn through.
 #

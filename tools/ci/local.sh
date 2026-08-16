@@ -71,7 +71,7 @@ JOBS="${JOBS:-$(nproc)}"
 
 STAGES=( "$@" )
 if [ "${#STAGES[@]}" -eq 0 ]; then
-    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokeskin smokelightmap smokemapent smokemenumodel smokepak move smokesan prepass fog noassets )
+    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokeskin smokelightmap smokemapent smokemenumodel smokepbrchar smokepak move smokesan prepass fog noassets )
 fi
 
 failed=()
@@ -172,6 +172,7 @@ stage_tests() {
     python3 "$ROOT/tools/fontgen/selftest.py" &&
     python3 "$ROOT/tools/fontgen/build_fonts.py" --check &&
     python3 "$ROOT/tools/verify/make_test_bsp.py" --check &&
+    python3 "$ROOT/tools/verify/make_test_material.py" --check &&
     python3 "$ROOT/tools/verify/make_test_glm.py" --check &&
     python3 "$ROOT/tools/verify/make_test_gla.py" --check &&
     python3 "$ROOT/tools/verify/make_test_seam.py" --check &&
@@ -666,6 +667,35 @@ stage_smokemapent() {
 stage_smokemenumodel() {
     JKX_SMOKE_MENUMODEL=1 \
     JKX_SMOKE_DISPLAY="${JKX_SMOKE_MENUMODEL_DISPLAY:-:85}" \
+    JKX_SMOKE_NO_VALIDATION=1 \
+        bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
+}
+
+# The physically-based renderer, actually drawing something.
+#
+# This bench had a PBR lane for weeks and it never issued a single PBR draw. A
+# shader permutation is generated from what a material asks for; no material in
+# the fixture asked for a normal map, so the permutation that reads descriptor
+# set five was never generated and the code that binds set five never ran. It
+# was wrong in three separate ways, and all three were found the day a retail
+# model with real maps was put in front of it:
+#
+#   the DrawItem path bound sets zero to four and pushed nothing into five, so
+#   any Ghoul2 mesh with a normal map ran a pipeline that reads an unbound set;
+#
+#   the push checked an image's view and not its sampler, and a combined image
+#   sampler needs both;
+#
+#   and the five images were remembered across map loads as pointers, which
+#   R_Init frees underneath.
+#
+# The lane needs no retail data: two flat maps from make_test_material.py and
+# the jkx/pbr_body material that names them, on the fixture's own character.
+# Mutation tested against each of the three - the lane segfaults without any one
+# of them.
+stage_smokepbrchar() {
+    JKX_SMOKE_PBRCHAR=1 \
+    JKX_SMOKE_DISPLAY="${JKX_SMOKE_PBRCHAR_DISPLAY:-:84}" \
     JKX_SMOKE_NO_VALIDATION=1 \
         bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
 }

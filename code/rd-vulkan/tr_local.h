@@ -2896,6 +2896,30 @@ struct DrawItem
 		uint32_t		offset[VK_DESC_UNIFORM_COUNT + 1];	// 0:uniform, 1: camera, 2: light, 3:ghoul2, 4: global, ( +1 surface_sprites ssbo :( )
 	} descriptor_set;
 
+#ifdef USE_VK_PBR
+	// The physically-based set, carried per item rather than per command
+	// buffer, because a DrawItem is recorded now and executed later and the
+	// material that was current when it was recorded is not the one that is
+	// current when it runs.
+	//
+	// It is not in descriptor_set above because it is not bound, it is pushed,
+	// and that is exactly how it came to be missing: the item path copied the
+	// bound sets and a pushed set is not among them. Every Ghoul2 mesh with a
+	// normal map ran a pipeline that reads set five with nothing in set five.
+	const struct image_s	*pbr_source[VK_DESC_PBR_BINDING_COUNT];
+	VkDescriptorImageInfo	pbr_raw[VK_DESC_PBR_BINDING_COUNT];
+	qboolean				pbr_raw_set[VK_DESC_PBR_BINDING_COUNT];
+
+	// Whether this item has a material at all. Two-dimensional draws and the
+	// menu do not, and pushing five fallback images for them is not free of
+	// consequence: the fallbacks are whatever tr.whiteImage and tr.emptyCubemap
+	// are at that moment, and early in a run that is an image whose sampler the
+	// validation layer refuses - VUID-VkWriteDescriptorSet-descriptorType-02996.
+	// So the push follows the material, exactly as the immediate path's
+	// pbr_dirty does.
+	qboolean				pbr_used;
+#endif
+
 	VkBuffer			shade_buffers[12];
 	VkDeviceSize		shade_offset[12];
 	int					bind_base;

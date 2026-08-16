@@ -489,6 +489,17 @@ jobs:
           JKX_SMOKE_NO_VALIDATION: '1'
         run: bash tools/verify/smoke_headless.sh build
 
+      # The physically-based renderer actually drawing something. Until this
+      # lane no material in the fixture named a normal map, so the shader
+      # permutation that reads descriptor set five was never generated and the
+      # code that binds set five never ran - and it was wrong in three ways.
+      - name: A character with a normal map
+        env:
+          JKX_SMOKE_PBRCHAR: '1'
+          JKX_SMOKE_DISPLAY: ':84'
+          JKX_SMOKE_NO_VALIDATION: '1'
+        run: bash tools/verify/smoke_headless.sh build
+
       # The same fixture out of a pk3. Every run before this one read loose
       # files, so FS_LoadZipFile, the per-pack hash table, the pak branch of
       # FS_FOpenFileRead and unzReadCurrentFile in FS_Read had never executed in

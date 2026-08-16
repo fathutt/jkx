@@ -166,6 +166,36 @@ textures/jkx/anim
 	}
 }
 
+// A material with a normal map on it, which this fixture had none of.
+//
+// That absence was not cosmetic. A shader permutation is generated from what a
+// material asks for, so with no normalMap anywhere the permutation that reads
+// the normal map, the physical map and the lighting environment - descriptor
+// set five - was never generated, and the code that has to bind set five was
+// never run. It was wrong: the DrawItem path in tr_backend.cpp bound sets zero
+// to four and pushed nothing into five, so any mesh drawn that way with a
+// normal map ran a pipeline that reads an unbound set. On lavapipe that is a
+// segmentation fault in a rasteriser worker; on hardware it is undefined.
+//
+// It took a retail model with real maps to produce the first such draw. This
+// material is what lets the bench produce one without any retail data at all.
+//
+// The maps are flat - see make_test_material.py for why - so this does not
+// measure shading. It measures that the draw happens, which is the thing that
+// was not happening.
+//
+// rgbGen lightingDiffuse rather than a constant, because a material that takes
+// no light does not go down the physically-based path at all.
+jkx/pbr_body
+{
+	{
+		map $whiteimage
+		normalMap textures/jkx/jkx_flat_n
+		rmoMap textures/jkx/jkx_flat_rmo
+		rgbGen lightingDiffuse
+	}
+}
+
 // The player character's skin, in a colour nothing else here is.
 //
 // It used to be jkx/smoke, which is white - and so is almost everything else in

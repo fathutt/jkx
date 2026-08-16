@@ -1474,6 +1474,30 @@ _retry:
     vk.cmd->descriptor_set.start = ~0U;
     //vk.cmd->descriptor_set.end = 0;
 
+#ifdef USE_VK_PBR
+    // The physically-based set, forgotten with the rest of the frame's state.
+    //
+    // It holds POINTERS TO image_t, and an image_t does not outlive a map load:
+    // RE_Shutdown( 0, 0 ) destroys the image pool and R_Init builds a new one,
+    // so anything remembered across that line is a pointer into freed memory
+    // whose ->view reads as a plausible handle to something that is gone. The
+    // validation layer calls it "Invalid VkImageView Object" and lavapipe
+    // calls it a segmentation fault in a rasteriser thread.
+    //
+    // It was survivable while only the immediate path pushed this set, because
+    // that path pushes on the frame a material sets one and the material is
+    // always current. The item path records the pointers now and executes them
+    // later, which is what turned a latent stale pointer into a crash.
+    //
+    // Clearing per frame is the right scope on its own terms as well: a pushed
+    // descriptor set has no state between command buffers, so carrying one
+    // across a frame boundary was never describing anything real.
+    Com_Memset( vk.cmd->pbr_source, 0, sizeof( vk.cmd->pbr_source ) );
+    Com_Memset( vk.cmd->pbr_raw, 0, sizeof( vk.cmd->pbr_raw ) );
+    Com_Memset( vk.cmd->pbr_raw_set, 0, sizeof( vk.cmd->pbr_raw_set ) );
+    vk.cmd->pbr_dirty = qfalse;
+#endif
+
     Com_Memset(&vk.cmd->scissor_rect, 0, sizeof(vk.cmd->scissor_rect));
 
 #ifdef USE_VK_STATS

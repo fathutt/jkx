@@ -1212,6 +1212,12 @@ void		vk_update_descriptor( int tmu, VkDescriptorSet curDesSet );
 #ifdef USE_VK_PBR
 void		vk_update_pbr_descriptor( int binding, const struct image_s *image );
 void		vk_update_pbr_descriptor_raw( int binding, const VkDescriptorImageInfo *info );
+
+// Both paths to a draw need this, which is why it takes its images as
+// arguments instead of reading vk.cmd. See the note above the definition.
+void		vk_push_pbr_descriptor( VkPipelineLayout layout,
+				const struct image_s * const *sources,
+				const VkDescriptorImageInfo *raw, const qboolean *raw_set );
 #endif
 uint32_t	vk_find_pipeline_ext( uint32_t base, const Vk_Pipeline_Def *def, qboolean use );
 VkPipeline	vk_gen_pipeline( uint32_t index );

@@ -1028,14 +1028,65 @@ void vk_bind_descriptor_sets( void )
 
 #ifdef USE_VK_PBR
 	// And the physically-based set, which is not bound but written straight
-	// into the command buffer. Every binding is filled every time: a push
-	// descriptor set has no state between draws, so a binding left out is a
-	// binding the shader reads and nothing wrote.
+	// into the command buffer.
 	if ( vk.cmd->pbr_dirty ) {
-		VkWriteDescriptorSet	writes[VK_DESC_PBR_BINDING_COUNT];
-		VkDescriptorImageInfo	images[VK_DESC_PBR_BINDING_COUNT];
-		uint32_t				i;
+		vk_push_pbr_descriptor( vk.pipeline_layout,
+			vk.cmd->pbr_source, vk.cmd->pbr_raw, vk.cmd->pbr_raw_set );
 
+		vk.cmd->pbr_dirty = qfalse;
+	}
+#endif
+}
+
+#ifdef USE_VK_PBR
+// The physically-based set, written straight into the command buffer.
+//
+// It takes its five images as arguments rather than reading vk.cmd, and that is
+// the whole point of it existing separately: there are TWO paths to a draw in
+// this back end and only one of them was pushing this set.
+//
+// vk_bind_descriptor_sets is the immediate path. The other is DrawItem -
+// RB_AddDrawItemUniformBinding records the bound sets into the item and
+// RB_BindDescriptorSets binds them again later - and it recorded sets zero to
+// four, because those are the ones vk.cmd->descriptor_set holds. A pushed set
+// is not in there. So every Ghoul2 mesh drawn through the item path ran a
+// pipeline that statically uses set five with nothing bound to set five.
+//
+// What that costs: on lavapipe, a segmentation fault in a rasteriser worker
+// thread, with the main thread sitting in vk_present_frame - which is the same
+// signature the vid_restart crash has. The validation layer names it exactly:
+//
+//   VUID-vkCmdDrawIndexedIndirect-None-08600: the VkPipeline statically uses
+//   descriptor set (index #5) which is not compatible with the currently bound
+//   descriptor set's pipeline layout
+//
+// It needed real assets to show. The bench's own model has no normal map, so
+// the shader permutation that reads set five was never generated here until a
+// model with normalMap and rmoMap was put in front of it.
+//
+// Every binding is filled every time: a push descriptor set has no state
+// between draws, so a binding left out is a binding the shader reads and
+// nothing wrote.
+void vk_push_pbr_descriptor( VkPipelineLayout layout,
+	const image_t * const *sources, const VkDescriptorImageInfo *raw,
+	const qboolean *raw_set )
+{
+	VkWriteDescriptorSet	writes[VK_DESC_PBR_BINDING_COUNT];
+	VkDescriptorImageInfo	images[VK_DESC_PBR_BINDING_COUNT];
+	uint32_t				i;
+
+	if ( !vk.pushDescriptorAvailable || vk.useFastLight ) {
+		return;
+	}
+
+	// Only the layout that has the set. The surface-sprite layout is a
+	// different one and pushing set five into it is a spec violation of its
+	// own.
+	if ( layout != vk.pipeline_layout ) {
+		return;
+	}
+
+	{
 		for ( i = 0; i < VK_DESC_PBR_BINDING_COUNT; i++ ) {
 			// Every binding, built here, from something that is current.
 			//
@@ -1058,17 +1109,39 @@ void vk_bind_descriptor_sets( void )
 			// now, or the raw descriptor for the BRDF table, or the fallback -
 			// white for the flat maps, the empty cubemap for the cube one,
 			// which is what the call sites use for their own "not present".
-			if ( vk.cmd->pbr_source[i] != NULL && vk.cmd->pbr_source[i]->view != VK_NULL_HANDLE ) {
-				images[i] = vk.cmd->pbr_source[i]->descriptor_info;
-				images[i].imageView = vk.cmd->pbr_source[i]->view;
-			} else if ( vk.cmd->pbr_raw_set[i] && vk.cmd->pbr_raw[i].imageView != VK_NULL_HANDLE ) {
-				images[i] = vk.cmd->pbr_raw[i];
-			} else {
-				const image_t *fallback = ( i == VK_DESC_PBR_CUBEMAP_BINDING )
-					? tr.emptyCubemap : tr.whiteImage;
+			// A SAMPLER as well as a view, on every branch.
+			//
+			// A combined image sampler needs both, and only the view was ever
+			// checked. An image_t carries the sampler it ended up with in
+			// descriptor_info, filled by vk_update_descriptor_set - and an
+			// image that has not been through that function yet, or a cubemap
+			// created with no data, has a view and a null sampler. Pushing one
+			// is VUID-VkWriteDescriptorSet-descriptorType-02996 and, on
+			// lavapipe, a segmentation fault a few draws later.
+			//
+			// Nothing was ever checking it because nothing ever pushed this set
+			// outside the immediate path, where the images always came from a
+			// material that had finished loading.
+			const image_t *fallback = ( i == VK_DESC_PBR_CUBEMAP_BINDING )
+				? tr.emptyCubemap : tr.whiteImage;
 
+			if ( sources[i] != NULL && sources[i]->view != VK_NULL_HANDLE
+				&& sources[i]->descriptor_info.sampler != VK_NULL_HANDLE ) {
+				images[i] = sources[i]->descriptor_info;
+				images[i].imageView = sources[i]->view;
+			} else if ( raw_set[i] && raw[i].imageView != VK_NULL_HANDLE
+				&& raw[i].sampler != VK_NULL_HANDLE ) {
+				images[i] = raw[i];
+			} else if ( fallback != NULL && fallback->view != VK_NULL_HANDLE
+				&& fallback->descriptor_info.sampler != VK_NULL_HANDLE ) {
 				images[i] = fallback->descriptor_info;
 				images[i].imageView = fallback->view;
+			} else {
+				// Nothing usable for this binding, so push nothing at all. A
+				// set with a hole in it is worse than no push: the driver reads
+				// the hole. The draw that wanted it will be wrong, and it will
+				// be wrong visibly rather than fatally.
+				return;
 			}
 
 			writes[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -1084,13 +1157,11 @@ void vk_bind_descriptor_sets( void )
 		}
 
 		vkCmdPushDescriptorSetKHR( vk.cmd->command_buffer,
-			VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipeline_layout,
+			VK_PIPELINE_BIND_POINT_GRAPHICS, layout,
 			VK_DESC_PBR, VK_DESC_PBR_BINDING_COUNT, writes );
-
-		vk.cmd->pbr_dirty = qfalse;
 	}
-#endif
 }
+#endif
 
 void vk_bind_pipeline( uint32_t pipeline ) {
 	VkPipeline vkpipe;
@@ -2671,6 +2742,24 @@ void RB_AddDrawItemUniformBinding( DrawItem &item, const trRefEntity_t *refEntit
 		}
 
 		Com_Memcpy( &item.descriptor_set, &vk.cmd->descriptor_set, sizeof(vk.cmd->descriptor_set));
+
+#ifdef USE_VK_PBR
+		// The pushed set travels with the item, because the item is executed
+		// after every other item has been recorded and vk.cmd holds whatever
+		// the LAST of them set. Copying it here is what makes each mesh get its
+		// own normal and physical maps rather than the final mesh's.
+		Com_Memcpy( item.pbr_source, vk.cmd->pbr_source, sizeof(item.pbr_source) );
+		Com_Memcpy( item.pbr_raw, vk.cmd->pbr_raw, sizeof(item.pbr_raw) );
+		Com_Memcpy( item.pbr_raw_set, vk.cmd->pbr_raw_set, sizeof(item.pbr_raw_set) );
+
+		item.pbr_used = qfalse;
+		for ( i = 0; i < VK_DESC_PBR_BINDING_COUNT; i++ ) {
+			if ( vk.cmd->pbr_source[i] != NULL || vk.cmd->pbr_raw_set[i] ) {
+				item.pbr_used = qtrue;
+				break;
+			}
+		}
+#endif
 	}
 
 	vk.cmd->descriptor_set.end = 0;

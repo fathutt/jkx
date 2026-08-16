@@ -579,6 +579,28 @@ void RB_BindDescriptorSets( const DrawItem& drawItem )
 
 	vkCmdBindDescriptorSets(vk.cmd->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
 		drawItem.pipeline_layout, start, count, drawItem.descriptor_set.current + start, offset_count, offsets);
+
+#ifdef USE_VK_PBR
+	// And set five, which is pushed rather than bound and which this function
+	// did not push for eleven months.
+	//
+	// A pipeline built with normal mapping statically uses it. Nothing bound it
+	// here, so on lavapipe a rasteriser worker read an unbound descriptor and
+	// took the process with it - main thread in vk_present_frame, which is the
+	// same signature as the vid_restart crash. The validation layer says it in
+	// one line: VUID-vkCmdDrawIndexedIndirect-None-08600, "statically uses
+	// descriptor set (index #5) which is not compatible".
+	//
+	// It survived because nothing on this bench had a normal map. The fixture's
+	// own model has none, so the permutation that reads set five was never
+	// generated here; it took a retail model with normalMap and rmoMap in its
+	// material to produce one. Every other lane was measuring a renderer whose
+	// physically-based path never ran a single draw.
+	if ( drawItem.pbr_used ) {
+		vk_push_pbr_descriptor( drawItem.pipeline_layout,
+			drawItem.pbr_source, drawItem.pbr_raw, drawItem.pbr_raw_set );
+	}
+#endif
 }
 
 static Pass *RB_CreatePass( Allocator& allocator, int capacity )
