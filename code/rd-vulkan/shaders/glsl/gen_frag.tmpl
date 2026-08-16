@@ -362,9 +362,25 @@ void main() {
 				L = ( texture(deluxe_texture, frag_tex_coord1).rgb - vec3(0.5) );
 		#endif
 
+		// Not sqrt of a length that can be zero. The no-world branch of
+		// R_SetupEntityLighting hands out tr.sunDirection, which is written only
+		// by RE_LoadWorldMap, so a model drawn before any map exists - every
+		// model in the main menu - is lit from the zero vector. Dividing by its
+		// length gives NaN, and NaN through clamp() is left undefined by the
+		// GLSL specification: two drivers disagree about it, and the disagreement
+		// is the difference between a menu model at ambient and a menu model
+		// burnt to white. Straight up on the same binary. See gen_vert.tmpl for
+		// the measurement.
+		//
+		// An arbitrary direction rather than a zero one, because everything
+		// below assumes L is a unit vector, and the answer that keeps the rest
+		// of this shader honest is "lit from somewhere, dot product will be what
+		// it will be" rather than a normal of zero that quietly zeroes terms it
+		// was never meant to reach.
 		float sqrLightDist = dot(L, L);
-		L /= sqrt(sqrLightDist);
-		
+		L = ( sqrLightDist > 0.0 ) ? L * inversesqrt(sqrLightDist) : vec3(0.0, 0.0, 1.0);
+
+
 		#if defined(USE_LIGHTMAP) && defined(USE_TX1)
 			vec3 lightmapColor = texture(texture1, frag_tex_coord1).rgb;
 			lightColor = lightmapColor * frag_color0.rgb;

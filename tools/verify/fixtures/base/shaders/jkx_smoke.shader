@@ -196,6 +196,27 @@ jkx/pbr_body
 	}
 }
 
+// The menu model, lit rather than painted.
+//
+// Every other material in this fixture that draws a model is rgbGen const,
+// which is what makes the pixel checks exact - and it is also why the bench
+// could not see the thing a player sees first. A model in a menu is not lit by
+// the world: R_SetupEntityLighting takes the RDF_NOWORLDMODEL branch, where the
+// light is two fixed numbers rather than the light grid, and nothing in this
+// fixture had ever gone down that branch and landed on the screen.
+//
+// White albedo on purpose. `map $whiteimage` with rgbGen lightingDiffuse puts
+// the LIGHT VALUE itself on the screen - albedo one, so the pixel is the sum
+// the shader computed - which turns "the menu looks blown out" into a
+// histogram. See tga_grey_levels.py for what is done with it.
+jkx/menu_lit
+{
+	{
+		map $whiteimage
+		rgbGen lightingDiffuse
+	}
+}
+
 // The player character's skin, in a colour nothing else here is.
 //
 // It used to be jkx/smoke, which is white - and so is almost everything else in

@@ -71,7 +71,7 @@ JOBS="${JOBS:-$(nproc)}"
 
 STAGES=( "$@" )
 if [ "${#STAGES[@]}" -eq 0 ]; then
-    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokeskin smokelightmap smokemapent smokemenumodel smokepbrchar smokepak move smokesan prepass fog noassets )
+    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokeskin smokelightmap smokemapent smokemenumodel smokemenulight smokepbrchar smokepak move smokesan prepass fog noassets )
 fi
 
 failed=()
@@ -685,6 +685,25 @@ stage_smokemapent() {
 stage_smokemenumodel() {
     JKX_SMOKE_MENUMODEL=1 \
     JKX_SMOKE_DISPLAY="${JKX_SMOKE_MENUMODEL_DISPLAY:-:85}" \
+        bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
+}
+
+# The same model, LIT rather than painted.
+#
+# The lane above draws it in a constant colour, which is what makes its check
+# exact and also what makes it blind: a constant colour looks the same under any
+# light, including none at all. So the menu's lighting - the no-world branch of
+# R_SetupEntityLighting, which is the one every model a player sees before he
+# has loaded anything goes through - had never reached a pixel on this bench.
+#
+# It was reported from hardware as "both models in the menu are burnt out", and
+# this lane is what turned that into three numbers. jkx/menu_lit is white and
+# lit, so the pixel IS the lighting sum read back off the screen, and the gate
+# is an equality on it. What each value means is written above the check in
+# smoke_headless.sh.
+stage_smokemenulight() {
+    JKX_SMOKE_MENULIGHT=1 \
+    JKX_SMOKE_DISPLAY="${JKX_SMOKE_MENULIGHT_DISPLAY:-:82}" \
         bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
 }
 

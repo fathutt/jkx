@@ -1271,6 +1271,31 @@ void R_Init( void ) {
 	Com_Memset( &tess, 0, sizeof( tess ) );
 	//Com_Memset( &glState, 0, sizeof( glState ) );
 
+	// The sun, before there is a map to take one from.
+	//
+	// tr.sunDirection was written in exactly one place - RE_LoadWorldMap - and
+	// read in three, one of which is the no-world branch of
+	// R_SetupEntityLighting: the branch a model in a MENU takes. So between this
+	// memset and the first map load the menu's light direction was the zero
+	// vector, and the shader divided by its length. Measured on the bench: the
+	// menu model comes back at exactly the ambient value and nothing else, 24948
+	// pixels at 122, no shading anywhere on it. On a driver whose clamp() treats
+	// the resulting NaN the other way it comes back at ambient plus directed,
+	// which is 272 on a scale that stops at 255 - a menu model burnt to flat
+	// white, reported from hardware and impossible to reproduce here.
+	//
+	// The shaders no longer divide by zero either, and that is the half of this
+	// that makes the picture the same on every driver. This half is what makes
+	// it the RIGHT picture: a menu model has a direction to be lit from now, so
+	// it is shaded rather than flat.
+	//
+	// Same numbers RE_LoadWorldMap uses for a map that names no sun, because a
+	// second set of defaults is a second thing to keep in step.
+	tr.sunDirection[0] = 0.45f;
+	tr.sunDirection[1] = 0.3f;
+	tr.sunDirection[2] = 0.9f;
+	VectorNormalize( tr.sunDirection );
+
 #ifndef FINAL_BUILD
 	if ( (intptr_t)tess.xyz & 15 ) {
 		CL_RefPrintf(PRINT_WARNING, "tess.xyz not 16 byte aligned\n");

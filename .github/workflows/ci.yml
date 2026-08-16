@@ -492,6 +492,18 @@ jobs:
           JKX_SMOKE_DISPLAY: ':85'
         run: bash tools/verify/smoke_headless.sh build
 
+      # The same model, lit rather than painted in a constant colour. The step
+      # above cannot see a lighting defect at all - a constant colour looks the
+      # same under any light, including none - and the menu is where a player
+      # looks at a model most closely. Reported from hardware as burnt out; the
+      # gate is an equality on the lighting sum, and smoke_headless.sh says
+      # which defect each possible value means.
+      - name: A model in a menu, lit
+        env:
+          JKX_SMOKE_MENULIGHT: '1'
+          JKX_SMOKE_DISPLAY: ':82'
+        run: bash tools/verify/smoke_headless.sh build
+
       # The physically-based renderer actually drawing something. Until this
       # lane no material in the fixture named a normal map, so the shader
       # permutation that reads descriptor set five was never generated and the

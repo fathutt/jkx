@@ -261,6 +261,9 @@ void R_SetupEntityLighting( const trRefdef_t *refdef, trRefEntity_t *ent ) {
 	float			d;
 	vec3_t			lightDir;
 	vec3_t			lightOrigin;
+	// Whether the light below came from the fixed pair rather than from the map,
+	// which is the only case the sum clamp at the bottom applies to.
+	qboolean		fixedLight = qfalse;
 #ifdef USE_PMLIGHT
 	vec3_t			shadowLightDir;
 #endif
@@ -319,6 +322,7 @@ void R_SetupEntityLighting( const trRefdef_t *refdef, trRefEntity_t *ent ) {
 		ent->directedLight[0] = ent->directedLight[1] =
 			ent->directedLight[2] = tr.identityLight * 150 * directedScale;
 		VectorCopy(tr.sunDirection, ent->lightDir);
+		fixedLight = qtrue;
 	}
 
 	// bonus items and view weapons have a fixed minimum add
@@ -397,6 +401,54 @@ void R_SetupEntityLighting( const trRefdef_t *refdef, trRefEntity_t *ent ) {
 	for ( i = 0 ; i < 3 ; i++ ) {
 		if ( ent->ambientLight[i] > tr.identityLightByte ) {
 			ent->ambientLight[i] = tr.identityLightByte;
+		}
+	}
+
+	// And clamp the SUM, which nothing did.
+	//
+	// The shader computes ambient + directed * NdotL and writes it, and the
+	// clamp above bounds only the first of those two. With the fixed menu light
+	// the pair is 122 and 150 on a scale that stops at 255, so every normal
+	// within twenty-seven degrees of the light comes out pure white: not bright,
+	// FLAT - the shading is gone where it clips, which is most of the lit side
+	// of anything convex. That is what "the models in the menu are burnt out"
+	// looks like from the inside, and it is arithmetic rather than opinion.
+	//
+	// Both are scaled by the same factor rather than the directed term alone, so
+	// the ratio between the lit and the unlit side - the contrast the original
+	// constants chose - survives. Measured on the bench: the fixture's menu
+	// model goes from 251, four short of the ceiling, to 235.
+	//
+	// Only where the light is the fixed pair. The grid path's values come out of
+	// map data that has been scaled and bounded on the way in, and it was
+	// changed recently and confirmed better on hardware; there is no measurement
+	// saying it needs this and it is not the place to find out.
+	//
+	// What this does NOT settle, and it is worth writing down rather than
+	// leaving to be re-derived: those constants were written for a renderer
+	// where tr.identityLight is 1/2 or 1/4, because r_overBrightBits was 1 or 2
+	// and the hardware gamma ramp put the brightness back afterwards. We run
+	// r_overBrightBits 0 - measured, anything else turns the whole frame pink,
+	// because the gamma is in the shader here - so identityLight is 1 and the
+	// constants arrive at two to four times the scale they were chosen at. That
+	// is the real question and this is not the answer to it; this only stops the
+	// answer being written into a range it does not fit.
+	if ( fixedLight ) {
+		float peak = 0.0f;
+
+		for ( i = 0 ; i < 3 ; i++ ) {
+			const float sum = ent->ambientLight[i] + ent->directedLight[i];
+
+			if ( sum > peak ) {
+				peak = sum;
+			}
+		}
+
+		if ( peak > 255.0f ) {
+			const float scale = 255.0f / peak;
+
+			VectorScale( ent->ambientLight, scale, ent->ambientLight );
+			VectorScale( ent->directedLight, scale, ent->directedLight );
 		}
 	}
 

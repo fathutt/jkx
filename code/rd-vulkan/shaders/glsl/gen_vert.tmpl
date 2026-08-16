@@ -311,8 +311,32 @@ void main() {
 #endif
 
 #if defined(USE_LIGHT_VECTOR) && defined(USE_FAST_LIGHT)
+	// A light vector of zero length is reachable, and what it used to produce
+	// was a division of zero by zero.
+	//
+	// R_SetupEntityLighting's no-world branch - the one a model in a MENU takes
+	// - copies tr.sunDirection into the entity's light direction, and
+	// tr.sunDirection is only ever written by RE_LoadWorldMap. Before any map
+	// has been loaded it is the zero vector, so every model in the main menu was
+	// lit by a direction of no direction at all.
+	//
+	// NaN out of that division is not a rounding detail, because clamp() is
+	// min(max(x, lo), hi) and the GLSL specification leaves max() undefined when
+	// an operand is NaN. Two drivers can and do disagree: on lavapipe the menu
+	// model comes back at exactly the ambient value - measured, 24948 pixels at
+	// 122 and not one anywhere else - and a driver whose max() keeps the other
+	// operand instead gives NL = 1, which puts ambient plus directed, 122 plus
+	// 150, on a scale that stops at 255. That is a menu model burnt to flat
+	// white, which is what was reported from hardware and could not be
+	// reproduced here. Same binary, same assets, opposite picture.
+	//
+	// So: no division by a length that can be zero. Zero length means no
+	// direction to be lit from, and the honest answer for that is no directed
+	// light, which is what this now returns on every driver.
 	float sqrLightDist = dot(L, L);
-	float NL = clamp(dot(normal, L) / sqrt(sqrLightDist), 0.0, 1.0);
+	float NL = ( sqrLightDist > 0.0 )
+		? clamp( dot(normal, L) * inversesqrt(sqrLightDist), 0.0, 1.0 )
+		: 0.0;
 
 	frag_color0.rgb *= u_entity.directedLight.rgb * NL + u_entity.ambientLight.rgb;
 	#ifdef USE_CL1

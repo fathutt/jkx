@@ -548,14 +548,26 @@ fi
 # nothing else in this fixture draws, so "the model kept its own materials" is a
 # colour rather than an impression. See ui/jkx_model.menu for what the empty
 # model_g2skin line is doing and why it is the whole point.
-if [ "${JKX_SMOKE_MENUMODEL:-0}" = "1" ]; then
+if [ "${JKX_SMOKE_MENUMODEL:-0}" = "1" ] || [ "${JKX_SMOKE_MENULIGHT:-0}" = "1" ]; then
     mkdir -p "$RUN/base/models/players/jkxmenu"
+
+    # jkx/glm_baked is flat blue and answers "did the model keep its own
+    # materials". jkx/menu_lit is white and lit, and answers a different
+    # question: what did the menu's lighting actually put on the screen. The
+    # first cannot answer the second - a constant colour ignores the light
+    # entirely - which is why the bench could not see a blown-out menu model at
+    # all, and a player sees one before he sees anything else in the game.
+    MENU_SHADER=jkx/glm_baked
+    if [ "${JKX_SMOKE_MENULIGHT:-0}" = "1" ]; then
+        MENU_SHADER=jkx/menu_lit
+    fi
+
     # The same skeleton the rest of the fixture's characters use: a .glm names
     # its .gla and the loader refuses a name it cannot find, so this cannot be
     # left at the generator's default.
     python3 "$HERE/make_test_glm.py" \
         "$RUN/base/models/players/jkxmenu/model.glm" \
-        --shader jkx/glm_baked \
+        --shader "$MENU_SHADER" \
         --model-name models/players/jkxmenu/model.glm >/dev/null
 fi
 
@@ -1062,7 +1074,7 @@ done
 # A different menu set, which is what makes the menu-model lane opt-in. The
 # ordinary one is ui/menus.txt and every other lane loads it, so the frame all
 # the other checks are written against does not change.
-if [ "${JKX_SMOKE_MENUMODEL:-0}" = "1" ]; then
+if [ "${JKX_SMOKE_MENUMODEL:-0}" = "1" ] || [ "${JKX_SMOKE_MENULIGHT:-0}" = "1" ]; then
     SET_STEP+=( +set ui_menuFiles ui/jkx_model.txt )
 fi
 
@@ -1400,6 +1412,51 @@ if [ "${JKX_SMOKE_MENUMODEL:-0}" = "1" ]; then
         "$RUN/home/base/screenshots/jkx_smoke.tga" "0,0,255:2000"; then
         report "the menu's model is not wearing its own materials; a model with \
 no custom skin is being given the default shader instead"
+    fi
+fi
+
+# What the menu's lighting actually put on the screen.
+#
+# This lane exists because of a report from hardware that the bench could not
+# even represent: both models in the menu look burnt out. Every model this
+# fixture drew was rgbGen const, so the menu's lighting had never reached a
+# pixel here - the lane above photographs a model whose colour is a constant and
+# would look identical under any light at all, including none.
+#
+# jkx/menu_lit is white and lit, so the pixel IS the lighting sum, and the
+# histogram of its greys is that sum read back off the screen. What to look for:
+# a tail is shading, a wall at 255 is a sum that went over one before it was
+# written.
+#
+# The numbers came first, and here they are, all three from the same lane on the
+# same binary with one change between them:
+#
+#   122   before anything was fixed. Exactly the ambient value and nothing else
+#         on 24948 pixels - the whole model, one level, no shading at all. The
+#         light direction was the zero vector and the shader divided by its
+#         length;
+#   251   with the two divisions guarded and tr.sunDirection given a value
+#         before the first map load. Lit, and four short of the ceiling;
+#   235   with the sum of ambient and directed scaled to fit the range it is
+#         written into. Predicted 255/272 of 251 before the run, which is 235.3.
+#
+# So the gate is the third number, exactly, and it is exact on purpose: each of
+# the three defects has its own value, so a failure says WHICH one came back
+# rather than that something moved. 122 is the light direction gone again, 251
+# is the sum clamp gone, 255 is a model burnt to flat white - the thing that was
+# reported from hardware.
+#
+# The histogram is printed either way, because the gate answers one question and
+# the shape of the distribution answers the next one.
+if [ "${JKX_SMOKE_MENULIGHT:-0}" = "1" ]; then
+    python3 "$HERE/tga_grey_levels.py" \
+        "$RUN/home/base/screenshots/jkx_smoke.tga" || true
+
+    if ! python3 "$HERE/tga_has_colour.py" \
+        "$RUN/home/base/screenshots/jkx_smoke.tga" "235,235,235:2000"; then
+        report "the menu model is not at the lighting value it should be; see \
+the three numbers above this check in smoke_headless.sh for which defect each \
+value means"
     fi
 fi
 
