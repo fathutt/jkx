@@ -246,14 +246,27 @@ set_property(TARGET ${RDVulkanRenderer} APPEND PROPERTY
 # write a line. This used to be baked into the source at sync time by the
 # harness, which is exactly the kind of thing that silently does nothing when
 # the sync step is skipped.
-# The default stays OFF here on purpose even while the packaging workflow pins
-# it ON. Flipping it here would turn the trace on for the local CI lanes too,
-# and those enable the validation layer through the loader already - two ways of
-# asking for the same layer, in the one place whose output is asserted on. The
-# person who needs the trace installs what .github/workflows/engine.yml builds,
-# so that is where the pin belongs and that is the only thing that has to be
-# undone afterwards.
-option(JKX_VK_TRACE "Compile the Vulkan renderer's operation trace into a release build" OFF)
+#
+# TEMPORARILY ON. IT GOES BACK TO OFF THE DAY THE vid_restart LOG EXISTS.
+#
+# Pinning it in .github/workflows/engine.yml was tried first and was not enough,
+# which is the part worth writing down: THERE ARE TWO WORKFLOWS THAT PRODUCE A
+# WINDOWS BINARY. engine.yml builds the package - both engines, the launcher,
+# the shader pak - and ci.yml builds a checking configuration and uploads it as
+# jkx-Windows anyway. They configure independently, so a flag set in one of them
+# is set for half the binaries this repository hands out, and which half a person
+# downloads is not something the repository decides. The build that got installed
+# was the other one, and the trace was not in it.
+#
+# A default is the only place that covers both, plus anyone building by hand.
+# Every path to a binary now has it, which is what "the person who can reproduce
+# the crash must not have to remember a flag" actually requires.
+#
+# What it costs: vk_log.log next to the executable, and the validation layer
+# requested by the renderer as well as by the loader. The local lanes ask the
+# loader for the same layer already; measured with this on, all 28 stages pass
+# and the lanes that report validation findings still report none.
+option(JKX_VK_TRACE "Compile the Vulkan renderer's operation trace into a release build" ON)
 if(JKX_VK_TRACE)
 	target_compile_definitions(${RDVulkanRenderer} PRIVATE JKX_VK_TRACE=1)
 endif()

@@ -234,6 +234,12 @@ inventoryInfo_t		cg_inventory[INV_MAX];
 
 
 vmCvar_t	cg_centertime;
+// See CG_SmoothFactor in cg_players.cpp: the time constant for the head, neck
+// and leg angles chasing where a character is looking. Fifty milliseconds is
+// the Jedi Academy value and was chosen there to match what the old sawtooth
+// coefficient averaged out to, so this is not a new feel - it is the same feel
+// without the twenty-a-second judder.
+vmCvar_t	cg_smoothLookTime;
 vmCvar_t	cg_runpitch;
 vmCvar_t	cg_runroll;
 vmCvar_t	cg_bobup;
@@ -342,6 +348,7 @@ typedef struct {
 
 static cvarTable_t cvarTable[] = {
 	{ &cg_autoswitch, "cg_autoswitch", "1", CVAR_ARCHIVE },
+	{ &cg_smoothLookTime, "cg_smoothLookTime", "50", CVAR_ARCHIVE },
 	{ &cg_drawGun, "cg_drawGun", "1", CVAR_ARCHIVE },
 	{ &cg_fov, "cg_fov", "80", CVAR_ARCHIVE },
 	// On, as it is in Jedi Academy, and the difference between the two was

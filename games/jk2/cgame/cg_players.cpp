@@ -1571,6 +1571,36 @@ float CG_EyePointOfsForRace[RACE_HOLOGRAM+1][2] =
 #define LOOK_DEFAULT_SPEED	0.15f
 #define LOOK_TALKING_SPEED	0.15f
 
+/*
+===============
+CG_SmoothFactor
+
+How far something chasing a target should move towards it this frame, given a
+time constant in milliseconds and how long the frame actually took.
+
+Ported from the Jedi Academy gamecode, where the same four call sites had the
+same defect and were fixed there and not here. They used cg.frameInterpolation
+as if it were a smoothing coefficient, and it is not: it is where this frame
+sits between the last two snapshots, a sawtooth running zero to one at the
+snapshot rate. Used as a coefficient it says "do not move at all just after a
+snapshot, then jump to the target just before the next one" - a judder twenty
+times a second, which is exactly the head tremor people see when a character
+turns to look at them in the opening. And because it was applied once per drawn
+frame, how far behind the head sat also depended on the frame rate.
+
+The honest version only needs the elapsed time. Half the distance in tau
+milliseconds, whatever the frame rate, whatever the snapshot happens to be doing.
+===============
+*/
+static float CG_SmoothFactor( float tauMsec )
+{
+	if ( tauMsec <= 0.0f ) {
+		return 1.0f;
+	}
+
+	return 1.0f - expf( -(float)cg.frametime / tauMsec );
+}
+
 static qboolean CG_CheckLookTarget( centity_t *cent, vec3_t	lookAngles, float *lookingSpeed )
 {
 	if ( !cent->gent->ghoul2.size() )
@@ -1760,7 +1790,7 @@ qboolean CG_PlayerLegsYawFromMovement( centity_t *cent, const vec3_t velocity, f
 	}
 	//lerp the legs angle to the new angle
 	angleDiff = AngleDelta( cent->pe.legs.yawAngle, (*yaw+addAngle) );
-	newAddAngle = angleDiff*cg.frameInterpolation*-1;
+	newAddAngle = angleDiff*CG_SmoothFactor( cg_smoothLookTime.value )*-1;
 	if ( fabs(newAddAngle) > fabs(angleDiff) )
 	{
 		newAddAngle = angleDiff*-1;
@@ -1852,7 +1882,7 @@ void CG_ATSTLegsYaw( centity_t *cent, vec3_t trailingLegsAngles )
 			{
 				legAngleDiff = -5;
 			}
-			legAngleDiff *= cg.frameInterpolation;
+			legAngleDiff *= CG_SmoothFactor( cg_smoothLookTime.value );
 			VectorSet( trailingLegsAngles, 0, AngleNormalize180(cent->pe.legs.yawAngle + legAngleDiff), 0 );
 			cent->gent->client->renderInfo.legsYaw = trailingLegsAngles[YAW];
 		}
@@ -2040,9 +2070,13 @@ void CG_UpdateLookAngles( centity_t *cent, vec3_t lookAngles, float lookSpeed, f
 
 		if( VectorLengthSquared( lookAnglesDiff ) )
 		{
-			lookAngles[PITCH] = AngleNormalize180( oldLookAngles[PITCH]+(lookAnglesDiff[PITCH]*cg.frameInterpolation*lookSpeed) );
-			lookAngles[YAW] = AngleNormalize180( oldLookAngles[YAW]+(lookAnglesDiff[YAW]*cg.frameInterpolation*lookSpeed) );
-			lookAngles[ROLL] = AngleNormalize180( oldLookAngles[ROLL]+(lookAnglesDiff[ROLL]*cg.frameInterpolation*lookSpeed) );
+			// lookSpeed scaled the old coefficient, so it scales the time
+			// constant the other way: faster look, shorter tau.
+			const float f = CG_SmoothFactor( cg_smoothLookTime.value / ( lookSpeed > 0.0f ? lookSpeed : 1.0f ) );
+
+			lookAngles[PITCH] = AngleNormalize180( oldLookAngles[PITCH]+(lookAnglesDiff[PITCH]*f) );
+			lookAngles[YAW] = AngleNormalize180( oldLookAngles[YAW]+(lookAnglesDiff[YAW]*f) );
+			lookAngles[ROLL] = AngleNormalize180( oldLookAngles[ROLL]+(lookAnglesDiff[ROLL]*f) );
 		}
 	}
 	//Remember current lookAngles next time
@@ -2417,7 +2451,7 @@ void CG_G2PlayerAngles( centity_t *cent, vec3_t legs[3], vec3_t angles )
 				{
 					//FIXME: This clamp goes off viewAngles,
 					//but really should go off the tag_torso's axis[0] angles, no?
-					lookAngles[YAW] = oldLookAngles[YAW]+(lookAngles[YAW]-oldLookAngles[YAW])*cg.frameInterpolation*0.25;
+					lookAngles[YAW] = oldLookAngles[YAW]+(lookAngles[YAW]-oldLookAngles[YAW])*CG_SmoothFactor( cg_smoothLookTime.value * 4.0f );
 				}
 				//Remember current lookAngles next time
 				VectorCopy( lookAngles, cent->gent->client->renderInfo.lastHeadAngles );
