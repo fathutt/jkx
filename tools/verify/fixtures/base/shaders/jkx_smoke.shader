@@ -503,3 +503,98 @@ jkx/df_bulge
 		rgbGen const ( 0.0 0.8 0.4 )
 	}
 }
+
+// The physical map, written seven ways.
+//
+// A physically-based material carries roughness, metalness and occlusion, and
+// the industry never agreed on which channel holds which - so this renderer
+// takes six spellings and turns them all into one order with a Vulkan image
+// view swizzle (textureMapTypes[] in vk_local.h). One material asked for one of
+// them, rmoMap, and the other five had never been used at all: no fixture asset
+// named them, so the swizzle each one installs was never applied to a texel and
+// never landed on a pixel.
+//
+// The check is an equality between squares rather than against a number, and
+// that is what makes it exact without anyone deciding what the right shade of
+// grey is: SIX squares carrying THE SAME THREE VALUES in six different channel
+// orders must come out THE SAME COLOUR. A swizzle with two channels crossed
+// turns roughness into metalness and the square stops matching its neighbours.
+//
+// The seventh square is the control, and it is the reason the other six mean
+// anything: same packing as the first, different roughness. If it does NOT come
+// out a different colour, this lane cannot see roughness at all and six squares
+// agreeing are agreeing about nothing.
+//
+// White albedo, flat normal map: the only thing that varies between these seven
+// is the physical texture, which is what makes the difference attributable.
+
+jkx/ph_rmo
+{
+	{
+		map $whiteimage
+		normalMap textures/jkx/jkx_flat_n
+		rmoMap textures/jkx/jkx_phys_rmo
+		rgbGen lightingDiffuse
+	}
+}
+
+jkx/ph_rmos
+{
+	{
+		map $whiteimage
+		normalMap textures/jkx/jkx_flat_n
+		rmosMap textures/jkx/jkx_phys_rmos
+		rgbGen lightingDiffuse
+	}
+}
+
+jkx/ph_moxr
+{
+	{
+		map $whiteimage
+		normalMap textures/jkx/jkx_flat_n
+		moxrMap textures/jkx/jkx_phys_moxr
+		rgbGen lightingDiffuse
+	}
+}
+
+jkx/ph_mosr
+{
+	{
+		map $whiteimage
+		normalMap textures/jkx/jkx_flat_n
+		mosrMap textures/jkx/jkx_phys_mosr
+		rgbGen lightingDiffuse
+	}
+}
+
+jkx/ph_orm
+{
+	{
+		map $whiteimage
+		normalMap textures/jkx/jkx_flat_n
+		ormMap textures/jkx/jkx_phys_orm
+		rgbGen lightingDiffuse
+	}
+}
+
+jkx/ph_orms
+{
+	{
+		map $whiteimage
+		normalMap textures/jkx/jkx_flat_n
+		ormsMap textures/jkx/jkx_phys_orms
+		rgbGen lightingDiffuse
+	}
+}
+
+// The control. Same keyword as jkx/ph_rmo, roughness 0.9 instead of 0.1.
+jkx/ph_rough
+{
+	{
+		map $whiteimage
+		normalMap textures/jkx/jkx_flat_n
+		rmoMap textures/jkx/jkx_phys_rough
+		rgbGen lightingDiffuse
+	}
+}

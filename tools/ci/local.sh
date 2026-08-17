@@ -938,6 +938,48 @@ stage_smoketransparency() {
 # USE_VBO_MDV, so the vertex input state of THAT permutation is where to look.
 # The validation layer says nothing, so the attribute is bound - it is the data
 # that is wrong.
+# The physical map, written seven ways - and a finding instead of a check.
+#
+# A physically-based material carries roughness, metalness and occlusion, and
+# the industry never agreed which channel holds which, so this renderer takes
+# six spellings and turns them all into one order with a Vulkan image view
+# swizzle (textureMapTypes[] in vk_local.h). ONE of the six was ever used by a
+# fixture asset - rmoMap - so five of those swizzles had never been applied to a
+# texel, let alone landed on a pixel.
+#
+# The design is an equality between squares rather than against a number, which
+# is what would make it exact without anyone deciding what the right shade of
+# grey is: six squares carrying the same three values in six channel orders must
+# come out the same colour, and a seventh with a different roughness must not.
+#
+# None of it can be measured yet. With the physically-based path on, all seven
+# squares are drawn BLACK:
+#
+#   r_normalMapping 1    11704 pixels of rgb(0, 0, 0)
+#   r_normalMapping 0    11704 pixels of rgb(255, 108, 108)
+#
+# The same count either way, which is what says they are drawn rather than
+# skipped - not the vanishing draw the sky and the bulge turned out to be. They
+# are shaded to nothing. JKX_SMOKE_PHYS_NOPBR=1 is the control that produced the
+# second line.
+#
+# NOT in the stage list, same standing the cubemap lane had: red, and honest.
+#
+# Where to look, from the evidence: the validation layer is clean, so descriptor
+# set five is bound and this is not last week's defect again. Black with the sets
+# bound means a term is zero, and the candidate is NL in
+# out_color.rgb = lightColor * reflectance * (attenuation * NL). The guard added
+# with the menu fix substitutes vec3(0,0,1) for a light vector of zero length,
+# and these squares face the camera - so a light direction that never arrives
+# gives a dot product of nothing. That would mean the physically-based path gets
+# no light vector for a WORLD surface, which matters well past this fixture:
+# every material here is the shape a retail PBR texture pack uses on a map.
+stage_smokephys() {
+    JKX_SMOKE_PHYS=1 \
+    JKX_SMOKE_DISPLAY="${JKX_SMOKE_PHYS_DISPLAY:-:77}" \
+        bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
+}
+
 stage_smokedeform() {
     JKX_SMOKE_DEFORM=1 \
     JKX_SMOKE_DISPLAY="${JKX_SMOKE_DEFORM_DISPLAY:-:78}" \

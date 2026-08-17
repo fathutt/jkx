@@ -187,6 +187,72 @@ TC_COLOURS = (
 )
 
 
+# The physical values the packing lane paints into its textures, and the whole
+# point is that every packing carries THE SAME THREE NUMBERS in a different
+# channel order. If the renderer unpacks one of them wrongly, roughness becomes
+# occlusion, or metalness becomes roughness, and the square comes out a
+# different colour from the other five.
+#
+# Occlusion is one everywhere: it multiplies the ambient term and a value below
+# one would darken every square equally, which measures nothing. Roughness and
+# metalness are the two that have to survive the journey.
+PHYS_ROUGH = 26      # 0.1, smooth
+PHYS_METAL = 0       # not metal
+PHYS_OCCL = 255      # no occlusion
+PHYS_SPEC = 128      # base specular, for the packings that carry one
+
+# name -> the byte in each of the four file channels, in R G B A order.
+# Read this table against textureMapTypes[] in vk_local.h: that is the swizzle
+# the image view applies to turn the file back into occlusion, roughness,
+# metalness, specular, and this is the same permutation written forwards.
+PHYS_PACKINGS = {
+    "rmo":  (PHYS_ROUGH, PHYS_METAL, PHYS_OCCL, 255),
+    "rmos": (PHYS_ROUGH, PHYS_METAL, PHYS_OCCL, PHYS_SPEC),
+    "moxr": (PHYS_METAL, PHYS_OCCL, 0, PHYS_ROUGH),
+    "mosr": (PHYS_METAL, PHYS_OCCL, PHYS_SPEC, PHYS_ROUGH),
+    "orm":  (PHYS_OCCL, PHYS_ROUGH, PHYS_METAL, 255),
+    "orms": (PHYS_OCCL, PHYS_ROUGH, PHYS_METAL, PHYS_SPEC),
+    # The control: the same packing as the first one and a DIFFERENT roughness.
+    # If this square does not come out a different colour from the others, the
+    # lane cannot see roughness at all and the six that agree are agreeing about
+    # nothing. It is the noise floor of a comparison, in the fixture rather than
+    # in somebody's memory.
+    "rough": (230, PHYS_METAL, PHYS_OCCL, 255),
+}
+
+
+def write_rgba_tga(path, rgba):
+    """Uncompressed 32-bit Targa, bottom-up, one flat colour with alpha.
+
+    Thirty-two bits because half the physical packings carry a base specular in
+    the alpha channel, and a 24-bit file has no alpha for the image view to
+    swizzle out of.
+    """
+    header = struct.pack("<3B2HB4H2B",
+                         0, 0, 2,
+                         0, 0, 0,
+                         0, 0, SIZE, SIZE,
+                         32,        # bits per pixel
+                         8)         # descriptor: eight alpha bits, bottom-up
+
+    r, g, b, a = rgba
+    body = bytes((b, g, r, a)) * (SIZE * SIZE)
+
+    with open(path, "wb") as f:
+        f.write(header)
+        f.write(body)
+
+
+def build_phys(directory):
+    os.makedirs(directory, exist_ok=True)
+    written = []
+    for name, rgba in PHYS_PACKINGS.items():
+        path = os.path.join(directory, "jkx_phys_%s.tga" % name)
+        write_rgba_tga(path, rgba)
+        written.append(path)
+    return written
+
+
 def build_tc(directory):
     os.makedirs(directory, exist_ok=True)
     written = []
@@ -263,6 +329,16 @@ def main(argv):
 
     if "--check" in args:
         return check()
+
+    if "--phys" in args:
+        args = [a for a in args if a != "--phys"]
+        if len(args) != 1:
+            print("usage: %s --phys <directory>" % argv[0], file=sys.stderr)
+            return 2
+        written = build_phys(args[0])
+        print("%d physical texture(s) in %s, %dx%d, 32-bit"
+              % (len(written), args[0], SIZE, SIZE))
+        return 0
 
     if "--tc" in args:
         args = [a for a in args if a != "--tc"]

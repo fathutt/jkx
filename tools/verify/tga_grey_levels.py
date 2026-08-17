@@ -22,7 +22,12 @@ picks out the white-lit model and nothing else. Pure black is dropped with them
 because the fitted frame's margins are black and there are a great many of them.
 
     tga_grey_levels.py <shot.tga> [--min-pixels N] [--max-clipped N]
-                       [--expect LEVEL:MINPIXELS ...]
+                       [--expect LEVEL:MINPIXELS ...] [--any]
+
+--any histograms whole colours instead of grey levels and prints the commonest
+ten. It is for finding out what is in a frame before deciding what to check -
+the physical-map lane needed it because the fixture's light grid is RED on
+purpose, so a surface lit by it is not grey and none of the above sees it.
 
 With no options it prints and exits zero: it is a measurement first. The options
 turn it into a gate once there is a number worth gating on.
@@ -58,6 +63,7 @@ def main(argv):
     min_pixels = 0
     max_clipped = None
     expect = []
+    any_colours = False
 
     i = 2
     while i < len(argv):
@@ -67,6 +73,9 @@ def main(argv):
         elif argv[i] == "--max-clipped":
             max_clipped = int(argv[i + 1])
             i += 2
+        elif argv[i] == "--any":
+            any_colours = True
+            i += 1
         elif argv[i] == "--expect":
             level, least = argv[i + 1].split(":")
             expect.append((int(level), int(least)))
@@ -76,6 +85,18 @@ def main(argv):
             return 2
 
     width, height, data, off, stride = read_tga(path)
+
+    if any_colours:
+        whole = {}
+        for p in range(width * height):
+            base = off + p * stride
+            key = (data[base + 2], data[base + 1], data[base])
+            whole[key] = whole.get(key, 0) + 1
+        ranked = sorted(whole.items(), key=lambda kv: kv[1], reverse=True)[:10]
+        print("%s: %d distinct colour(s)" % (path, len(whole)))
+        for (r, g, b), n in ranked:
+            print("  rgb(%d, %d, %d) x%d" % (r, g, b, n))
+        return 0
 
     counts = [0] * 256
     total = 0

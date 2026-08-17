@@ -915,6 +915,28 @@ if [ "${JKX_SMOKE_LIGHTMAP:-0}" = "1" ]; then
     # what comes out is the engine's scaling and nothing else.
     python3 "$HERE/make_test_bsp.py" "$RUN/base/maps/jkx_room.bsp" \
         --shader jkx/lightmapped --lightmap >/dev/null
+elif [ "${JKX_SMOKE_PHYS:-0}" = "1" ]; then
+    # Seven squares in a column: six packings of the same three physical values
+    # and one control with a different roughness.
+    #
+    # A column rather than a row for the same reason as the other two lanes -
+    # the camera is pinned looking down +Y and heights are what fits. Seven
+    # squares of half-side 11, twenty-six apart, at y 200.
+    python3 "$HERE/make_test_material.py" "$RUN/base/textures/jkx" >/dev/null
+    python3 "$HERE/make_test_material.py" --phys "$RUN/base/textures/jkx" >/dev/null
+
+    PHYS_PROPS=()
+    PHYS_Z=78
+    for name in rmo rmos moxr mosr orm orms rough; do
+        python3 "$HERE/make_test_md3.py" \
+            "$RUN/base/models/jkx/ph_$name.md3" \
+            --flat --size 11 --shader "jkx/ph_$name" >/dev/null
+        PHYS_PROPS+=( --prop "models/jkx/ph_$name.md3:200:$PHYS_Z" )
+        PHYS_Z=$(( PHYS_Z - 26 ))
+    done
+
+    python3 "$HERE/make_test_bsp.py" "$RUN/base/maps/jkx_room.bsp" \
+        "${PHYS_PROPS[@]}" >/dev/null
 elif [ "${JKX_SMOKE_DEFORM:-0}" != "0" ]; then
     # Four squares, one deformVertexes each, in flat colours because what moves
     # here is the geometry rather than the texture coordinates.
@@ -1279,7 +1301,7 @@ fi
 # is now the open question: the character-model path does not run here. The
 # fixture keeps its colours - green skin, red alternate, white baked - because
 # they are what will make the answer visible once it does.
-if [ "${JKX_SMOKE_PBR:-0}" = "1" ]; then
+if [ "${JKX_SMOKE_PBR:-0}" = "1" ] || { [ "${JKX_SMOKE_PHYS:-0}" = "1" ] && [ "${JKX_SMOKE_PHYS_NOPBR:-0}" != "1" ]; }; then
     SET_STEP+=( +set r_normalMapping 1 +set r_specularMapping 1 )
 else
     SET_STEP+=( +set r_normalMapping 0 +set r_specularMapping 0 )
@@ -1670,6 +1692,45 @@ the colour and jkx_smoke.shader says which keyword owns it"
     # drawn at all. See stage_smokedeform in tools/ci/local.sh.
     python3 "$HERE/tga_colour_change.py" "$first" "$later" "$later2" \
         --differ 0,204,102:20 || true
+fi
+
+# The physical map, written seven ways - and a finding that arrived before the
+# check could be written.
+#
+# The design: six packings of the same three values must come out the same
+# colour, and the seventh - same packing, different roughness - must not. That
+# control is the whole reason the six would mean anything, because six squares
+# that agree because the lane cannot see roughness at all look exactly like six
+# squares that agree because the swizzles are right.
+#
+# None of that can be measured yet, because with the physically-based path ON
+# all seven squares are drawn BLACK. Measured, same fixture, same map, the only
+# difference being r_normalMapping and r_specularMapping:
+#
+#   r_normalMapping 1    11704 pixels of rgb(0, 0, 0)
+#   r_normalMapping 0    11704 pixels of rgb(255, 108, 108)
+#
+# The same count both ways, which is what says they are DRAWN rather than
+# skipped - this is not the vanishing draw that the sky and the bulge turned out
+# to be. They are shaded to nothing.
+#
+# So the lane prints and does not gate, and JKX_SMOKE_PHYS_NOPBR=1 runs the same
+# fixture with the physical path off, which is the control that produced the two
+# numbers above.
+#
+# Where to look, from the evidence rather than from taste: the validation layer
+# is clean, so descriptor set five IS bound here - this is not last week's defect
+# again. Black out of gen_frag with the sets bound means a term is zero, and the
+# candidate is NL: out_color.rgb = lightColor * reflectance * (attenuation * NL).
+# The guard added with the menu fix substitutes vec3(0,0,1) for a light vector of
+# zero length, and the fixture's squares face the camera, so a light direction
+# that never arrives gives a dot product of nothing and a black square. That
+# would mean the physically-based path gets no light vector for a world surface
+# - which is worth knowing, because every material in this test is the shape a
+# retail PBR texture pack uses on a map.
+if [ "${JKX_SMOKE_PHYS:-0}" = "1" ]; then
+    python3 "$HERE/tga_grey_levels.py" \
+        "$RUN/home/base/screenshots/jkx_inmap.tga" --any || true
 fi
 
 # Blending, and the order surfaces are drawn in.
