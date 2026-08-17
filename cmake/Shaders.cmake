@@ -21,6 +21,34 @@ find_program(GLSLC_EXECUTABLE
         "$ENV{VULKAN_SDK}/Bin"
     DOC "glslc from shaderc (ships with the Vulkan SDK)")
 
+# Whether this configuration compiles shaders at all.
+#
+# On by default, and OFF is for a configuration that is COMPILED AND NEVER RUN.
+# tools/ci/local.sh has one of those: the Debug stage exists to compile every
+# #ifdef the Release build does not, and nothing ever launches it - the engine
+# runs out of the Release tree and the sanitizer tree. Six hundred and four
+# glslc invocations and a pak for a binary nobody starts.
+#
+# The slot table is still generated, because vk_shaders.cpp includes it and the
+# C++ would not compile without it. It comes out of the manifest in a fraction
+# of a second; it is the glslc pass and the packing that cost.
+#
+# Measured, one shader touched and three configurations rebuilt: ninety-five
+# seconds with all three compiling, and four hundred and eighty-one glslc runs
+# in each.
+#
+# WHAT WAS TRIED FIRST AND DOES NOT WORK, so that nobody spends the afternoon on
+# it again: pointing several build trees at ONE shared SPIR-V directory. The
+# modules really are config-independent - md5 on the same module out of three
+# trees is identical - so it looks free. It is not. Each build tree has its own
+# ninja graph and its own log, and ninja records the mtime of every output it
+# produces; when another tree rewrites that file, ninja sees an output modified
+# behind its back and rebuilds it. All three configurations compiled all four
+# hundred and eighty-one modules anyway, measured, and the only thing the shared
+# directory added was two builds able to race on one file.
+set(JKX_BUILD_SHADERS ON CACHE BOOL
+    "Compile GLSL to SPIR-V and pack it. OFF for a tree that is built and never run.")
+
 function(jkx_add_shaders TARGET_NAME)
     set(SHADER_DIR   "${CMAKE_SOURCE_DIR}/code/rd-vulkan/shaders")
     set(MANIFEST     "${SHADER_DIR}/shaders.json")
@@ -30,7 +58,7 @@ function(jkx_add_shaders TARGET_NAME)
     set(PAK_FILE     "${JKX_GAME_DATA_DIR}/shaders.pak")
     set(PLAN_FILE    "${CMAKE_CURRENT_BINARY_DIR}/shader_variants.cmake")
 
-    if(NOT GLSLC_EXECUTABLE)
+    if(NOT GLSLC_EXECUTABLE AND JKX_BUILD_SHADERS)
         message(FATAL_ERROR
             "glslc not found. Install the Vulkan SDK, or the shaderc package on Linux, "
             "and re-run cmake. Set GLSLC_EXECUTABLE to override.")
@@ -65,6 +93,13 @@ function(jkx_add_shaders TARGET_NAME)
     set(JKX_SHADER_GENERATED_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated" PARENT_SCOPE)
 
     include("${PLAN_FILE}")
+
+    if(NOT JKX_BUILD_SHADERS)
+        add_custom_target(${TARGET_NAME})
+        message(STATUS "Shaders: NOT compiled in this tree "
+                       "(JKX_BUILD_SHADERS is off; the slot table is still generated)")
+        return()
+    endif()
 
     file(MAKE_DIRECTORY "${SPV_DIR}")
 

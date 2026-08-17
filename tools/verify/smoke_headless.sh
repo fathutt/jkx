@@ -1309,7 +1309,16 @@ fi
 # picture, so it asks for it here rather than leaving it to whoever runs the
 # lane. See the check further down for why the shaded picture is unusable.
 if [ "${JKX_SMOKE_PHYS:-0}" = "1" ]; then
-    SET_STEP+=( +set r_debugView 3 )
+    # Three is "roughness", which is what the packing check reads. It is a
+    # variable rather than a constant because the OTHER views are the diagnosis
+    # of the black-world-surface defect and each of them is one run:
+    #
+    #   JKX_SMOKE_PHYS_VIEW=0   the shaded picture, where the squares are black
+    #   JKX_SMOKE_PHYS_VIEW=1   diffuse - zero if metalness reads as one
+    #   JKX_SMOKE_PHYS_VIEW=18  nl - zero if the light vector never arrives
+    #
+    # "debugview" with no argument prints the whole list.
+    SET_STEP+=( +set r_debugView "${JKX_SMOKE_PHYS_VIEW:-3}" )
 fi
 
 if [ "${JKX_SMOKE_PBR:-0}" = "1" ] || [ "${JKX_SMOKE_PHYS:-0}" = "1" ]; then

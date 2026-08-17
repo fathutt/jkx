@@ -86,9 +86,27 @@ run() {
     fi
 }
 
+# ccache, when the machine has it, and it is worth explaining why rather than
+# leaving it as a habit.
+#
+# Between CONFIGURATIONS it buys nothing: Release, Debug and the sanitizer build
+# compile the same files with different flags, which are different cache entries.
+# What it buys is the way this project actually works - mutation testing. Every
+# fix here is proved by breaking it again: change a line, build, run the lane,
+# put the line back, build, run it again. That second build is a cache hit on
+# every object, and there are several of those a day.
+#
+# CI on GitHub uses sccache and stores its objects in the Actions cache, which is
+# the same idea for a machine that starts empty every time.
+CACHE_LAUNCHER=()
+if command -v ccache >/dev/null; then
+    CACHE_LAUNCHER=( -DCMAKE_C_COMPILER_LAUNCHER=ccache
+                     -DCMAKE_CXX_COMPILER_LAUNCHER=ccache )
+fi
+
 configure() {
     local dir="$1"; shift
-    cmake -S "$ROOT" -B "$dir" -G Ninja "$@" >/dev/null
+    cmake -S "$ROOT" -B "$dir" -G Ninja "${CACHE_LAUNCHER[@]}" "$@" >/dev/null
 }
 
 stage_policy() {
@@ -152,8 +170,20 @@ stage_release() {
     cmake --build "$BUILD_ROOT/release" --parallel "$JOBS"
 }
 
+# The whole tree, Debug: different code is compiled and it is the configuration
+# nobody looks at until it fails.
+#
+# Shaders off, and that is not a shortcut. Nothing ever LAUNCHES this build - the
+# engine runs out of the Release tree and out of the sanitizer tree - so its six
+# hundred and four glslc invocations and its shaders.pak were being produced for
+# a binary nobody starts. The slot table the C++ includes is still generated, so
+# this compiles exactly what it compiled before.
+#
+# Measured: four hundred and eighty-one glslc runs saved on every run that
+# touches a shader, about a third of ninety-five seconds.
 stage_debug() {
-    configure "$BUILD_ROOT/debug" -DCMAKE_BUILD_TYPE=Debug &&
+    configure "$BUILD_ROOT/debug" -DCMAKE_BUILD_TYPE=Debug \
+        -DJKX_BUILD_SHADERS=OFF &&
     cmake --build "$BUILD_ROOT/debug" --parallel "$JOBS"
 }
 
@@ -980,13 +1010,42 @@ stage_smoketransparency() {
 # skipped - not the vanishing draw the sky and the bulge turned out to be. They
 # are shaded to nothing. To see it again: run this lane with r_debugView 0.
 #
-# Where to look, from the evidence. The validation layer is clean, so descriptor
-# set five is bound and this is not the defect fixed last week. Black with the
-# sets bound means a factor is zero, and there are two candidates worth putting
-# side by side with the debug views this renderer already has: NL, which the
-# guard from the menu fix will make zero if the light vector never arrives, and
-# the diffuse term, which goes to zero if metalness reads as one. debugview
-# takes a name - nl, diffuse, ambient, lightcolor - and each is one run.
+# Five of the debug views were run against it, one run each, and what they say
+# does not add up - which is the most useful thing anyone has on this defect so
+# far, so here it is exactly as measured. All five counts are the squares:
+#
+#   JKX_SMOKE_PHYS_VIEW=0    shaded      11616 pixels of BLACK
+#   JKX_SMOKE_PHYS_VIEW=18   nl          11616 pixels of black - NL is zero
+#   JKX_SMOKE_PHYS_VIEW=11   ambient     11616 pixels of rgb(185, 63, 63)
+#   JKX_SMOKE_PHYS_VIEW=1    diffuse     11700 pixels of WHITE
+#   JKX_SMOKE_PHYS_VIEW=3    roughness   six exact levels, all correct
+#
+# NL being zero is confirmed, so the light vector really does not arrive. But
+# the shaded line is
+#
+#   out_color.rgb  = lightColor * reflectance * ( attenuation * NL );
+#   out_color.rgb += ambientColor * diffuse.rgb;
+#
+# and the second term is ambient times diffuse, which the two views above say is
+# rgb(185, 63, 63) times white. That is not black. The sum of a zero and a
+# not-zero came out zero.
+#
+# Var_RenderMode is a VARYING and not a specialization constant - checked - so
+# the debug views run in the same fragment shader invocation and the same
+# pipeline as the shaded path. They are not reporting a different draw.
+#
+# So one of these is true and the next run should decide which:
+#
+#   the squares are not black but INVISIBLE, and what is being counted is
+#   whatever is behind them. out_color.a = diffuse.a in the shaded path and the
+#   debug branch forces out_color.a = 1.0, which would hide exactly this - so
+#   the alpha and the blend state of that pipeline are the first thing to print;
+#
+#   or something after the two lines above overwrites out_color. There is a
+#   dynamic-light block and a fog block below them.
+#
+# Both are cheap to settle and neither is a guess about lighting, which is what
+# makes them the right next step rather than another theory.
 #
 # It matters well past this fixture: every material in this test has the shape a
 # retail PBR texture pack uses to paint a map, and the one PBR lane that passes
