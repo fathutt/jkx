@@ -1775,15 +1775,42 @@ fi
 # Sanitizer prints and carries on by default: a build that reports on every frame
 # still exits zero. This is what makes running the sanitizer build worth
 # anything - building it and never running it checks nothing.
+# The `|| true` on the line that PRINTS is not decoration. This script runs
+# under set -e with pipefail, the condition above is a wider pattern than the
+# detail below it, and grep exits non-zero when it matches nothing - so a run
+# that detected a problem and then could not name it KILLED THE SCRIPT at that
+# line. Every check after it is skipped, the closing "OK:" never prints, and
+# what comes out looks like an ordinary failure with a truncated log.
+#
+# It is the same defect in both blocks, and it went unnoticed because a
+# mismatch between the two patterns had never happened. It happens now: see
+# the validation block below.
 if grep -qE 'runtime error:|AddressSanitizer|UndefinedBehaviorSanitizer|LeakSanitizer' "$RUN/run.log"; then
     report "a sanitizer had something to say:"
-    grep -E 'runtime error:|ERROR: (Address|Leak)Sanitizer' "$RUN/run.log" | head -10
+    grep -E 'runtime error:|ERROR: (Address|Leak)Sanitizer' "$RUN/run.log" | head -10 || true
 fi
 
 if [ "$VALIDATION" = "1" ]; then
     if grep -qE 'VUID-|Validation Error|Validation Warning' "$RUN/run.log"; then
         report "the validation layer had something to say:"
-        grep -oE 'VUID-[A-Za-z0-9-]+' "$RUN/run.log" | sort | uniq -c | sort -rn | head -10
+
+        # The summary by name first, because a repeated VUID is one defect and a
+        # count of fifteen thousand is one number.
+        grep -oE 'VUID-[A-Za-z0-9-]+' "$RUN/run.log" | sort | uniq -c | sort -rn | head -10 || true
+
+        # And then the messages that carry no VUID at all, which is what this
+        # printed nothing for: the condition above accepts a bare "Validation
+        # Error", the summary above it only extracts VUID- names, and a run whose
+        # only complaint was unnamed announced that the layer had something to
+        # say and then said nothing - and, under set -e, stopped.
+        #
+        # Not a hypothetical. With r_cubeMapping 1 every message is of that kind:
+        # UNASSIGNED-CoreValidation-DrawState-InvalidImageLayout, no VUID number,
+        # twelve of them, and the run died at the line above without printing one.
+        if ! grep -qE 'VUID-' "$RUN/run.log"; then
+            grep -E 'Validation Error|Validation Warning' "$RUN/run.log" \
+                | cut -c1-200 | sort -u | head -10 || true
+        fi
     else
         # Said out loud, because until now a clean run under the layer and a run
         # where the layer never attached printed the same thing: nothing.

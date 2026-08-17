@@ -768,6 +768,38 @@ stage_smokevidrestart() {
         bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
 }
 
+# Cubemaps, which had never been generated on this bench.
+#
+# r_cubeMapping defaults to zero, so every run so far has skipped
+# R_LoadCubemapEntities, R_AssignCubemapsToWorldSurfaces, the convolve command,
+# vk_generate_cubemaps and the whole prefilter - two render passes, two
+# framebuffers, two pipelines and their offscreen images, created and destroyed
+# on a path nothing here took. The fixture needs no new data for it: the entity
+# list the loader falls back to includes info_player_start, which the generated
+# map already has.
+#
+# It found something on the first run, and it is NOT in the stage list because
+# of it. Twelve validation errors, all the same one:
+#
+#   UNASSIGNED-CoreValidation-DrawState-InvalidImageLayout
+#   ... expects VkImage to be in layout SHADER_READ_ONLY_OPTIMAL - instead,
+#   current layout is COLOR_ATTACHMENT_OPTIMAL
+#
+# Six per filter, one per cube face, for both the irradiance and the prefiltered
+# environment pass: the offscreen face is submitted still in the layout the
+# render pass left it in, and the shader that reads it declares the other one.
+# On lavapipe that reads the attachment anyway; on hardware it is undefined, and
+# this is the machinery the image-based lighting the glass work needs runs on.
+#
+# It goes into the list when the layout transition is there. See claude/Glass.md
+# for why this path matters beyond cubemaps.
+stage_smokecubemap() {
+    JKX_SMOKE_SET="r_cubeMapping=1" \
+    JKX_SMOKE_DISPLAY="${JKX_SMOKE_CUBEMAP_DISPLAY:-:81}" \
+    JKX_SMOKE_TIMEOUT=900 \
+        bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
+}
+
 # The one lane that still switches the validation layer off, and the only reason
 # is arithmetic: this bench has two cores, the sanitizers already multiply the
 # run, and the layer multiplies it again. Every other lane runs under it, so a
