@@ -71,7 +71,7 @@ JOBS="${JOBS:-$(nproc)}"
 
 STAGES=( "$@" )
 if [ "${#STAGES[@]}" -eq 0 ]; then
-    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokeskin smokelightmap smokemapent smokemenumodel smokemenulight smokepbrchar smokepak move smokesan prepass fog noassets )
+    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokeskin smokelightmap smokemapent smokemenumodel smokemenulight smokepbrchar smokevidrestart smokepak move smokesan prepass fog noassets )
 fi
 
 failed=()
@@ -749,18 +749,27 @@ stage_smokepbrchar() {
 # Mutation tested: put either sky item back to the old value and the lane
 # segfaults again.
 #
-# NOT in the stage list yet, and the reason is the good kind. It no longer
-# crashes - it now reports the next defect instead: after a restart the SKY is
-# not drawn, its three turned views come back with no sky colour in them at all.
-# The validation layer names two causes, both after the restart: a vertex
-# binding that is never bound (VUID-vkCmdDrawIndexed-None-04007) and an image
-# view of type CUBE handed to a shader that declares 2D
-# (VUID-vkCmdDrawIndexed-viewType-07752), with a third that follows from them
-# (02721).
+# Then it reported the next defect rather than crashing, which is what a lane is
+# for: after a restart the sky came back as three faces that were "the wrong one,
+# or the wrong way up", and the validation layer counted the reason.
 #
-# So the lane is doing its job and the job is not finished. It goes into the
-# list when the sky survives a restart. Run it by name meanwhile - and it runs
-# under the layer now, because those three lines ARE the diagnosis.
+#   before          15300 x VUID-vkCmdDrawIndexed-None-04007
+#                   15300 x VUID-vkCmdDrawIndexed-None-02721
+#                    1530 x VUID-vkCmdDrawIndexed-viewType-07752
+#                   plus three faces reported wrong by the fixture
+#
+#   after                0, and the run ends on its own OK
+#
+# R_SkyCubePipeline remembered its pipeline INDEX in a file static, and file
+# statics survive RE_Shutdown and R_Init while the pipeline table does not. The
+# remembered number still looked valid after a restart and pointed at whatever
+# pipeline had landed in that slot the second time round - a skeletal one, hence
+# a bone vertex binding nothing bound, and a two-dimensional sampler handed the
+# sky's cube view. Now the index is checked against the definition it is
+# supposed to describe, which costs one memcmp and cannot go stale.
+#
+# IN the stage list as of this change. It was out of it from the day it was
+# written, through two separate defects, and both of them were real.
 stage_smokevidrestart() {
     JKX_SMOKE_VIDRESTART=1 \
     JKX_SMOKE_DISPLAY="${JKX_SMOKE_VIDRESTART_DISPLAY:-:83}" \

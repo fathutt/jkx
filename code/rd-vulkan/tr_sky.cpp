@@ -363,17 +363,59 @@ static void FillSkySide( const int mins[2], const int maxs[2], float skyTexCoord
 static uint32_t	sky_cube_pipeline;
 static qboolean	sky_cube_pipeline_built;
 
+// The cubemap sky's pipeline, and the index is CHECKED rather than remembered.
+//
+// It used to be remembered, and that is why the sky vanished after a
+// vid_restart. These two are file statics, so they survive RE_Shutdown and
+// R_Init; the pipeline table does not. vk_destroy_pipelines( qtrue ) throws
+// every pipeline away and resets the counter, and the rebuilt renderer hands
+// out the same indices again in whatever order it happens to build things. So
+// after a restart the remembered number was still there, still looked valid,
+// and pointed at whatever pipeline had landed in that slot the second time
+// round.
+//
+// What that produces is not a blank sky, it is the WRONG pipeline drawn with
+// the sky's data, and the validation layer described it exactly:
+//
+//   15300 x VUID-vkCmdDrawIndexed-None-04007      a vertex binding the bound
+//                                                 pipeline needs and the sky
+//                                                 never binds - a skeletal
+//                                                 pipeline's bone stream
+//   15300 x VUID-vkCmdDrawIndexed-None-02721
+//    1530 x VUID-vkCmdDrawIndexed-viewType-07752  a CUBE image view handed to
+//                                                 a shader that declares 2D
+//
+// Three faces then came back "the wrong one, or the wrong way up", which is
+// the fixture saying the same thing in pixels.
+//
+// The fix is not to reset the flag somewhere, because that is one more piece of
+// renderer lifetime to keep in step and this file has just paid for one of
+// those. vk_get_pipeline_def returns a zeroed def for an index past the end and
+// the real one otherwise, so asking whether the remembered index still
+// describes the pipeline we want costs one memcmp and cannot rot. A rebuilt
+// table fails that test on the first frame and the pipeline is found again.
+//
+// vk_find_pipeline_ext already scans for an identical definition before
+// allocating, so the cache saves a linear walk over a couple of thousand
+// definitions six times a frame - which is worth keeping, and worth keeping
+// honest.
 static uint32_t R_SkyCubePipeline( void )
 {
 	Vk_Pipeline_Def def;
 
-	if ( sky_cube_pipeline_built ) {
-		return sky_cube_pipeline;
-	}
-
 	Com_Memset( &def, 0, sizeof( def ) );
 	def.shader_type = TYPE_SKYCUBE;
 	def.face_culling = CT_FRONT_SIDED;
+
+	if ( sky_cube_pipeline_built ) {
+		Vk_Pipeline_Def current;
+
+		vk_get_pipeline_def( sky_cube_pipeline, &current );
+
+		if ( memcmp( &current, &def, sizeof( def ) ) == 0 ) {
+			return sky_cube_pipeline;
+		}
+	}
 
 	sky_cube_pipeline = vk_find_pipeline_ext( 0, &def, qtrue );
 	sky_cube_pipeline_built = qtrue;
