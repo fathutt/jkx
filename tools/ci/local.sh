@@ -71,7 +71,7 @@ JOBS="${JOBS:-$(nproc)}"
 
 STAGES=( "$@" )
 if [ "${#STAGES[@]}" -eq 0 ]; then
-    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokeskin smokelightmap smokemapent smokemenumodel smokemenulight smokepbrchar smokevidrestart smokecubemap smoketransparency smokepak move smokesan prepass fog noassets )
+    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokeskin smokelightmap smokemapent smokemenumodel smokemenulight smokepbrchar smokevidrestart smokecubemap smoketransparency smoketcmod smokepak move smokesan prepass fog noassets )
 fi
 
 failed=()
@@ -859,6 +859,33 @@ stage_smokevidrestart() {
 stage_smoketransparency() {
     JKX_SMOKE_TRANSPARENCY=1 \
     JKX_SMOKE_DISPLAY="${JKX_SMOKE_TRANSPARENCY_DISPLAY:-:80}" \
+        bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
+}
+
+# Texture coordinates over time, which no lane had ever exercised.
+#
+# Not one tcMod had executed here, and the reason is the shape this bench keeps
+# finding: every texture the fixture drew was FLAT, and moving texture
+# coordinates across a flat colour changes nothing whatever the keyword does.
+#
+# Five squares, five colours, one tcMod each, photographed three times. The
+# reference square has no tcMod and is the noise floor - built into the lane
+# rather than left to somebody remembering to run A against A - and it measures
+# exactly zero movement across all three frames in every run so far.
+#
+# Three frames and slow rates, both of which were paid for. A tcMod is periodic;
+# the same scroll measured a hundred pixels of movement in one run and one in
+# the next, at the same rate, on the same binary, because the engine's clock
+# does not advance in step with the frame counter. Picking an interval that does
+# not divide the period does not work. Making the PERIOD long compared with the
+# whole sampling window does.
+#
+# The static one is checked the other way round: tcMod scale changes the picture
+# once and then holds still, so it is compared against the reference square in
+# the SAME frame - 902 pixels against 1511, two texels across instead of one.
+stage_smoketcmod() {
+    JKX_SMOKE_TCMOD=1 \
+    JKX_SMOKE_DISPLAY="${JKX_SMOKE_TCMOD_DISPLAY:-:79}" \
         bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
 }
 

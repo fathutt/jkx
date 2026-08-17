@@ -327,3 +327,86 @@ jkx/trans_filter
 		rgbGen const ( 0.5 0.5 0.5 )
 	}
 }
+
+// Texture coordinates, and the six keywords that move them.
+//
+// Not one tcMod had ever executed on this bench, and the reason is the same
+// shape as every other blind spot here: every texture the fixture draws is
+// FLAT. Moving texture coordinates across a flat colour changes nothing, so a
+// fixture made of flat textures cannot see a tcMod whatever it does.
+//
+// So these five draw a texture with an edge in it - half black, half one
+// colour, split down the middle in u; see write_half_tga in
+// make_test_material.py. The count of that colour on the square is then a
+// number that moves when the coordinates move.
+//
+// One colour per material, so a count of a colour is a count of a square and no
+// mask is needed. What each one is checked against is in smoke_headless.sh, and
+// the shape of it matters: the reference square below is the NOISE FLOOR. It
+// has no tcMod at all, so if its count changes between the two shots then the
+// whole frame is moving and none of the other numbers mean anything. This
+// project has twice announced an effect that turned out to be its own noise,
+// and this is what that lesson looks like built into a fixture.
+
+// No tcMod. The control, and the thing the static mods are compared against.
+jkx/tc_ref
+{
+	{
+		map textures/jkx/jkx_tc_ref
+	}
+}
+
+// Along u, which is the axis the texture is split on. A scroll along v would
+// move the count not at all - a distinction this lane can make and a flat
+// texture could not.
+//
+// Every rate in this block is SLOW, and that is the whole lesson of building
+// this lane.
+//
+// A tcMod is periodic and the lane samples it at three moments. Picking a rate
+// and hoping the sampling interval does not divide its period does not work,
+// and it does not work in the most confusing possible way: the same scroll
+// measured a hundred pixels of movement in one run and one pixel in the next,
+// at the same rate, on the same binary. The engine's clock does not advance in
+// step with the frame counter, so the interval is not the same interval twice.
+//
+// What does work is making the PERIOD long compared with the whole sampling
+// window. At 0.05 per second the scroll takes twenty seconds to come back to
+// itself and the window is three or four, so it can only move in one direction
+// while the lane is watching. Same for the stretch at 0.07 hertz. The rotation
+// at 37 degrees a second takes ten seconds round and gets the same treatment.
+jkx/tc_scroll
+{
+	{
+		map textures/jkx/jkx_tc_scroll
+		tcMod scroll 0.05 0
+	}
+}
+
+jkx/tc_rotate
+{
+	{
+		map textures/jkx/jkx_tc_rotate
+		tcMod rotate 37
+	}
+}
+
+jkx/tc_stretch
+{
+	{
+		map textures/jkx/jkx_tc_stretch
+		tcMod stretch sin 1 0.5 0 0.07
+	}
+}
+
+// The one that does not animate. It is here because a static mod fails
+// differently from a moving one: nothing about it changes over time, so the
+// only way to see it is to compare it against the reference square in the SAME
+// frame. Two texels across instead of one, so half as much colour.
+jkx/tc_scale
+{
+	{
+		map textures/jkx/jkx_tc_scale
+		tcMod scale 2 2
+	}
+}

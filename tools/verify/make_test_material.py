@@ -72,6 +72,99 @@ def write_tga(path, colour):
         f.write(body)
 
 
+def write_half_tga(path, colour):
+    """The same Targa, half black and half one colour, split down the middle.
+
+    A texture with an EDGE in it, which the flat ones above deliberately are
+    not. tcMod moves texture coordinates, and moving them across a flat texture
+    changes nothing at all - so a fixture made of flat textures cannot see a
+    single one of the six tcMod kinds, whatever it does with them.
+
+    Half and half rather than a checkerboard, because the check is a count: how
+    many pixels of the colour are on the square. A checkerboard of that colour
+    keeps roughly half of them wherever it is scrolled to; one edge moves the
+    count in proportion to how far the coordinates moved, which is a number
+    rather than a coincidence.
+
+    The u coordinate is what splits, so a scroll along u is the one that changes
+    it most and a scroll along v changes it not at all. That is a property worth
+    having: it means the lane can tell the two apart.
+    """
+    header = struct.pack("<3B2HB4H2B",
+                         0, 0, 2,
+                         0, 0, 0,
+                         0, 0, SIZE, SIZE,
+                         24, 0)
+
+    r, g, b = colour
+    row = bytes((0, 0, 0)) * (SIZE // 2) + bytes((b, g, r)) * (SIZE - SIZE // 2)
+
+    with open(path, "wb") as f:
+        f.write(header)
+        f.write(row * SIZE)
+
+
+def write_diagonal_tga(path, colour):
+    """The same Targa, split on the DIAGONAL rather than down the middle.
+
+    For the rotating square, and the reason is that a straight split is nearly
+    invariant under rotation: turn a half-and-half texture about its centre and
+    about half of it is still coloured, so the count barely moves - measured, a
+    spread of two pixels against a control of zero, which is a signal but a thin
+    one. A diagonal edge sweeps a corner of the square in and out as it turns and
+    moves the count by an order of magnitude more.
+    """
+    header = struct.pack("<3B2HB4H2B",
+                         0, 0, 2,
+                         0, 0, 0,
+                         0, 0, SIZE, SIZE,
+                         24, 0)
+
+    r, g, b = colour
+    body = bytearray()
+    for v in range(SIZE):
+        for u in range(SIZE):
+            if u + v > SIZE:
+                body += bytes((b, g, r))
+            else:
+                body += bytes((0, 0, 0))
+
+    with open(path, "wb") as f:
+        f.write(header)
+        f.write(bytes(body))
+
+
+# The colours the texture-coordinate lane paints its squares in. One per
+# material, all different from each other and from everything else this fixture
+# draws, so a count of one colour is a count of one square and needs no mask.
+#
+# NONE of them is red-dominant, and that is not taste. The seam check three
+# hundred lines further on in smoke_headless.sh reads the red-dominant pixels of
+# the frame - the fixture's light grid is red on purpose - so a red square
+# standing in the same picture is measured as part of the model and reported as
+# a shading step across a seam. It was, on the first run of this lane.
+TC_COLOURS = (
+    ("ref", (0, 255, 128)),
+    ("scroll", (0, 128, 255)),
+    ("rotate", (128, 0, 255)),
+    ("stretch", (0, 200, 100)),
+    ("scale", (100, 0, 200)),
+)
+
+
+def build_tc(directory):
+    os.makedirs(directory, exist_ok=True)
+    written = []
+    for name, colour in TC_COLOURS:
+        path = os.path.join(directory, "jkx_tc_%s.tga" % name)
+        if name == "rotate":
+            write_diagonal_tga(path, colour)
+        else:
+            write_half_tga(path, colour)
+        written.append(path)
+    return written
+
+
 def build(directory):
     os.makedirs(directory, exist_ok=True)
     normal = os.path.join(directory, "jkx_flat_n.tga")
@@ -136,8 +229,19 @@ def main(argv):
     if "--check" in args:
         return check()
 
+    if "--tc" in args:
+        args = [a for a in args if a != "--tc"]
+        if len(args) != 1:
+            print("usage: %s --tc <directory>" % argv[0], file=sys.stderr)
+            return 2
+        written = build_tc(args[0])
+        print("%d half-and-half texture(s) in %s, %dx%d"
+              % (len(written), args[0], SIZE, SIZE))
+        return 0
+
     if len(args) != 1:
-        print("usage: %s <directory>" % argv[0], file=sys.stderr)
+        print("usage: %s <directory> | %s --tc <directory>"
+              % (argv[0], argv[0]), file=sys.stderr)
         return 2
 
     normal, rmo = build(args[0])

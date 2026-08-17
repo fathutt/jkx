@@ -549,6 +549,17 @@ jobs:
           JKX_SMOKE_DISPLAY: ':80'
         run: bash tools/verify/smoke_headless.sh build
 
+      # Texture coordinates over time. Not one tcMod had ever executed here,
+      # because every texture in the fixture was flat and moving coordinates
+      # across a flat colour changes nothing. Five squares, five colours, one
+      # tcMod each, three shots; the reference square has no tcMod and is the
+      # noise floor, and it measures exactly zero.
+      - name: Texture coordinates, moved and not moved
+        env:
+          JKX_SMOKE_TCMOD: '1'
+          JKX_SMOKE_DISPLAY: ':79'
+        run: bash tools/verify/smoke_headless.sh build
+
       # The same fixture out of a pk3. Every run before this one read loose
       # files, so FS_LoadZipFile, the per-pack hash table, the pak branch of
       # FS_FOpenFileRead and unzReadCurrentFile in FS_Read had never executed in

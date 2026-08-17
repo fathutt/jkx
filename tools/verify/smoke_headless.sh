@@ -310,6 +310,27 @@ if [ "${JKX_SMOKE_MAPENT:-0}" = "1" ]; then
                  +wait $SETTLE +screenshot_tga jkx_inmap )
 fi
 
+# Two shots of the same settled scene, separated in time rather than in space.
+#
+# tcMod is a function of the clock, so one frame of it says nothing: a scrolled
+# texture and an unscrolled one look equally plausible in a single picture. The
+# measurement is the DIFFERENCE between moments, and everything else in the
+# frame is pinned and static, which is what makes that difference attributable.
+#
+# THREE shots, at 137 frames and then another 83, and both of those numbers are
+# the result of a measurement rather than a preference. A tcMod is periodic and
+# a rate whose period divides the sampling interval comes back to exactly where
+# it started: at 0.5 per second the scroll moved 55 pixels between one pair of
+# shots and 0 between the next, at the same rate, because the engine's clock
+# does not advance in step with the frame counter. Two unequal intervals and odd
+# rates mean aliasing would have to happen on both at once.
+if [ "${JKX_SMOKE_TCMOD:-0}" = "1" ]; then
+    INMAP_STEP=( +wait 20 +map jkx_room
+                 +wait $SETTLE +screenshot_tga jkx_inmap
+                 +wait 137 +screenshot_tga jkx_tc_later
+                 +wait 83 +screenshot_tga jkx_tc_later2 )
+fi
+
 
 
 # The crosshair, twice: once absent, once drawn large enough that nothing else
@@ -894,6 +915,29 @@ if [ "${JKX_SMOKE_LIGHTMAP:-0}" = "1" ]; then
     # what comes out is the engine's scaling and nothing else.
     python3 "$HERE/make_test_bsp.py" "$RUN/base/maps/jkx_room.bsp" \
         --shader jkx/lightmapped --lightmap >/dev/null
+elif [ "${JKX_SMOKE_TCMOD:-0}" = "1" ]; then
+    # Five squares side by side, one per tcMod, each painted in its own colour
+    # so a count of a colour is a count of a square.
+    #
+    # They are spread along z rather than across the view because the fixture's
+    # camera is pinned looking down +Y and a column is what fits: five squares
+    # at a half-side of 14, thirty apart, reach 0.44 of the view from its centre
+    # at y 200, which is inside the vertical field.
+    python3 "$HERE/make_test_material.py" --tc \
+        "$RUN/base/textures/jkx" >/dev/null
+
+    for name in ref scroll rotate stretch scale; do
+        python3 "$HERE/make_test_md3.py" \
+            "$RUN/base/models/jkx/tc_$name.md3" \
+            --flat --size 14 --shader "jkx/tc_$name" >/dev/null
+    done
+
+    python3 "$HERE/make_test_bsp.py" "$RUN/base/maps/jkx_room.bsp" \
+        --prop models/jkx/tc_ref.md3:200:60 \
+        --prop models/jkx/tc_scroll.md3:200:30 \
+        --prop models/jkx/tc_rotate.md3:200:0 \
+        --prop models/jkx/tc_stretch.md3:200:-30 \
+        --prop models/jkx/tc_scale.md3:200:-60 >/dev/null
 elif [ "${JKX_SMOKE_TRANSPARENCY:-0}" = "1" ]; then
     # A backdrop of a known colour with three translucent squares in front of
     # it, each at a different height so no two overlap each other.
@@ -1490,6 +1534,64 @@ if [ "${JKX_SMOKE_MENULIGHT:-0}" = "1" ]; then
         report "the menu model is not at the lighting value it should be; see \
 the three numbers above this check in smoke_headless.sh for which defect each \
 value means"
+    fi
+fi
+
+# Texture coordinates over time.
+#
+# Five squares, five colours, one tcMod each, photographed twice with two
+# seconds of engine time between the shots. What the counts have to do:
+#
+#   ref      NO tcMod at all, and it must hold still. This is the noise floor,
+#            and it is in the lane rather than in someone's memory: if the
+#            control moves, the whole frame is drifting and not one of the other
+#            four numbers below means anything. Twice on this project an effect
+#            was announced that turned out to be its own noise
+#   scroll   tcMod scroll along u, the axis the texture is split on, so this is
+#            the largest movement of the five
+#   rotate   tcMod rotate
+#   stretch  tcMod stretch
+#   scale    tcMod scale, which does NOT animate. It changes the picture once
+#            and then holds still, so it is checked the other way round: equal
+#            between the two shots, and different from the red control in the
+#            same shot - two texels across instead of one is half as much colour.
+#            It is allowed four pixels of movement and the control is allowed
+#            none: the control is what says the frame is not drifting, and a
+#            control with a tolerance says nothing. Measured, the static square
+#            wobbles by one pixel on an edge and the control by exactly zero
+#
+# No colour here is red-dominant, and that is not taste: the seam check further
+# down reads the red-dominant pixels of the frame, because the fixture's light
+# grid is red. The first run of this lane painted its control square pure red
+# and was duly reported as a shading step across a model seam.
+#
+# --min-pixels is what stops "it held still" being satisfied by a square that
+# is not drawn at all. Zero and zero are equal too.
+#
+# The floors on the moving three are about a third of what two consecutive runs
+# measured - scroll 58 and 56, rotate 8 and 13, stretch 93 and 58 - which leaves
+# room for the clock landing differently and none for a tcMod that is not
+# running. The rotating square is the smallest of the three because rotation is
+# nearly invariant on a straight-split texture; its texture is split on the
+# diagonal for that reason and it still moves least.
+if [ "${JKX_SMOKE_TCMOD:-0}" = "1" ]; then
+    first="$RUN/home/base/screenshots/jkx_inmap.tga"
+    later="$RUN/home/base/screenshots/jkx_tc_later.tga"
+    later2="$RUN/home/base/screenshots/jkx_tc_later2.tga"
+
+    if [ ! -f "$first" ] || [ ! -f "$later" ] || [ ! -f "$later2" ]; then
+        report "the texture-coordinate squares were not photographed three \
+times, so nothing here was checked"
+    elif ! python3 "$HERE/tga_colour_change.py" "$first" "$later" "$later2" \
+            --min-pixels 500 \
+            --same 0,255,128 \
+            --differ 0,128,255:20 \
+            --differ 128,0,255:4 \
+            --differ 0,200,100:20 \
+            --same 100,0,200:4 \
+            --unlike 100,0,200=0,255,128; then
+        report "a tcMod did not do what it says; the line above names the \
+colour, and the table above this check says which keyword owns it"
     fi
 fi
 
