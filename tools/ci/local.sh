@@ -791,8 +791,36 @@ stage_smokevidrestart() {
 # On lavapipe that reads the attachment anyway; on hardware it is undefined, and
 # this is the machinery the image-based lighting the glass work needs runs on.
 #
-# It goes into the list when the layout transition is there. See claude/Glass.md
-# for why this path matters beyond cubemaps.
+# Two hours were spent trying to close it and it is not closed, so here is where
+# that got to, because the next person should start from the answer rather than
+# from the symptom. Both attempts were made, measured and REVERTED.
+#
+#   The barrier is wrong at the top of vk_generate_cubemaps: it names
+#   SHADER_READ_ONLY_OPTIMAL as the old layout AND as the new one, which
+#   transitions nothing and asserts something false - vk.cubeMap.color_image is
+#   a colour attachment there, and the last thing the same function does is put
+#   it back to COLOR_ATTACHMENT_OPTIMAL for the next capture.
+#
+#   Correcting only that made it worse: thirty-six
+#   VUID-...-commandBuffer-recording. The reason is one line down the call:
+#   vk_record_image_layout_transition has no case for
+#   COLOR_ATTACHMENT_OPTIMAL as an OLD layout, only as a new one. So the helper
+#   can put an image into being a colour attachment and cannot take one out, and
+#   the default arm is Com_Error( ERR_DROP ) - which drops the frame with the
+#   command buffer half recorded, and every vkCmd after it complains. That is
+#   almost certainly why the false barrier was written that way in the first
+#   place: it was the only spelling the helper would accept.
+#
+#   Adding the missing case and correcting the barrier together gets rid of the
+#   original twelve and produces twenty-four of a new shape: half expecting
+#   SHADER_READ_ONLY and finding COLOR_ATTACHMENT, half the exact opposite. The
+#   tracked layout and the real one are out of phase, which points at the sky
+#   capture and the convolve disagreeing about who leaves the image where, and
+#   that is where to look next. Not shipped: a barrier change into a renderer on
+#   a guess is what this project has rules against.
+#
+# It goes into the list when that is understood. See claude/Glass.md for why
+# this path matters beyond cubemaps.
 stage_smokecubemap() {
     JKX_SMOKE_SET="r_cubeMapping=1" \
     JKX_SMOKE_DISPLAY="${JKX_SMOKE_CUBEMAP_DISPLAY:-:81}" \
