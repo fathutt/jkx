@@ -504,29 +504,35 @@ jkx/df_bulge
 	}
 }
 
-// The physical map, written seven ways.
+// The physical map, written six ways.
 //
 // A physically-based material carries roughness, metalness and occlusion, and
-// the industry never agreed on which channel holds which - so this renderer
-// takes six spellings and turns them all into one order with a Vulkan image
-// view swizzle (textureMapTypes[] in vk_local.h). One material asked for one of
+// the industry never agreed which channel holds which - so this renderer takes
+// six spellings and turns them all into one order with a Vulkan image view
+// swizzle (textureMapTypes[] in vk_local.h). One material asked for one of
 // them, rmoMap, and the other five had never been used at all: no fixture asset
-// named them, so the swizzle each one installs was never applied to a texel and
-// never landed on a pixel.
+// named them, so the swizzle each one installs was never applied to a texel.
 //
-// The check is an equality between squares rather than against a number, and
-// that is what makes it exact without anyone deciding what the right shade of
-// grey is: SIX squares carrying THE SAME THREE VALUES in six different channel
-// orders must come out THE SAME COLOUR. A swizzle with two channels crossed
-// turns roughness into metalness and the square stops matching its neighbours.
+// Each square carries a DIFFERENT roughness, and the lane reads them off the
+// roughness debug view rather than off the shaded picture. Two reasons, and the
+// second is the important one:
 //
-// The seventh square is the control, and it is the reason the other six mean
-// anything: same packing as the first, different roughness. If it does NOT come
-// out a different colour, this lane cannot see roughness at all and six squares
-// agreeing are agreeing about nothing.
+//   the debug view is the value itself, so the check is an equality against a
+//   byte the arithmetic predicts rather than against a shade of grey somebody
+//   picked;
 //
-// White albedo, flat normal map: the only thing that varies between these seven
-// is the physical texture, which is what makes the difference attributable.
+//   and the shaded picture cannot be used at all right now, because a
+//   physically-based WORLD surface comes out black on this renderer. That is a
+//   separate open defect and it is written up at stage_smokephys in
+//   tools/ci/local.sh. Reading the texture rather than the lighting is what
+//   lets the packings be checked while it stands.
+//
+// Six different values also removes the need for a control square. Six exact
+// numbers cannot come out right by accident, and a renderer ignoring the
+// texture would collapse all six onto one level.
+//
+// White albedo and a flat normal map: the physical texture is the only thing
+// that differs between these six.
 
 jkx/ph_rmo
 {
@@ -584,17 +590,6 @@ jkx/ph_orms
 		map $whiteimage
 		normalMap textures/jkx/jkx_flat_n
 		ormsMap textures/jkx/jkx_phys_orms
-		rgbGen lightingDiffuse
-	}
-}
-
-// The control. Same keyword as jkx/ph_rmo, roughness 0.9 instead of 0.1.
-jkx/ph_rough
-{
-	{
-		map $whiteimage
-		normalMap textures/jkx/jkx_flat_n
-		rmoMap textures/jkx/jkx_phys_rough
 		rgbGen lightingDiffuse
 	}
 }

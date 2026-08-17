@@ -71,7 +71,7 @@ JOBS="${JOBS:-$(nproc)}"
 
 STAGES=( "$@" )
 if [ "${#STAGES[@]}" -eq 0 ]; then
-    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokeskin smokelightmap smokemapent smokemenumodel smokemenulight smokepbrchar smokevidrestart smokecubemap smoketransparency smoketcmod smokedeform smokepak move smokesan prepass fog noassets )
+    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokeskin smokelightmap smokemapent smokemenumodel smokemenulight smokepbrchar smokevidrestart smokecubemap smoketransparency smoketcmod smokedeform smokephys smokepak move smokesan prepass fog noassets )
 fi
 
 failed=()
@@ -938,42 +938,59 @@ stage_smoketransparency() {
 # USE_VBO_MDV, so the vertex input state of THAT permutation is where to look.
 # The validation layer says nothing, so the attribute is bound - it is the data
 # that is wrong.
-# The physical map, written seven ways - and a finding instead of a check.
+# The physical map, written six ways.
 #
 # A physically-based material carries roughness, metalness and occlusion, and
 # the industry never agreed which channel holds which, so this renderer takes
 # six spellings and turns them all into one order with a Vulkan image view
-# swizzle (textureMapTypes[] in vk_local.h). ONE of the six was ever used by a
-# fixture asset - rmoMap - so five of those swizzles had never been applied to a
-# texel, let alone landed on a pixel.
+# swizzle - textureMapTypes[] in vk_local.h. ONE of the six was ever named by a
+# fixture asset, rmoMap, so five of those swizzles had never been applied to a
+# texel, let alone reached a pixel.
 #
-# The design is an equality between squares rather than against a number, which
-# is what would make it exact without anyone deciding what the right shade of
-# grey is: six squares carrying the same three values in six channel orders must
-# come out the same colour, and a seventh with a different roughness must not.
+# Six squares, six packings, a DIFFERENT roughness in each, and each must come
+# back as the exact byte the shader arithmetic predicts - mix(0.01, 1.0, v/255)
+# times 255:
 #
-# None of it can be measured yet. With the physically-based path on, all seven
-# squares are drawn BLACK:
+#   rmo    file R  20  ->  22        mosr   file A 140  -> 141
+#   rmos   file R  60  ->  62        orm    file G 180  -> 181
+#   moxr   file A 100  -> 102        orms   file G 220  -> 220
 #
-#   r_normalMapping 1    11704 pixels of rgb(0, 0, 0)
-#   r_normalMapping 0    11704 pixels of rgb(255, 108, 108)
+# All six measured exactly, first time out. So the five unused swizzles are
+# right, which is a negative result worth having: this could as easily have been
+# five defects.
 #
-# The same count either way, which is what says they are drawn rather than
+# Six different values rather than six identical ones and a control square: six
+# exact numbers cannot come out right by accident, and a renderer that ignored
+# the texture would collapse all six onto one level. The control is built into
+# the spread rather than standing beside it.
+#
+# It reads the ROUGHNESS DEBUG VIEW, and the second of the two reasons is the
+# one that matters. The first is that the debug view is the value itself, so the
+# check is an equality against arithmetic rather than against a shade of grey
+# somebody chose. The second is that the shaded picture cannot be used at all:
+#
+#   A PHYSICALLY-BASED WORLD SURFACE COMES OUT BLACK ON THIS RENDERER.
+#
+# Measured on this fixture, same map, the only difference being two cvars:
+#
+#   r_normalMapping 1     11704 pixels of rgb(0, 0, 0)
+#   r_normalMapping 0     11704 pixels of rgb(255, 108, 108)
+#
+# The same count either way, and that is what says they are DRAWN rather than
 # skipped - not the vanishing draw the sky and the bulge turned out to be. They
-# are shaded to nothing. JKX_SMOKE_PHYS_NOPBR=1 is the control that produced the
-# second line.
+# are shaded to nothing. To see it again: run this lane with r_debugView 0.
 #
-# NOT in the stage list, same standing the cubemap lane had: red, and honest.
+# Where to look, from the evidence. The validation layer is clean, so descriptor
+# set five is bound and this is not the defect fixed last week. Black with the
+# sets bound means a factor is zero, and there are two candidates worth putting
+# side by side with the debug views this renderer already has: NL, which the
+# guard from the menu fix will make zero if the light vector never arrives, and
+# the diffuse term, which goes to zero if metalness reads as one. debugview
+# takes a name - nl, diffuse, ambient, lightcolor - and each is one run.
 #
-# Where to look, from the evidence: the validation layer is clean, so descriptor
-# set five is bound and this is not last week's defect again. Black with the sets
-# bound means a term is zero, and the candidate is NL in
-# out_color.rgb = lightColor * reflectance * (attenuation * NL). The guard added
-# with the menu fix substitutes vec3(0,0,1) for a light vector of zero length,
-# and these squares face the camera - so a light direction that never arrives
-# gives a dot product of nothing. That would mean the physically-based path gets
-# no light vector for a WORLD surface, which matters well past this fixture:
-# every material here is the shape a retail PBR texture pack uses on a map.
+# It matters well past this fixture: every material in this test has the shape a
+# retail PBR texture pack uses to paint a map, and the one PBR lane that passes
+# today draws a Ghoul2 character, which is a different path.
 stage_smokephys() {
     JKX_SMOKE_PHYS=1 \
     JKX_SMOKE_DISPLAY="${JKX_SMOKE_PHYS_DISPLAY:-:77}" \

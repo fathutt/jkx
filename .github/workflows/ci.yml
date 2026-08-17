@@ -571,6 +571,17 @@ jobs:
           JKX_SMOKE_DISPLAY: ':78'
         run: bash tools/verify/smoke_headless.sh build
 
+      # The six physical-map packings. Five of the six image view swizzles had
+      # never been applied to a texel, because only rmoMap was ever named by a
+      # fixture asset. Six squares, six channel orders, a different roughness in
+      # each, read off the roughness debug view and checked against the byte the
+      # shader arithmetic predicts.
+      - name: Physical maps, unpacked six ways
+        env:
+          JKX_SMOKE_PHYS: '1'
+          JKX_SMOKE_DISPLAY: ':77'
+        run: bash tools/verify/smoke_headless.sh build
+
       # The same fixture out of a pk3. Every run before this one read loose
       # files, so FS_LoadZipFile, the per-pack hash table, the pak branch of
       # FS_FOpenFileRead and unzReadCurrentFile in FS_Read had never executed in

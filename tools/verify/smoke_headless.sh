@@ -920,19 +920,23 @@ elif [ "${JKX_SMOKE_PHYS:-0}" = "1" ]; then
     # and one control with a different roughness.
     #
     # A column rather than a row for the same reason as the other two lanes -
-    # the camera is pinned looking down +Y and heights are what fits. Seven
-    # squares of half-side 11, twenty-six apart, at y 200.
+    # the camera is pinned looking down +Y and heights are what fits. Six
+    # squares of half-side 11, twenty-four apart, from z 70 down to z -50 at
+    # y 200: the lowest edge lands at -61 against a floor at -64, and the
+    # highest reaches 0.47 of the view against a vertical field of 0.56. The
+    # first arrangement put the bottom square through the floor and it came
+    # back at 881 pixels of the 1936 it should have.
     python3 "$HERE/make_test_material.py" "$RUN/base/textures/jkx" >/dev/null
     python3 "$HERE/make_test_material.py" --phys "$RUN/base/textures/jkx" >/dev/null
 
     PHYS_PROPS=()
-    PHYS_Z=78
-    for name in rmo rmos moxr mosr orm orms rough; do
+    PHYS_Z=70
+    for name in rmo rmos moxr mosr orm orms; do
         python3 "$HERE/make_test_md3.py" \
             "$RUN/base/models/jkx/ph_$name.md3" \
             --flat --size 11 --shader "jkx/ph_$name" >/dev/null
         PHYS_PROPS+=( --prop "models/jkx/ph_$name.md3:200:$PHYS_Z" )
-        PHYS_Z=$(( PHYS_Z - 26 ))
+        PHYS_Z=$(( PHYS_Z - 24 ))
     done
 
     python3 "$HERE/make_test_bsp.py" "$RUN/base/maps/jkx_room.bsp" \
@@ -1301,7 +1305,14 @@ fi
 # is now the open question: the character-model path does not run here. The
 # fixture keeps its colours - green skin, red alternate, white baked - because
 # they are what will make the answer visible once it does.
-if [ "${JKX_SMOKE_PBR:-0}" = "1" ] || { [ "${JKX_SMOKE_PHYS:-0}" = "1" ] && [ "${JKX_SMOKE_PHYS_NOPBR:-0}" != "1" ]; }; then
+# The packing lane reads the ROUGHNESS DEBUG VIEW rather than the shaded
+# picture, so it asks for it here rather than leaving it to whoever runs the
+# lane. See the check further down for why the shaded picture is unusable.
+if [ "${JKX_SMOKE_PHYS:-0}" = "1" ]; then
+    SET_STEP+=( +set r_debugView 3 )
+fi
+
+if [ "${JKX_SMOKE_PBR:-0}" = "1" ] || [ "${JKX_SMOKE_PHYS:-0}" = "1" ]; then
     SET_STEP+=( +set r_normalMapping 1 +set r_specularMapping 1 )
 else
     SET_STEP+=( +set r_normalMapping 0 +set r_specularMapping 0 )
@@ -1606,8 +1617,13 @@ fi
 #            control moves, the whole frame is drifting and not one of the other
 #            four numbers below means anything. Twice on this project an effect
 #            was announced that turned out to be its own noise
-#   scroll   tcMod scroll along u, the axis the texture is split on, so this is
-#            the largest movement of the five
+#   scroll   tcMod scroll along u, the axis the texture is split on. Measured by
+#            WHERE its colour is, like the rotation and for the same reason: a
+#            count of coverage is fragile against a periodic motion, and this
+#            one passed at fifty-six and a hundred and thirteen locally and then
+#            came back at ONE under CI load. A scrolling edge translates, so its
+#            centroid translates with it and cannot alias back. Eight thousandths
+#            of the frame, monotonic across the three shots, gated at four
 #   rotate   tcMod rotate, and this one is measured by WHERE its colour is
 #            rather than how much of it there is. Rotation is about the middle
 #            of the texture, so any region bounded by a line through the middle
@@ -1653,7 +1669,7 @@ times, so nothing here was checked"
     elif ! python3 "$HERE/tga_colour_change.py" "$first" "$later" "$later2" \
             --min-pixels 500 \
             --same 0,255,128 \
-            --differ 0,128,255:20 \
+            --move 0,128,255:4 \
             --move 128,0,255:4 \
             --differ 0,200,100:20 \
             --same 100,0,200:4 \
@@ -1694,43 +1710,43 @@ the colour and jkx_smoke.shader says which keyword owns it"
         --differ 0,204,102:20 || true
 fi
 
-# The physical map, written seven ways - and a finding that arrived before the
-# check could be written.
+# The physical map, written six ways, read off the roughness debug view.
 #
-# The design: six packings of the same three values must come out the same
-# colour, and the seventh - same packing, different roughness - must not. That
-# control is the whole reason the six would mean anything, because six squares
-# that agree because the lane cannot see roughness at all look exactly like six
-# squares that agree because the swizzles are right.
+# Six packings of the same three quantities in six channel orders, each carrying
+# a DIFFERENT roughness, and each must come back as the exact byte the shader's
+# arithmetic predicts. mix( 0.01, 1.0, v/255 ) * 255, rounded:
 #
-# None of that can be measured yet, because with the physically-based path ON
-# all seven squares are drawn BLACK. Measured, same fixture, same map, the only
-# difference being r_normalMapping and r_specularMapping:
+#   rmo    file R  20    ->  22
+#   rmos   file R  60    ->  62
+#   moxr   file A 100    -> 102
+#   mosr   file A 140    -> 141
+#   orm    file G 180    -> 181
+#   orms   file G 220    -> 220
 #
-#   r_normalMapping 1    11704 pixels of rgb(0, 0, 0)
-#   r_normalMapping 0    11704 pixels of rgb(255, 108, 108)
+# Six different values rather than six identical ones and a control: six exact
+# numbers cannot come out right by accident, and a renderer that ignored the
+# texture would collapse all six onto one level. The control is built into the
+# spread.
 #
-# The same count both ways, which is what says they are DRAWN rather than
-# skipped - this is not the vanishing draw that the sky and the bulge turned out
-# to be. They are shaded to nothing.
+# Read off the DEBUG VIEW rather than the shaded picture, and the second reason
+# is the important one. The first is that the debug view is the value itself, so
+# the check is an equality against arithmetic rather than against a shade
+# somebody picked. The second is that the shaded picture cannot be used at all
+# right now: a physically-based WORLD surface comes out black on this renderer,
+# which is a separate open defect written up at stage_smokephys in
+# tools/ci/local.sh. Reading the texture rather than the lighting is what lets
+# the six packings be checked while that stands.
 #
-# So the lane prints and does not gate, and JKX_SMOKE_PHYS_NOPBR=1 runs the same
-# fixture with the physical path off, which is the control that produced the two
-# numbers above.
-#
-# Where to look, from the evidence rather than from taste: the validation layer
-# is clean, so descriptor set five IS bound here - this is not last week's defect
-# again. Black out of gen_frag with the sets bound means a term is zero, and the
-# candidate is NL: out_color.rgb = lightColor * reflectance * (attenuation * NL).
-# The guard added with the menu fix substitutes vec3(0,0,1) for a light vector of
-# zero length, and the fixture's squares face the camera, so a light direction
-# that never arrives gives a dot product of nothing and a black square. That
-# would mean the physically-based path gets no light vector for a world surface
-# - which is worth knowing, because every material in this test is the shape a
-# retail PBR texture pack uses on a map.
+# Twelve hundred pixels is about two thirds of a square, measured at 1936 to
+# 1980.
 if [ "${JKX_SMOKE_PHYS:-0}" = "1" ]; then
-    python3 "$HERE/tga_grey_levels.py" \
-        "$RUN/home/base/screenshots/jkx_inmap.tga" --any || true
+    if ! python3 "$HERE/tga_grey_levels.py" \
+        "$RUN/home/base/screenshots/jkx_inmap.tga" \
+        --expect 22:1200 --expect 62:1200 --expect 102:1200 \
+        --expect 141:1200 --expect 181:1200 --expect 220:1200; then
+        report "a physical map packing does not unpack to the value it carries; \
+the level that is missing names the packing - see the table above this check"
+    fi
 fi
 
 # Blending, and the order surfaces are drawn in.

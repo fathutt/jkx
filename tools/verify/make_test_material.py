@@ -187,37 +187,38 @@ TC_COLOURS = (
 )
 
 
-# The physical values the packing lane paints into its textures, and the whole
-# point is that every packing carries THE SAME THREE NUMBERS in a different
-# channel order. If the renderer unpacks one of them wrongly, roughness becomes
-# occlusion, or metalness becomes roughness, and the square comes out a
-# different colour from the other five.
+# The physical values the packing lane paints into its textures.
 #
-# Occlusion is one everywhere: it multiplies the ambient term and a value below
-# one would darken every square equally, which measures nothing. Roughness and
-# metalness are the two that have to survive the journey.
-PHYS_ROUGH = 26      # 0.1, smooth
-PHYS_METAL = 0       # not metal
-PHYS_OCCL = 255      # no occlusion
-PHYS_SPEC = 128      # base specular, for the packings that carry one
+# A DIFFERENT roughness in every packing, and that is the stronger form of the
+# check rather than a weaker one. Six packings carrying the same value and a
+# seventh carrying another was the first design; six carrying six different
+# values needs no separate control at all, because six exact numbers cannot come
+# out right by accident and a renderer that ignored the texture would collapse
+# them all onto one.
+#
+# The bytes below are the file contents. What lands on the screen is
+# mix( 0.01, 1.0, v/255 ) * 255, because that is what the shader does with
+# roughness, and the expected levels are worked out from it in
+# smoke_headless.sh.
+#
+# Metalness zero and occlusion one everywhere: they are not what this lane
+# measures, and a value that darkened every square equally would measure
+# nothing.
+PHYS_METAL = 0
+PHYS_OCCL = 255
+PHYS_SPEC = 128
 
 # name -> the byte in each of the four file channels, in R G B A order.
-# Read this table against textureMapTypes[] in vk_local.h: that is the swizzle
-# the image view applies to turn the file back into occlusion, roughness,
-# metalness, specular, and this is the same permutation written forwards.
+# Read this against textureMapTypes[] in vk_local.h: that table is the image
+# view swizzle which turns the file back into occlusion, roughness, metalness
+# and specular, and this is the same permutation written forwards.
 PHYS_PACKINGS = {
-    "rmo":  (PHYS_ROUGH, PHYS_METAL, PHYS_OCCL, 255),
-    "rmos": (PHYS_ROUGH, PHYS_METAL, PHYS_OCCL, PHYS_SPEC),
-    "moxr": (PHYS_METAL, PHYS_OCCL, 0, PHYS_ROUGH),
-    "mosr": (PHYS_METAL, PHYS_OCCL, PHYS_SPEC, PHYS_ROUGH),
-    "orm":  (PHYS_OCCL, PHYS_ROUGH, PHYS_METAL, 255),
-    "orms": (PHYS_OCCL, PHYS_ROUGH, PHYS_METAL, PHYS_SPEC),
-    # The control: the same packing as the first one and a DIFFERENT roughness.
-    # If this square does not come out a different colour from the others, the
-    # lane cannot see roughness at all and the six that agree are agreeing about
-    # nothing. It is the noise floor of a comparison, in the fixture rather than
-    # in somebody's memory.
-    "rough": (230, PHYS_METAL, PHYS_OCCL, 255),
+    "rmo":  (20, PHYS_METAL, PHYS_OCCL, 255),
+    "rmos": (60, PHYS_METAL, PHYS_OCCL, PHYS_SPEC),
+    "moxr": (PHYS_METAL, PHYS_OCCL, 0, 100),
+    "mosr": (PHYS_METAL, PHYS_OCCL, PHYS_SPEC, 140),
+    "orm":  (PHYS_OCCL, 180, PHYS_METAL, 255),
+    "orms": (PHYS_OCCL, 220, PHYS_METAL, PHYS_SPEC),
 }
 
 
