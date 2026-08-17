@@ -247,9 +247,32 @@ void RE_AddRefEntityToScene( const refEntity_t *ent ) {
 	{
 		CGhoul2Info_v	&ghoul2 = *((CGhoul2Info_v *)ent->ghoul2);
 
+		// A Ghoul2 entity that reached the scene with no model behind it. It is
+		// still counted in r_numentities and still walked by the back end - it
+		// simply draws nothing. That is what an INVISIBLE CHARACTER looks like
+		// from in here, and it is the first thing to check when one is reported.
+		//
+		// The message used to be the sentence alone, which said that something
+		// somewhere was empty and nothing else. On a real map it appears dozens
+		// of times a frame and there is no way to tell which character it is.
+		// The name is in the instance, so print it: mFileName is what
+		// G2API_InitGhoul2Model was asked for, and an empty one means the
+		// instance was never given a model at all rather than given one that
+		// failed to load - two different bugs that produced one message.
+		//
+		// Rate-limited to once a second, because this is per entity per frame.
 		if (!ghoul2[0].mModel)
 		{
-			CL_RefPrintf( PRINT_ALL, "Your ghoul2 instance has no model!\n");
+			static int lastComplaint = -10000;
+
+			if ( abs( tr.refdef.time - lastComplaint ) >= 1000 )
+			{
+				lastComplaint = tr.refdef.time;
+				CL_RefPrintf( PRINT_ALL,
+					"Ghoul2 instance with no model: \"%s\" (entity %i)\n",
+					ghoul2[0].mFileName[0] ? ghoul2[0].mFileName : "<none requested>",
+					r_numentities );
+			}
 		}
 	}
 

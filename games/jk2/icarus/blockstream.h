@@ -32,7 +32,12 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #include <vector>
 
 #define IBI_HEADER_ID_LENGTH 4 // Length of IBI_HEADER_ID + 1 for the null terminating byte.
-#define	IBI_EXT			".IBI"	//(I)nterpreted (B)lock (I)nstructions
+// Lower case. See the long note on the same define in
+// games/jka/game/Q3_Interface.h: this string is appended to a script name and
+// handed to FS_ReadFile, the pk3 lookup is case-insensitive and the loose-file
+// one is not, and every shipped .ibi is lower case. Uppercase here means no
+// ICARUS script loads at all from an extracted installation.
+#define	IBI_EXT			".ibi"	//(I)nterpreted (B)lock (I)nstructions
 #define IBI_HEADER_ID	"IBI"
 
 const	float	IBI_VERSION			= 1.57f;

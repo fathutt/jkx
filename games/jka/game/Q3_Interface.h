@@ -538,7 +538,26 @@ enum
 
 #define MAX_FILENAME_LENGTH	256
 
-#define	IBI_EXT			".IBI"	//(I)nterpreted (B)lock (I)nstructions
+// Lower case, and the case is the whole point.
+//
+// This is appended to a script name and handed to FS_ReadFile, so it is a
+// LOOKUP and not a label. Inside a pk3 the lookup is case-insensitive - the
+// hash is built from a lowercased name - so ".IBI" finds "scripts/x.ibi" there
+// and always has. A loose file on disk is opened with fopen, which on any
+// case-sensitive filesystem means ".IBI" finds nothing at all, and every .ibi
+// that ships is lower case because that is what the pk3 holds.
+//
+// So on Linux, with the game data extracted rather than packed, NOT ONE ICARUS
+// SCRIPT LOADED. Measured on the real yavin1: nine entities asked for a spawn
+// script by name, all nine came back "Script was not found and could not be
+// loaded", and the same nine loaded after the extension was aliased. Every
+// cutscene, every scripted door, every line of dialogue in the game runs
+// through this call.
+//
+// It was invisible here for the ordinary reason: no test had a script in it.
+// The fixture map has no ICARUS at all, so the one path that every scripted
+// moment in both games depends on was never once exercised.
+#define	IBI_EXT			".ibi"	//(I)nterpreted (B)lock (I)nstructions
 #define IBI_HEADER_ID	"IBI"
 
 //////////////////////////////////////////////////////////////////////////

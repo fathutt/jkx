@@ -73,6 +73,11 @@ typedef struct sfx_s {
 	short			*pSoundData;
 	bool			bDefaultSound;			// couldn't be loaded, so use buzz
 	bool			bInMemory;				// not in Memory, set qtrue when loaded, and qfalse when its buffers are freed up because of being old, so can be reloaded
+	// Already complained about. One warning per sound rather than one per frame
+	// - a looping ambient that is missing is asked for again every frame it is
+	// in earshot, and a console full of the same line hides everything else.
+	// See S_LoopSoundIsSilent in snd_dma.cpp.
+	bool			bReported;
 	short			iLastLevelUsedOn;		// used for cacheing purposes
 	SoundCompressionMethod_t eSoundCompressionMethod;
 	// Non-zero only when eSoundCompressionMethod is ct_MP3, in which case

@@ -1215,6 +1215,45 @@ void S_ClearLoopingSounds( void )
 
 /*
 ==================
+S_LoopSoundIsSilent
+
+A looping sound with no samples in it, and what to do about it.
+
+S_RegisterSound answers 0 for a sound it could not load, and s_knownSfx[0] is
+the placeholder registered at startup: name "sound/null", no samples. So a
+missing .mp3 does not fail at registration - it arrives here, one frame later,
+as a perfectly valid handle to nothing.
+
+Both looping entry points used to call Com_Error( ERR_DROP ) on it, and the
+asymmetry is the argument against that: S_StartSound takes the same handle for
+the same missing file and simply plays nothing. One missing ambient hum
+therefore ended the level, while the same file missing from a door made no
+difference at all.
+
+Measured on the real yavin1 with only the speech assets present: "ERROR:
+sound/null has length 0", and the map died between spawning its entities and
+drawing its first frame.
+
+Once per sound, so a looping ambient in a hundred places says it a hundred times
+minus ninety-nine.
+==================
+*/
+static qboolean S_LoopSoundIsSilent( sfx_t *sfx )
+{
+	if ( sfx->iSoundLengthInSamples ) {
+		return qfalse;
+	}
+
+	if ( !sfx->bReported ) {
+		sfx->bReported = true;
+		Com_Printf( S_COLOR_YELLOW "WARNING: looping sound %s has no samples "
+			"- not played\n", sfx->sSoundName );
+	}
+	return qtrue;
+}
+
+/*
+==================
 S_AddLoopingSound
 
 Called during entity generation for a frame
@@ -1245,8 +1284,9 @@ void S_AddLoopingSound( int entityNum, const vec3_t origin, const vec3_t velocit
 	}
 	SND_TouchSFX(sfx);
 
-	if ( !sfx->iSoundLengthInSamples ) {
-		Com_Error( ERR_DROP, "%s has length 0", sfx->sSoundName );
+	// A sound with no samples is skipped, not fatal. See S_LoopSoundIsSilent.
+	if ( S_LoopSoundIsSilent( sfx ) ) {
+		return;
 	}
 	assert(sfx->eSoundCompressionMethod != ct_MP3);
 	VectorCopy( origin, loopSounds[numLoopSounds].origin );
@@ -1285,8 +1325,9 @@ void S_AddAmbientLoopingSound( const vec3_t origin, unsigned char volume, sfxHan
 	}
 	SND_TouchSFX(sfx);
 
-	if ( !sfx->iSoundLengthInSamples ) {
-		Com_Error( ERR_DROP, "%s has length 0", sfx->sSoundName );
+	// A sound with no samples is skipped, not fatal. See S_LoopSoundIsSilent.
+	if ( S_LoopSoundIsSilent( sfx ) ) {
+		return;
 	}
 	VectorCopy( origin, loopSounds[numLoopSounds].origin );
 	loopSounds[numLoopSounds].sfx = sfx;

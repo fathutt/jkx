@@ -98,6 +98,47 @@ trap cleanup EXIT
 mkdir -p "$RUN/home" "$RUN/xdg"
 cp -r "$HERE/fixtures/base" "$RUN/base"
 
+# The item and weapon tables, written for THIS game rather than shipped as one
+# file for both.
+#
+# They used to be checked in under fixtures/base, one copy shared by jka and
+# jk2, hand written, and covering the weapons the fixture map happened to need.
+# That was fine until a real map asked for one it did not have and the level
+# died on "Couldn't find item for weapon 27" - see the long note in
+# make_item_tables.py. The two games also have different WP_ enums, so a shared
+# file was wrong for one of them by construction.
+python3 "$HERE/make_item_tables.py" --game "$GAME_ID" --out "$RUN/base/ext_data" \
+    >/dev/null
+
+# JKX_SMOKE_MAP loads a different map instead of the fixture's.
+#
+# It only makes sense with JKX_SMOKE_EXTRA_BASE, and the pair is how a RETAIL map
+# gets onto this bench: point the extra base at an unpacked copy in /tmp and name
+# a map inside it. Nothing about it is committed and no lane sets it - a retail
+# install is not redistributable - so the default run is unchanged and a machine
+# with no copy of the game is unaffected.
+#
+# It forces JKX_SMOKE_PLAIN, and that is not laziness. Every picture assertion
+# below is a statement about the fixture map - this many pixels of that colour at
+# that place - and a real map satisfies none of them. What is left is what a real
+# map is actually being asked: does it load, does the game library spawn its
+# entities, do the scripts run, does the frame come out. Those are all in the log
+# and in whether the run survives to +quit.
+#
+# It was worth building. The first two maps run through it - yavin1 out of Jedi
+# Academy and kejim_post out of Outcast - found two defects nothing in this bench
+# could reach, one of which stopped every ICARUS script in both games from
+# loading at all on Linux. Neither map needs its textures for that: a map that
+# loads with no texture in sight still answers whether the world parsed, whether
+# the entities spawned, whether the scripts ran and whether a frame came out.
+#
+#   JKX_SMOKE_EXTRA_BASE=/tmp/retail/jka JKX_SMOKE_MAP=yavin1 \
+#   JKX_SMOKE_DISPLAY=:70 tools/verify/smoke_headless.sh BUILD_DIR
+if [ -n "${JKX_SMOKE_MAP:-}" ]; then
+    JKX_SMOKE_PLAIN=1
+    export JKX_SMOKE_PLAIN
+fi
+
 # JKX_SMOKE_NO_SHADERS removes the material definitions, which used to be a
 # fatal error three words long. An installation whose game data is in the wrong
 # place hits exactly this, so the interesting question is whether the engine
@@ -1211,6 +1252,21 @@ for pair in ${JKX_SMOKE_SET:-}; do
     SET_STEP+=( +set "${pair%%=*}" "${pair#*=}" )
 done
 
+# On a real map, turn the script interpreter's own trace on.
+#
+# g_ICARUSDebug is WL_ERROR by default, which says only that something failed.
+# WL_DEBUG prints every statement as it runs - "npc_roshintro1(52): sound(
+# CHAN_VOICE_GLOBAL, sound/chars/rosh/01rop003.mp3 ); [24100]" - and that is the
+# observable for the question a retail map is here to answer: did the scripted
+# sequence actually run, and how far did it get. The fixture map has no scripts
+# in it, so this costs the ordinary lanes nothing and is left off there.
+#
+# g_subtitles puts the spoken lines in the log as well, which is how a run with
+# no sound assets still shows what was said.
+if [ -n "${JKX_SMOKE_MAP:-}" ]; then
+    SET_STEP+=( +set g_ICARUSDebug 4 +set g_subtitles 1 )
+fi
+
 # A different menu set, which is what makes the menu-model lane opt-in. The
 # ordinary one is ui/menus.txt and every other lane loads it, so the frame all
 # the other checks are written against does not change.
@@ -1385,7 +1441,7 @@ set +e
       +wait 60 +screenshot_tga jkx_smoke +wait 20 \
       "${MENU_RESTART_STEP[@]}" \
       "${CONSOLE_STEP[@]}" \
-      +wait 20 +map jkx_smoke +wait 12 +screenshot_tga jkx_wiping \
+      +wait 20 +map "${JKX_SMOKE_MAP:-jkx_smoke}" +wait 12 +screenshot_tga jkx_wiping \
       +wait $SETTLE +screenshot_tga jkx_wiped \
       "${INMAP_STEP[@]}" \
       +imagelist +wait 20 +quit ) > "$RUN/run.log" 2>&1

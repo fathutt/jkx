@@ -405,7 +405,12 @@ CBlock *CBlock::Duplicate( CIcarus* icarus )
 */
 
 const int IBI_HEADER_ID_LENGTH = 4; // Length of s_IBI_HEADER_ID + 1 (for null terminating byte)
-const char* CBlockStream::s_IBI_EXT			= ".IBI";	//(I)nterpreted (B)lock (I)nstructions
+// Lower case, matching IBI_EXT in games/jka/game/Q3_Interface.h - the long note
+// there is the reason. This copy is used by Create(), which writes a file, so
+// on its own it only decides what a newly written script is called; keeping the
+// two spellings the same is what stops the next person from re-introducing the
+// uppercase one by copying this line.
+const char* CBlockStream::s_IBI_EXT			= ".ibi";	//(I)nterpreted (B)lock (I)nstructions
 const char* CBlockStream::s_IBI_HEADER_ID	= "IBI";
 const float	CBlockStream::s_IBI_VERSION		= 1.57f;
 
