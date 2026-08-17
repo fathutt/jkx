@@ -262,6 +262,9 @@ def main():
         elif a == "--size":
             opts["size"] = float(argv[i + 1])
             i += 2
+        elif a == "--frames":
+            opts["num_frames"] = int(argv[i + 1])
+            i += 2
         elif a == "--flat":
             # One frame, no movement, no seam: a plain square that is in the
             # same place in every frame, which is what a blend result has to be

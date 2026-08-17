@@ -596,8 +596,33 @@ static void Autosprite2Deform( void ) {
 #ifdef USE_VBO_GHOUL2
 qboolean ShaderRequiresCPUDeforms( const shader_t *shader ) {
 
-	// only do this for ghoul2
-	if( tess.vbo_model && tess.surfType == SF_MDX  ){
+	// Which surfaces the vertex shader will deform, and it is BOTH of the ones
+	// drawn from a vertex buffer rather than only Ghoul2.
+	//
+	// It used to say Ghoul2 alone, and the effect of that was not "the CPU does
+	// it instead" - it was nothing at all. RB_DeformTessGeometry writes into
+	// tess.xyz; a surface drawn from a vertex buffer is drawn from the buffer,
+	// and tess.xyz is never read. So every deformVertexes on every single-frame
+	// MD3 in the game silently did nothing, which is most map props and most
+	// static models - and a deform is what makes a flag flap, a plant sway and
+	// a force effect bulge.
+	//
+	// Measured, same materials, same lane, the only difference being the number
+	// of frames in the model - two frames go down the batch path and one goes
+	// down the vertex buffer:
+	//
+	//              vertex buffer       batch
+	//   wave       spread 23           spread 481
+	//   bulge      spread 0            spread 1353
+	//   move       centre unmoved      centre moved 95 thousandths
+	//   control    0                   0
+	//
+	// The GLSL was ready for it: gen_vert.tmpl calls DeformPosition under
+	// USE_VBO_MDV exactly as it does under USE_VBO_GHOUL2, and
+	// common/deform.glsl implements wave, move, bulge, normals and the
+	// projection shadow. The only thing missing was the answer to this question.
+	if ( tess.vbo_model &&
+		( tess.surfType == SF_MDX || tess.surfType == SF_VBO_MDVMESH ) ) {
 
 		if ( shader->numDeforms > 1 )
 			return qtrue;

@@ -471,9 +471,17 @@ jkx/df_move
 
 // A bulge, which is a wave along the texture's s axis rather than across the
 // surface. Width, height, speed.
+//
+// This square is NOT DRAWN AT ALL on the vertex-buffer path, and that is the
+// open defect this lane is currently reporting. It is not displacement carrying
+// it off screen: with a height of zero, which cannot move anything, the square
+// is still absent. So the draw itself is being skipped, and the shape of that
+// is familiar - a pipeline that does not exist makes vk_bind_pipeline skip the
+// draw in silence, which is exactly what hid the sky cubemap for months. It
+// draws normally on the batch path, where the deform is done on the processor.
 jkx/df_bulge
 {
-	deformVertexes bulge 4 16 0.5
+	deformVertexes bulge 1 4 0.1
 	{
 		map $whiteimage
 		rgbGen const ( 0.0 0.8 0.4 )
