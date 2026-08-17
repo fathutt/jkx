@@ -1041,8 +1041,17 @@ void vk_generate_image_upload_data(image_t* image, byte* data, Image_Upload_Data
 	upload_data->mip_levels = miplevel + 1;
 }
 
-static VkCommandBuffer staging_command_buffer = VK_NULL_HANDLE;
-
+// A file-static VkCommandBuffer used to sit here, and nothing read it: every
+// use in this file goes through vk.staging_command_buffer. It is gone because
+// of what it is, not because of what it did. A Vulkan handle in a file static
+// outlives RE_Shutdown while the object behind it does not, and one of those -
+// a cached pipeline index in tr_sky.cpp - is what broke the sky after every
+// vid_restart. An unused one sitting beside code that uses a different handle
+// of the same type and name is a trap laid for whoever edits this next.
+//
+// The rest of the sweep came back clean: tr_dissolve.cpp caches a pipeline the
+// same way and clears it in R_DissolveShutdown, and both image hash tables are
+// zeroed on teardown.
 void vk_clean_staging_buffer( void )
 {
 	vk_destroy_buffer_memory( &vk.staging_buffer.handle, &vk.staging_buffer.allocation );
