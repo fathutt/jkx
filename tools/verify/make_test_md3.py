@@ -101,8 +101,22 @@ def xyz_normal(x, y, z, lng=0):
 SEAM_LNG = 16
 
 
-def build(shader="textures/jkx/anim", seam=True):
-    num_frames = 2
+def build(shader="textures/jkx/anim", seam=True, size=SIZE, shift=SHIFT,
+          num_frames=2):
+    """The square, and three things about it that are now arguments.
+
+    They became arguments for the transparency lane, which needs several of
+    these in one map at different sizes and does not want any of them to move:
+    a blend result is only an exact number if the two surfaces being blended
+    are in the same place in both frames of the animation, and the default
+    square is deliberately somewhere else in each.
+
+    size    half the side, in world units
+    shift   how far it moves between frames; zero makes the two frames identical
+    frames  two by default because the animation check needs two. One is enough
+            for anything that is not measuring animation, and is what the
+            transparency props use.
+    """
     num_verts = 6 if seam else 4
     num_tris = 4 if seam else 2
 
@@ -163,13 +177,13 @@ def build(shader="textures/jkx/anim", seam=True):
     # plane and moves along Y, which is across the screen for a camera looking
     # down +X.
     for f in range(num_frames):
-        dy = -SHIFT if f == 0 else SHIFT
-        for corner in ((-SIZE, -SIZE), (SIZE, -SIZE), (SIZE, SIZE), (-SIZE, SIZE)):
+        dy = -shift if f == 0 else shift
+        for corner in ((-size, -size), (size, -size), (size, size), (-size, size)):
             surf += xyz_normal(0.0, dy + corner[0], corner[1])
         if seam:
             # Same two places as corners 1 and 2, normals turned away.
-            surf += xyz_normal(0.0, dy + SIZE, -SIZE, SEAM_LNG)
-            surf += xyz_normal(0.0, dy + SIZE, SIZE, SEAM_LNG)
+            surf += xyz_normal(0.0, dy + size, -size, SEAM_LNG)
+            surf += xyz_normal(0.0, dy + size, size, SEAM_LNG)
 
     assert len(surf) == ofs_end
 
@@ -193,7 +207,7 @@ def build(shader="textures/jkx/anim", seam=True):
     out += struct.pack("<i", file_end)
     assert len(out) == header_size
 
-    radius = SHIFT + SIZE * 1.5
+    radius = shift + size * 1.5
     for _ in range(num_frames):
         out += frame(radius)
 
@@ -236,18 +250,45 @@ def check(data):
 
 
 def main():
-    args = [a for a in sys.argv[1:] if not a.startswith("--")]
-    data = build()
+    argv = sys.argv[1:]
+    opts = {}
+    positional = []
+    i = 0
+    while i < len(argv):
+        a = argv[i]
+        if a == "--shader":
+            opts["shader"] = argv[i + 1]
+            i += 2
+        elif a == "--size":
+            opts["size"] = float(argv[i + 1])
+            i += 2
+        elif a == "--flat":
+            # One frame, no movement, no seam: a plain square that is in the
+            # same place in every frame, which is what a blend result has to be
+            # to be an exact number.
+            opts["seam"] = False
+            opts["shift"] = 0.0
+            opts["num_frames"] = 1
+            i += 1
+        elif a == "--check":
+            i += 1
+        elif a.startswith("--"):
+            raise SystemExit("unknown option %s" % a)
+        else:
+            positional.append(a)
+            i += 1
 
-    if "--check" in sys.argv:
+    data = build(**opts)
+
+    if "--check" in argv:
         return check(data)
 
-    if not args:
+    if not positional:
         raise SystemExit(__doc__)
 
-    with open(args[0], "wb") as handle:
+    with open(positional[0], "wb") as handle:
         handle.write(data)
-    print("wrote %s, %d bytes" % (args[0], len(data)))
+    print("wrote %s, %d bytes" % (positional[0], len(data)))
     return 0
 
 

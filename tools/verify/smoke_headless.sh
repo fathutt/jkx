@@ -894,6 +894,39 @@ if [ "${JKX_SMOKE_LIGHTMAP:-0}" = "1" ]; then
     # what comes out is the engine's scaling and nothing else.
     python3 "$HERE/make_test_bsp.py" "$RUN/base/maps/jkx_room.bsp" \
         --shader jkx/lightmapped --lightmap >/dev/null
+elif [ "${JKX_SMOKE_TRANSPARENCY:-0}" = "1" ]; then
+    # A backdrop of a known colour with three translucent squares in front of
+    # it, each at a different height so no two overlap each other.
+    #
+    # The geometry is arithmetic rather than taste. The player stands at y 0 and
+    # looks down +Y with his eye near z -14; the backdrop is at y 240 with a
+    # half-side of 90, and the squares are at y 180 with a half-side of 16,
+    # offset in z by -30, 0 and +30. Divide each extent by its distance and the
+    # squares reach 0.33 of the view from the centre while the backdrop reaches
+    # 0.43, so every square is inside it ON SCREEN with room to spare - which is
+    # the point. A translucent surface blended against the sky or against the
+    # floor would be measuring where it is rather than how it blends.
+    #
+    # The backdrop's own bottom edge is below the floor and clipped by it. That
+    # is checked too: the lowest square stops at -0.18 of the view and the floor
+    # cuts the backdrop at -0.21, so the square still has something behind it.
+    #
+    # --flat is what makes the numbers exact: one frame, no shift, no seam. The
+    # ordinary square is somewhere else in each of its two frames, and a blend
+    # result between two surfaces that move is not a number.
+    for pair in "backdrop:90" "add:16" "blend:16" "filter:16"; do
+        name="${pair%%:*}"
+        half="${pair##*:}"
+        python3 "$HERE/make_test_md3.py" \
+            "$RUN/base/models/jkx/trans_$name.md3" \
+            --flat --size "$half" --shader "jkx/trans_$name" >/dev/null
+    done
+
+    python3 "$HERE/make_test_bsp.py" "$RUN/base/maps/jkx_room.bsp" \
+        --prop models/jkx/trans_backdrop.md3:240:0 \
+        --prop models/jkx/trans_add.md3:180:30 \
+        --prop models/jkx/trans_blend.md3:180:0 \
+        --prop models/jkx/trans_filter.md3:180:-30 >/dev/null
 elif [ "${JKX_SMOKE_MAPENT:-0}" = "1" ]; then
     # The same room with one piece of furniture in it. See the note above
     # INMAP_STEP for what the two shots of it are for; the model is the
@@ -1457,6 +1490,52 @@ if [ "${JKX_SMOKE_MENULIGHT:-0}" = "1" ]; then
         report "the menu model is not at the lighting value it should be; see \
 the three numbers above this check in smoke_headless.sh for which defect each \
 value means"
+    fi
+fi
+
+# Blending, and the order surfaces are drawn in.
+#
+# Four squares in one frame: an opaque backdrop and three translucent ones in
+# front of it, one per blendFunc. All four are grey, so the histogram of grey
+# levels IS the four composites, and each of them is arithmetic:
+#
+#   backdrop   the constant colour, whatever byte the engine turns it into
+#   add        dst + src           backdrop + a quarter
+#   blend      src*a + dst*(1-a)   white at a quarter alpha over the backdrop
+#   filter     dst * src           half the backdrop
+#
+# It is also a sorting check without being written as one, and that is worth
+# saying: all three of those numbers are wrong if the backdrop is drawn AFTER
+# the squares - they would blend against the sky and the floor instead, and the
+# values would be nowhere near. A translucent surface that ends up in front of
+# something it should be behind is the defect this lane exists to catch, and it
+# shows up as a different number rather than as a shrug.
+# What it measured, first time out, and every one of the four was predicted
+# before the run rather than read off it:
+#
+#   backdrop   rgbGen const 0.4        0.4 * 255 = 102          102, 73862 px
+#   add        102 + (0.25 * 255)      102 + 63  = 165          165,  4550 px
+#   blend      255*a + 102*(1-a), a = 63/255     = 139.8        140,  4278 px
+#   filter     102 * (127/255)                   =  50.8         51,  4620 px
+#
+# The floors below are about two thirds of the measured counts. These are static
+# squares in a settled frame, so the count does not drift the way the map-prop
+# lane's early shot did - but a floor is a floor and a surface that half
+# disappears should fail rather than squeak through.
+#
+# What each failure means, which is the reason for gating the LEVEL and not just
+# "something is there": a missing level is that blendFunc not being applied, and
+# a level that is present at the wrong value is the blend being computed against
+# the wrong thing - the sky or the floor instead of the backdrop, which is what
+# a sorting defect looks like from here.
+if [ "${JKX_SMOKE_TRANSPARENCY:-0}" = "1" ]; then
+    if ! python3 "$HERE/tga_grey_levels.py" \
+        "$RUN/home/base/screenshots/jkx_inmap.tga" \
+        --expect 102:40000 --expect 165:3000 \
+        --expect 140:3000 --expect 51:3000; then
+        report "a blended surface is not the colour the blend arithmetic says \
+it should be; see the table above this check in smoke_headless.sh for which \
+level belongs to which blendFunc"
     fi
 fi
 

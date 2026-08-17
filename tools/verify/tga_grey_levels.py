@@ -22,9 +22,14 @@ picks out the white-lit model and nothing else. Pure black is dropped with them
 because the fitted frame's margins are black and there are a great many of them.
 
     tga_grey_levels.py <shot.tga> [--min-pixels N] [--max-clipped N]
+                       [--expect LEVEL:MINPIXELS ...]
 
-With neither option it prints and exits zero: it is a measurement first. The
-options turn it into a gate once there is a number worth gating on.
+With no options it prints and exits zero: it is a measurement first. The options
+turn it into a gate once there is a number worth gating on.
+
+--expect is the gate the transparency lane wants: each composite is a level the
+arithmetic predicts, so naming the level and a floor for how much of it there
+should be says WHICH blend went wrong rather than that the picture moved.
 """
 
 import struct
@@ -52,6 +57,7 @@ def main(argv):
     path = argv[1]
     min_pixels = 0
     max_clipped = None
+    expect = []
 
     i = 2
     while i < len(argv):
@@ -60,6 +66,10 @@ def main(argv):
             i += 2
         elif argv[i] == "--max-clipped":
             max_clipped = int(argv[i + 1])
+            i += 2
+        elif argv[i] == "--expect":
+            level, least = argv[i + 1].split(":")
+            expect.append((int(level), int(least)))
             i += 2
         else:
             sys.stderr.write("unknown option %s\n" % argv[i])
@@ -87,7 +97,7 @@ def main(argv):
 
     levels = [v for v in range(256) if counts[v]]
     clipped = counts[255]
-    top = sorted(range(256), key=lambda v: counts[v], reverse=True)[:5]
+    top = sorted(range(256), key=lambda v: counts[v], reverse=True)[:8]
 
     print("%s: %d grey pixel(s), %d distinct level(s), range %d..%d, "
           "%d at 255 (%.1f%%)"
@@ -97,6 +107,14 @@ def main(argv):
           % ", ".join("%d x%d" % (v, counts[v]) for v in top if counts[v]))
 
     rc = 0
+    for level, least in expect:
+        if counts[level] < least:
+            print("  FAIL: level %d has %d pixel(s), wanted at least %d"
+                  % (level, counts[level], least))
+            rc = 1
+        else:
+            print("  ok: level %d, %d pixel(s)" % (level, counts[level]))
+
     if total < min_pixels:
         print("  FAIL: wanted at least %d grey pixel(s)" % min_pixels)
         rc = 1

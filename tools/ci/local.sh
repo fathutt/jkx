@@ -71,7 +71,7 @@ JOBS="${JOBS:-$(nproc)}"
 
 STAGES=( "$@" )
 if [ "${#STAGES[@]}" -eq 0 ]; then
-    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokeskin smokelightmap smokemapent smokemenumodel smokemenulight smokepbrchar smokevidrestart smokecubemap smokepak move smokesan prepass fog noassets )
+    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokeskin smokelightmap smokemapent smokemenumodel smokemenulight smokepbrchar smokevidrestart smokecubemap smoketransparency smokepak move smokesan prepass fog noassets )
 fi
 
 failed=()
@@ -831,6 +831,37 @@ stage_smokevidrestart() {
 # In the stage list as of this change. Twenty-four stages. It matters past
 # cubemaps - the convolve is the machinery image-based lighting runs on, and the
 # reflection term glass needs comes out of it (claude/Glass.md).
+# Blending, which had never been measured here.
+#
+# The fixture drew opaque squares and one fogged pass, so blendFunc, its
+# pipeline state and the ORDER surfaces are drawn in were exercised only by
+# whatever the interface happens to do - which is 2D, unsorted, and says nothing
+# about a translucent surface in a world.
+#
+# Four squares in one frame: an opaque backdrop and three translucent ones in
+# front of it, one per blendFunc. All four are grey, so the histogram of grey
+# levels IS the four composites, and the gate is an equality on each level.
+# Predicted before the first run and measured after it, all four exact:
+#
+#   backdrop  rgbGen const 0.4                102, 73862 px
+#   add       dst + src                       165,  4550 px
+#   blend     src*a + dst*(1-a), a = 0.25     140,  4278 px
+#   filter    dst * src                        51,  4620 px
+#
+# It is a sorting check as well, without being written as one: all three of
+# those numbers are wrong if the backdrop is drawn after the squares, because
+# they would be blending against the sky and the floor instead. A translucent
+# surface that lands in front of something it should be behind shows up here as
+# a different number rather than as a shrug.
+#
+# Mutation tested: turn the additive material opaque and the lane reports level
+# 165 at zero pixels and names the blendFunc.
+stage_smoketransparency() {
+    JKX_SMOKE_TRANSPARENCY=1 \
+    JKX_SMOKE_DISPLAY="${JKX_SMOKE_TRANSPARENCY_DISPLAY:-:80}" \
+        bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
+}
+
 stage_smokecubemap() {
     JKX_SMOKE_SET="r_cubeMapping=1" \
     JKX_SMOKE_DISPLAY="${JKX_SMOKE_CUBEMAP_DISPLAY:-:81}" \

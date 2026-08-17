@@ -22,7 +22,7 @@ both were read while writing this, and where a field has a value that is not
 obviously right, the comment says which of the two demanded it.
 
     make_test_bsp.py <out.bsp> [--shader NAME] [--sky NAME] [--lightmap]
-                      [--prop MODEL]
+                      [--prop MODEL[:Y[:Z]] ...]
     make_test_bsp.py --check
 
 --sky adds a second drawn surface: a wall across the far end of the room
@@ -570,8 +570,25 @@ PROP_Y = 160.0
 PROP_Z = FLOOR_Z + 32
 
 
-def entities(prop_model=None):
-    """Worldspawn, one player start, and optionally a prop the MAP owns.
+def parse_props(specs):
+    """MODEL[:Y[:Z]] into (model, y, z), defaulting to the single prop's place.
+
+    Several of them, because the transparency lane needs a backdrop and three
+    translucent squares in front of it at different heights, and the one thing
+    that makes a blend result an exact number is knowing what is behind it.
+    """
+    props = []
+    for spec in specs:
+        parts = spec.split(":")
+        model = parts[0]
+        y = float(parts[1]) if len(parts) > 1 else PROP_Y
+        z = float(parts[2]) if len(parts) > 2 else PROP_Z
+        props.append((model, y, z))
+    return props
+
+
+def entities(props=()):
+    """Worldspawn, one player start, and any props the MAP owns.
 
     Standing, not forty units above it. The player's box reaches 24 below his
     origin and the floor is at FLOOR_Z, so this is exactly where he ends up
@@ -619,12 +636,12 @@ def entities(prop_model=None):
         b'}\n'
     )
 
-    if prop_model:
+    for model, y, z in props:
         out += (
             b'{\n'
             b'"classname" "misc_model_breakable"\n'
-            + b'"model" "%s"\n' % prop_model.encode("ascii") +
-            b'"origin" "0 %d %d"\n' % (int(PROP_Y), int(PROP_Z)) +
+            + b'"model" "%s"\n' % model.encode("ascii") +
+            b'"origin" "0 %d %d"\n' % (int(y), int(z)) +
             b'"angle" "270"\n'
             b'"spawnflags" "0"\n'
             b'}\n'
@@ -634,11 +651,11 @@ def entities(prop_model=None):
 
 
 def build(visible_shader, sky_shader=None, fog_shader=None, lightmap=False,
-          prop_model=None):
+          props=()):
     sky = bool(sky_shader)
     count = 1 + len(SKY_WALLS) if sky else 1
     lumps = {
-        LUMP_ENTITIES: entities(prop_model),
+        LUMP_ENTITIES: entities(props),
         LUMP_SHADERS: shaders(visible_shader, sky_shader),
         LUMP_PLANES: planes(),
         LUMP_NODES: nodes(),
@@ -833,7 +850,7 @@ def main(argv):
     sky = None
     fog = None
     lightmap = False
-    prop = None
+    prop_specs = []
     path = None
     i = 0
     while i < len(args):
@@ -850,7 +867,8 @@ def main(argv):
             lightmap = True
             i += 1
         elif args[i] == "--prop" and i + 1 < len(args):
-            prop = args[i + 1]
+            # Repeatable. MODEL[:Y[:Z]] - see parse_props.
+            prop_specs.append(args[i + 1])
             i += 2
         elif path is None:
             path = args[i]
@@ -861,19 +879,20 @@ def main(argv):
 
     if path is None:
         print("usage: %s <out.bsp> [--shader NAME] [--sky NAME] [--fog NAME] "
-              "[--lightmap] [--prop MODEL]"
+              "[--lightmap] [--prop MODEL[:Y[:Z]] ...]"
               % argv[0],
               file=sys.stderr)
         return 2
 
-    data = build(visible, sky, fog, lightmap, prop)
+    props = parse_props(prop_specs)
+    data = build(visible, sky, fog, lightmap, props)
     with open(path, "wb") as f:
         f.write(data)
     print("%s: %d bytes, shader %s%s%s%s"
           % (path, len(data), visible, ", sky %s" % sky if sky else "",
              ", lightmap %dx%d at %d" % (LIGHTMAP_SIZE, LIGHTMAP_SIZE, LIGHTMAP_GREY)
              if lightmap else "",
-             ", prop %s" % prop if prop else ""))
+             ", %d prop(s)" % len(props) if props else ""))
     return 0
 
 

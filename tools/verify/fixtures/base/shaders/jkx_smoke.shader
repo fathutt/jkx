@@ -259,3 +259,71 @@ jkx/glm_baked
 		rgbGen const ( 0.0 0.0 1.0 )
 	}
 }
+
+// Transparency, and the four materials that make it a number.
+//
+// Blending had never been measured here. The fixture draws opaque squares and
+// one fogged pass, so blendFunc, its pipeline state and the order surfaces are
+// drawn in were all exercised only by whatever the interface happens to do -
+// which is 2D, unsorted, and says nothing about a translucent surface in a
+// world.
+//
+// The arrangement is a backdrop of a known colour with three small squares in
+// front of it at different heights, so each composite is independent and each
+// is arithmetic rather than an impression. What each one should be is written
+// beside it; what it MEASURES is in smoke_headless.sh, because the byte a
+// constant colour turns into is the engine's business and is read off the
+// screen rather than assumed.
+//
+// Nothing here is two-sided and nothing moves: the squares are built with
+// --flat, one frame and no shift, because a blend result is only exact if both
+// surfaces are in the same place in every frame.
+
+// The thing behind. Opaque, mid grey, and large enough that all three squares
+// in front of it are inside it on screen - which is the whole point: a
+// translucent surface blended against the sky or the floor would be measuring
+// where it is rather than how it blends.
+jkx/trans_backdrop
+{
+	{
+		map $whiteimage
+		rgbGen const ( 0.4 0.4 0.4 )
+	}
+}
+
+// dst + src. Over the backdrop this is grey plus a quarter, and it is the one
+// of the three that can saturate - which is why the backdrop is a half and not
+// more.
+jkx/trans_add
+{
+	{
+		map $whiteimage
+		blendFunc GL_ONE GL_ONE
+		rgbGen const ( 0.25 0.25 0.25 )
+	}
+}
+
+// src * a + dst * (1 - a). White at a quarter alpha over the backdrop.
+//
+// alphaGen const rather than an alpha channel, because $whiteimage has an
+// alpha of one and a blend that always reads one is not a blend.
+jkx/trans_blend
+{
+	{
+		map $whiteimage
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen const ( 1.0 1.0 1.0 )
+		alphaGen const 0.25
+	}
+}
+
+// dst * src, which is the one that cannot brighten anything. Half of the
+// backdrop.
+jkx/trans_filter
+{
+	{
+		map $whiteimage
+		blendFunc GL_DST_COLOR GL_ZERO
+		rgbGen const ( 0.5 0.5 0.5 )
+	}
+}
