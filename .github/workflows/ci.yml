@@ -525,6 +525,19 @@ jobs:
           JKX_SMOKE_TIMEOUT: '900'
         run: bash tools/verify/smoke_headless.sh build
 
+      # Cubemaps generated and convolved. r_cubeMapping defaults to zero, so the
+      # loader, the convolve command and the whole prefilter had never run here;
+      # the fixture needed no new data, because the entity list the loader falls
+      # back to includes info_player_start. The first run found an image left in
+      # the wrong layout twelve times. This is the machinery image-based
+      # lighting runs on.
+      - name: Cubemaps generated and convolved
+        env:
+          JKX_SMOKE_SET: r_cubeMapping=1
+          JKX_SMOKE_DISPLAY: ':81'
+          JKX_SMOKE_TIMEOUT: '900'
+        run: bash tools/verify/smoke_headless.sh build
+
       # The same fixture out of a pk3. Every run before this one read loose
       # files, so FS_LoadZipFile, the per-pack hash table, the pak branch of
       # FS_FOpenFileRead and unzReadCurrentFile in FS_Read had never executed in

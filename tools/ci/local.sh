@@ -71,7 +71,7 @@ JOBS="${JOBS:-$(nproc)}"
 
 STAGES=( "$@" )
 if [ "${#STAGES[@]}" -eq 0 ]; then
-    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokeskin smokelightmap smokemapent smokemenumodel smokemenulight smokepbrchar smokevidrestart smokepak move smokesan prepass fog noassets )
+    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokeskin smokelightmap smokemapent smokemenumodel smokemenulight smokepbrchar smokevidrestart smokecubemap smokepak move smokesan prepass fog noassets )
 fi
 
 failed=()
@@ -787,49 +787,50 @@ stage_smokevidrestart() {
 # list the loader falls back to includes info_player_start, which the generated
 # map already has.
 #
-# It found something on the first run, and it is NOT in the stage list because
-# of it. Twelve validation errors, all the same one:
+# It found something on the first run, and closing it took two attempts and a
+# reverted one in between - which is worth keeping, because the failed attempt
+# is what made the right answer visible.
+#
+# Twelve validation errors, six per filter and one per cube face:
 #
 #   UNASSIGNED-CoreValidation-DrawState-InvalidImageLayout
 #   ... expects VkImage to be in layout SHADER_READ_ONLY_OPTIMAL - instead,
 #   current layout is COLOR_ATTACHMENT_OPTIMAL
 #
-# Six per filter, one per cube face, for both the irradiance and the prefiltered
-# environment pass: the offscreen face is submitted still in the layout the
-# render pass left it in, and the shader that reads it declares the other one.
-# On lavapipe that reads the attachment anyway; on hardware it is undefined, and
-# this is the machinery the image-based lighting the glass work needs runs on.
+# None of them carries a VUID number, and that is how the bench's own reporting
+# defect was found: the block that prints validation findings tested a wider
+# pattern than it printed and died under set -e when the two disagreed.
 #
-# Two hours were spent trying to close it and it is not closed, so here is where
-# that got to, because the next person should start from the answer rather than
-# from the symptom. Both attempts were made, measured and REVERTED.
+# THE FIRST ATTEMPT, reverted. The barrier at the top of vk_generate_cubemaps
+# names SHADER_READ_ONLY_OPTIMAL as both the old and the new layout, which
+# transitions nothing and asserts something. That reads like the wrong end, so
+# it was corrected to say COLOR_ATTACHMENT_OPTIMAL as the old layout - and the
+# count got worse, thirty-six VUID-...-commandBuffer-recording. The reason is a
+# second finding worth having: vk_record_image_layout_transition has a case for
+# COLOR_ATTACHMENT_OPTIMAL as a NEW layout and none for it as an old one, so the
+# helper can put an image into being a colour attachment and cannot take one
+# out, and the default arm is Com_Error( ERR_DROP ) - which drops the frame with
+# the command buffer half recorded.
 #
-#   The barrier is wrong at the top of vk_generate_cubemaps: it names
-#   SHADER_READ_ONLY_OPTIMAL as the old layout AND as the new one, which
-#   transitions nothing and asserts something false - vk.cubeMap.color_image is
-#   a colour attachment there, and the last thing the same function does is put
-#   it back to COLOR_ATTACHMENT_OPTIMAL for the next capture.
+# Correcting both ends together cleared the original twelve and produced
+# twenty-four of a new shape: half expecting SHADER_READ_ONLY and finding
+# COLOR_ATTACHMENT, half the exact reverse. That symmetry is the message. It is
+# not one end being wrong, it is the two ends disagreeing - and it says the
+# barrier at the top was RIGHT all along.
 #
-#   Correcting only that made it worse: thirty-six
-#   VUID-...-commandBuffer-recording. The reason is one line down the call:
-#   vk_record_image_layout_transition has no case for
-#   COLOR_ATTACHMENT_OPTIMAL as an OLD layout, only as a new one. So the helper
-#   can put an image into being a colour attachment and cannot take one out, and
-#   the default arm is Com_Error( ERR_DROP ) - which drops the frame with the
-#   command buffer half recorded, and every vkCmd after it complains. That is
-#   almost certainly why the false barrier was written that way in the first
-#   place: it was the only spelling the helper would accept.
+# THE FIX, one deleted line. vk_generate_cubemaps ended by transitioning the sky
+# cubemap to COLOR_ATTACHMENT_OPTIMAL. Nothing wants it there outside a render
+# pass: the capture pass that fills it declares initialLayout = finalLayout =
+# SHADER_READ_ONLY_OPTIMAL and moves it to the attachment layout internally
+# through its own attachment reference. So the pass handed the image back
+# read-only and this function then put it somewhere no one expected. Removing
+# that transition takes the run to zero validation messages.
 #
-#   Adding the missing case and correcting the barrier together gets rid of the
-#   original twelve and produces twenty-four of a new shape: half expecting
-#   SHADER_READ_ONLY and finding COLOR_ATTACHMENT, half the exact opposite. The
-#   tracked layout and the real one are out of phase, which points at the sky
-#   capture and the convolve disagreeing about who leaves the image where, and
-#   that is where to look next. Not shipped: a barrier change into a renderer on
-#   a guess is what this project has rules against.
+# Mutation tested: put the line back and the twelve come back.
 #
-# It goes into the list when that is understood. See claude/Glass.md for why
-# this path matters beyond cubemaps.
+# In the stage list as of this change. Twenty-four stages. It matters past
+# cubemaps - the convolve is the machinery image-based lighting runs on, and the
+# reflection term glass needs comes out of it (claude/Glass.md).
 stage_smokecubemap() {
     JKX_SMOKE_SET="r_cubeMapping=1" \
     JKX_SMOKE_DISPLAY="${JKX_SMOKE_CUBEMAP_DISPLAY:-:81}" \

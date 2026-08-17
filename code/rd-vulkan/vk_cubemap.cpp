@@ -474,12 +474,30 @@ void vk_generate_cubemaps( cubemap_t *cube )
 			0 ,0 );
 	}
 
-	command_buffer = vk_begin_command_buffer();
-	vk_record_image_layout_transition( command_buffer, vk.cubeMap.color_image, VK_IMAGE_ASPECT_COLOR_BIT, 
-		VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 
-		VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-		0 ,0 );
-	vk_end_command_buffer( command_buffer, __func__ );
-
+	// The sky cubemap is left where everything that touches it expects to find
+	// it, which is SHADER_READ_ONLY_OPTIMAL.
+	//
+	// There used to be a transition to COLOR_ATTACHMENT_OPTIMAL here, and it was
+	// the one wrong line. Nothing wants this image in that layout OUTSIDE a
+	// render pass: the capture pass that fills it declares
+	// initialLayout = finalLayout = SHADER_READ_ONLY_OPTIMAL and moves it to the
+	// attachment layout internally through its own attachment reference
+	// (vk_frame.cpp). So the pass hands the image back read-only, this function
+	// then put it into a layout no one asked for, and the next thing along -
+	// another capture, or the barrier at the top of this function - found it
+	// somewhere else than it said.
+	//
+	// Twelve validation errors a run, six per filter and one per cube face:
+	//
+	//     UNASSIGNED-CoreValidation-DrawState-InvalidImageLayout
+	//     expects VkImage ... to be in layout SHADER_READ_ONLY_OPTIMAL -
+	//     instead, current layout is VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+	//
+	// The first attempt at this corrected the barrier at the TOP instead, on the
+	// reasoning that the trailing transition described the true state. It did
+	// not - it created it. That attempt made the count worse and was reverted;
+	// see the note on stage_smokecubemap in tools/ci/local.sh for what it cost
+	// and why the shape of the second failure said the two ends were out of
+	// phase rather than that one end was wrong.
 	vk_begin_main_render_pass();
 }
