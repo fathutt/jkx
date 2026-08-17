@@ -246,6 +246,13 @@ set_property(TARGET ${RDVulkanRenderer} APPEND PROPERTY
 # write a line. This used to be baked into the source at sync time by the
 # harness, which is exactly the kind of thing that silently does nothing when
 # the sync step is skipped.
+# The default stays OFF here on purpose even while the packaging workflow pins
+# it ON. Flipping it here would turn the trace on for the local CI lanes too,
+# and those enable the validation layer through the loader already - two ways of
+# asking for the same layer, in the one place whose output is asserted on. The
+# person who needs the trace installs what .github/workflows/engine.yml builds,
+# so that is where the pin belongs and that is the only thing that has to be
+# undone afterwards.
 option(JKX_VK_TRACE "Compile the Vulkan renderer's operation trace into a release build" OFF)
 if(JKX_VK_TRACE)
 	target_compile_definitions(${RDVulkanRenderer} PRIVATE JKX_VK_TRACE=1)

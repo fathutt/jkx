@@ -1,0 +1,16 @@
+// The menu set for the lane that reproduces the character-skin handle offset.
+//
+// ui_menuFiles points here instead of at ui/menus.txt, which is what makes it
+// opt-in: every other lane loads the ordinary set and sees the ordinary frame.
+// The ordinary main menu is here too, so the first screenshot of the run is the
+// same picture it is everywhere else and the checks written against it hold.
+//
+// The whole of what this set adds is ui/jkx_loadscreen.menu, and the long note
+// at the top of that file is the reason it exists.
+{
+	loadmenu
+	{
+		"ui/jkx_smoke.menu"
+		"ui/jkx_loadscreen.menu"
+	}
+}

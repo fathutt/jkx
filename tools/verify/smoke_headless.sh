@@ -1274,6 +1274,33 @@ if [ "${JKX_SMOKE_MENUMODEL:-0}" = "1" ] || [ "${JKX_SMOKE_MENULIGHT:-0}" = "1" 
     SET_STEP+=( +set ui_menuFiles ui/jkx_model.txt )
 fi
 
+# A menu set with a loading screen in it, and the loading screen registers four
+# skins before the map registers its first.
+#
+# That is the ONLY thing it changes, and it is the whole point: the offset
+# between a character skin's configstring index and its renderer handle exists
+# on every real installation and has never existed here, because the fixture had
+# no loading screen. See the long note in ui/jkx_loadscreen.menu.
+#
+# HALF BUILT, and saying so is worth more than leaving it to be discovered. The
+# four early registrations happen - the run log shows two of them failing by
+# name, which is the proof they were asked for - but the offset still does not
+# appear, because the second half is missing: the fixture map puts NO character
+# skin into the CS_CHARSKINS configstrings, so cgs.skins is empty and the loop
+# in CG_RegisterGraphics that compares the two numbering spaces breaks out on
+# its first iteration. Measured with JKX_SMOKE_CHAR=jkx: not one line about
+# skins in the whole engine log.
+#
+# What is needed next is a fixture character that takes a configstring slot the
+# way a map's own NPC does. Until then this switch proves only that the early
+# registrations land.
+#
+# Worth pairing with JKX_SMOKE_CHAR, since the defect this exposes is one that
+# only shows on a character.
+if [ "${JKX_SMOKE_SKINSHIFT:-0}" = "1" ]; then
+    SET_STEP+=( +set ui_menuFiles ui/jkx_load.txt )
+fi
+
 # JKX_SMOKE_PLAIN draws the scene and only the scene - no sky, no interface -
 # and asserts nothing about the picture. It exists for comparing one run against
 # another rather than for checking either one on its own, and everything it

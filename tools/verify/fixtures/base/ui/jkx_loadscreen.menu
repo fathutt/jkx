@@ -1,0 +1,104 @@
+// The loading screen, and the four skins it takes before the map gets any.
+//
+// This exists to reproduce ONE NUMBER on the bench: the constant offset between
+// a character skin's configstring index and its renderer handle.
+//
+// The gamecode puts the CONFIGSTRING INDEX in mCustomSkin and the renderer
+// resolves mCustomSkin as a HANDLE. Two numbering spaces, and characters have
+// textures only for as long as they happen to agree - which they do when the
+// map's skins are the first skins anybody registers. On a real installation
+// they are not, because the loading screen shows a character first, and a log
+// from one reads
+//
+//     0: <default skin>
+//     1: models/players/luke/model_menu.skin
+//     2: models/players/kyle/model_menu.skin
+//     3: models/players/protocol/model_menu.skin
+//     4: models/players/rebel_pilot/model_default.skin
+//     5: models/players/alora/model_default.skin   <- configstring 1
+//
+// handle = index + 4, for every character in the game, from the first frame.
+//
+// THE BENCH COULD NOT SEE ANY OF THIS. The fixture had no loading screen at all
+// - "Menus_ActivateByName: Unable to find menu loadscreen" is in every run log
+// here - so nothing registered a skin before CG_RegisterGraphics reached its
+// first configstring, index and handle agreed exactly, and the diagnostic in
+// that loop stayed silent through every lane. A whole class of defect, the one
+// that makes a character wear somebody else's skin or none at all, was
+// unreachable from this bench because the fixture was missing the thing that
+// causes it.
+//
+// Four items and four skins, so the offset here is the offset there and the
+// numbers can be compared. It does not matter whether the names resolve:
+// RE_RegisterSkin allocates the handle and increments tr.numSkins BEFORE it
+// parses the file, so a skin that fails to load still takes a number. That is
+// worth knowing on its own - it means a missing skin file shifts every
+// character after it, which is a second way into the same defect.
+//
+// This is opt-in through ui/jkx_load.txt. Every other lane keeps loading
+// ui/menus.txt and keeps the frame all the other checks are written against.
+{
+menuDef
+{
+	name					"loadscreen"
+	fullScreen				1
+	rect					0 0 640 480
+	visible					0
+	style					WINDOW_STYLE_FILLED
+	backcolor				0 0 0 1
+
+	// The skin is registered by ItemParse_model_g2skin_go at PARSE time, which
+	// is why these do not need to be drawn and why the menu is not visible.
+	// Parsing the menu set is what happens before the map's skins exist.
+	itemDef
+	{
+		name				load1
+		type				ITEM_TYPE_MODEL
+		rect				0 0 64 64
+		asset_model			"models/players/jkx/model.glm"
+		model_g2skin		"models/players/jkx/model_default.skin"
+		model_g2maxs		16 16 16
+		visible				0
+		decoration
+	}
+
+	itemDef
+	{
+		name				load2
+		type				ITEM_TYPE_MODEL
+		rect				0 0 64 64
+		asset_model			"models/players/jkx/model.glm"
+		model_g2skin		"models/players/jkx/model_alt.skin"
+		model_g2maxs		16 16 16
+		visible				0
+		decoration
+	}
+
+	// Two names that do not resolve, on purpose, because that is the other half
+	// of what makes the offset four on a real machine and because a failed
+	// registration takes a handle exactly like a successful one.
+	itemDef
+	{
+		name				load3
+		type				ITEM_TYPE_MODEL
+		rect				0 0 64 64
+		asset_model			"models/players/jkx/model.glm"
+		model_g2skin		"models/players/jkx/model_absent_a.skin"
+		model_g2maxs		16 16 16
+		visible				0
+		decoration
+	}
+
+	itemDef
+	{
+		name				load4
+		type				ITEM_TYPE_MODEL
+		rect				0 0 64 64
+		asset_model			"models/players/jkx/model.glm"
+		model_g2skin		"models/players/jkx/model_absent_b.skin"
+		model_g2maxs		16 16 16
+		visible				0
+		decoration
+	}
+}
+}

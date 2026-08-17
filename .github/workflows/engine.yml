@@ -169,7 +169,14 @@ jobs:
           -DBuildRdVulkan=ON
           -DBuildJK2Engine=ON
           -DBuildJK2Game=ON
-          -DJKX_VK_TRACE=${{ inputs.trace && 'ON' || 'OFF' }}
+          # PINNED ON, TEMPORARILY. The expression this replaces left the trace
+          # off for every push build, and a push build is what the one person
+          # who can reproduce the vid_restart crash actually installs - he does
+          # not build the project, so an input he has to tick is an input nobody
+          # ticks. Goes back to the expression, and the option in
+          # code/rd-vulkan/CMakeLists.txt goes back to OFF, the day that log
+          # exists. Both are one line each and they revert together.
+          -DJKX_VK_TRACE=ON
           -DCMAKE_C_COMPILER_LAUNCHER=sccache
           -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
           -DCMAKE_POLICY_DEFAULT_CMP0141=NEW
