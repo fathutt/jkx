@@ -387,7 +387,7 @@ jkx/tc_rotate
 {
 	{
 		map textures/jkx/jkx_tc_rotate
-		tcMod rotate 37
+		tcMod rotate 12
 	}
 }
 
@@ -472,13 +472,29 @@ jkx/df_move
 // A bulge, which is a wave along the texture's s axis rather than across the
 // surface. Width, height, speed.
 //
-// This square is NOT DRAWN AT ALL on the vertex-buffer path, and that is the
-// open defect this lane is currently reporting. It is not displacement carrying
-// it off screen: with a height of zero, which cannot move anything, the square
-// is still absent. So the draw itself is being skipped, and the shape of that
-// is familiar - a pipeline that does not exist makes vk_bind_pipeline skip the
-// draw in silence, which is exactly what hid the sky cubemap for months. It
-// draws normally on the batch path, where the deform is done on the processor.
+// This square is NOT DRAWN on the vertex-buffer path, and that is the open
+// defect this lane reports every run. Four probes in the shader found where it
+// lives, and the order of them matters because the first two were misleading:
+//
+//   return pos                                   drawn, 2016 px
+//   return pos + normal * 4.0                    drawn, 2464 px
+//   return pos + normal * scale(.., 0.0, ..) * 4 drawn AND animating, spread 392
+//   return pos + normal * st.x * 4.0             NOT DRAWN
+//
+// So it is in_tex_coord0 in the VERTEX shader on this path, and it is not a
+// value, it is a poison: the arithmetic comes out non-finite and the triangle
+// is discarded. The last probe is what says so on its own.
+//
+// Why setting the height or the width to zero in this file did not narrow it
+// down, which cost two runs: NaN times zero is NaN. A literal 0.0 in the shader
+// removes the term; a zero uniform multiplied by a poisoned attribute does not.
+// The same trap twice, and it is worth remembering as a shape - a deliberate
+// zero is only a control if it removes the operand rather than scaling it.
+//
+// Next: the deform branch is the only place gen_vert reads in_tex_coord0 under
+// USE_VBO_MDV, so the vertex input state of that permutation is where to look.
+// The validation layer says nothing, so the attribute is bound - it is the data
+// that is wrong.
 jkx/df_bulge
 {
 	deformVertexes bulge 1 4 0.1

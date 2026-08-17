@@ -1586,7 +1586,16 @@ fi
 #            was announced that turned out to be its own noise
 #   scroll   tcMod scroll along u, the axis the texture is split on, so this is
 #            the largest movement of the five
-#   rotate   tcMod rotate
+#   rotate   tcMod rotate, and this one is measured by WHERE its colour is
+#            rather than how much of it there is. Rotation is about the middle
+#            of the texture, so any region bounded by a line through the middle
+#            covers about half the square at every angle and its count hardly
+#            moves - which is how this check went red in CI at a spread of two.
+#            Its texture is a corner block instead, off centre, and what orbits
+#            is the centroid. It shifts eight to ten thousandths of the frame
+#            and is gated at four: the signal is small but MONOTONIC - the
+#            centre walks one way across the three shots - which is what a
+#            count of a centred region never was
 #   stretch  tcMod stretch
 #   scale    tcMod scale, which does NOT animate. It changes the picture once
 #            and then holds still, so it is checked the other way round: equal
@@ -1623,7 +1632,7 @@ times, so nothing here was checked"
             --min-pixels 500 \
             --same 0,255,128 \
             --differ 0,128,255:20 \
-            --differ 128,0,255:4 \
+            --move 128,0,255:4 \
             --differ 0,200,100:20 \
             --same 100,0,200:4 \
             --unlike 100,0,200=0,255,128; then

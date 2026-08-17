@@ -104,6 +104,41 @@ def write_half_tga(path, colour):
         f.write(row * SIZE)
 
 
+def write_corner_tga(path, colour):
+    """One quarter of the texture coloured, in a corner, off centre.
+
+    For the ROTATING square, and it replaces a diagonal split that replaced a
+    straight one. Both of those were wrong for the same reason and it took two
+    runs and a red CI to see it: rotation is about the middle of the texture, and
+    any region bounded by a line THROUGH the middle covers about half the square
+    at every angle. Its pixel count barely moves - measured, a spread of eight
+    and thirteen locally and two under load, below its own gate.
+
+    A corner block is off centre, so rotation swings it around and what moves is
+    not how much colour there is but WHERE it is. That is what the lane measures
+    for this one, and the centroid of a block orbiting the middle moves a great
+    deal for a rotation a count would hardly notice.
+    """
+    header = struct.pack("<3B2HB4H2B",
+                         0, 0, 2,
+                         0, 0, 0,
+                         0, 0, SIZE, SIZE,
+                         24, 0)
+
+    r, g, b = colour
+    body = bytearray()
+    for v in range(SIZE):
+        for u in range(SIZE):
+            if u >= SIZE // 2 and v >= SIZE // 2:
+                body += bytes((b, g, r))
+            else:
+                body += bytes((0, 0, 0))
+
+    with open(path, "wb") as f:
+        f.write(header)
+        f.write(bytes(body))
+
+
 def write_diagonal_tga(path, colour):
     """The same Targa, split on the DIAGONAL rather than down the middle.
 
@@ -158,7 +193,7 @@ def build_tc(directory):
     for name, colour in TC_COLOURS:
         path = os.path.join(directory, "jkx_tc_%s.tga" % name)
         if name == "rotate":
-            write_diagonal_tga(path, colour)
+            write_corner_tga(path, colour)
         else:
             write_half_tga(path, colour)
         written.append(path)
