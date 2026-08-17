@@ -410,3 +410,72 @@ jkx/tc_scale
 		tcMod scale 2 2
 	}
 }
+
+// Geometry that moves, and the four keywords that move it.
+//
+// deformVertexes had never run here either, and for a different reason from
+// tcMod: nothing in this fixture asked for one. The keywords are parsed, the
+// permutations exist, and no material named a single one - so RB_DeformTessGeometry
+// and every branch inside it went unexecuted, in a renderer where a deform is
+// what makes a flag flap, a plant sway and a force effect bulge.
+//
+// Flat colours here rather than textures, because a deform moves VERTICES: what
+// changes is the shape on screen, so a count of the colour and where its centre
+// is are the two things worth measuring. One colour per material for the same
+// reason as the texture-coordinate block, and none of them red-dominant for the
+// same reason again.
+//
+// Slow, and every rate here is chosen the same way the tcMod rates were: the
+// period is long compared with the whole sampling window, so the deform can only
+// move one way while the lane is watching.
+//
+// The constants are fifths and not halves, and that is not a style. rgbGen const
+// multiplies by 255 and truncates, so 0.5 is 127 and not 128 - the first run of
+// this lane asked for three colours that were each one off what the engine put
+// on the screen, found none of them, and reported three squares as not drawn.
+// 0.4 is 102 exactly, 0.8 is 204 exactly, 1.0 is 255 exactly.
+
+// No deform. The noise floor, and it is the same argument as the other control:
+// if this square moves or changes size, the frame is drifting and none of the
+// three below means anything.
+jkx/df_ref
+{
+	{
+		map $whiteimage
+		rgbGen const ( 0.0 1.0 0.4 )
+	}
+}
+
+// Vertices pushed along their normals by a wave across the surface. The square
+// stops being flat, so its outline on screen changes size.
+jkx/df_wave
+{
+	deformVertexes wave 100 sin 0 12 0 0.06
+	{
+		map $whiteimage
+		rgbGen const ( 0.0 0.4 1.0 )
+	}
+}
+
+// The whole surface translated, rigidly. Its pixel count is the same number
+// wherever it goes, which is why this one is measured by where its centre is
+// rather than by how much of it there is.
+jkx/df_move
+{
+	deformVertexes move 0 0 24 sin 0 1 0 0.07
+	{
+		map $whiteimage
+		rgbGen const ( 0.4 0.0 1.0 )
+	}
+}
+
+// A bulge, which is a wave along the texture's s axis rather than across the
+// surface. Width, height, speed.
+jkx/df_bulge
+{
+	deformVertexes bulge 4 16 0.5
+	{
+		map $whiteimage
+		rgbGen const ( 0.0 0.8 0.4 )
+	}
+}

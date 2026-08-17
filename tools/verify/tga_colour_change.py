@@ -14,6 +14,13 @@ is move the count of that colour. So:
                       so the only thing that can see it is the same frame
                       compared against a square that has no tcMod at all
 
+    --move R,G,B[:MINSHIFT]
+                      the CENTRE of the colour must shift, by at least MINSHIFT
+                      thousandths of the frame. For a deform that translates a
+                      surface rigidly: its pixel count is the same number
+                      wherever it has gone, so counting it says nothing and
+                      finding it says everything
+
     --differ R,G,B    the count MUST change between the two frames. This is a
                       tcMod that animates, and a count that stayed put means it
                       did not run
@@ -67,6 +74,30 @@ def read_tga(path):
     return width, height, data, 18 + id_len, bpp // 8
 
 
+def centroid(path, colour):
+    """Where the colour is, in fractions of the frame, and how much of it.
+
+    For the deforms that MOVE geometry rigidly. deformVertexes move translates a
+    surface without changing its size, so a count of its pixels is the same
+    number wherever it has gone - the thing that changed is where it is, and
+    that needs measuring rather than inferring.
+    """
+    width, height, data, off, stride = read_tga(path)
+    r, g, b = colour
+    n = 0
+    sx = 0
+    sy = 0
+    for p in range(width * height):
+        base = off + p * stride
+        if data[base] == b and data[base + 1] == g and data[base + 2] == r:
+            n += 1
+            sx += p % width
+            sy += p // width
+    if not n:
+        return None, None, 0
+    return sx / float(n * width), sy / float(n * height), n
+
+
 def count(path, colour):
     width, height, data, off, stride = read_tga(path)
     r, g, b = colour
@@ -105,6 +136,7 @@ def main(argv):
     differ = []
     same = []
     unlike = []
+    move = []
     min_pixels = 0
 
     while i < len(argv):
@@ -114,6 +146,9 @@ def main(argv):
         elif argv[i] == "--same":
             rgb, most = parse(argv[i + 1], default=0)
             same.append((rgb, most))
+            i += 2
+        elif argv[i] == "--move":
+            move.append(parse(argv[i + 1]))
             i += 2
         elif argv[i] == "--unlike":
             left, right = argv[i + 1].split("=")
@@ -151,6 +186,25 @@ def main(argv):
         elif not wanted_change and moved > bound:
             print("    FAIL: wanted it to hold still to within %d and its "
                   "spread was %d" % (bound, moved))
+            rc = 1
+
+    for rgb, least in move:
+        places = [centroid(f, rgb) for f in frames]
+        if any(p[2] < max(min_pixels, 1) for p in places):
+            print("  rgb(%d, %d, %d): not drawn in every frame - %s"
+                  % (rgb + (", ".join(str(p[2]) for p in places),)))
+            rc = 1
+            continue
+        shift = max(
+            abs(a[0] - b[0]) + abs(a[1] - b[1])
+            for a in places for b in places
+        )
+        print("  rgb(%d, %d, %d): centre %s, shifted %d thousandth(s)"
+              % (rgb + (" -> ".join("%.3f,%.3f" % (p[0], p[1]) for p in places),
+                        int(shift * 1000))))
+        if int(shift * 1000) < least:
+            print("    FAIL: wanted the centre to shift by at least %d "
+                  "thousandth(s) and it shifted %d" % (least, int(shift * 1000)))
             rc = 1
 
     for left, right in unlike:

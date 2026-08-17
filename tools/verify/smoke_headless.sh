@@ -324,7 +324,7 @@ fi
 # shots and 0 between the next, at the same rate, because the engine's clock
 # does not advance in step with the frame counter. Two unequal intervals and odd
 # rates mean aliasing would have to happen on both at once.
-if [ "${JKX_SMOKE_TCMOD:-0}" = "1" ]; then
+if [ "${JKX_SMOKE_TCMOD:-0}" = "1" ] || [ "${JKX_SMOKE_DEFORM:-0}" = "1" ]; then
     INMAP_STEP=( +wait 20 +map jkx_room
                  +wait $SETTLE +screenshot_tga jkx_inmap
                  +wait 137 +screenshot_tga jkx_tc_later
@@ -915,6 +915,20 @@ if [ "${JKX_SMOKE_LIGHTMAP:-0}" = "1" ]; then
     # what comes out is the engine's scaling and nothing else.
     python3 "$HERE/make_test_bsp.py" "$RUN/base/maps/jkx_room.bsp" \
         --shader jkx/lightmapped --lightmap >/dev/null
+elif [ "${JKX_SMOKE_DEFORM:-0}" = "1" ]; then
+    # Four squares, one deformVertexes each, in flat colours because what moves
+    # here is the geometry rather than the texture coordinates.
+    for name in ref wave move bulge; do
+        python3 "$HERE/make_test_md3.py" \
+            "$RUN/base/models/jkx/df_$name.md3" \
+            --flat --size 14 --shader "jkx/df_$name" >/dev/null
+    done
+
+    python3 "$HERE/make_test_bsp.py" "$RUN/base/maps/jkx_room.bsp" \
+        --prop models/jkx/df_ref.md3:200:60 \
+        --prop models/jkx/df_wave.md3:200:20 \
+        --prop models/jkx/df_move.md3:200:-20 \
+        --prop models/jkx/df_bulge.md3:200:-60 >/dev/null
 elif [ "${JKX_SMOKE_TCMOD:-0}" = "1" ]; then
     # Five squares side by side, one per tcMod, each painted in its own colour
     # so a count of a colour is a count of a square.
@@ -1592,6 +1606,34 @@ times, so nothing here was checked"
             --unlike 100,0,200=0,255,128; then
         report "a tcMod did not do what it says; the line above names the \
 colour, and the table above this check says which keyword owns it"
+    fi
+fi
+
+# Geometry that moves.
+#
+# Same three shots as the texture-coordinate lane and the same control
+# argument, with one difference that matters: deformVertexes move translates a
+# surface RIGIDLY, so its pixel count is the same number wherever it has gone.
+# Counting it says nothing. Where its centre is says everything, which is what
+# --move measures.
+if [ "${JKX_SMOKE_DEFORM:-0}" = "1" ]; then
+    first="$RUN/home/base/screenshots/jkx_inmap.tga"
+    later="$RUN/home/base/screenshots/jkx_tc_later.tga"
+    later2="$RUN/home/base/screenshots/jkx_tc_later2.tga"
+
+    if [ ! -f "$first" ] || [ ! -f "$later" ] || [ ! -f "$later2" ]; then
+        report "the deform squares were not photographed three times, so \
+nothing here was checked"
+    elif ! python3 "$HERE/tga_colour_change.py" "$first" "$later" "$later2" \
+            --min-pixels 500 \
+            --same 0,255,102 \
+            --differ 0,102,255:20 \
+            --move 102,0,255:5 \
+            --differ 0,204,102:20; then
+        report "a deformVertexes did not do what it says; the line above names \
+the colour and jkx_smoke.shader says which keyword owns it. TWO of the four are \
+known to fail here - see stage_smokedeform in tools/ci/local.sh, which is why \
+this lane is not in the stage list yet"
     fi
 fi
 

@@ -883,6 +883,58 @@ stage_smoketransparency() {
 # The static one is checked the other way round: tcMod scale changes the picture
 # once and then holds still, so it is compared against the reference square in
 # the SAME frame - 902 pixels against 1511, two texels across instead of one.
+# Geometry that moves, and two keywords that do not move it.
+#
+# deformVertexes had never run on this bench: nothing in the fixture asked for
+# one, so RB_DeformTessGeometry and every branch inside it went unexecuted - in a
+# renderer where a deform is what makes a flag flap, a plant sway and a force
+# effect bulge.
+#
+# Four squares in flat colours, one deform each, three shots. Measured:
+#
+#   ref     no deform          3136, 3136, 3136   spread 0    the noise floor
+#   wave    deformVertexes wave                   spread 23   moves
+#   move    deformVertexes move  centre 0.501,0.408 in all three frames
+#   bulge   deformVertexes bulge 2016, 2016, 2016  spread 0
+#
+# So wave works on this path and MOVE AND BULGE DO NOTHING. That is the finding,
+# and it is why this lane is NOT in the stage list - the same standing the
+# cubemap lane had until this morning: red, and honest about why.
+#
+# move is measured by where its centre is rather than by how many pixels it has,
+# because it translates a surface rigidly - the count is the same number wherever
+# it has gone. It did not move by one thousandth of the frame in three shots,
+# against an amplitude that should have carried it a tenth of the view.
+#
+# What is ruled out already, so the next person does not re-do it:
+#
+#   the shaders parse - no warning in the log, and a deform that failed to parse
+#   would leave numDeforms at zero and the material would be plain;
+#
+#   the GLSL implements both. common/deform.glsl has cases for DEFORM_BULGE (3),
+#   DEFORM_MOVE (5) and DEFORM_WAVE (1), and they read the same uniform block;
+#
+#   vk_compute_deform fills that block correctly for all three, bulgeHeight and
+#   bulgeWidth and moveVector included;
+#
+#   the CPU fallbacks are right too: RB_CalcMoveVertexes and
+#   RB_CalcBulgeVertexes both write tess.xyz the way they should.
+#
+# Where to look next, and it is one line: ShaderRequiresCPUDeforms returns
+# qfalse - meaning "the GPU will do it" - ONLY for tess.vbo_model && surfType ==
+# SF_MDX, which is Ghoul2. Everything else, this fixture's MD3 props included,
+# is told the CPU will do it. So these three deforms are running through
+# RB_DeformTessGeometry into tess.xyz, and the question is whether tess.xyz is
+# what gets drawn for a model that has a vertex buffer. The experiment that
+# settles it is one fixture away: the same four materials on a Ghoul2 model
+# instead of an MD3. If they animate there and not here, the defect is that the
+# CPU deform writes into something the VBO path does not read.
+stage_smokedeform() {
+    JKX_SMOKE_DEFORM=1 \
+    JKX_SMOKE_DISPLAY="${JKX_SMOKE_DEFORM_DISPLAY:-:78}" \
+        bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
+}
+
 stage_smoketcmod() {
     JKX_SMOKE_TCMOD=1 \
     JKX_SMOKE_DISPLAY="${JKX_SMOKE_TCMOD_DISPLAY:-:79}" \
