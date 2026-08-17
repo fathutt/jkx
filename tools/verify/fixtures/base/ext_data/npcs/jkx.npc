@@ -1,0 +1,64 @@
+// Two NPCs the fixture map can spawn, and the only thing they are for is the
+// moment they are created.
+//
+// A MAP'S OWN NPC IS SPAWNED BEFORE CGAME EXISTS, and that is the whole point.
+// G_SetG2PlayerModel asks for its skin while the level spawns, so the name
+// lands in the CS_CHARSKINS configstrings in time for the loop in
+// CG_RegisterGraphics - the loop that turns configstring indexes into renderer
+// handles and is the only place the two numbering spaces can be compared. The
+// player cannot stand in for this: he connects AFTER cgame has initialised, his
+// skin reaches the configstrings after that loop has already run, and cgs.skins
+// stays empty. Measured with JKX_SMOKE_CHAR alone: not one line about skins in
+// the entire engine log, and the diagnostic in that loop never fired.
+//
+// Two of them rather than one, because the defect is an OFFSET and one number
+// cannot show a constant. Two skins registered in order say whether the gap is
+// the same for both - a shift - or grows - a drift. The log from real hardware
+// said shift, four, for twelve skins in a row.
+//
+// Everything here beyond playerModel is the minimum that makes an NPC exist and
+// stand still. No weapon, so nothing spawns a saber or a blaster and no second
+// Ghoul2 instance appears in the picture; TEAM_NEUTRAL and zero aggression so
+// he has no reason to move, because every other check in this fixture is
+// written against where the player ends up standing.
+
+JKX
+{
+	playerModel	jkx
+	reactions	1
+	aim			1
+	move		1
+	aggression	1
+	evasion		1
+	intelligence	1
+	rank		civilian
+	playerTeam	TEAM_PLAYER
+	enemyTeam	TEAM_ENEMY
+	class		CLASS_PRISONER
+	yawspeed	60
+	walkSpeed	0
+	runSpeed	0
+	health		100
+}
+
+// The second one wears the other skin the fixture model has. Same model, so the
+// only thing that differs between the two configstrings is the skin name.
+JKX2
+{
+	playerModel	jkx
+	customSkin	alt
+	reactions	1
+	aim			1
+	move		1
+	aggression	1
+	evasion		1
+	intelligence	1
+	rank		civilian
+	playerTeam	TEAM_PLAYER
+	enemyTeam	TEAM_ENEMY
+	class		CLASS_PRISONER
+	yawspeed	60
+	walkSpeed	0
+	runSpeed	0
+	health		100
+}

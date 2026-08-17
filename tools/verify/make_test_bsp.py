@@ -22,7 +22,7 @@ both were read while writing this, and where a field has a value that is not
 obviously right, the comment says which of the two demanded it.
 
     make_test_bsp.py <out.bsp> [--shader NAME] [--sky NAME] [--lightmap]
-                      [--prop MODEL[:Y[:Z]] ...]
+                      [--prop MODEL[:Y[:Z]] ...] [--npc NAME[:Y[:Z]] ...]
     make_test_bsp.py --check
 
 --sky adds a second drawn surface: a wall across the far end of the room
@@ -587,7 +587,28 @@ def parse_props(specs):
     return props
 
 
-def entities(props=()):
+def parse_npcs(specs):
+    """NAME[:Y[:Z]] into (name, y, z), for the NPC_spawner entities.
+
+    A map's own NPC, spawned while the level spawns, is a different thing from
+    the player - and the difference is the whole reason this exists. The player
+    connects AFTER cgame has initialised, so the skin he asks for reaches the
+    CS_CHARSKINS configstrings too late for the loop in CG_RegisterGraphics that
+    turns configstring indexes into renderer handles. A map's NPC is spawned
+    with the rest of the entities, before any of that, which is what every
+    retail level does and what no fixture here did.
+    """
+    out = []
+    for i, spec in enumerate(specs):
+        parts = spec.split(":")
+        name = parts[0]
+        y = int(parts[1]) if len(parts) > 1 and parts[1] else (-64 + i * 64)
+        z = int(parts[2]) if len(parts) > 2 and parts[2] else int(FLOOR_Z + 24)
+        out.append((name, y, z))
+    return out
+
+
+def entities(props=(), npcs=()):
     """Worldspawn, one player start, and any props the MAP owns.
 
     Standing, not forty units above it. The player's box reaches 24 below his
@@ -647,15 +668,31 @@ def entities(props=()):
             b'}\n'
         )
 
+    # NPC_spawner is the generic one: every NPC_<name> entity in a retail map is
+    # this with the type filled in. NOTSOLID (spawnflag 64) and no angle change,
+    # for the same reason the props are not solid - nothing here may move the
+    # player, because every other check in this fixture is written against where
+    # he ends up standing.
+    for name, y, z in npcs:
+        out += (
+            b'{\n'
+            b'"classname" "NPC_spawner"\n'
+            + b'"NPC_type" "%s"\n' % name.encode("ascii") +
+            b'"origin" "0 %d %d"\n' % (int(y), int(z)) +
+            b'"angle" "270"\n'
+            b'"spawnflags" "64"\n'
+            b'}\n'
+        )
+
     return out + b'\0'
 
 
 def build(visible_shader, sky_shader=None, fog_shader=None, lightmap=False,
-          props=()):
+          props=(), npcs=()):
     sky = bool(sky_shader)
     count = 1 + len(SKY_WALLS) if sky else 1
     lumps = {
-        LUMP_ENTITIES: entities(props),
+        LUMP_ENTITIES: entities(props, npcs),
         LUMP_SHADERS: shaders(visible_shader, sky_shader),
         LUMP_PLANES: planes(),
         LUMP_NODES: nodes(),
@@ -851,6 +888,7 @@ def main(argv):
     fog = None
     lightmap = False
     prop_specs = []
+    npc_specs = []
     path = None
     i = 0
     while i < len(args):
@@ -870,6 +908,10 @@ def main(argv):
             # Repeatable. MODEL[:Y[:Z]] - see parse_props.
             prop_specs.append(args[i + 1])
             i += 2
+        elif args[i] == "--npc" and i + 1 < len(args):
+            # Repeatable. NAME[:Y[:Z]] - see parse_npcs.
+            npc_specs.append(args[i + 1])
+            i += 2
         elif path is None:
             path = args[i]
             i += 1
@@ -879,13 +921,14 @@ def main(argv):
 
     if path is None:
         print("usage: %s <out.bsp> [--shader NAME] [--sky NAME] [--fog NAME] "
-              "[--lightmap] [--prop MODEL[:Y[:Z]] ...]"
+              "[--lightmap] [--prop MODEL[:Y[:Z]] ...] [--npc NAME[:Y[:Z]] ...]"
               % argv[0],
               file=sys.stderr)
         return 2
 
     props = parse_props(prop_specs)
-    data = build(visible, sky, fog, lightmap, props)
+    npcs = parse_npcs(npc_specs)
+    data = build(visible, sky, fog, lightmap, props, npcs)
     with open(path, "wb") as f:
         f.write(data)
     print("%s: %d bytes, shader %s%s%s%s"

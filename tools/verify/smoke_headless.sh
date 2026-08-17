@@ -110,6 +110,54 @@ cp -r "$HERE/fixtures/base" "$RUN/base"
 python3 "$HERE/make_item_tables.py" --game "$GAME_ID" --out "$RUN/base/ext_data" \
     >/dev/null
 
+# The lane that reproduces the character-skin handle offset.
+#
+# Two halves, and both have to be here or the number does not appear.
+#
+# The first is a loading screen that registers four skins before the map
+# registers its first - ui/jkx_loadscreen.menu, and the long note at the top of
+# it is the reason. Without it index and handle agree exactly and there is
+# nothing to see.
+#
+# The second is A CHARACTER THE MAP OWNS. That was the missing half for a while
+# and it is worth stating plainly: JKX_SMOKE_CHAR is not enough, because the
+# player connects AFTER cgame has initialised. His skin reaches the
+# CS_CHARSKINS configstrings after the loop in CG_RegisterGraphics has already
+# run, so cgs.skins stays empty and the comparison never happens. Measured: with
+# JKX_SMOKE_CHAR alone there is not one line about skins in the whole engine
+# log. A map's NPC is spawned with the rest of the entities, before any of that,
+# which is what every retail level does.
+#
+# So: a generated map with two NPC_spawner entities in it, and
+# ext_data/npcs/jkx.npc to say what they wear. Two, because the defect is an
+# OFFSET and one number cannot tell a constant shift from a drift.
+if [ "${JKX_SMOKE_SKINSHIFT:-0}" = "1" ]; then
+    python3 "$HERE/make_test_bsp.py" "$RUN/base/maps/jkx_skin.bsp" \
+        --npc jkx --npc jkx2 >/dev/null
+    JKX_SMOKE_MAP=jkx_skin
+    export JKX_SMOKE_MAP
+
+    # ui/ingame.txt, and the name is not a choice: ui_main.cpp hardcodes it for
+    # the in-game load, which is the only menu set loaded AFTER the renderer is
+    # restarted for the map.
+    #
+    # That timing is the whole of it and it cost a run to learn. Single player
+    # tears the renderer down and calls R_Init again between the main menu and
+    # the map - "----- R_Init -----" appears in every log right after "Game
+    # Initialization" - and R_Init calls R_InitSkins, which sets tr.numSkins
+    # back to one. Anything the MAIN menu set registered is gone by then. A
+    # loading screen put in ui_menuFiles therefore registers four skins and then
+    # has all four thrown away before the map registers its first, which is
+    # exactly what happened: the two skins that fail printed their names, twice,
+    # and the offset was still zero.
+    #
+    # Written here rather than committed under fixtures/base, because this file
+    # is loaded unconditionally by every run that loads a map. Committed, it
+    # would put the offset into every lane at once.
+    printf '{\n\tloadmenu\n\t{\n\t\t"ui/jkx_loadscreen.menu"\n\t}\n}\n' \
+        > "$RUN/base/ui/ingame.txt"
+fi
+
 # JKX_SMOKE_MAP loads a different map instead of the fixture's.
 #
 # It only makes sense with JKX_SMOKE_EXTRA_BASE, and the pair is how a RETAIL map
@@ -1297,9 +1345,7 @@ fi
 #
 # Worth pairing with JKX_SMOKE_CHAR, since the defect this exposes is one that
 # only shows on a character.
-if [ "${JKX_SMOKE_SKINSHIFT:-0}" = "1" ]; then
-    SET_STEP+=( +set ui_menuFiles ui/jkx_load.txt )
-fi
+
 
 # JKX_SMOKE_PLAIN draws the scene and only the scene - no sky, no interface -
 # and asserts nothing about the picture. It exists for comparing one run against
