@@ -134,8 +134,37 @@ void RE_AddPolyToScene( qhandle_t hShader, int numVerts, const polyVert_t *verts
 		return;
 	}
 
+	// Once, with the shape of the thing that was asked for, and then a count.
+	//
+	// This line used to be printed TWICE per call - the same statement copied -
+	// and unthrottled at PRINT_ALL, which on this bench is thirty lines a run
+	// and on a busy frame is a log made of one message. It also said nothing:
+	// "NULL poly shader" names no caller, no size, no count, and the renderer
+	// genuinely cannot name the caller, so what it CAN say is what it was
+	// handed and how often.
+	//
+	// Chased once with a conditional breakpoint, and the answer is worth
+	// keeping: CG_AddPacketEntities -> CG_Player -> CG_PlayerShadow ->
+	// _PlayerShadow -> CG_ImpactMark, three verts at a time. The player's blob
+	// shadow. cgs.media.shadowMarkShader is RegisterShader("markShadow"), which
+	// returns ZERO for a shader that is not there - by design, that is what
+	// RE_RegisterShaderLightMap does with a defaultShader - and the gamecode
+	// passes it straight through without looking. On retail the shader exists
+	// and none of this happens; here it does not, which means this bench has
+	// never drawn a player shadow once.
 	if ( !hShader ) {
-		CL_RefPrintf( PRINT_ALL, S_COLOR_YELLOW  "WARNING: RE_AddPolyToScene: NULL poly shader\n");
+		static int reported = 0;
+		static int suppressed = 0;
+
+		if ( reported < 4 ) {
+			reported++;
+			CL_RefPrintf( PRINT_ALL, S_COLOR_YELLOW "WARNING: RE_AddPolyToScene: "
+				"no shader for %i poly(s) of %i vert(s) - whatever asked for this "
+				"is drawing nothing\n", numPolys, numVerts );
+		} else if ( ++suppressed == 1 ) {
+			CL_RefPrintf( PRINT_ALL, S_COLOR_YELLOW "WARNING: RE_AddPolyToScene: "
+				"further shaderless polys will not be reported\n" );
+		}
 		return;
 	}
 
