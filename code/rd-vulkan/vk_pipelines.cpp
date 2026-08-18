@@ -23,6 +23,9 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 #include "tr_local.h"
 
+static VkPipelineLayout vk_pipeline_layout_for_def( const Vk_Pipeline_Def *def );
+
+
 #define ALLOC_SPEC_ENTRY( arr, index, struct_type, struct_data, member ) \
     arr[index].constantID = (index); \
     arr[index].offset = offsetof(struct_type, member); \
@@ -1451,14 +1454,7 @@ VkPipeline vk_create_pipeline( const Vk_Pipeline_Def *def, renderPass_t renderPa
     create_info.pColorBlendState = &blend_state;
     create_info.pDynamicState = &dynamic_state;
 
-	if ( def->shader_type == TYPE_DOT )
-		create_info.layout = vk.pipeline_layout_storage;
-#ifdef USE_VBO_SS
-	else if ( def->surface_sprite_flags )
-		create_info.layout = vk.pipeline_layout_surface_sprite;
-#endif
-	else
-		create_info.layout = vk.pipeline_layout;
+	create_info.layout = vk_pipeline_layout_for_def( def );
 
     if ( renderPassIndex == RENDER_PASS_SCREENMAP )
         create_info.renderPass = vk.render_pass.screenmap;
@@ -2018,6 +2014,69 @@ found:
         vk_gen_pipeline(index);
 
     return index;
+}
+
+/*
+================
+vk_pipeline_layout_for_def
+
+Which pipeline layout a definition is built against.
+
+One function rather than one expression at the creation site and a guess at
+every binding site, and the reason is a spec violation that reached a person's
+machine. RB_BindDescriptorSets used to bind with a layout the DRAW ITEM carried,
+set by hand next to the pipeline it was drawing with, and the two disagreed:
+
+    vkCmdDrawIndexedIndirect(): The VkPipeline 0xc13 (created with
+    VkPipelineLayout 0x11) statically uses descriptor set 5, but all sets 0 to 5
+    are not compatible with the VkPipelineLayout 0x12 bound with
+    vkCmdBindDescriptorSets
+
+Ten times in one frame, on a retail map, from a trace build. Descriptor sets
+bound through an incompatible layout are undefined behaviour, and undefined
+behaviour inside a driver is how a fault turns up somewhere unrelated later -
+which is the shape this project has now chased twice.
+
+The surface-sprite path is where they came apart. Its draw items name
+vk.pipeline_layout_surface_sprite unconditionally while taking
+firstStage->vk_pipeline[fog_stage], and only index zero and - when the world has
+fogs - index one are rebuilt with surface_sprite_flags set. Any other index is
+an ordinary pipeline built against the ordinary layout.
+
+Asking the pipeline what it was built with cannot disagree with what it was
+built with. See vk_pipeline_layout.
+================
+*/
+static VkPipelineLayout vk_pipeline_layout_for_def( const Vk_Pipeline_Def *def )
+{
+	if ( def->shader_type == TYPE_DOT )
+		return vk.pipeline_layout_storage;
+#ifdef USE_VBO_SS
+	if ( def->surface_sprite_flags )
+		return vk.pipeline_layout_surface_sprite;
+#endif
+	return vk.pipeline_layout;
+}
+
+/*
+================
+vk_pipeline_layout
+
+The layout a pipeline in the table was created with, by index.
+
+Out of range answers the default layout rather than nothing: the caller is about
+to bind descriptor sets and a null layout is a crash, while the default one is
+what a pipeline that does not exist would have had. vk_bind_pipeline reports the
+missing index separately and the draw is skipped.
+================
+*/
+VkPipelineLayout vk_pipeline_layout( uint32_t pipeline )
+{
+	if ( pipeline >= vk.pipelines_count ) {
+		return vk.pipeline_layout;
+	}
+
+	return vk_pipeline_layout_for_def( &vk.pipelines[pipeline].def );
 }
 
 void vk_get_pipeline_def( uint32_t pipeline, Vk_Pipeline_Def *def ) {

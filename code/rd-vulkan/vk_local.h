@@ -1142,6 +1142,7 @@ void		vk_create_pipelines(void);
 void		vk_alloc_persistent_pipelines( void );
 void		vk_create_descriptor_layout( void );
 void		vk_create_pipeline_layout( void );
+VkPipelineLayout vk_pipeline_layout( uint32_t pipeline );
 void		vk_destroy_pipelines( qboolean reset );
 void		vk_update_post_process_pipelines( void );
 

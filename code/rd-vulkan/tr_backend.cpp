@@ -612,8 +612,33 @@ void RB_BindDescriptorSets( const DrawItem& drawItem )
 
 	count = end - start + 1;
 
+	// The layout the PIPELINE was built with, not the one the item was given.
+	//
+	// They were allowed to disagree and they did. A surface-sprite item names
+	// vk.pipeline_layout_surface_sprite unconditionally while taking
+	// firstStage->vk_pipeline[fog_stage], and only some of those indices are
+	// rebuilt with surface_sprite_flags - so an ordinary pipeline, built against
+	// the ordinary layout, had its descriptor sets bound through the sprite one.
+	// From a trace build on a retail map, ten times in a frame:
+	//
+	//   vkCmdDrawIndexedIndirect(): The VkPipeline 0xc13 (created with
+	//   VkPipelineLayout 0x11) statically uses descriptor set 5, but all sets 0
+	//   to 5 are not compatible with the VkPipelineLayout 0x12 bound with
+	//   vkCmdBindDescriptorSets
+	//
+	// Binding through an incompatible layout is undefined behaviour, and this
+	// project has twice now chased a fault that appeared somewhere else entirely
+	// because a driver was carrying damage from one.
+	//
+	// vk_pipeline_layout derives it from the pipeline's own definition, using
+	// the same function the creation site uses, so the two cannot come apart.
+	// drawItem.pipeline_layout is still what decides the sprite-specific extras
+	// below and in RB_DrawItems - the dynamic offset and the 16-bit index buffer
+	// - because those follow the DRAW, not the layout.
+	const VkPipelineLayout bind_layout = vk_pipeline_layout( drawItem.pipeline );
+
 	vkCmdBindDescriptorSets(vk.cmd->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-		drawItem.pipeline_layout, start, count, drawItem.descriptor_set.current + start, offset_count, offsets);
+		bind_layout, start, count, drawItem.descriptor_set.current + start, offset_count, offsets);
 
 #ifdef USE_VK_PBR
 	// And set five, which is pushed rather than bound and which this function
@@ -632,7 +657,7 @@ void RB_BindDescriptorSets( const DrawItem& drawItem )
 	// material to produce one. Every other lane was measuring a renderer whose
 	// physically-based path never ran a single draw.
 	if ( drawItem.pbr_used ) {
-		vk_push_pbr_descriptor( drawItem.pipeline_layout,
+		vk_push_pbr_descriptor( bind_layout,
 			drawItem.pbr_source, drawItem.pbr_raw, drawItem.pbr_raw_set );
 	}
 #endif
