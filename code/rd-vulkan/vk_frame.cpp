@@ -92,6 +92,14 @@ void vk_destroy_sync_primitives( void )
 #endif
 
     for (i = 0; i < NUM_COMMAND_BUFFERS; i++) {
+        // Whatever each slot was still holding on to. vk_delete_textures walks
+        // tr.images and these are not in it any more - they were taken out of
+        // their image_t when they were replaced - so without this they are the
+        // one kind of object that survives RE_Shutdown, which is precisely the
+        // kind of thing that faults inside vkDestroyDevice. The device has been
+        // waited on by the caller before it gets here.
+        vk_release_retired_images( &vk.tess[i] );
+
         vkDestroySemaphore(vk.device, vk.tess[i].image_acquired, NULL);
 #ifdef USE_UPLOAD_QUEUE
 		vkDestroySemaphore( vk.device, vk.tess[i].rendering_finished2, NULL );
@@ -1391,6 +1399,13 @@ void vk_begin_frame( void )
 		}
 		VK_CHECK( vkResetFences( vk.device, 1, &vk.cmd->rendering_finished_fence ) );
     }
+
+	// Everything this command buffer submitted has now completed, so anything it
+	// was still referring to can finally be destroyed. See vk_retire_image: an
+	// image_t is a slot and re-uploading one replaces the VkImage behind it,
+	// which used to be destroyed on the spot while a submission still read it.
+	// This is the point at which that is legal.
+	vk_release_retired_images( vk.cmd );
 
 	if ( !WIN_VK_IsMinimized() && !vk.cmd->swapchain_image_acquired && backEnd.viewParms.targetCube == NULL ) {
 		qboolean retry = qfalse;

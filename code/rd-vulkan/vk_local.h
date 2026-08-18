@@ -128,6 +128,16 @@ typedef unsigned int uvec4_t[4];
 #define MIN_SWAPCHAIN_IMAGES_MAILBOX	3
 
 #define MAX_VK_SAMPLERS					32
+
+// How many replaced images one command buffer can be holding on to. See the
+// retired_image note in vk_tess_s.
+//
+// Sixty-four is not a guess about a maximum: it is a number past which parking
+// them stops being cheaper than stopping. A frame that replaces more images
+// than this is loading, not drawing, and vk_retire_image falls back to waiting
+// for the device rather than growing - which is correct, just slow, and says so
+// in the log the first time it happens.
+#define VK_MAX_RETIRED_IMAGES			64
 #define MAX_VK_PIPELINES				((1024 + 128)*2)
 #ifndef _DEBUG
 #define USE_DEDICATED_ALLOCATION
@@ -534,7 +544,34 @@ typedef struct vk_tess_s {
 #endif
 	VkFence				rendering_finished_fence;
 	qboolean			waitForFence;
-	
+
+	// Images that were replaced while this command buffer was being recorded,
+	// waiting for it to finish before they can be destroyed.
+	//
+	// An image_t is a slot, not a resource: re-uploading one - a cinematic
+	// frame that changed size, the dissolve screen, a texture reloaded - throws
+	// the VkImage away and makes another in its place. The throwing away used
+	// to be immediate, and immediate is a spec violation whenever anything
+	// still in flight refers to it. From a trace on real hardware:
+	//
+	//   vkDestroyImage(): can't be called on VkImage 0xfeb... that is currently
+	//   in use by VkImageView 0xfec... which is in use by VkCommandBuffer ...
+	//
+	// The driver survived that by about four hundred lines of log and then
+	// faulted inside vkDestroyDevice, which is why the crash looked like a
+	// shutdown defect for a week. It is not: the object was killed too early,
+	// not too late.
+	//
+	// So the old handles are parked here instead. The list is emptied at the
+	// top of vk_begin_frame for this slot, immediately after its fence has been
+	// waited on - at which point everything this command buffer submitted has
+	// completed, including the draws that referred to them. See vk_retire_image.
+	VkImage				retired_image[VK_MAX_RETIRED_IMAGES];
+	VkImageView			retired_view[VK_MAX_RETIRED_IMAGES];
+	VmaAllocation		retired_allocation[VK_MAX_RETIRED_IMAGES];
+	uint32_t			retired_count;
+
+
 	VkBuffer			vertex_buffer;
 	VmaAllocation		vertex_buffer_allocation;
 	byte				*vertex_buffer_ptr; // pointer to mapped vertex buffer
@@ -1285,6 +1322,7 @@ void		vk_create_allocator( void );
 void		vk_destroy_allocator( void );
 qboolean	vk_create_image_memory( const VkImageCreateInfo *desc, VkImage *image, VmaAllocation *allocation, const char *name );
 void		vk_destroy_image_memory( VkImage *image, VmaAllocation *allocation );
+void		vk_release_retired_images( vk_tess_t *cmd );
 qboolean	vk_alloc_image_memory( VkImage image, qboolean transient, VmaAllocation *allocation, const char *name );
 qboolean	vk_create_buffer_memory( const VkBufferCreateInfo *desc, vk_buffer_memory_t kind, VkBuffer *buffer,
 				VmaAllocation *allocation, void **mapped, const char *name );

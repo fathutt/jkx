@@ -1302,6 +1302,11 @@ byte *vk_resample_image_data( const int target_format, byte *data, const int dat
 
 //static int batch_by_format = 0;
 
+// Set by vk_create_image when it REPLACED an image rather than made a new one,
+// read and cleared by the upload that follows. See the note at the end of
+// vk_upload_image_data.
+static qboolean vk_image_replaced = qfalse;
+
 void vk_upload_image_data( image_t *image, int x, int y, int width, 
 	int height, int mipmaps, byte *pixels, int size, qboolean update, int layer ) 
 {
@@ -1441,6 +1446,37 @@ void vk_upload_image_data( image_t *image, int x, int y, int width,
 	end_command_buffer( command_buffer, __func__ );
 #endif
 
+	// The frame that is being recorded right now may already sample this image.
+	//
+	// Uploads normally sit in the staging buffer until the top of the next
+	// vk_begin_frame, which submits them and makes the frame wait on that
+	// semaphore - so by the time anything draws, the contents and the layout
+	// are in place. That works because the image is the SAME image the previous
+	// frames used; it is only its contents that are late.
+	//
+	// A REPLACED image breaks that. vk_create_image threw the old VkImage away,
+	// made a new one - so its layout is UNDEFINED - and wrote the descriptor.
+	// Anything drawn later in this frame reads the new image through the new
+	// descriptor, and the transition that would make it readable is still
+	// sitting unsubmitted in the staging buffer. From a trace on real hardware,
+	// four in a row with consecutive handles:
+	//
+	//   vkQueueSubmit(): expects VkImage 0xfe7... to be in layout
+	//   SHADER_READ_ONLY_OPTIMAL -- instead, current layout is UNDEFINED
+	//
+	// So a replacement submits its upload immediately instead of queuing it.
+	// The false is what makes it wait for the fence, which is a stall - and the
+	// stall is the point: the draw that follows must not overtake this. Only on
+	// replacement, only while a frame is open, which is a cinematic changing
+	// size or a texture arriving mid-level, not the ordinary load.
+	if ( vk_image_replaced ) {
+		vk_image_replaced = qfalse;
+
+		if ( vk.frame_count > 0 ) {
+			vk_flush_staging_buffer( qfalse );
+		}
+	}
+
 	// this is not ok?
 	if ( buf != pixels ) {
 		//R_Hunk_FreeTempMemory( buf );
@@ -1491,22 +1527,118 @@ void vk_update_descriptor_set( image_t *image, qboolean mipmap ) {
 	image->descriptor_info = image_info;
 }
 
+static void vk_destroy_image_resources( VkImage *image, VkImageView *imageView, VmaAllocation *allocation );
+
+/*
+================
+vk_retire_image
+
+Park an image and its view until the command buffer being recorded has finished
+with them, rather than destroying them now.
+
+Now is wrong, and it is wrong in the way that is hardest to see. An image_t is a
+slot: re-uploading one replaces the VkImage behind it and leaves every
+descriptor, and every command buffer that has already been recorded or submitted
+against that descriptor, pointing at an object that no longer exists. Measured
+on real hardware, from a trace build:
+
+    vkDestroyImage(): can't be called on VkImage 0xfeb... that is currently in
+    use by VkImageView 0xfec... which is in use by VkCommandBuffer 0x200ad0b70d0
+
+and beside it, four in a row with consecutive handles:
+
+    vkQueueSubmit(): expects VkImage 0xfe7 to be in layout
+    SHADER_READ_ONLY_OPTIMAL -- instead, current layout is UNDEFINED
+
+which is the same event from the other side: the slot's new image, freshly
+created and so still UNDEFINED, being sampled by a submission that was set up
+against the old one. Nothing crashed at the time. The driver carried the damage
+for four hundred more lines of log and then faulted inside vkDestroyDevice on
+the next vid_restart, which is why this was filed as a shutdown defect and looked
+for in entirely the wrong place. THE OBJECT WAS DESTROYED TOO EARLY, NOT KEPT
+TOO LATE.
+
+The list is per command buffer and is emptied at the top of vk_begin_frame for
+that slot, immediately after its fence has been waited on. Reaching that point
+means everything this command buffer submitted has completed, which is exactly
+the condition VUID-vkDestroyImage-image-01000 asks for.
+
+vk_wait_idle() would also be correct and is what the overflow path does. It is
+not the default because this runs during recording - a cinematic frame, a
+texture arriving mid-level - and stalling the device on a texture upload is how
+a hitch gets built in on purpose.
+================
+*/
+static void vk_retire_image( image_t *image )
+{
+	vk_tess_t *cmd = vk.cmd;
+
+	if ( cmd == NULL || cmd->retired_count >= VK_MAX_RETIRED_IMAGES ) {
+		// Either there is no frame in flight to wait for - the load screen,
+		// vid_restart, the first image ever uploaded - or this frame has
+		// replaced more images than the list holds. Both are safe to answer
+		// with a stall, and both are rare enough that saying so once is worth
+		// more than silence.
+		static qboolean reported = qfalse;
+
+		if ( cmd != NULL && !reported ) {
+			reported = qtrue;
+			CL_RefPrintf( PRINT_DEVELOPER, "vk_retire_image: more than %i images "
+				"replaced in one frame, waiting for the device instead\n",
+				VK_MAX_RETIRED_IMAGES );
+		}
+
+		vk_wait_idle();
+		vk_destroy_image_resources( &image->handle, &image->view, &image->allocation );
+		return;
+	}
+
+	vk_debug( "retiring image %s until this command buffer is done with it\n",
+		image->imgName );
+
+	cmd->retired_image[cmd->retired_count] = image->handle;
+	cmd->retired_view[cmd->retired_count] = image->view;
+	cmd->retired_allocation[cmd->retired_count] = image->allocation;
+	cmd->retired_count++;
+
+	image->handle = VK_NULL_HANDLE;
+	image->view = VK_NULL_HANDLE;
+	image->allocation = VK_NULL_HANDLE;
+}
+
+/*
+================
+vk_release_retired_images
+
+Called once per frame from vk_begin_frame, after this slot's fence. See
+vk_retire_image.
+================
+*/
+void vk_release_retired_images( vk_tess_t *cmd )
+{
+	uint32_t i;
+
+	for ( i = 0; i < cmd->retired_count; i++ ) {
+		vk_destroy_image_resources( &cmd->retired_image[i], &cmd->retired_view[i],
+			&cmd->retired_allocation[i] );
+	}
+
+	cmd->retired_count = 0;
+}
+
 void vk_create_image( image_t *image, int width, int height, int mip_levels ) {
 	VkFormat			format = (VkFormat)image->internalFormat;
 	VkImageCreateFlags	image_flags = 0;
 	VkImageViewType		view_type = (VkImageViewType)VK_IMAGE_VIEW_TYPE_2D;
 
-	if ( image->handle ) {
-		// Through VMA, not vkDestroyImage: the allocation is overwritten a few
-		// lines below, so destroying the image alone leaks its backing memory
-		// on every re-creation - scratch images, cinematics, vid_restart.
-		vk_destroy_image_memory( &image->handle, &image->allocation );
-		image->handle = VK_NULL_HANDLE;
-	}
-
-	if ( image->view ) {
-		vkDestroyImageView( vk.device, image->view, NULL );
-		image->view = VK_NULL_HANDLE;
+	// The old image and view go on the retirement list rather than into
+	// vkDestroyImage. Through VMA when they finally go, not vkDestroyImage, be-
+	// cause the allocation is overwritten a few lines below and destroying the
+	// image alone leaks its backing memory on every re-creation - scratch
+	// images, cinematics, vid_restart.
+	if ( image->handle || image->view ) {
+		vk_retire_image( image );
+		vk_image_replaced = qtrue;
 	}
 
 	if ( image->flags & IMGFLAG_CUBEMAP ) {
