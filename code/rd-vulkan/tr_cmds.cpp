@@ -585,6 +585,51 @@ void RE_BeginFrame( stereoFrame_t stereoFrame ) {
 			gls.windowWidth = glConfig.vidWidth;
 			gls.windowHeight = glConfig.vidHeight;
 
+			// And everything vk_initialize works out FROM those two numbers,
+			// which until now was worked out exactly once and never again.
+			//
+			// vk_set_render_scale decides whether the render target and the
+			// window are different sizes and, if they are, where inside the
+			// window the picture lands - vk.blitX0, vk.blitY0, the filter, and
+			// the flag every viewport calculation reads. Quake3e, which this
+			// renderer descends from, keeps those two sizes deliberately
+			// separate so that r_renderScale can draw small and blit big; we
+			// inherited the whole mechanism and then only ever ran it at
+			// startup, when the two are equal by construction.
+			//
+			// So a resized window left the blit state describing the window it
+			// used to be. The 2D scale is the same story one line up: it turns
+			// 640x480 interface coordinates into pixels and it was frozen at
+			// the launch size.
+			vk.windowAdjusted = qfalse;
+			vk.blitFilter = GL_NEAREST;
+			vk.blitX0 = vk.blitY0 = 0;
+			vk_set_render_scale();
+
+			vk.xscale2D = glConfig.vidWidth * ( 1.0 / 640.0 );
+			vk.yscale2D = glConfig.vidHeight * ( 1.0 / 480.0 );
+
+			// The capture size, which is what a screenshot is a picture OF and
+			// how big the capture attachment is made. Same story again: worked
+			// out once beside the two above, in vk_initialize, and then left.
+			//
+			// This is what the resize lane was actually catching. The window
+			// resized, the swapchain resized, the attachments resized, and the
+			// screenshot came back at the launch size because the number the
+			// capture path reads had not moved - and a blit asking for that
+			// many pixels out of an attachment that no longer has them is the
+			// vkCmdBlitImage complaint the validation layer kept printing.
+			gls.captureWidth = glConfig.vidWidth;
+			gls.captureHeight = glConfig.vidHeight;
+
+			// The interface's own idea of how wide the screen is, in the 480-high
+			// virtual space. An element pinned to the right edge is pinned to the
+			// edge of the MONITOR, so this follows the window and not the render
+			// target - see the note where it is first computed.
+			glConfig.virtualWidth = ( gls.windowHeight > 0 )
+				? (float)SCREEN_HEIGHT * (float)gls.windowWidth / (float)gls.windowHeight
+				: (float)SCREEN_WIDTH;
+
 			vk_restart_swapchain( __func__ );
 			R_Set2DRatio();
 		}

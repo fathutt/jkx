@@ -32,7 +32,11 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 int vkSamples = VK_SAMPLE_COUNT_1_BIT;
 int vkMaxSamples = VK_SAMPLE_COUNT_1_BIT;
 
-static void vk_set_render_scale( void )
+// Not static any more: the resize path in RE_BeginFrame has to run it again.
+// It was called exactly once, from vk_initialize, at a moment when the window
+// and the render target are the same size by construction - so everything it
+// works out was frozen at the size the game was launched at.
+void vk_set_render_scale( void )
 {
 	if (gls.windowWidth != glConfig.vidWidth || gls.windowHeight != glConfig.vidHeight)
 	{

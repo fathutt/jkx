@@ -71,7 +71,7 @@ JOBS="${JOBS:-$(nproc)}"
 
 STAGES=( "$@" )
 if [ "${#STAGES[@]}" -eq 0 ]; then
-    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokeskin smokeskinshift smokelightmap smokemapent smokemenumodel smokemenulight smokepbrchar smokevidrestart smokevsync smokecubemap smoketransparency smoketcmod smokedeform smokephys smokephysshaded smokepak move smokesan prepass fog noassets )
+    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokeskin smokeskinshift smokelightmap smokemapent smokemenumodel smokemenulight smokepbrchar smokevidrestart smokevsync smokeresize smokecubemap smoketransparency smoketcmod smokedeform smokephys smokephysshaded smokepak move smokesan prepass fog noassets )
 fi
 
 failed=()
@@ -894,6 +894,36 @@ stage_smokevidrestart() {
 stage_smokevsync() {
     JKX_SMOKE_VSYNC=1 \
     JKX_SMOKE_DISPLAY="${JKX_SMOKE_VSYNC_DISPLAY:-:99}" \
+        bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
+}
+
+# The window resized while the game runs, without restarting the renderer.
+#
+# Second rung of the ladder, and the one that took four numbers rather than one.
+# The window resizes, the swapchain follows, and so must everything worked out
+# FROM the window size - which vk_initialize computes once, at a moment when the
+# window and the render target are equal by construction, and nothing recomputed
+# afterwards:
+#
+#   gls.windowWidth       the floor the swapchain extent is clamped up to, so a
+#                         shrunk window asked for a swapchain bigger than its
+#                         own surface allows
+#   vk.blitX0 / filter    where inside the window the picture lands. Quake3e,
+#                         which this renderer descends from, keeps render size
+#                         and window size deliberately separate for
+#                         r_renderScale; we inherited the mechanism and only
+#                         ever ran it at startup
+#   vk.xscale2D           640x480 interface coordinates into pixels
+#   gls.captureWidth      what a screenshot is a picture OF - the last one, and
+#                         the one the lane could see, because the frame kept
+#                         coming back at the launch size
+#
+# The observable is the SIZE of the picture and not its content: a screenshot is
+# the window, so a resize that silently did nothing produces a perfectly good
+# frame at the wrong dimensions, which no pixel check can catch.
+stage_smokeresize() {
+    JKX_SMOKE_RESIZE=1 \
+    JKX_SMOKE_DISPLAY="${JKX_SMOKE_RESIZE_DISPLAY:-:76}" \
         bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
 }
 

@@ -378,49 +378,22 @@ if [ "${JKX_SMOKE_VSYNC:-0}" = "1" ]; then
     INMAP_STEP+=( +exec jkx_vsync.cfg +wait 45 )
 fi
 
-# The window resized while the game is running - the second rung, AND THIS LANE
-# IS RED ON PURPOSE. It is not in the stage list in tools/ci/local.sh.
+# The window resized while the game is running - the second rung.
 #
-# What it found on its first run, which is exactly what a lane is for: the
-# window resizes and the renderer does not follow it.
+# What it found on its first run, and it took four numbers rather than one: the
+# window resizes and everything worked out FROM the window size does not follow,
+# because vk_initialize computes all of it once, at a moment when the window and
+# the render target are equal by construction.
 #
-#   resizing the window to 800 600
-#   vkCreateSwapchainKHR(): pCreateInfo->imageExtent (1280, 720), which is
-#   outside the bounds returned by vkGetPhysicalDeviceSurfaceCapabilitiesKHR():
-#   currentExtent = (800,600), minImageExtent = (800,600)
-#   vkCmdBlitImage(): srcOffsets[1].x is 1280 which exceed srcSubresource width
-#   extent (800)
+#   gls.windowWidth       the floor the swapchain extent is clamped up to
+#   vk.blitX0 / filter    where inside the window the picture lands
+#   vk.xscale2D           640x480 interface coordinates into pixels
+#   gls.captureWidth      what a screenshot is a picture of
 #
-# So SDL resized the window, the surface knows its new size, and the renderer
-# rebuilt the swapchain at the OLD extent and then blitted a 1280-wide region
-# out of an 800-wide image.
-#
-# HALF OF THAT IS FIXED. The extent came from a floor that never moved:
-# vk_create_swapchain clamps the extent up to gls.windowWidth, which was set
-# once at startup to the size the window was launched at. The clamp is there for
-# minimisation - a minimised window reports zero and a zero swapchain crashes
-# the driver - and the comment beside it says in as many words that something
-# more dynamic would be needed if windowed resizing were ever implemented. The
-# floor moves with the window now and the vkCreateSwapchainKHR error is gone.
-#
-# WHAT IS LEFT is the blit, still asking for a 1280-wide region out of an image
-# that is now 800 wide. Its region comes from glConfig.vidWidth, which IS 800 by
-# then - so the frame being complained about was recorded before the rebuild and
-# is referring to attachments that have since been replaced. That points at the
-# ORDER of the rebuild rather than at any one number: RE_BeginFrame is early in
-# the frame but not before everything. Next step is to find what is already
-# recorded by the time it runs.
-#
-# The rung stays in - the cvars are unlatched, WIN_Resize works, the swapchain
-# is rebuilt - because all of that is correct and none of it is what is wrong.
-# What is missing is one number in the renderer, and the lane names it.
-#
-#
-# The observable is the SIZE OF THE PICTURE. A screenshot is the window, so a
-# resize that worked produces a smaller file with different dimensions, and one
-# that silently did nothing produces the same 1280x720 as everything else. That
-# is a stronger check than a log line because it cannot pass while the frame is
-# wrong.
+# The last one is what this lane could see, and the others were found by
+# following it. Quake3e - which this renderer descends from - keeps render size
+# and window size deliberately separate so r_renderScale can draw small and blit
+# big; we inherited the whole mechanism and then only ever ran it at startup.
 #
 # 800x600 and back, so the run ends at the geometry every other check is written
 # against. r_mode -1 is the custom size; the modes below it are a fixed table.
