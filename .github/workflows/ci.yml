@@ -494,6 +494,15 @@ jobs:
           JKX_SMOKE_DISPLAY: ':95'
         run: bash tools/verify/smoke_headless.sh build
 
+      # The player's blob shadow asks for a material and gets one. Without the
+      # shader this lane writes, the fixture produces nine hundred shaderless
+      # polygons a run and has done since it was written.
+      - name: No polygon reaches the renderer without a material
+        env:
+          JKX_SMOKE_SHADOW: '1'
+          JKX_SMOKE_DISPLAY: ':97'
+        run: bash tools/verify/smoke_headless.sh build
+
       # A model the map owns. Everything else this bench draws is put on
       # screen by the console or is the player; a map's prop gets its model
       # through G_ModelIndex, which is a configstring index, and cgame turns

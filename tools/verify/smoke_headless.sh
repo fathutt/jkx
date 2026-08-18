@@ -472,6 +472,65 @@ fi
 # no cinematic here - so it cannot be checked by its effect. What it CAN do is
 # say "Unknown command", and the absence of that is worth asserting on its own:
 # a command that is not unknown is a command the game claimed.
+# The player's blob shadow, which this bench has never drawn once.
+#
+# Found by reading a warning rather than by looking for it: nine hundred lines of
+# "RE_AddPolyToScene: NULL poly shader" per run, traced with a conditional
+# breakpoint to CG_PlayerShadow. cgs.media.shadowMarkShader is
+# RegisterShader("markShadow"), that returns zero for a shader that is not
+# there, and this fixture has never had one. So every frame of every lane has
+# been asking the renderer to draw a shadow with no material and being told no.
+#
+# The shader is written HERE and not into the committed fixture on purpose.
+# Every other lane measures frames that a dark blob under the player would
+# change - the floor checks count white pixels and take their centroid - and a
+# coverage gap is not worth paying for with a fixture that all the other lanes
+# have to be re-measured against. One extra .shader file, in one lane, and the
+# scan in R_InitShaders picks it up because it lists the directory.
+#
+# Flat magenta rather than a blob texture, and GL_ONE GL_ZERO rather than the
+# multiply a real shadow uses: the mark arrives with vertex colour 1,1,1 and an
+# alpha that varies with the player's height above the floor, and a check that
+# has to allow for that alpha is a check that cannot be an equality. What is
+# being asserted is that the POLYGON ARRIVES AND IS DRAWN, which is the thing
+# that has never happened, not that it is shaded like a shadow.
+#
+# WHAT THIS LANE ASSERTS, AND WHAT IT DOES NOT.
+#
+# It asserts that nothing asks the renderer to draw a polygon with no material.
+# Without the shader below that happens nine hundred times a run; with it, not
+# once. That is the whole of the change and it is a real one.
+#
+# It does NOT assert that the shadow is visible, and it cannot yet. The camera
+# here is first person, so the ground under the player's feet is behind it, and
+# cg_thirdPerson does not move it - set at startup it changes nothing, the frame
+# comes back identical to the pixel. Whatever decides third person in single
+# player is not that cvar alone, and finding out is a separate piece of work
+# from this one. Until then the colour below is unobserved, and it is left in
+# place rather than made grey because the day this lane can photograph the blob
+# is the day it wants a colour nothing else uses.
+#
+# Magenta because nothing else in this fixture is: the floor is white, the props
+# are 51,102,204 and 204,51,51, the sky faces are their own six, and a colour
+# that collides with one of those is a check that passes for the wrong reason.
+if [ "${JKX_SMOKE_SHADOW:-0}" = "1" ]; then
+    cat > "$RUN/base/shaders/jkx_shadow.shader" <<'SHADEREOF'
+// The name is not ours to choose: cg_main.cpp asks for "markShadow" by that
+// exact string, and a shadow shader under any other name is a shadow shader
+// nothing looks for.
+markShadow
+{
+	polygonOffset
+	{
+		map $whiteimage
+		rgbGen const ( 1 0 1 )
+		blendFunc GL_ONE GL_ZERO
+	}
+}
+SHADEREOF
+
+fi
+
 if [ "${JKX_SMOKE_GAMECMD:-0}" = "1" ]; then
     {
         echo "wait 5"
@@ -1488,6 +1547,17 @@ if [ -n "${JKX_SMOKE_MAP:-}" ]; then
     SET_STEP+=( +set g_ICARUSDebug 4 +set g_subtitles 1 )
 fi
 
+# cg_shadows 1 is the MARK path specifically - 2 is stencil and draws no polygon
+# at all, which would make this lane green by drawing nothing. It is already the
+# default; it is set anyway, because a lane that depends on a default is a lane
+# that breaks silently when the default moves.
+#
+# Down here rather than beside the shader, because SET_STEP is created empty a
+# few lines above and anything added before that is thrown away.
+if [ "${JKX_SMOKE_SHADOW:-0}" = "1" ]; then
+    SET_STEP+=( +set cg_shadows 1 )
+fi
+
 # A different menu set, which is what makes the menu-model lane opt-in. The
 # ordinary one is ui/menus.txt and every other lane loads it, so the frame all
 # the other checks are written against does not change.
@@ -1807,6 +1877,13 @@ if [ "${JKX_SMOKE_MSAA:-0}" = "1" ]; then
     require 'Wrote screenshots/jkx_msaa_off.tga'
     require 'Wrote screenshots/jkx_msaa_on.tga'
     msaa_checks
+fi
+
+if [ "${JKX_SMOKE_SHADOW:-0}" = "1" ]; then
+    # The message the renderer prints when it is handed a polygon and no
+    # material. Every other lane produces it, hundreds of times; this one must
+    # not produce it once.
+    forbid 'RE_AddPolyToScene: no shader'
 fi
 
 if [ "${JKX_SMOKE_GAMECMD:-0}" = "1" ]; then

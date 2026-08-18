@@ -71,7 +71,7 @@ JOBS="${JOBS:-$(nproc)}"
 
 STAGES=( "$@" )
 if [ "${#STAGES[@]}" -eq 0 ]; then
-    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokeskin smokeskinshift smokelightmap smokehdrlightmap smokegamecmd smokemapent smokemenumodel smokemenulight smokepbrchar smokevidrestart smokevsync smokeresize smokemsaa smokecubemap smoketransparency smoketcmod smokedeform smokephys smokephysshaded smokepak move smokesan prepass fog noassets )
+    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokeskin smokeskinshift smokelightmap smokehdrlightmap smokegamecmd smokeshadow smokemapent smokemenumodel smokemenulight smokepbrchar smokevidrestart smokevsync smokeresize smokemsaa smokecubemap smoketransparency smoketcmod smokedeform smokephys smokephysshaded smokepak move smokesan prepass fog noassets )
 fi
 
 failed=()
@@ -794,6 +794,30 @@ stage_smokehdrlightmap() {
 stage_smokegamecmd() {
     JKX_SMOKE_GAMECMD=1 \
     JKX_SMOKE_DISPLAY="${JKX_SMOKE_GAMECMD_DISPLAY:-:73}" \
+        bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
+}
+
+# The player's blob shadow asks for a material and gets one.
+#
+# Found by reading a warning nobody had read: nine hundred lines of
+# "RE_AddPolyToScene: NULL poly shader" per run, every run, traced with a
+# conditional breakpoint to CG_PlayerShadow. cgs.media.shadowMarkShader is
+# RegisterShader("markShadow"), which returns zero for a shader that is not
+# there, and this fixture has never had one - so every frame of every lane has
+# been asking for a shadow with no material and being told no.
+#
+# What the lane asserts is exactly that and no more: with the shader written in,
+# not one shaderless polygon. Remove the shader and it goes red on the first
+# frame; that is the mutation test and it was run.
+#
+# It does NOT assert the shadow is visible. The camera is first person, the
+# ground under the player's feet is behind it, and cg_thirdPerson set at startup
+# does not move it - the frame comes back identical to the pixel either way.
+# Whatever decides third person in single player is not that cvar alone, and
+# that is a separate piece of work.
+stage_smokeshadow() {
+    JKX_SMOKE_SHADOW=1 \
+    JKX_SMOKE_DISPLAY="${JKX_SMOKE_SHADOW_DISPLAY:-:72}" \
         bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
 }
 
