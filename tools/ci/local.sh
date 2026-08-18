@@ -71,7 +71,7 @@ JOBS="${JOBS:-$(nproc)}"
 
 STAGES=( "$@" )
 if [ "${#STAGES[@]}" -eq 0 ]; then
-    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokeskin smokeskinshift smokelightmap smokemapent smokemenumodel smokemenulight smokepbrchar smokevidrestart smokevsync smokeresize smokecubemap smoketransparency smoketcmod smokedeform smokephys smokephysshaded smokepak move smokesan prepass fog noassets )
+    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokeskin smokeskinshift smokelightmap smokemapent smokemenumodel smokemenulight smokepbrchar smokevidrestart smokevsync smokeresize smokemsaa smokecubemap smoketransparency smoketcmod smokedeform smokephys smokephysshaded smokepak move smokesan prepass fog noassets )
 fi
 
 failed=()
@@ -924,6 +924,38 @@ stage_smokevsync() {
 stage_smokeresize() {
     JKX_SMOKE_RESIZE=1 \
     JKX_SMOKE_DISPLAY="${JKX_SMOKE_RESIZE_DISPLAY:-:76}" \
+        bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
+}
+
+# The sample count changed while the game runs.
+#
+# Third rung, and the one whose failure was not in the renderer at all. The rung
+# itself is four lines - vk_set_multisample() re-reads r_ext_multisample and
+# vk_restart_swapchain rebuilds the attachments, the render passes and every
+# pipeline against the new count, which is why this one cannot be the cheap
+# path. The lane set the cvar to zero and the run kept reporting "using 4x".
+#
+# r_ext_multisample is registered TWICE: once by the renderer and once by
+# shared/sdl/sdl_window.cpp, which needed it back when the window carried a GL
+# context and its sample count. A cvar's flags are the union of every
+# registration, so the CVAR_LATCH in the window's copy latched the renderer's
+# too, and the value the player set sat in latchedString waiting for the
+# vid_restart this whole ladder exists to remove. Un-latching it in one of two
+# places is un-latching it in neither.
+#
+# The observable is the renderer's own line, "MSAA max: Nx, using Mx", printed
+# once per initialisation: the lane asks for a count and looks for a run that
+# reports it. A screenshot cannot carry this - the fixture's geometry is axis
+# aligned and four samples of a vertical edge are four identical samples.
+#
+# :75 rather than the next number up, because :76 to :99 were all spoken for and
+# a lane that attaches to somebody else's server inherits its size. The stages
+# here run one at a time so a collision would not usually bite, but the failure
+# it produces - correct picture, wrong dimensions - costs an afternoon to read,
+# and the range is cheaper to extend than that.
+stage_smokemsaa() {
+    JKX_SMOKE_MSAA=1 \
+    JKX_SMOKE_DISPLAY="${JKX_SMOKE_MSAA_DISPLAY:-:75}" \
         bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
 }
 

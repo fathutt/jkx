@@ -32,6 +32,42 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 int vkSamples = VK_SAMPLE_COUNT_1_BIT;
 int vkMaxSamples = VK_SAMPLE_COUNT_1_BIT;
 
+/*
+================
+vk_set_multisample
+
+How many samples per pixel, from r_ext_multisample and what the device allows.
+
+Its own function, and not because it is long. It was six lines inside
+vk_initialize, which means the answer was worked out exactly once - and changing
+the setting therefore needed vid_restart: the whole device, every texture, the
+interface and the client game, and a level reload, to change one number that
+goes into a pipeline. RE_BeginFrame calls this and rebuilds the targets instead.
+See the ladder there.
+
+The clamp down to what the device supports is the reason this cannot just be
+read where it is used: r_ext_multisample is what the PLAYER asked for and
+vkSamples is what he is going to get, and on a device that allows less those are
+different numbers.
+================
+*/
+void vk_set_multisample( void )
+{
+	vk.msaaActive = r_ext_multisample->integer ? qtrue : qfalse;
+
+	if ( vk.msaaActive ) {
+		VkSampleCountFlags mask = vkMaxSamples;
+		vkSamples = MAX( log2pad( r_ext_multisample->integer, 1 ), VK_SAMPLE_COUNT_2_BIT );
+		while ( vkSamples > mask )
+			vkSamples >>= 1;
+	}
+	else {
+		vkSamples = VK_SAMPLE_COUNT_1_BIT;
+	}
+
+	CL_RefPrintf( PRINT_ALL, "MSAA max: %dx, using %dx\n", vkMaxSamples, vkSamples );
+}
+
 // Not static any more: the resize path in RE_BeginFrame has to run it again.
 // It was called exactly once, from vk_initialize, at a moment when the window
 // and the render target are the same size by construction - so everything it
@@ -736,24 +772,10 @@ void vk_initialize( void )
 		vk.cubemapActive = qtrue;
 #endif
 
-	//if (r_ext_multisample->integer && !r_ext_supersample->integer)
-	if ( r_ext_multisample->integer )
-		vk.msaaActive = qtrue;
-
 	// MSAA
 	vkMaxSamples = MIN( props.limits.sampledImageColorSampleCounts, props.limits.sampledImageDepthSampleCounts);
 
-	if ( vk.msaaActive ) {
-		VkSampleCountFlags mask = vkMaxSamples;
-		vkSamples = MAX( log2pad( r_ext_multisample->integer, 1 ), VK_SAMPLE_COUNT_2_BIT );
-		while ( vkSamples > mask )
-			vkSamples >>= 1;
-	}
-	else {
-		vkSamples = VK_SAMPLE_COUNT_1_BIT;
-	}
-
-	CL_RefPrintf( PRINT_ALL, "MSAA max: %dx, using %dx\n", vkMaxSamples, vkSamples );
+	vk_set_multisample();
 
 	// Anisotropy
 	// Three numbers and the line used to print two of them under each other's
@@ -873,6 +895,13 @@ void vk_shutdown( void )
 		goto __cleanup;
 	}
 
+	// Nothing below may run while the GPU is still reading any of it, and the
+	// wait that used to cover this was several calls up the stack and guarded by
+	// USE_VBO - a define that has nothing to do with whether the device is busy.
+	// Cheap, unconditional, and it belongs at the top of a teardown rather than
+	// wherever the last person happened to need it.
+	vk_wait_idle();
+
 	vk_destroy_framebuffers();
 	vk_destroy_pipelines( qtrue ); // reset counter
 	vk_destroy_render_passes();
@@ -956,6 +985,12 @@ __cleanup:
 #ifdef USE_VK_OBJECT_TRACKER
 		vk_dump_tracked_objects();
 #endif // USE_VK_OBJECT_TRACKER
+#ifdef USE_VK_CENSUS
+		// While the device is still alive, because a report is worth nothing if
+		// the call it precedes is the one that kills the process - and that is
+		// exactly the call being chased here.
+		vk_census_report();
+#endif
 		vk_shutdown_step( "destroying the device" );
 		vkDestroyDevice(vk.device, NULL);
 		// Cleared as it is destroyed, and so is everything below. A handle left
@@ -964,6 +999,15 @@ __cleanup:
 		// driver memory - which is the shape of the fault being chased here.
 		vk.device = VK_NULL_HANDLE;
 	}
+
+#ifdef USE_VK_CENSUS
+	// Outside the device block on purpose. A shutdown that never had a device
+	// never installed the hook, and one that did has to put volk's globals back
+	// before the next volkLoadDevice - otherwise the following install saves a
+	// thunk as the real entry point and every create calls itself for ever.
+	vk_census_shutdown();
+#endif
+
 	if (vk.surface != VK_NULL_HANDLE) {
 		vk_shutdown_step( "destroying the surface" );
 		vkDestroySurfaceKHR(vk.instance, vk.surface, NULL);

@@ -101,6 +101,7 @@ set(RDVulkanFiles
 	"${CodeDir}/rd-vulkan/vk_bloom.cpp"
 	"${CodeDir}/rd-vulkan/vk_cmd.cpp"
 	"${CodeDir}/rd-vulkan/vk_crash.cpp"
+	"${CodeDir}/rd-vulkan/vk_census.cpp"
 	"${CodeDir}/rd-vulkan/vk_cubemap.cpp"
 	"${CodeDir}/rd-vulkan/vk_debug.cpp"
 	"${CodeDir}/rd-vulkan/vk_dynamic_glow.cpp"

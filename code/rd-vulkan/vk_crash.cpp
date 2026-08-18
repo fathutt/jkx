@@ -304,6 +304,53 @@ void vk_remove_crash_handler( void )
 	jkx_crash_path[0] = '\0';
 }
 
+// The same symbol lookup the crash frames use, exposed for a caller that has an
+// address and no exception: the shutdown census, which records the return
+// address of whoever created a Vulkan object and has to say where that was.
+//
+// The symbol handler belongs to the crash reporter and is initialised by it, so
+// this reads jkx_crash_symbols rather than initialising anything of its own. If
+// the reporter is not up, the address alone still resolves by hand against the
+// PDB CI packages next to the binary.
+void vk_symbolise_address( uint64_t address, char *out, size_t outSize )
+{
+	char        buffer[sizeof( SYMBOL_INFO ) + MAX_SYM_NAME];
+	SYMBOL_INFO *symbol = (SYMBOL_INFO *)buffer;
+	DWORD64     displacement = 0;
+	IMAGEHLP_LINE64 line;
+	DWORD           lineDisplacement = 0;
+	const HANDLE    process = GetCurrentProcess();
+
+	if ( outSize == 0 ) {
+		return;
+	}
+
+	Com_sprintf( out, (int)outSize, "0x%016llx", (unsigned long long)address );
+
+	if ( !jkx_crash_symbols ) {
+		return;
+	}
+
+	memset( buffer, 0, sizeof( buffer ) );
+	symbol->SizeOfStruct = sizeof( SYMBOL_INFO );
+	symbol->MaxNameLen = MAX_SYM_NAME;
+
+	if ( !SymFromAddr( process, (DWORD64)address, &displacement, symbol ) ) {
+		return;
+	}
+
+	memset( &line, 0, sizeof( line ) );
+	line.SizeOfStruct = sizeof( line );
+
+	if ( SymGetLineFromAddr64( process, (DWORD64)address, &lineDisplacement, &line ) ) {
+		Com_sprintf( out, (int)outSize, "%s (%s:%lu)", symbol->Name,
+			line.FileName, (unsigned long)line.LineNumber );
+	} else {
+		Com_sprintf( out, (int)outSize, "%s+0x%llx", symbol->Name,
+			(unsigned long long)displacement );
+	}
+}
+
 #else // _WIN32
 
 // Linux gets a core file and a debugger, which is strictly better than anything
@@ -314,6 +361,15 @@ void vk_install_crash_handler( void )
 
 void vk_remove_crash_handler( void )
 {
+}
+
+void vk_symbolise_address( uint64_t address, char *out, size_t outSize )
+{
+	if ( outSize == 0 ) {
+		return;
+	}
+
+	Com_sprintf( out, (int)outSize, "0x%016llx", (unsigned long long)address );
 }
 
 #endif // _WIN32

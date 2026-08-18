@@ -859,7 +859,13 @@ window_t WIN_Init( const windowDesc_t *windowDesc, glconfig_t *glConfig )
 	r_depthbits			= Cvar_Get( "r_depthbits",			"0",		CVAR_ARCHIVE_ND|CVAR_LATCH );
 	r_colorbits			= Cvar_Get( "r_colorbits",			"0",		CVAR_ARCHIVE_ND|CVAR_LATCH );
 	r_ignorehwgamma		= Cvar_Get( "r_ignorehwgamma",		"0",		CVAR_ARCHIVE_ND|CVAR_LATCH );
-	r_ext_multisample	= Cvar_Get( "r_ext_multisample",	"0",		CVAR_ARCHIVE_ND|CVAR_LATCH );
+	// NOT latched, and this is the registration that decides it. A cvar's flags
+	// are the union of every Cvar_Get for that name, so the renderer un-latching
+	// it in tr_init.cpp counts for nothing while this line still latches it: the
+	// value the player sets goes to latchedString and r_ext_multisample->integer
+	// keeps the old number until a vid_restart. The MSAA lane saw exactly that -
+	// "using 4x" after setting 0 - and the renderer was innocent.
+	r_ext_multisample	= Cvar_Get( "r_ext_multisample",	"0",		CVAR_ARCHIVE_ND );
 	Cvar_Get( "r_availableModes", "", CVAR_ROM );
 
 	// Create the window and set up the context

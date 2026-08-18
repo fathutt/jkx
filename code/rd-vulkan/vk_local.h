@@ -84,6 +84,14 @@ typedef enum {
 //#define USE_VK_OBJECT_TRACKER
 #define USE_DEBUG_REPORT
 //#define USE_DEBUG_UTILS
+
+// The object census - see vk_census.cpp. It rides on the same flag as the trace
+// deliberately: the machine that can reproduce the shutdown crash is the one
+// that installed a release build, and asking that person to remember a second
+// flag is how the first trace went missing. A pointer swap per entry point at
+// start-up and a row per live object; the report is one line, printed with the
+// device still alive.
+#define USE_VK_CENSUS
 #endif
 
 typedef float mat4_t[16];
@@ -1127,6 +1135,30 @@ void		vk_staging_note( const char *what, int size );
 void		vk_staging_report( void );
 void		vk_install_crash_handler( void );
 void		vk_remove_crash_handler( void );
+void		vk_symbolise_address( uint64_t address, char *out, size_t outSize );
+
+#ifdef USE_VK_CENSUS
+void		vk_census_install( void );
+void		vk_census_shutdown( void );
+void		vk_census_report( void );
+void		vk_census_add( const char *kind, uint64_t handle, uint64_t site );
+void		vk_census_remove( const char *kind, uint64_t handle );
+// For the objects VMA makes on our behalf, which the pointer hook cannot see.
+// The site recorded is the caller of the wrapper the macro sits in, which is
+// the line worth naming rather than the wrapper itself.
+#if defined( _MSC_VER )
+#define VK_CENSUS_HERE()				( (uint64_t)(uintptr_t)_ReturnAddress() )
+#elif defined( __GNUC__ ) || defined( __clang__ )
+#define VK_CENSUS_HERE()				( (uint64_t)(uintptr_t)__builtin_return_address( 0 ) )
+#else
+#define VK_CENSUS_HERE()				( (uint64_t)0 )
+#endif
+#define VK_CENSUS_ADD( kind, handle )		vk_census_add( kind, (uint64_t)(handle), VK_CENSUS_HERE() )
+#define VK_CENSUS_REMOVE( kind, handle )	vk_census_remove( kind, (uint64_t)(handle) )
+#else
+#define VK_CENSUS_ADD( kind, handle )		do {} while ( 0 )
+#define VK_CENSUS_REMOVE( kind, handle )	do {} while ( 0 )
+#endif
 void		vk_init_library( void );
 void		vk_deinit_library( void );
 void		get_viewport( VkViewport *viewport, Vk_Depth_Range depth_range );
@@ -1144,6 +1176,7 @@ void		vk_create_descriptor_layout( void );
 void		vk_create_pipeline_layout( void );
 VkPipelineLayout vk_pipeline_layout( uint32_t pipeline );
 void		vk_set_render_scale( void );
+void		vk_set_multisample( void );
 void		vk_destroy_pipelines( qboolean reset );
 void		vk_update_post_process_pipelines( void );
 

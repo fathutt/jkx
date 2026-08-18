@@ -221,6 +221,15 @@ static void vk_create_instance( void )
 
             vk_debug("...validation layer is not available\n");
 
+            // Said in the console log and not only in the trace, because of what
+            // it means to somebody reading a crash report: a run with no
+            // validation findings and a run where validation was never there
+            // look identical, and the second one proves nothing. Every report
+            // that has come back from the hardware so far is silent, and until
+            // this line there was no way to tell which kind of silence it was.
+            CL_RefPrintf( PRINT_ALL, "Vulkan: no validation layer on this machine, "
+                "so nothing below is checked by one\n" );
+
             // try without validation layer
             desc.enabledLayerCount = 0;
             desc.ppEnabledLayerNames = NULL;
@@ -229,7 +238,13 @@ static void vk_create_instance( void )
 #endif
 
             result = vkCreateInstance(&desc, NULL, &vk.instance);
+        } else if ( result == VK_SUCCESS ) {
+            CL_RefPrintf( PRINT_ALL, "Vulkan: validation layer %s is on\n",
+                validation_layer_name_khronos );
         }
+    } else if ( result == VK_SUCCESS ) {
+        CL_RefPrintf( PRINT_ALL, "Vulkan: validation layer %s is on\n",
+            validation_layer_name_lunarg );
     }
 #else
     desc.enabledLayerCount = 0;
@@ -238,9 +253,27 @@ static void vk_create_instance( void )
     result = vkCreateInstance(&desc, NULL, &vk.instance);
 #endif
 
-	// hotfix: reintroduce duplicate instance creation. 
-	// mysterious x64-linux configuration causing a crash after vid_restart.
-	result = vkCreateInstance(&desc, NULL, &vk.instance);
+	// There WAS a second vkCreateInstance here, unconditional, overwriting
+	// vk.instance with a fresh one and leaking the first. It arrived upstream as
+	// "hotfix: reintroduce duplicate instance creation - mysterious x64-linux
+	// configuration causing a crash after vid_restart", which is a note saying the
+	// author did not know why it helped either.
+	//
+	// What it actually did: every start-up created two instances and destroyed
+	// one, so a session that restarted the video three times ended with four live
+	// VkInstances, each holding an ICD open. The one the renderer used was always
+	// the second, and the first was unreachable from the moment it was made - not
+	// even vk_shutdown could find it, because the handle it would have used had
+	// already been overwritten one line later.
+	//
+	// It is also, in the most literal sense, on topic: the thing it was added to
+	// stop is a crash after vid_restart, and a crash after vid_restart is what
+	// this renderer is being chased for. A leak that suppresses a symptom is not a
+	// fix, it is a fault held open on purpose, and everything else it touches -
+	// device teardown, ICD state, the loader's own bookkeeping - is exactly where
+	// the hardware is dying now. The bench runs vid_restart in a lane; whether the
+	// original symptom is still there is a question this repository can answer
+	// rather than inherit.
 
     switch (result) {
         case VK_SUCCESS:
@@ -750,6 +783,14 @@ static qboolean vk_create_device( VkPhysicalDevice physical_device, int device_i
 		result = vkCreateDevice(physical_device, &device_desc, NULL, &vk.device);
 		if (result == VK_SUCCESS) {
 			volkLoadDevice(vk.device);
+#ifdef USE_VK_CENSUS
+			// Immediately after the pointers exist and before anything is made
+			// with them. A create that happens ahead of the swap has no row,
+			// and its destroy then looks like a destroy of something that was
+			// never made - which the census answers by doing nothing, so the
+			// object is invisible rather than reported.
+			vk_census_install();
+#endif
 		}
 		if (result < 0) {
 			CL_RefPrintf(PRINT_ERROR, "vkCreateDevice returned %s\n", vk_result_string(result));

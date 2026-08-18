@@ -417,6 +417,33 @@ if [ "${JKX_SMOKE_RESIZE:-0}" = "1" ]; then
     INMAP_STEP+=( +exec jkx_resize.cfg +wait 90 )
 fi
 
+# Multisampling changed while the game is running - the third rung.
+#
+# The observable is the LOG rather than the picture, and that is a deliberate
+# retreat. A sample-count change does show up in a frame - it is what smooths
+# the staircase along a diagonal edge - but lavapipe's idea of how it resolves is
+# its own, and a check written against those pixels would be measuring the
+# software rasteriser rather than the renderer. What is being asserted here is
+# that the setting REACHES the renderer and rebuilds what depends on it, which is
+# the thing that used to need vid_restart.
+#
+# 0 and back to 4, so the run ends where every other lane's does.
+if [ "${JKX_SMOKE_MSAA:-0}" = "1" ]; then
+    {
+        echo "wait 5"
+        echo "set r_ext_multisample 0"
+        echo "wait 20"
+        echo "screenshot_tga jkx_msaa_off"
+        echo "wait 5"
+        echo "set r_ext_multisample 4"
+        echo "wait 20"
+        echo "screenshot_tga jkx_msaa_on"
+        echo "wait 5"
+    } > "$RUN/base/jkx_msaa.cfg"
+
+    INMAP_STEP+=( +exec jkx_msaa.cfg +wait 70 )
+fi
+
 
 # The map's own furniture, photographed twice: as early as a frame can be had,
 # and again once everything has settled.
@@ -1633,6 +1660,30 @@ require() {
 # tga_size.py prints the dimensions and fails on a mismatch; the point is that
 # both frames are checked, so a resize that goes one way and never comes back
 # fails as loudly as one that never happened.
+# The multisample lane. See the INMAP_STEP block above.
+#
+# "MSAA max: Nx, using Mx" is printed by vk_set_multisample, and the using-number
+# is what the device actually granted. Three of them: once at startup, once for
+# each change. Both values have to appear, because a rung that rebuilt the
+# targets while leaving the sample count where it was would otherwise pass.
+msaa_checks() {
+    local off on
+
+    off=$( grep -c 'using 1x' "$RUN/run.log" || true )
+    on=$( grep -c 'using 4x' "$RUN/run.log" || true )
+
+    if [ "$off" -lt 1 ]; then
+        report "r_ext_multisample 0 did not reach the renderer: no run reported \
+using 1x. The sample count is baked into every pipeline, so a change that does \
+not rebuild them changes nothing"
+    fi
+
+    if [ "$on" -lt 2 ]; then
+        report "r_ext_multisample 4 was reported $on time(s) and should be twice \
+- once at startup and once on the way back"
+    fi
+}
+
 resize_checks() {
     local w h
 
@@ -1686,6 +1737,12 @@ forbid() {
 # both skins. If a future change makes the offset go away here, this lane says so
 # loudly, because an offset that has quietly stopped happening means the fix is
 # no longer being tested rather than that the defect is gone.
+if [ "${JKX_SMOKE_MSAA:-0}" = "1" ]; then
+    require 'Wrote screenshots/jkx_msaa_off.tga'
+    require 'Wrote screenshots/jkx_msaa_on.tga'
+    msaa_checks
+fi
+
 if [ "${JKX_SMOKE_RESIZE:-0}" = "1" ]; then
     require 'Wrote screenshots/jkx_resized.tga'
     require 'Wrote screenshots/jkx_resized_back.tga'

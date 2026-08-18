@@ -75,6 +75,33 @@ void vk_destroy_allocator(void)
     if (vk.allocator == VK_NULL_HANDLE) {
         return;
     }
+
+    // Said out loud, because of what VMA does about it: destroying the
+    // allocator with allocations still live releases the VkDeviceMemory blocks
+    // underneath them and returns without a word in a release build. The
+    // VkImage and VkBuffer objects those allocations backed are still alive and
+    // are now bound to freed memory, and the next thing that happens is
+    // vkDestroyDevice walking exactly that list. On a software rasteriser it
+    // costs nothing; on a real driver it is an access violation with no message
+    // and a log that ends mid-shutdown.
+    //
+    // The count alone names the mistake, and this is the last moment it can be
+    // read.
+    {
+        VmaTotalStatistics stats;
+        vmaCalculateStatistics(vk.allocator, &stats);
+
+        if (stats.total.statistics.allocationCount != 0) {
+            CL_RefPrintf(PRINT_WARNING,
+                "Vulkan: %u allocation(s) still live when the allocator was destroyed, "
+                "%u KiB - the objects bound to them are about to outlive their memory\n",
+                (unsigned)stats.total.statistics.allocationCount,
+                (unsigned)(stats.total.statistics.allocationBytes / 1024));
+        } else {
+            CL_RefPrintf(PRINT_ALL, "Vulkan: allocator destroyed with nothing live\n");
+        }
+    }
+
     vmaDestroyAllocator(vk.allocator);
     vk.allocator = VK_NULL_HANDLE;
 }
@@ -123,6 +150,11 @@ qboolean vk_create_image_memory(const VkImageCreateInfo* desc, VkImage* image, V
         vmaSetAllocationName(vk.allocator, *allocation, name);
         VK_SET_OBJECT_NAME(*image, name, VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT);
     }
+
+    // Counted by hand because VMA fetches its own entry points and so bypasses
+    // the pointer hook the census installs. These images are the renderer's,
+    // not VMA's bookkeeping, so they belong in the report.
+    VK_CENSUS_ADD("VkImage(vma)", *image);
     return qtrue;
 }
 
@@ -140,6 +172,7 @@ void vk_destroy_image_memory(VkImage* image, VmaAllocation* allocation)
     }
     // Unlike the chunk allocator this actually returns the memory, so a texture
     // freed mid-level is reusable immediately instead of at the next map load.
+    VK_CENSUS_REMOVE("VkImage(vma)", *image);
     vmaDestroyImage(vk.allocator, *image, allocation != NULL ? *allocation : VK_NULL_HANDLE);
     *image = VK_NULL_HANDLE;
     if (allocation != NULL) {
@@ -300,6 +333,8 @@ qboolean vk_create_buffer_memory(const VkBufferCreateInfo* desc, vk_buffer_memor
         vmaSetAllocationName(vk.allocator, *allocation, name);
         VK_SET_OBJECT_NAME(*buffer, name, VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT);
     }
+
+    VK_CENSUS_ADD("VkBuffer(vma)", *buffer);
     return qtrue;
 }
 
@@ -315,6 +350,7 @@ void vk_destroy_buffer_memory(VkBuffer* buffer, VmaAllocation* allocation)
         CL_RefPrintf(PRINT_WARNING, "Vulkan: %s called after vk_destroy_allocator()\n", __func__);
         return;
     }
+    VK_CENSUS_REMOVE("VkBuffer(vma)", *buffer);
     vmaDestroyBuffer(vk.allocator, *buffer, allocation != NULL ? *allocation : VK_NULL_HANDLE);
     *buffer = VK_NULL_HANDLE;
     if (allocation != NULL) {

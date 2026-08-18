@@ -324,18 +324,37 @@ void vk_create_swapchain( VkPhysicalDevice physical_device, VkDevice device,
 void vk_destroy_swapchain ( void ) {
     uint32_t i;
 
+    // Views before the swapchain, because they are views ONTO its images and
+    // the swapchain owns those.
     for ( i = 0; i < vk.swapchain_image_count; i++ ) {
         if ( vk.swapchain_image_views[i] != VK_NULL_HANDLE ) {
             vkDestroyImageView( vk.device, vk.swapchain_image_views[i], NULL );
             vk.swapchain_image_views[i] = VK_NULL_HANDLE;
         }
-		if ( vk.swapchain_rendering_finished[i] != VK_NULL_HANDLE ) {
-			vkDestroySemaphore( vk.device, vk.swapchain_rendering_finished[i], NULL );
-			vk.swapchain_rendering_finished[i] = VK_NULL_HANDLE;
-		}
     }
 
     vkDestroySwapchainKHR( vk.device, vk.swapchain, NULL );
+
+    // AND THE SEMAPHORES AFTER IT, WHICH IS THE WHOLE POINT OF SPLITTING THE
+    // LOOP. These are the ones vkQueuePresentKHR waits on. A wait handed to the
+    // presentation engine is not finished when the queue goes idle - vkDeviceWaitIdle
+    // covers submitted work, not the display side - so between the last present
+    // and the destruction of the swapchain there is a semaphore with a wait
+    // outstanding on it. Destroying a semaphore in that state is undefined, and
+    // destroying the swapchain is what retires the wait.
+    //
+    // Nothing here can see it: a software rasteriser has no presentation engine
+    // to be behind, the validation layer models the present as complete, and the
+    // local lanes shut down clean either way. The hardware dies inside
+    // vkDestroyDevice, in the driver's presentation code, on quit and on
+    // vid_restart alike. Whether this is that fault is not settled; that the
+    // order was wrong is not in question, and it costs one loop to have it right.
+    for ( i = 0; i < vk.swapchain_image_count; i++ ) {
+        if ( vk.swapchain_rendering_finished[i] != VK_NULL_HANDLE ) {
+            vkDestroySemaphore( vk.device, vk.swapchain_rendering_finished[i], NULL );
+            vk.swapchain_rendering_finished[i] = VK_NULL_HANDLE;
+        }
+    }
 
     // And forgotten, which it was not. vk_restart_swapchain calls this and then
     // builds a new one; a handle left behind is one that a second teardown -
@@ -344,4 +363,13 @@ void vk_destroy_swapchain ( void ) {
     // Whether that is what the hardware is dying of is not yet known; that it is
     // wrong is not in question.
     vk.swapchain = VK_NULL_HANDLE;
+
+    // The images belong to the swapchain and died with it. They were never ours
+    // to destroy, which is why nothing above touches them - but leaving the
+    // handles and the count in place leaves a loop bound that says there are
+    // still images and an array of handles into a released object for it to
+    // read. The count is what every loop in this file trusts.
+    Com_Memset( vk.swapchain_images, 0, sizeof( vk.swapchain_images ) );
+    Com_Memset( vk.swapchain_images_inited, 0, sizeof( vk.swapchain_images_inited ) );
+    vk.swapchain_image_count = 0;
 }

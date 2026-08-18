@@ -635,6 +635,26 @@ void RE_BeginFrame( stereoFrame_t stereoFrame ) {
 		}
 	}
 
+	// Multisampling - the TARGETS rung. Costlier than the two above and still
+	// nothing like vid_restart.
+	//
+	// The sample count is baked into every pipeline (rasterizationSamples) and
+	// into the attachments the render passes describe, so all three have to be
+	// rebuilt - which is exactly what vk_restart_swapchain does and why it
+	// exists. The device survives, every texture survives, the interface and the
+	// client game are not torn down, and the level is not reloaded.
+	//
+	// vk_set_multisample first, because the number the pipelines are about to be
+	// built with is worked out there - and worked out from what the DEVICE
+	// allows, not from what the cvar says. On a device that supports less, those
+	// are different numbers.
+	if ( r_ext_multisample->modified ) {
+		r_ext_multisample->modified = qfalse;
+
+		vk_set_multisample();
+		vk_restart_swapchain( __func__ );
+	}
+
 	//
 	// texturemode stuff
 	//

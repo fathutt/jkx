@@ -525,6 +525,37 @@ jobs:
           JKX_SMOKE_TIMEOUT: '900'
         run: bash tools/verify/smoke_headless.sh build
 
+      # The three rungs of the ladder that replaces vid_restart, one lane each.
+      #
+      # These ran locally for days before they got here, which is the wrong way
+      # round: a lane that only exists on one machine is a lane that stops
+      # existing the moment that machine is rebuilt. Each one asserts that a
+      # setting changed at runtime reached the renderer, and each one was red
+      # before it was green - the vsync lane on a shifted command queue, the
+      # resize lane on four separate quantities derived from a window size
+      # nothing recomputed, the MSAA lane on a CVAR_LATCH in a second
+      # registration site.
+      - name: Vsync changed without a restart
+        env:
+          JKX_SMOKE_VSYNC: '1'
+          JKX_SMOKE_DISPLAY: ':90'
+          JKX_SMOKE_TIMEOUT: '900'
+        run: bash tools/verify/smoke_headless.sh build
+
+      - name: The window resized without a restart
+        env:
+          JKX_SMOKE_RESIZE: '1'
+          JKX_SMOKE_DISPLAY: ':91'
+          JKX_SMOKE_TIMEOUT: '900'
+        run: bash tools/verify/smoke_headless.sh build
+
+      - name: The sample count changed without a restart
+        env:
+          JKX_SMOKE_MSAA: '1'
+          JKX_SMOKE_DISPLAY: ':93'
+          JKX_SMOKE_TIMEOUT: '900'
+        run: bash tools/verify/smoke_headless.sh build
+
       # Cubemaps generated and convolved. r_cubeMapping defaults to zero, so the
       # loader, the convolve command and the whole prefilter had never run here;
       # the fixture needed no new data, because the entity list the loader falls

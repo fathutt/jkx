@@ -1121,7 +1121,12 @@ void R_Register( void )
 	//
 	// Still latched and still archived, so a machine that cannot afford it
 	// says so once and keeps the answer.
-	r_ext_multisample					= Cvar_Get("r_ext_multisample",					"4",						CVAR_ARCHIVE_ND | CVAR_LATCH, "how many samples per pixel at the edges of geometry");
+	// Not latched. Changing it rebuilds the attachments, the render passes and
+	// the pipelines - which is what vk_restart_swapchain already does - rather
+	// than the device, the textures, the interface and the level. See the
+	// ladder in RE_BeginFrame.
+	r_ext_multisample					= Cvar_Get("r_ext_multisample",					"4",						CVAR_ARCHIVE_ND, "how many samples per pixel at the edges of geometry");
+	r_ext_multisample->modified = qfalse;
 	Cvar_CheckRange(r_ext_multisample, 0, 64, qtrue);
 	r_ext_supersample					= Cvar_Get("r_ext_supersample",					"0",						CVAR_ARCHIVE_ND | CVAR_LATCH, "");
 	Cvar_CheckRange(r_ext_supersample, 0, 1, qtrue);
