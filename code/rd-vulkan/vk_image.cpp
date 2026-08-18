@@ -850,7 +850,23 @@ void vk_generate_image_upload_data(image_t* image, byte* data, Image_Upload_Data
 	int miplevel;
 
 	qboolean compressed = qfalse;
-	int	bytesPerPixel = (image->internalFormat & VK_FORMAT_R16G16B16A16_SFLOAT) ? 8 : 4;
+
+	// EQUALITY, not a bitwise AND. VK_FORMAT_R16G16B16A16_SFLOAT is 97, and
+	// "internalFormat & 97" is true for every format that happens to share a bit
+	// with it - VK_FORMAT_R8G8B8A8_UNORM is 37, and 37 & 97 is 33. Nothing had
+	// noticed because the images that reach here with a format already set are
+	// the lightmaps and nothing else: everything else arrives as zero, and zero
+	// AND anything is zero, so the wrong operator gave the right answer for the
+	// only inputs it ever saw.
+	//
+	// Two numbers, not one. bytesPerPixel is what the GPU is going to be given;
+	// srcBytesPerPixel is what the caller's buffer actually holds, and the
+	// sixteen-bit packed path below changes the first without changing the
+	// second. Every scratch here has to be big enough for both, because one is
+	// what gets copied in and the other is what gets copied out.
+	int	srcBytesPerPixel = ( image->internalFormat == VK_FORMAT_R16G16B16A16_SFLOAT ) ? 8 : 4;
+	int	bytesPerPixel = srcBytesPerPixel;
+	int	scratchBytesPerPixel = srcBytesPerPixel;
 	int write_offset = 0;
 
 	if (image->flags & IMGFLAG_NOSCALE) {
@@ -913,6 +929,10 @@ void vk_generate_image_upload_data(image_t* image, byte* data, Image_Upload_Data
 		bytesPerPixel = 2;
 	}
 
+	// The larger of the two, so neither the copy in nor the copy out leaves the
+	// buffer. This is the line the crash was missing.
+	scratchBytesPerPixel = MAX( srcBytesPerPixel, bytesPerPixel );
+
 	upload_data->buffer_size = R_CalcUploadSize(
 		scaled_width,
 		scaled_height,
@@ -931,10 +951,28 @@ void vk_generate_image_upload_data(image_t* image, byte* data, Image_Upload_Data
 		return;
 	}
 
+	// ResampleTexture, R_MipMap, R_LightScaleTexture and RawImage_HasAlpha all
+	// walk their buffer as unsigned int per pixel. There is no version of any of
+	// them that knows about eight bytes, so an image that is not four bytes deep
+	// must not reach them - and today none does, because the only such images are
+	// the HDR lightmaps and R_LoadLightmaps hands them over with NOSCALE,
+	// NOLIGHTSCALE and no MIPMAP. Said out loud rather than left to be
+	// rediscovered: what would happen is not a crash, it is a picture quietly
+	// built out of half of each pixel.
+	if ( srcBytesPerPixel != 4 &&
+		( ( scaled_width != width || scaled_height != height ) || mipmap ||
+		  ( image->flags & IMGFLAG_COLORSHIFT ) ||
+		  !( image->flags & IMGFLAG_NOLIGHTSCALE ) ) )
+	{
+		CL_RefPrintf( PRINT_WARNING, "%s is %i bytes per pixel and asks for scaling, "
+			"mipmaps or a colour shift; none of those know about anything but four\n",
+			image->imgName, srcBytesPerPixel );
+	}
+
 	if ((scaled_width != width || scaled_height != height) && data) {
 		resampled_buffer = R_ImageScratchAlloc(
 			&s_imageScratch.resample,
-			MAX(scaled_width * scaled_height * 4, IMAGE_RESAMPLE_SCRATCH_MIN)
+			MAX(scaled_width * scaled_height * scratchBytesPerPixel, IMAGE_RESAMPLE_SCRATCH_MIN)
 		);
 
 		ResampleTexture((unsigned*)data, width, height, (unsigned*)resampled_buffer, scaled_width, scaled_height);
@@ -942,12 +980,20 @@ void vk_generate_image_upload_data(image_t* image, byte* data, Image_Upload_Data
 		mip_buffer = resampled_buffer;
 	}
 	else {
+		// Four here, hardcoded, was the crash. A 2048x2048 HDR lightmap is eight
+		// bytes a pixel and thirty-two megabytes; the scratch was allocated at
+		// sixteen and the copy OUT of it, further down, is sized by
+		// bytesPerPixel and asks for all thirty-two. Sixteen megabytes past the
+		// end of a mapping is an access violation, which is what a real map
+		// with external HDR lightmaps did on the first attempt to load it.
+		// A smaller lightmap would have landed inside the heap and corrupted it
+		// silently instead.
 		mip_buffer = R_ImageScratchAlloc(
 			&s_imageScratch.mip,
-			scaled_width * scaled_height * 4
+			scaled_width * scaled_height * scratchBytesPerPixel
 		);
 
-		Com_Memcpy(mip_buffer, data, scaled_width * scaled_height * 4);
+		Com_Memcpy(mip_buffer, data, scaled_width * scaled_height * srcBytesPerPixel);
 	}
 
 	width = scaled_width;

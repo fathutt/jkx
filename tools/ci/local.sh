@@ -71,7 +71,7 @@ JOBS="${JOBS:-$(nproc)}"
 
 STAGES=( "$@" )
 if [ "${#STAGES[@]}" -eq 0 ]; then
-    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokeskin smokeskinshift smokelightmap smokemapent smokemenumodel smokemenulight smokepbrchar smokevidrestart smokevsync smokeresize smokemsaa smokecubemap smoketransparency smoketcmod smokedeform smokephys smokephysshaded smokepak move smokesan prepass fog noassets )
+    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokeskin smokeskinshift smokelightmap smokehdrlightmap smokemapent smokemenumodel smokemenulight smokepbrchar smokevidrestart smokevsync smokeresize smokemsaa smokecubemap smoketransparency smoketcmod smokedeform smokephys smokephysshaded smokepak move smokesan prepass fog noassets )
 fi
 
 failed=()
@@ -746,6 +746,29 @@ stage_smokeskinshift() {
 stage_smokelightmap() {
     JKX_SMOKE_LIGHTMAP=1 \
     JKX_SMOKE_DISPLAY="${JKX_SMOKE_LIGHTMAP_DISPLAY:-:92}" \
+        bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
+}
+
+# The other half of the lightmap fork: an EXTERNAL HDR page.
+#
+# R_LoadLightmaps splits on whether the BSP's lightmap lump has anything in it,
+# and what is on the far side of that branch is not a variant - it is a second
+# loader. Radiance floats instead of bytes, an R16G16B16A16_SFLOAT image instead
+# of RGBA8, eight bytes per pixel instead of four. Every map built in the last
+# ten years ships this way and this bench had never once taken the path.
+#
+# The first real map ever pointed at the engine segfaulted during load, in a
+# memcpy sixteen megabytes past the end of a scratch buffer that had been
+# allocated at four bytes a pixel and was being read at eight. Reintroducing
+# that line makes this lane exit 139; that is what it is here for.
+#
+# The number it asserts is 81: the file is a flat 1.0, the loader's only scale
+# on this path is the 1/pi it passes to R_ColorShiftLightingFloats - the
+# overbright exponent the internal page gets is skipped - and 1/pi as a half
+# float times 255 is 81.2. Predicted before the first run and matched exactly.
+stage_smokehdrlightmap() {
+    JKX_SMOKE_HDRLIGHTMAP=1 \
+    JKX_SMOKE_DISPLAY="${JKX_SMOKE_HDRLIGHTMAP_DISPLAY:-:74}" \
         bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
 }
 

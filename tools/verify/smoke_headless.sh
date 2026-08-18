@@ -428,6 +428,9 @@ fi
 # the thing that used to need vid_restart.
 #
 # 0 and back to 4, so the run ends where every other lane's does.
+# 81, three channels, and see the note beside the check for where it comes from.
+HDR_FLOOR_LEVEL="81,81,81"
+
 if [ "${JKX_SMOKE_MSAA:-0}" = "1" ]; then
     {
         echo "wait 5"
@@ -1111,6 +1114,32 @@ if [ "${JKX_SMOKE_LIGHTMAP:-0}" = "1" ]; then
     # what comes out is the engine's scaling and nothing else.
     python3 "$HERE/make_test_bsp.py" "$RUN/base/maps/jkx_room.bsp" \
         --shader jkx/lightmapped --lightmap >/dev/null
+elif [ "${JKX_SMOKE_HDRLIGHTMAP:-0}" = "1" ]; then
+    # The same room again, lit by an EXTERNAL HDR lightmap: an empty lightmap
+    # lump, a floor still pointing at page zero, and maps/jkx_room/lm_0000.hdr
+    # beside the map.
+    #
+    # This is not a variant of the lane above, it is the other half of a fork.
+    # R_LoadLightmaps splits on whether the lump has anything in it, and the two
+    # sides share almost nothing after that: one reads bytes out of the BSP at
+    # three per texel, the other decodes Radiance floats and builds an
+    # R16G16B16A16_SFLOAT image at EIGHT bytes per pixel. Every map built in the
+    # last ten years takes the second path. This bench had only ever taken the
+    # first.
+    #
+    # What it found, on the first real map ever pointed at this engine:
+    # vk_generate_image_upload_data allocated its pass-through buffer at four
+    # bytes a pixel with the four written into the source, then copied out of it
+    # at bytesPerPixel - eight - and read sixteen megabytes past the end of a
+    # mapping. A segfault during map load, on a map that works everywhere else.
+    #
+    # The fixture's lightmap is 1024 square deliberately: the buffer is four
+    # megabytes, malloc serves that from mmap rather than the heap, and the
+    # second four megabytes of the copy are off the end of it. At 128 square the
+    # overrun would land in heap slack, corrupt something quietly, and the lane
+    # would pass while the defect was still there.
+    python3 "$HERE/make_test_bsp.py" "$RUN/base/maps/jkx_room.bsp" \
+        --shader jkx/lightmapped --lightmap-hdr >/dev/null
 elif [ "${JKX_SMOKE_PHYS:-0}" = "1" ]; then
     # Seven squares in a column: six packings of the same three physical values
     # and one control with a different roughness.
@@ -1851,7 +1880,12 @@ SHOTS+=( "jkx_debugview 2" )
 # under that and far above anything else white in the frame, so the check can no
 # longer be answered by something standing in the right place.
 if [ "${JKX_SMOKE_PLAIN:-0}" != "1" ] && [ -f "$RUN/home/base/screenshots/jkx_inmap.tga" ]; then
-    if [ "${JKX_SMOKE_LIGHTMAP:-0}" != "1" ]; then
+    # Both lightmap lanes are excluded, not just the one. The floor in either of
+    # them is lit by a page rather than painted white, so the white checks below
+    # are asking about a fixture that is not the one running - and the first
+    # attempt at the HDR lane forgot the second name here and duly failed on a
+    # white floor that was never supposed to be white.
+    if [ "${JKX_SMOKE_LIGHTMAP:-0}" != "1" ] && [ "${JKX_SMOKE_HDRLIGHTMAP:-0}" != "1" ]; then
         if ! python3 "$HERE/tga_colour_where.py" \
             "$RUN/home/base/screenshots/jkx_inmap.tga" \
             "255,255,255@0.3,0.75,0.7,1.0"; then
@@ -1863,7 +1897,7 @@ if [ "${JKX_SMOKE_PLAIN:-0}" != "1" ] && [ -f "$RUN/home/base/screenshots/jkx_in
             report "too little of jkx_inmap.tga is floor; a culled floor leaves \
 just enough white in the right place to pass the position check"
         fi
-    else
+    elif [ "${JKX_SMOKE_LIGHTMAP:-0}" = "1" ]; then
         # The lightmap lane's whole point, in one number.
         #
         # The page is a flat 32 and the floor's shader draws the page and
@@ -1889,6 +1923,35 @@ r_mapOverBrightBits say it should be"
             "128,128,128@0.3,0.75,0.7,1.0"; then
             report "the lightmapped floor is not where the floor should be"
         fi
+    fi
+fi
+
+# The external HDR lightmap, and its number is arrived at rather than adjusted to.
+#
+# The file is a flat 1.0. R_LoadLightmaps calls R_ColorShiftLightingFloats with
+# overbrightBits FALSE, so the only scale applied is the 1/pi it is passed - the
+# 2^(r_mapOverBrightBits - tr.overbrightBits) that the internal page gets is
+# skipped entirely, which is why this lane's answer is not the other lane's. So
+# 1.0 / pi = 0.31831, stored as a half float (0.318359, the nearest
+# representable), and the floor's shader draws the lightmap and nothing else at
+# an overbright multiplier of one. 0.318359 * 255 = 81.2.
+#
+# Predicted 81 before the lane was first run, and 81 is what came back.
+if [ "${JKX_SMOKE_HDRLIGHTMAP:-0}" = "1" ]; then
+    if ! python3 "$HERE/tga_has_colour.py" \
+        "$RUN/home/base/screenshots/jkx_inmap.tga" \
+        "$HDR_FLOOR_LEVEL:100000"; then
+        report "the floor lit by the external HDR lightmap is not at $HDR_FLOOR_LEVEL; \
+the file is a flat 1.0 and the only scale on that path is the 1/pi the loader \
+passes, so any other value means the decode, the half-float packing or the \
+upload changed what the file said"
+    fi
+
+    if ! python3 "$HERE/tga_colour_where.py" \
+        "$RUN/home/base/screenshots/jkx_inmap.tga" \
+        "$HDR_FLOOR_LEVEL@0.3,0.75,0.7,1.0"; then
+        report "the floor lit by the external HDR lightmap is not where the floor \
+should be"
     fi
 fi
 

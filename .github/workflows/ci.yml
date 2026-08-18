@@ -471,6 +471,18 @@ jobs:
           JKX_SMOKE_DISPLAY: ':92'
         run: bash tools/verify/smoke_headless.sh build
 
+      # The other half of that fork, and the half every modern map takes: an
+      # external Radiance lightmap decoded to floats and uploaded as
+      # R16G16B16A16_SFLOAT - eight bytes a pixel through an uploader that had
+      # four written into it. The first community map ever pointed at this
+      # engine segfaulted on it during load.
+      - name: The world lit by an external HDR lightmap
+        env:
+          JKX_SMOKE_HDRLIGHTMAP: '1'
+          JKX_SMOKE_DISPLAY: ':94'
+          JKX_SMOKE_TIMEOUT: '900'
+        run: bash tools/verify/smoke_headless.sh build
+
       # A model the map owns. Everything else this bench draws is put on
       # screen by the console or is the player; a map's prop gets its model
       # through G_ModelIndex, which is a configstring index, and cgame turns

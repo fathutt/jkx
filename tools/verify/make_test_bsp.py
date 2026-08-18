@@ -37,6 +37,7 @@ is worth checking the arithmetic separately from running the engine.
 """
 
 import math
+import os
 import struct
 import sys
 
@@ -334,6 +335,64 @@ def lightmaps(present):
         return b""
 
     return bytes([LIGHTMAP_GREY, LIGHTMAP_GREY, LIGHTMAP_GREY]) * (LIGHTMAP_SIZE * LIGHTMAP_SIZE)
+
+
+# An external HDR lightmap, which is what a map built in the last ten years has
+# instead of a page inside the BSP.
+#
+# The bench had never seen one, and the path that reads them is not a variant of
+# the internal path - it is a different loader producing a buffer that is EIGHT
+# bytes per pixel rather than four, handed to an uploader that had four written
+# into it in three places. The first real map with external lightmaps that was
+# ever pointed at this engine died on the memcpy, sixteen megabytes past the end
+# of a scratch buffer allocated at half the size it needed.
+#
+# So the size here is not arbitrary. It has to be big enough that the overrun
+# leaves the mapping instead of landing in heap slack, because a corruption that
+# does not fault is a lane that passes. At 1024 the buffer is four megabytes -
+# past the threshold where malloc goes to mmap - and the copy asks for eight, so
+# the second four are off the end of an mmap and the process dies. At 128 it
+# would not, and the lane would be decorative.
+HDR_LIGHTMAP_SIZE = 1024
+
+# One value everywhere, and a float rather than a byte, because the point of an
+# HDR lightmap is that it is not clamped at one. The loader multiplies by 1/pi,
+# so this arrives as roughly 0.318 - inside the range, nowhere near either end,
+# and different enough from the internal page's grey that the two lanes cannot
+# be confused for one another by their pixels.
+HDR_LIGHTMAP_VALUE = 1.0
+
+
+def rgbe(value):
+    """One Radiance RGBE pixel for a grey of the given intensity.
+
+    RGBE is a shared exponent: the three mantissas are the colour scaled so the
+    largest is in [128,256), and the fourth byte is the exponent plus 128. A
+    value of zero is all four bytes zero and not an exponent of -128, which is
+    the one special case worth getting right even though this fixture never asks
+    for it.
+    """
+    if value <= 0.0:
+        return bytes([0, 0, 0, 0])
+
+    mantissa, exponent = math.frexp(value)
+    scaled = int(mantissa * 256.0)
+    return bytes([scaled, scaled, scaled, exponent + 128])
+
+
+def hdr_lightmap(size=HDR_LIGHTMAP_SIZE, value=HDR_LIGHTMAP_VALUE):
+    """A Radiance .hdr file, flat rather than run-length encoded.
+
+    Uncompressed scanlines are legal and are what a reader falls back to when
+    the first two bytes of a line are not 0x02 0x02. Writing them keeps this
+    function short enough to be obviously correct, which matters more here than
+    the file size - it is generated, never committed, and lives for one run.
+    """
+    header = (b"#?RADIANCE\n"
+              b"FORMAT=32-bit_rle_rgbe\n"
+              b"\n"
+              b"-Y %d +X %d\n" % (size, size))
+    return header + rgbe(value) * (size * size)
 
 
 def drawverts(sky=False):
@@ -690,8 +749,17 @@ def entities(props=(), npcs=()):
     return out + b'\0'
 
 
-def build(visible_shader, sky_shader=None, fog_shader=None, lightmap=False,
+def build(visible_shader, sky_shader=None, fog_shader=None, lightmap=None,
           props=(), npcs=()):
+    """lightmap is None, "internal" or "hdr".
+
+    "internal" puts a page in LUMP_LIGHTMAPS, which is how every retail map is
+    lit. "hdr" leaves the lump EMPTY and still points the floor at page zero:
+    that is the arrangement a modern map ships with, and it is what makes
+    R_LoadLightmaps go looking for maps/<name>/lm_0000.hdr instead. The two
+    paths share almost nothing after that line, and until now the bench only
+    ever took the first.
+    """
     sky = bool(sky_shader)
     count = 1 + len(SKY_WALLS) if sky else 1
     lumps = {
@@ -708,8 +776,8 @@ def build(visible_shader, sky_shader=None, fog_shader=None, lightmap=False,
         LUMP_DRAWVERTS: drawverts(sky),
         LUMP_DRAWINDEXES: drawindexes(sky),
         LUMP_FOGS: fogs(fog_shader),
-        LUMP_SURFACES: surfaces(sky, bool(fog_shader), lightmap),
-        LUMP_LIGHTMAPS: lightmaps(lightmap),
+        LUMP_SURFACES: surfaces(sky, bool(fog_shader), lightmap is not None),
+        LUMP_LIGHTMAPS: lightmaps(lightmap == "internal"),
         LUMP_LIGHTGRID: lightgrid(),
         LUMP_VISIBILITY: visibility(),
         LUMP_LIGHTARRAY: lightarray(),
@@ -819,7 +887,7 @@ def check():
     # pages is not an error there - it is a page count that silently disagrees
     # with the surfaces, and the surface either draws a page that was never
     # uploaded or falls back to vertex lighting without saying so.
-    lit = build("jkx/lightmapped", lightmap=True)
+    lit = build("jkx/lightmapped", lightmap="internal")
     page = LIGHTMAP_SIZE * LIGHTMAP_SIZE * 3
     lofs, llen = struct.unpack_from("<2i", lit, 8 + LUMP_LIGHTMAPS * 8)
 
@@ -846,6 +914,41 @@ def check():
     if first_lightmap(build("jkx/smoke")) != LIGHTMAP_BY_VERTEX:
         failures.append("without --lightmap the floor should still be lit by its "
                         "vertices; anything else points at a page that is not there")
+
+    # The external arrangement, which is the opposite of the one above and has to
+    # be checked as its own thing: the floor points at page zero AND the lump is
+    # empty. Either half alone is a different map. With a page present the loader
+    # never looks for a file; with lightmapNum at -3 it never has a page to look
+    # for, and in both cases R_LoadLightmaps takes the internal path and the
+    # eight-bytes-per-pixel code is not reached.
+    ext = build("jkx/lightmapped", lightmap="hdr")
+    _, elen = struct.unpack_from("<2i", ext, 8 + LUMP_LIGHTMAPS * 8)
+
+    if elen != 0:
+        failures.append("with --lightmap-hdr the lightmap lump is %d bytes and "
+                        "should be empty; a lump that is there is the internal "
+                        "path, and the external loader never runs" % elen)
+
+    if first_lightmap(ext) != 0:
+        failures.append("with --lightmap-hdr the floor's first lightmapNum is %d, "
+                        "not page zero - the page count comes from the surfaces "
+                        "when the lump is empty, so this IS the count"
+                        % first_lightmap(ext))
+
+    # The file the loader will go looking for, checked here rather than only on
+    # disk: a header this reader cannot parse comes back as "no external
+    # lightmap" and the map is simply unlit, with no error anywhere.
+    hdr = hdr_lightmap(4, HDR_LIGHTMAP_VALUE)
+
+    if not hdr.startswith(b"#?RADIANCE\n"):
+        failures.append("the generated .hdr does not start with the Radiance magic")
+
+    if b"-Y 4 +X 4\n" not in hdr:
+        failures.append("the generated .hdr does not declare -Y 4 +X 4")
+
+    if len(hdr) != hdr.index(b"-Y 4 +X 4\n") + len(b"-Y 4 +X 4\n") + 4 * 4 * 4:
+        failures.append("the generated .hdr is not header plus four bytes a pixel, "
+                        "so it is not the flat-scanline form a reader falls back to")
 
     data = build("jkx/smoke")
 
@@ -889,7 +992,7 @@ def main(argv):
     visible = "jkx/smoke"
     sky = None
     fog = None
-    lightmap = False
+    lightmap = None
     prop_specs = []
     npc_specs = []
     path = None
@@ -905,7 +1008,10 @@ def main(argv):
             fog = args[i + 1]
             i += 2
         elif args[i] == "--lightmap":
-            lightmap = True
+            lightmap = "internal"
+            i += 1
+        elif args[i] == "--lightmap-hdr":
+            lightmap = "hdr"
             i += 1
         elif args[i] == "--prop" and i + 1 < len(args):
             # Repeatable. MODEL[:Y[:Z]] - see parse_props.
@@ -924,7 +1030,8 @@ def main(argv):
 
     if path is None:
         print("usage: %s <out.bsp> [--shader NAME] [--sky NAME] [--fog NAME] "
-              "[--lightmap] [--prop MODEL[:Y[:Z]] ...] [--npc NAME[:Y[:Z]] ...]"
+              "[--lightmap] [--lightmap-hdr] "
+              "[--prop MODEL[:Y[:Z]] ...] [--npc NAME[:Y[:Z]] ...]"
               % argv[0],
               file=sys.stderr)
         return 2
@@ -934,11 +1041,26 @@ def main(argv):
     data = build(visible, sky, fog, lightmap, props, npcs)
     with open(path, "wb") as f:
         f.write(data)
+
+    note = ""
+    if lightmap == "internal":
+        note = ", lightmap %dx%d at %d" % (LIGHTMAP_SIZE, LIGHTMAP_SIZE, LIGHTMAP_GREY)
+    elif lightmap == "hdr":
+        # Beside the map and named for it, because that is where the loader
+        # looks: maps/<name>/lm_0000.hdr. Not a choice this script makes - a
+        # convention it has to match exactly or the map is simply unlit.
+        base = os.path.splitext(path)[0]
+        os.makedirs(base, exist_ok=True)
+        target = os.path.join(base, "lm_0000.hdr")
+        with open(target, "wb") as f:
+            f.write(hdr_lightmap())
+        note = ", external %s %dx%d at %g" % (
+            os.path.basename(target), HDR_LIGHTMAP_SIZE, HDR_LIGHTMAP_SIZE,
+            HDR_LIGHTMAP_VALUE)
+
     print("%s: %d bytes, shader %s%s%s%s"
           % (path, len(data), visible, ", sky %s" % sky if sky else "",
-             ", lightmap %dx%d at %d" % (LIGHTMAP_SIZE, LIGHTMAP_SIZE, LIGHTMAP_GREY)
-             if lightmap else "",
-             ", %d prop(s)" % len(props) if props else ""))
+             note, ", %d prop(s)" % len(props) if props else ""))
     return 0
 
 
