@@ -537,6 +537,36 @@ void RE_BeginFrame( stereoFrame_t stereoFrame ) {
 		vk_restart_presentation( __func__ );
 	}
 
+	// The window size, which is the second rung and the one a player actually
+	// moves. r_mode and the custom width and height stopped being latched when
+	// WIN_Resize was written; noticing them here is what makes that safe.
+	//
+	// vk_restart_swapchain and not vk_restart_presentation, and the difference
+	// from vertical sync above is the reason both exist. A present-mode change
+	// leaves the extent alone, so the attachments - depth, multisample, the
+	// resolve target - are all still the right size. A RESIZE does not: every
+	// one of them is created at the swapchain's extent, and so are the render
+	// passes and the pipelines built against them. That is exactly the job
+	// vk_restart_swapchain already does for a surface that went out of date.
+	//
+	// Still not vid_restart. The device survives, every texture survives, the
+	// user interface and the client game are not torn down and the level is not
+	// reloaded - which is the whole difference between a window that resizes and
+	// a black screen with a loading bar.
+	if ( r_modeRenderer->modified || r_customwidthRenderer->modified
+		|| r_customheightRenderer->modified ) {
+		r_modeRenderer->modified = qfalse;
+		r_customwidthRenderer->modified = qfalse;
+		r_customheightRenderer->modified = qfalse;
+
+		// WIN_Resize answers false for a size that is already the size it is, so
+		// setting r_customwidth to what it already was costs nothing.
+		if ( WIN_Resize( &glConfig ) ) {
+			vk_restart_swapchain( __func__ );
+			R_Set2DRatio();
+		}
+	}
+
 	//
 	// texturemode stuff
 	//

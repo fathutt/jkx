@@ -133,6 +133,7 @@ void		CIN_UploadCinematic( int handle );
 window_t	WIN_Init( const windowDesc_t *desc, glconfig_t *glConfig );
 void		WIN_SetGamma( glconfig_t *glConfig, byte red[256], byte green[256], byte blue[256] );
 void		WIN_Present( window_t *window );
+qboolean	WIN_Resize( glconfig_t *glConfig );
 void		WIN_Shutdown( void );
 
 // Were ri.VK_IsMinimized and friends, which the table renamed on the way in.

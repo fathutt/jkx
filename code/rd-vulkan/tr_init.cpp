@@ -163,6 +163,13 @@ cvar_t	*r_textureMode;
 // swapchain is created - so applying it means rebuilding the swapchain, and
 // noticing the change is the renderer's job. See RE_BeginFrame.
 cvar_t	*r_swapIntervalRenderer;
+
+// The three that decide how big the window is. Held here for the same reason as
+// the one above: the window layer owns them, the renderer has to notice them
+// move. They stopped being latched when the resize path was written.
+cvar_t	*r_modeRenderer;
+cvar_t	*r_customwidthRenderer;
+cvar_t	*r_customheightRenderer;
 cvar_t	*r_offsetFactor;
 cvar_t	*r_offsetUnits;
 cvar_t	*r_gamma;
@@ -977,6 +984,13 @@ void R_Register( void )
 	// rebuild a swapchain that was built moments ago with this very value.
 	// Measured: "rebuilding the swapchain only" in every log, once, at startup.
 	r_swapIntervalRenderer->modified = qfalse;
+
+	r_modeRenderer						= Cvar_Get( "r_mode",							"-2",						CVAR_ARCHIVE, "" );
+	r_customwidthRenderer				= Cvar_Get( "r_customwidth",					"1600",						CVAR_ARCHIVE, "" );
+	r_customheightRenderer				= Cvar_Get( "r_customheight",					"1024",						CVAR_ARCHIVE, "" );
+	r_modeRenderer->modified = qfalse;
+	r_customwidthRenderer->modified = qfalse;
+	r_customheightRenderer->modified = qfalse;
 	r_markcount							= Cvar_Get( "r_markcount",						"100",						CVAR_ARCHIVE_ND, "" );
 	r_gamma								= Cvar_Get( "r_gamma",							"1",						CVAR_ARCHIVE_ND, "" );
 	r_facePlaneCull						= Cvar_Get( "r_facePlaneCull",					"1",						CVAR_ARCHIVE_ND, "" );

@@ -75,15 +75,34 @@ if [ "${#STAGES[@]}" -eq 0 ]; then
 fi
 
 failed=()
+stage_seconds=()
+RUN_STARTED=$( date +%s )
+# Every stage says how long it took, and there is a table at the end.
+#
+# The list has grown from twenty-six stages to thirty-one in two days and a
+# person asked whether it had got slower. That question should not need asking
+# twice: a bench that cannot say where its own time goes is in the same position
+# as a renderer that cannot say why a surface is black, and this project has
+# spent enough afternoons on the second version of that.
+#
+# Wall clock, not CPU: what matters is how long a person waits.
 run() {
     local name="$1"; shift
+    local start finish
+
     printf '\n=== %s ===\n' "$name"
+    start=$( date +%s )
+
     if "$@"; then
-        printf '  ok\n'
+        finish=$( date +%s )
+        printf '  ok (%ss)\n' "$(( finish - start ))"
     else
-        printf '  FAILED\n'
+        finish=$( date +%s )
+        printf '  FAILED (%ss)\n' "$(( finish - start ))"
         failed+=( "$name" )
     fi
+
+    stage_seconds+=( "$(( finish - start )) $name" )
 }
 
 # ccache, when the machine has it, and it is worth explaining why rather than
@@ -1177,6 +1196,31 @@ stage_smokesan() {
         bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/san"
 }
 
+# WHY THE STAGES RUN ONE AT A TIME, since the obvious idea was tried and
+# measured and did not work.
+#
+# The table below says where the forty minutes go, and it is not the builds:
+# release 8s, debug 7s, windows 13s, sanitizers 10s, tests 32s, policy 3s -
+# seventy-three seconds between them, because ccache and the shader skip in the
+# Debug tree already did their job. The other forty minutes are twenty-five
+# headless lanes at about ninety-five seconds each, run in sequence.
+#
+# So they were run two at a time. Measured, same commit, same machine:
+#
+#   sequential            2528s
+#   two lanes at a time   2385s     six per cent
+#   and                   FAILED: smokecubemap, smokephysshaded
+#
+# Six per cent, and two lanes failed because of the neighbour rather than
+# because of a defect: smokecubemap went from 112s to 148s and smokephysshaded
+# from 97s to 175s, straight past their timeouts. The reason is arithmetic that
+# should have been done first - THIS MACHINE HAS TWO CORES, and lavapipe is a
+# software rasteriser that already uses both of them. Two lanes do not share an
+# idle machine; they fight over the same one.
+#
+# It stays sequential until the bench runs somewhere with cores to spare, and
+# then this note is the thing to re-measure rather than a decision to reverse.
+# On a machine with eight, twenty-five lanes at four at a time is worth having.
 for stage in "${STAGES[@]}"; do
     if ! declare -F "stage_$stage" >/dev/null; then
         echo "no such stage: $stage" >&2
@@ -1184,6 +1228,10 @@ for stage in "${STAGES[@]}"; do
     fi
     run "$stage" "stage_$stage"
 done
+
+printf '\n=== where the time went ===\n'
+printf '%s\n' "${stage_seconds[@]}" | sort -rn | awk '{ printf "  %5ss  %s\n", $1, $2 }'
+printf '  %5ss  TOTAL\n' "$(( $( date +%s ) - RUN_STARTED ))"
 
 printf '\n'
 if [ "${#failed[@]}" -ne 0 ]; then

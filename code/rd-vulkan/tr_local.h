@@ -561,6 +561,24 @@ typedef struct texModInfo_s {
 	float			translate[2];		// t' = s * m[0][1] + t * m[0][1] + trans[1]
 } texModInfo_t;
 
+// SSDEF_IS_SPRITE is set on every surface-sprite pipeline and means nothing to
+// the shader. It exists because this word was doing two jobs and failing the
+// second: it says WHICH VARIANT, and it was also being read as "is this a
+// surface sprite at all" - by vk_pipeline_layout_for_def, which picks the
+// pipeline layout from it.
+//
+// A plain vertical sprite - grass standing up, the commonest kind there is -
+// sets NONE of the variant bits. So its pipeline was built against the ordinary
+// layout while its draw item bound the sprite descriptor set, and the
+// validation layer said so on a retail map, ten times a frame:
+//
+//   vkCmdDrawIndexedIndirect(): VkDescriptorSet 0xccb bound as set 1 is not
+//   compatible with corresponding VkPipelineLayout 0x11
+//
+// Only sprites that happened to carry a variant bit - oriented, facing up,
+// flattened, additive, fogged - were built correctly. The default one was not,
+// which is the worst way round for a defect to be.
+#define SSDEF_IS_SPRITE       0x100
 #define SSDEF_FACE_CAMERA     0x01
 #define SSDEF_ALPHA_TEST      0x02
 #define SSDEF_FACE_UP         0x04
@@ -570,7 +588,7 @@ typedef struct texModInfo_s {
 #define SSDEF_ADDITIVE        0x40
 #define SSDEF_FLATTENED       0x80
 
-#define SSDEF_ALL             0xFF
+#define SSDEF_ALL             0xFF   // the VARIANT bits only; SSDEF_IS_SPRITE is not one
 #define SSDEF_COUNT           (SSDEF_ALL + 1)
 
 typedef struct surfaceSprite_s
@@ -2089,6 +2107,9 @@ extern	cvar_t	*r_swapInterval;
 extern	cvar_t	*r_markcount;
 extern	cvar_t	*r_textureMode;
 extern	cvar_t	*r_swapIntervalRenderer;
+extern	cvar_t	*r_modeRenderer;
+extern	cvar_t	*r_customwidthRenderer;
+extern	cvar_t	*r_customheightRenderer;
 extern	cvar_t	*r_offsetFactor;
 extern	cvar_t	*r_offsetUnits;
 

@@ -187,6 +187,52 @@ void GLimp_Minimize(void)
 	Cvar_SetValue( "com_minimized", 1 );
 }
 
+/*
+===============
+WIN_Resize
+
+Resize the window in place to whatever r_mode and the custom size now say, and
+report whether anything actually changed.
+
+The renderer calls this when it notices one of those cvars move, and rebuilds
+the swapchain afterwards. Before this existed the only answer was vid_restart -
+the device, every pipeline, every texture, the UI and the client game, and a
+level reload - for a change that moves a window.
+
+It answers false for a mode it cannot resolve and for a size that is already the
+size it is, so the caller can skip the rebuild rather than do a pointless one.
+Fullscreen is left alone: WIN_Present already toggles that through SDL and has
+for years.
+===============
+*/
+qboolean WIN_Resize( glconfig_t *glConfig )
+{
+	int width = 0;
+	int height = 0;
+
+	if ( screen == NULL ) {
+		return qfalse;
+	}
+
+	if ( !R_GetModeInfo( &width, &height, r_mode->integer ) ) {
+		Com_Printf( "r_mode %i is not a mode this display has\n", r_mode->integer );
+		return qfalse;
+	}
+
+	if ( width == glConfig->vidWidth && height == glConfig->vidHeight ) {
+		return qfalse;
+	}
+
+	Com_Printf( "resizing the window to %d %d\n", width, height );
+
+	SDL_SetWindowSize( screen, width, height );
+
+	glConfig->vidWidth = width;
+	glConfig->vidHeight = height;
+
+	return qtrue;
+}
+
 void WIN_Present( window_t *window )
 {
 	if ( window->api == GRAPHICS_API_OPENGL )
@@ -795,11 +841,16 @@ window_t WIN_Init( const windowDesc_t *windowDesc, glconfig_t *glConfig )
 	r_fullscreen		= Cvar_Get( "r_fullscreen",			"0",		CVAR_ARCHIVE|CVAR_LATCH );
 	r_noborder			= Cvar_Get( "r_noborder",			"0",		CVAR_ARCHIVE|CVAR_LATCH );
 	r_centerWindow		= Cvar_Get( "r_centerWindow",		"0",		CVAR_ARCHIVE|CVAR_LATCH );
-	r_customwidth		= Cvar_Get( "r_customwidth",		"1600",		CVAR_ARCHIVE|CVAR_LATCH );
-	r_customheight		= Cvar_Get( "r_customheight",		"1024",		CVAR_ARCHIVE|CVAR_LATCH );
+	r_customwidth		= Cvar_Get( "r_customwidth",		"1600",		CVAR_ARCHIVE );
+	r_customheight		= Cvar_Get( "r_customheight",		"1024",		CVAR_ARCHIVE );
 	r_swapInterval		= Cvar_Get( "r_swapInterval",		"0",		CVAR_ARCHIVE_ND );
 	r_stereo			= Cvar_Get( "r_stereo",				"0",		CVAR_ARCHIVE_ND|CVAR_LATCH );
-	r_mode				= Cvar_Get( "r_mode",				"-2",		CVAR_ARCHIVE|CVAR_LATCH );
+	// Not latched any more, these three. A latched cvar keeps its old value until
+	// the renderer is torn down and rebuilt, which is precisely the thing the
+	// ladder in RE_BeginFrame exists to stop being necessary: the window can be
+	// resized where it stands and the swapchain rebuilt against it. See
+	// WIN_Resize below and the r_mode block in RE_BeginFrame.
+	r_mode				= Cvar_Get( "r_mode",				"-2",		CVAR_ARCHIVE );
 	r_displayRefresh	= Cvar_Get( "r_displayRefresh",		"0",		CVAR_LATCH );
 	Cvar_CheckRange( r_displayRefresh, 0, 240, qtrue );
 

@@ -378,6 +378,58 @@ if [ "${JKX_SMOKE_VSYNC:-0}" = "1" ]; then
     INMAP_STEP+=( +exec jkx_vsync.cfg +wait 45 )
 fi
 
+# The window resized while the game is running - the second rung, AND THIS LANE
+# IS RED ON PURPOSE. It is not in the stage list in tools/ci/local.sh.
+#
+# What it found on its first run, which is exactly what a lane is for: the
+# window resizes and the renderer does not follow it.
+#
+#   resizing the window to 800 600
+#   vkCreateSwapchainKHR(): pCreateInfo->imageExtent (1280, 720), which is
+#   outside the bounds returned by vkGetPhysicalDeviceSurfaceCapabilitiesKHR():
+#   currentExtent = (800,600), minImageExtent = (800,600)
+#   vkCmdBlitImage(): srcOffsets[1].x is 1280 which exceed srcSubresource width
+#   extent (800)
+#
+# So SDL resized the window, the surface knows its new size, and the renderer
+# rebuilt the swapchain at the OLD extent and then blitted a 1280-wide region
+# out of an 800-wide image. Updating glConfig is not enough: the extent used at
+# swapchain creation and the blit regions come from the renderer's own idea of
+# how big it is, and that is the thing still to be tracked down.
+#
+# The rung stays in - the cvars are unlatched, WIN_Resize works, the swapchain
+# is rebuilt - because all of that is correct and none of it is what is wrong.
+# What is missing is one number in the renderer, and the lane names it.
+#
+#
+# The observable is the SIZE OF THE PICTURE. A screenshot is the window, so a
+# resize that worked produces a smaller file with different dimensions, and one
+# that silently did nothing produces the same 1280x720 as everything else. That
+# is a stronger check than a log line because it cannot pass while the frame is
+# wrong.
+#
+# 800x600 and back, so the run ends at the geometry every other check is written
+# against. r_mode -1 is the custom size; the modes below it are a fixed table.
+if [ "${JKX_SMOKE_RESIZE:-0}" = "1" ]; then
+    {
+        echo "wait 5"
+        echo "set r_customwidth 800"
+        echo "set r_customheight 600"
+        echo "set r_mode -1"
+        echo "wait 25"
+        echo "screenshot_tga jkx_resized"
+        echo "wait 10"
+        echo "set r_customwidth 1280"
+        echo "set r_customheight 720"
+        echo "set r_mode -1"
+        echo "wait 25"
+        echo "screenshot_tga jkx_resized_back"
+        echo "wait 10"
+    } > "$RUN/base/jkx_resize.cfg"
+
+    INMAP_STEP+=( +exec jkx_resize.cfg +wait 90 )
+fi
+
 
 # The map's own furniture, photographed twice: as early as a frame can be had,
 # and again once everything has settled.
@@ -1589,6 +1641,32 @@ require() {
 # map, and once more for the map this fixture deliberately rejects, so a normal
 # run prints it four times with no vertical sync involved at all. Measured
 # before assuming.
+# The resize lane. See the INMAP_STEP block above.
+#
+# tga_size.py prints the dimensions and fails on a mismatch; the point is that
+# both frames are checked, so a resize that goes one way and never comes back
+# fails as loudly as one that never happened.
+resize_checks() {
+    local w h
+
+    read -r w h <<< "$( python3 "$HERE/tga_size.py" \
+        "$RUN/home/base/screenshots/jkx_resized.tga" 2>/dev/null )"
+
+    if [ "$w" != "800" ] || [ "$h" != "600" ]; then
+        report "the window did not resize: the frame is ${w}x${h} and should be \
+800x600. r_mode is no longer latched, so nothing was waiting for a vid_restart - \
+either WIN_Resize refused the mode or the swapchain was not rebuilt against it"
+    fi
+
+    read -r w h <<< "$( python3 "$HERE/tga_size.py" \
+        "$RUN/home/base/screenshots/jkx_resized_back.tga" 2>/dev/null )"
+
+    if [ "$w" != "1280" ] || [ "$h" != "720" ]; then
+        report "the window did not resize back: the frame is ${w}x${h} and should \
+be 1280x720"
+    fi
+}
+
 vsync_checks() {
     local taken
 
@@ -1621,6 +1699,12 @@ forbid() {
 # both skins. If a future change makes the offset go away here, this lane says so
 # loudly, because an offset that has quietly stopped happening means the fix is
 # no longer being tested rather than that the defect is gone.
+if [ "${JKX_SMOKE_RESIZE:-0}" = "1" ]; then
+    require 'Wrote screenshots/jkx_resized.tga'
+    require 'Wrote screenshots/jkx_resized_back.tga'
+    resize_checks
+fi
+
 if [ "${JKX_SMOKE_VSYNC:-0}" = "1" ]; then
     require 'Wrote screenshots/jkx_vsync_on.tga'
     require 'Wrote screenshots/jkx_vsync_off.tga'

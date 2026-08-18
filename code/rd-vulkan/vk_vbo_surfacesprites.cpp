@@ -667,6 +667,12 @@ static spriteStage_t* vk_build_surface_sprite_stage( const int index, msurface_t
 
 	def.face_culling = CT_TWO_SIDED;
 
+	// This is a surface sprite, whatever else it is. Every test below is about
+	// WHICH KIND, and a plain vertical sprite answers no to all of them - which
+	// used to leave the word at zero and the pipeline built against the wrong
+	// layout. See SSDEF_IS_SPRITE in tr_local.h.
+	def.surface_sprite_flags |= SSDEF_IS_SPRITE;
+
 	if ( surfaceSprite->type == SURFSPRITE_ORIENTED )
 		def.surface_sprite_flags |= SSDEF_FACE_CAMERA;
 
