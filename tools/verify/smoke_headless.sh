@@ -338,6 +338,46 @@ SETTLE=200
 INMAP_STEP=( +wait 20 +map jkx_room +wait $SETTLE
              +screenshot_tga jkx_inmap )
 
+# Vertical sync changed while the game is running - the first rung of the ladder
+# that replaces vid_restart. See the note in RE_BeginFrame.
+#
+# A CONFIG FILE AND NOT COMMAND-LINE GROUPS. Two spellings were tried first and
+# both fail the same way, neither loudly.
+#
+# "+r_swapInterval 1" - a bare cvar name is a console command but not a
+# command-line group - and "+set r_swapInterval 1" - Com_StartupVariable scans
+# the command line for set commands and consumes them before the buffer runs.
+# Either way a token goes missing and everything after it shifts by one. What
+# that looks like is not an error: screenshot_tga executes without its name, so
+# a file called shot<date>.tga appears where jkx_sky_ft.tga should be, and then
+# +quit is swallowed as somebody's argument and the engine draws frames forever.
+#
+# Three timeouts were raised before the two logs were compared side by side. The
+# run had done all of its work in fifty seconds and then never stopped: 1495
+# lines and a CL_Shutdown in the baseline against 47849 lines and no CL_Shutdown
+# here. A SLOW RUN AND A BROKEN RUN LOOK IDENTICAL until you ask whether it
+# finished rather than how long it took.
+#
+# Inside a config file the commands execute where they are written, which is
+# what the cutscene-skip test already does. The value goes 0 -> 1 -> 0 so the
+# run ends where it started and the frames after it stay comparable with every
+# other lane's.
+if [ "${JKX_SMOKE_VSYNC:-0}" = "1" ]; then
+    {
+        echo "wait 5"
+        echo "set r_swapInterval 1"
+        echo "wait 12"
+        echo "screenshot_tga jkx_vsync_on"
+        echo "wait 5"
+        echo "set r_swapInterval 0"
+        echo "wait 12"
+        echo "screenshot_tga jkx_vsync_off"
+        echo "wait 5"
+    } > "$RUN/base/jkx_vsync.cfg"
+
+    INMAP_STEP+=( +exec jkx_vsync.cfg +wait 45 )
+fi
+
 
 # The map's own furniture, photographed twice: as early as a frame can be had,
 # and again once everything has settled.
@@ -1538,6 +1578,29 @@ require() {
     fi
 }
 
+# The vertical-sync lane. See the INMAP_STEP block above.
+#
+# It counts the line the cheap path prints. The claim being made is "the
+# renderer was NOT restarted", and a claim like that needs something positive to
+# point at rather than an absence - vid_restart never prints this one.
+#
+# Counting "----- R_Init -----" was tried as the negative half and is not a
+# usable observable: single player rebuilds the renderer for the menu, for each
+# map, and once more for the map this fixture deliberately rejects, so a normal
+# run prints it four times with no vertical sync involved at all. Measured
+# before assuming.
+vsync_checks() {
+    local taken
+
+    taken=$( grep -c 'rebuilding the swapchain only' "$RUN/run.log" || true )
+
+    if [ "$taken" -lt 2 ]; then
+        report "r_swapInterval took the swapchain path $taken time(s) out of two; \
+on Vulkan the present mode is fixed when the swapchain is built, so a change \
+that does not rebuild it changes nothing for the player"
+    fi
+}
+
 forbid() {
     if grep -q -- "$1" "$RUN/run.log"; then
         report "present in the log and should not be: $1"
@@ -1558,6 +1621,12 @@ forbid() {
 # both skins. If a future change makes the offset go away here, this lane says so
 # loudly, because an offset that has quietly stopped happening means the fix is
 # no longer being tested rather than that the defect is gone.
+if [ "${JKX_SMOKE_VSYNC:-0}" = "1" ]; then
+    require 'Wrote screenshots/jkx_vsync_on.tga'
+    require 'Wrote screenshots/jkx_vsync_off.tga'
+    vsync_checks
+fi
+
 if [ "${JKX_SMOKE_SKINSHIFT:-0}" = "1" ]; then
     require 'skin 1 is handle 5'
     require 'skin 2 is handle 6'

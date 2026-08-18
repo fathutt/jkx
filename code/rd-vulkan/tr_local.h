@@ -2088,6 +2088,7 @@ extern	cvar_t	*r_finish;
 extern	cvar_t	*r_swapInterval;
 extern	cvar_t	*r_markcount;
 extern	cvar_t	*r_textureMode;
+extern	cvar_t	*r_swapIntervalRenderer;
 extern	cvar_t	*r_offsetFactor;
 extern	cvar_t	*r_offsetUnits;
 

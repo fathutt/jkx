@@ -71,7 +71,7 @@ JOBS="${JOBS:-$(nproc)}"
 
 STAGES=( "$@" )
 if [ "${#STAGES[@]}" -eq 0 ]; then
-    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokeskin smokeskinshift smokelightmap smokemapent smokemenumodel smokemenulight smokepbrchar smokevidrestart smokecubemap smoketransparency smoketcmod smokedeform smokephys smokephysshaded smokepak move smokesan prepass fog noassets )
+    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokeskin smokeskinshift smokelightmap smokemapent smokemenumodel smokemenulight smokepbrchar smokevidrestart smokevsync smokecubemap smoketransparency smoketcmod smokedeform smokephys smokephysshaded smokepak move smokesan prepass fog noassets )
 fi
 
 failed=()
@@ -854,6 +854,27 @@ stage_smokevidrestart() {
     JKX_SMOKE_VIDRESTART=1 \
     JKX_SMOKE_DISPLAY="${JKX_SMOKE_VIDRESTART_DISPLAY:-:83}" \
     JKX_SMOKE_TIMEOUT=900 \
+        bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
+}
+
+# Vertical sync changed while the game runs, without restarting the renderer.
+#
+# The first rung of the ladder that replaces vid_restart, and the reason it is
+# first: ON VULKAN r_swapInterval DID NOTHING AT ALL. The window layer's handler
+# sits inside a GRAPHICS_API_OPENGL branch and the Vulkan present mode is chosen
+# when the swapchain is built, so the setting has been dead since the renderer
+# was transplanted - on did nothing, off did nothing, whatever the menu showed.
+#
+# What the lane asserts is that the CHEAP path ran: vk_restart_presentation
+# rebuilds the swapchain and the framebuffers and leaves the render passes, the
+# attachments and every pipeline alone. Measured, two changes in one run, both
+# inside the same second; the lane costs the same 94 seconds as a plain smoke
+# run. The expensive path - vk_restart_swapchain, which rebuilds every pipeline -
+# is still what a surface going out of date gets, because that one may have
+# changed format or size.
+stage_smokevsync() {
+    JKX_SMOKE_VSYNC=1 \
+    JKX_SMOKE_DISPLAY="${JKX_SMOKE_VSYNC_DISPLAY:-:99}" \
         bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
 }
 

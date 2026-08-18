@@ -483,6 +483,60 @@ void RE_BeginFrame( stereoFrame_t stereoFrame ) {
 	tr.frameCount++;
 	tr.frameSceneNum = 0;
 
+	// SETTINGS THAT USED TO NEED vid_restart, AND THE LADDER OF WHAT THEY COST.
+	//
+	// vid_restart tears down and rebuilds everything - the Vulkan device, the
+	// swapchain, every pipeline, every texture, the UI and the client game -
+	// and reloads the level on the way. It is the only answer this renderer has
+	// to a changed setting, so a player who moves one slider pays for all of it
+	// and watches a black screen while he does. Almost none of that is required
+	// by almost any of those settings.
+	//
+	// What each rung actually costs, cheapest first:
+	//
+	//   NOTHING          the value is read per frame anyway - r_gamma,
+	//                    r_textureMode, r_fastsky. Handled below, and they are
+	//                    the proof that the rest of this is possible.
+	//
+	//   SWAPCHAIN        the presentation surface and nothing behind it -
+	//                    vertical sync, and later the window size.
+	//                    vk_restart_presentation.
+	//
+	//   TARGETS          attachments, render passes and pipelines - multisample
+	//                    count, dynamic glow resolution. The device survives.
+	//
+	//   TEXTURES         samplers and a reload of the image set - r_picmip,
+	//                    r_texturebits, compression, r_intensity. Neither the
+	//                    device nor the pipelines care.
+	//
+	//   EVERYTHING       the device itself: which physical device, which
+	//                    extensions. The only rung that genuinely needs what
+	//                    vid_restart does.
+	//
+	// The swapchain rung is implemented. The rest are named rather than done,
+	// because naming them is what makes the next one a small change instead of
+	// a redesign, and because each needs its own lane before it can be trusted.
+	//
+	// r_swapInterval first, and not arbitrarily: ON VULKAN THIS CVAR DOES
+	// NOTHING AT ALL TODAY. The window layer's handler for it sits inside a
+	// GRAPHICS_API_OPENGL branch, and the Vulkan present mode is chosen in
+	// vk_create_swapchain from the cvar's value at the moment the swapchain is
+	// built. The setting has been dead since the renderer was transplanted:
+	// turning vertical sync on did nothing and turning it off did nothing,
+	// whatever the menu showed.
+	if ( r_swapIntervalRenderer->modified ) {
+		r_swapIntervalRenderer->modified = qfalse;
+
+		CL_RefPrintf( PRINT_ALL, "vertical sync set to %i\n",
+			r_swapIntervalRenderer->integer );
+
+		// vk_restart_presentation and not vk_restart_swapchain, and that is the
+		// whole rung. The general restart rebuilds every pipeline as well,
+		// because it exists for a surface that may have changed format or size;
+		// a present-mode change changes neither.
+		vk_restart_presentation( __func__ );
+	}
+
 	//
 	// texturemode stuff
 	//

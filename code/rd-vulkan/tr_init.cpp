@@ -154,6 +154,15 @@ cvar_t	*r_finish;
 cvar_t	*r_clear;
 cvar_t	*r_markcount;
 cvar_t	*r_textureMode;
+
+// The vertical sync setting, held here so the renderer can notice it change.
+//
+// Registered by the window layer under the same name; Cvar_Get hands back the
+// one that already exists. The renderer needs the pointer because on Vulkan
+// this is not a window property at all - the present mode is chosen when the
+// swapchain is created - so applying it means rebuilding the swapchain, and
+// noticing the change is the renderer's job. See RE_BeginFrame.
+cvar_t	*r_swapIntervalRenderer;
 cvar_t	*r_offsetFactor;
 cvar_t	*r_offsetUnits;
 cvar_t	*r_gamma;
@@ -963,6 +972,11 @@ void R_Register( void )
 	r_dlightBacks						= Cvar_Get( "r_dlightBacks",						"1",						CVAR_ARCHIVE_ND, "dlight non-facing surfaces for continuity" );
 	r_finish							= Cvar_Get( "r_finish",							"0",						CVAR_ARCHIVE_ND, "" );
 	r_textureMode						= Cvar_Get( "r_textureMode",						"GL_LINEAR_MIPMAP_LINEAR",	CVAR_ARCHIVE, "" );
+	r_swapIntervalRenderer				= Cvar_Get( "r_swapInterval",					"0",						CVAR_ARCHIVE_ND, "vertical sync: 0 off, 1 on, 2 adaptive, 3 mailbox" );
+	// Registering a cvar marks it modified, and the first frame would otherwise
+	// rebuild a swapchain that was built moments ago with this very value.
+	// Measured: "rebuilding the swapchain only" in every log, once, at startup.
+	r_swapIntervalRenderer->modified = qfalse;
 	r_markcount							= Cvar_Get( "r_markcount",						"100",						CVAR_ARCHIVE_ND, "" );
 	r_gamma								= Cvar_Get( "r_gamma",							"1",						CVAR_ARCHIVE_ND, "" );
 	r_facePlaneCull						= Cvar_Get( "r_facePlaneCull",					"1",						CVAR_ARCHIVE_ND, "" );

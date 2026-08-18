@@ -69,6 +69,58 @@ void vk_restart_swapchain( const char *funcname )
 #endif
 }
 
+/*
+================
+vk_restart_presentation
+
+The swapchain and the things that point straight at it, and NOTHING ELSE.
+
+vk_restart_swapchain above rebuilds every pipeline as well, and it has to: it is
+the answer to a surface that went out of date, where the format or the extent
+may have changed under everything.
+
+A present-mode change is not that. The format is the same and the extent is the
+same, so the render passes, the attachments and every pipeline built against
+them are still valid. What has to go is the swapchain itself and the
+framebuffers that name its image views. Measured on a software rasteriser, two
+changes in one run: both inside the same second.
+
+Kept separate from the general restart rather than added to it as a flag,
+because the two answer different questions - "the surface is gone" and "the
+player moved a setting". Anything that changes the format or the size belongs in
+the other one.
+================
+*/
+void vk_restart_presentation( const char *funcname )
+{
+    uint32_t i;
+
+    CL_RefPrintf( PRINT_ALL, "%s(): rebuilding the swapchain only\n", funcname );
+    vk_debug( "Rebuilding presentation\n" );
+
+    vk_wait_idle();
+
+    for ( i = 0; i < NUM_COMMAND_BUFFERS; i++ ) {
+        vkResetCommandBuffer( vk.tess[i].command_buffer, 0 );
+        vk.tess[i].swapchain_image_acquired = qfalse;
+    }
+
+    // The sync primitives go with it, and leaving them behind is a HANG rather
+    // than a subtle wrongness: a semaphore left signalled by an acquire whose
+    // image is now gone gets signalled again by the next acquire, and a
+    // per-slot fence that nothing will ever signal is waited on for ten seconds
+    // a frame. vk_restart_swapchain destroys and recreates them for the same
+    // reason. They are cheap; it is the pipelines that are not.
+    vk_destroy_framebuffers();
+    vk_destroy_swapchain();
+    vk_destroy_sync_primitives();
+
+    vk_create_sync_primitives();
+    vk_create_swapchain( vk.physical_device, vk.device, vk.surface,
+        vk.present_format, &vk.swapchain );
+    vk_create_framebuffers();
+}
+
 static const char *vk_pmode_to_str( VkPresentModeKHR mode )
 {
     static char buf[32];
