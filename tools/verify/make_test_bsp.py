@@ -602,7 +602,10 @@ def parse_npcs(specs):
     for i, spec in enumerate(specs):
         parts = spec.split(":")
         name = parts[0]
-        y = int(parts[1]) if len(parts) > 1 and parts[1] else (-64 + i * 64)
+        # In front of the player start by default, and spread apart, because a
+        # character behind the camera proves nothing about which skin he is
+        # wearing. PROP_Y is where the props stand and is known to be in frame.
+        y = int(parts[1]) if len(parts) > 1 and parts[1] else int(PROP_Y + i * 80)
         z = int(parts[2]) if len(parts) > 2 and parts[2] else int(FLOOR_Z + 24)
         out.append((name, y, z))
     return out

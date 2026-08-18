@@ -1543,6 +1543,26 @@ forbid() {
     fi
 }
 
+# The character-skin handle offset, and this lane asserts that it HAPPENS.
+#
+# That reads backwards until you know what it is for. The offset is a defect and
+# the two halves of the fix are what deal with it; what this lane is for is the
+# CONDITION - a loading screen that has taken four handles before the map asks
+# for its first - because without it index and handle agree by accident and the
+# fix underneath is being exercised against a case that never arises. Every lane
+# in this bench was in exactly that position until now.
+#
+# So: the diagnostic must fire, the numbers must differ by four - the same four a
+# log from a real installation reported - and the renumber pass must then act on
+# both skins. If a future change makes the offset go away here, this lane says so
+# loudly, because an offset that has quietly stopped happening means the fix is
+# no longer being tested rather than that the defect is gone.
+if [ "${JKX_SMOKE_SKINSHIFT:-0}" = "1" ]; then
+    require 'skin 1 is handle 5'
+    require 'skin 2 is handle 6'
+    require '2 model skin(s) renumbered from configstring indexes to renderer handles'
+fi
+
 # This run drives the engine entirely from +commands, and the engine used to
 # drop them past a fixed limit without a word. What that looked like was this
 # stage timing out: the +quit at the end had been dropped, so the engine sat in
@@ -2236,7 +2256,13 @@ fi
 # The map has to have been attempted and rejected. If SV_Map_f starts refusing
 # it earlier - which it would if the existence check moved - the run would go on
 # passing while checking nothing, because nothing would have cleared the hunk.
-if ! grep -q -- 'shorter than a BSP header' "$RUN/run.log"; then
+#
+# Except when JKX_SMOKE_MAP has replaced the map the run loads: the truncated
+# map is part of the fixture's own second-map sequence, and a run pointed at a
+# different map never reaches it. Not a failure, just a check that does not
+# apply - the same way the picture assertions step aside.
+if [ -z "${JKX_SMOKE_MAP:-}" ] &&
+   ! grep -q -- 'shorter than a BSP header' "$RUN/run.log"; then
     report "the deliberately broken map was not loaded and rejected, so the hunk was never cleared"
 fi
 

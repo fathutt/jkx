@@ -1,0 +1,15 @@
+// One of the four skins the fixture's loading screen registers before the map
+// registers any of its own. See ui/jkx_loadscreen.menu.
+//
+// They have to REGISTER, not merely be asked for: a failed registration used to
+// take a handle and no longer does - tr_skin.cpp releases the slot, which was
+// the JKX_SMOKE_SKINFALL fix - so four missing files now cost nothing and shift
+// nothing. Measured that way round first, and the offset stayed at zero.
+//
+// They also have to be names NO MAP USES. RE_RegisterSkin hands back the
+// existing handle for a name it has already seen, so a loading screen wearing
+// the same skin as the level produces no offset either. Retail's shows luke,
+// kyle, protocol and rebel_pilot in menu skins, which no level wears.
+//
+// The shader is the ordinary one; nothing here is drawn.
+body,jkx/skin_body

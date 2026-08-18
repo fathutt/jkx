@@ -35,6 +35,16 @@
 // worth knowing on its own - it means a missing skin file shifts every
 // character after it, which is a second way into the same defect.
 //
+// WHAT DOES MATTER IS THAT NONE OF THESE FOUR NAMES IS A NAME THE MAP USES, and
+// that took a run to learn. The first version of this file named the fixture's
+// own two skins, model_default and model_alt - the ones the map's NPCs wear -
+// and produced no offset at all, because RE_RegisterSkin hands back the
+// EXISTING handle for a name it has already seen. Configstring one asked for
+// model_default, got handle one back, and the two numbering spaces agreed by
+// accident. Retail does not have that problem because its loading screen shows
+// luke, kyle, protocol and rebel_pilot in their menu skins, which no level
+// wears. Four names nothing else asks for is the same arrangement.
+//
 // This is opt-in through ui/jkx_load.txt. Every other lane keeps loading
 // ui/menus.txt and keeps the frame all the other checks are written against.
 {
@@ -56,7 +66,7 @@ menuDef
 		type				ITEM_TYPE_MODEL
 		rect				0 0 64 64
 		asset_model			"models/players/jkx/model.glm"
-		model_g2skin		"models/players/jkx/model_default.skin"
+		model_g2skin		"models/players/jkx/model_load_a.skin"
 		model_g2maxs		16 16 16
 		visible				0
 		decoration
@@ -68,22 +78,22 @@ menuDef
 		type				ITEM_TYPE_MODEL
 		rect				0 0 64 64
 		asset_model			"models/players/jkx/model.glm"
-		model_g2skin		"models/players/jkx/model_alt.skin"
+		model_g2skin		"models/players/jkx/model_load_b.skin"
 		model_g2maxs		16 16 16
 		visible				0
 		decoration
 	}
 
-	// Two names that do not resolve, on purpose, because that is the other half
-	// of what makes the offset four on a real machine and because a failed
-	// registration takes a handle exactly like a successful one.
+	// None of these four resolves, and that is fine: a failed registration takes
+	// a handle exactly like a successful one, which is the whole reason the
+	// count is what matters and not the artwork.
 	itemDef
 	{
 		name				load3
 		type				ITEM_TYPE_MODEL
 		rect				0 0 64 64
 		asset_model			"models/players/jkx/model.glm"
-		model_g2skin		"models/players/jkx/model_absent_a.skin"
+		model_g2skin		"models/players/jkx/model_load_c.skin"
 		model_g2maxs		16 16 16
 		visible				0
 		decoration
@@ -95,7 +105,7 @@ menuDef
 		type				ITEM_TYPE_MODEL
 		rect				0 0 64 64
 		asset_model			"models/players/jkx/model.glm"
-		model_g2skin		"models/players/jkx/model_absent_b.skin"
+		model_g2skin		"models/players/jkx/model_load_d.skin"
 		model_g2maxs		16 16 16
 		visible				0
 		decoration

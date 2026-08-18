@@ -71,7 +71,7 @@ JOBS="${JOBS:-$(nproc)}"
 
 STAGES=( "$@" )
 if [ "${#STAGES[@]}" -eq 0 ]; then
-    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokeskin smokelightmap smokemapent smokemenumodel smokemenulight smokepbrchar smokevidrestart smokecubemap smoketransparency smoketcmod smokedeform smokephys smokepak move smokesan prepass fog noassets )
+    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokeskin smokeskinshift smokelightmap smokemapent smokemenumodel smokemenulight smokepbrchar smokevidrestart smokecubemap smoketransparency smoketcmod smokedeform smokephys smokepak move smokesan prepass fog noassets )
 fi
 
 failed=()
@@ -655,6 +655,56 @@ stage_smokepak() {
 stage_smokeskin() {
     JKX_SMOKE_SKINFALL=1 \
     JKX_SMOKE_DISPLAY="${JKX_SMOKE_SKIN_DISPLAY:-:88}" \
+        bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
+}
+
+# The character-skin handle offset, reproduced rather than fixed.
+#
+# The gamecode stores a skin's CONFIGSTRING INDEX in mCustomSkin and the
+# renderer resolves mCustomSkin as a HANDLE. Two numbering spaces for one thing,
+# and characters have textures only while they happen to agree - which they do
+# whenever the map's skins are the first skins anybody registers. On a real
+# installation they are not: the loading screen shows a character, four handles
+# go before the map asks for its first, and from there every character wears the
+# skin four places earlier or none at all.
+#
+# THIS BENCH COULD NOT PRODUCE THAT NUMBER. The fixture had no loading screen -
+# "Menus_ActivateByName: Unable to find menu loadscreen" is in every run log in
+# this repository - so index and handle agreed exactly and the diagnostic that
+# compares them had never once fired. Both halves of the fix underneath were
+# being exercised against a case that never arose.
+#
+# What it took, and each of the three was learned by getting it wrong:
+#
+#   a character THE MAP OWNS. JKX_SMOKE_CHAR is not enough - the player connects
+#   after cgame has initialised and his skin reaches the configstrings too late
+#   for the loop that compares them. make_test_bsp.py --npc writes NPC_spawner
+#   entities and ext_data/npcs/jkx.npc says what they wear;
+#
+#   a loading screen in ui/ingame.txt and not in ui_menuFiles. Single player
+#   tears the renderer down between the menu and the map, and R_InitSkins puts
+#   tr.numSkins back to one, so anything the main menu registered is thrown away
+#   before the map registers anything. ui/ingame.txt is the only set loaded after
+#   that point;
+#
+#   four skins that REGISTER and that no map uses. A failed registration used to
+#   take a handle and no longer does - tr_skin.cpp releases the slot, which was
+#   the JKX_SMOKE_SKINFALL fix - so four missing files shift nothing. And a name
+#   already registered hands back its existing handle, so a loading screen
+#   wearing the map's own skin shifts nothing either. Both were measured as zero
+#   before the third version worked.
+#
+# It now reports exactly what the log from real hardware reported:
+#
+#   skin 1 is handle 5   skin 2 is handle 6
+#   2 model skin(s) renumbered from configstring indexes to renderer handles
+#
+# The lane asserts that the offset HAPPENS. An offset that quietly stops
+# happening here means the fix has stopped being tested, not that the defect is
+# gone.
+stage_smokeskinshift() {
+    JKX_SMOKE_SKINSHIFT=1 \
+    JKX_SMOKE_DISPLAY="${JKX_SMOKE_SKINSHIFT_DISPLAY:-:94}" \
         bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
 }
 
