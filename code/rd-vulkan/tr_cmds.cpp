@@ -562,6 +562,29 @@ void RE_BeginFrame( stereoFrame_t stereoFrame ) {
 		// WIN_Resize answers false for a size that is already the size it is, so
 		// setting r_customwidth to what it already was costs nothing.
 		if ( WIN_Resize( &glConfig ) ) {
+			// The floor under the swapchain extent has to move with the window,
+			// and forgetting it was the whole of what the resize lane caught:
+			//
+			//   resizing the window to 800 600
+			//   vkCreateSwapchainKHR(): imageExtent (1280, 720), outside the
+			//   bounds returned by vkGetPhysicalDeviceSurfaceCapabilities():
+			//   currentExtent = (800,600)
+			//
+			// gls.windowWidth was set once, at startup, to the size the window
+			// was launched at, and vk_create_swapchain clamps the extent up to
+			// it. That clamp is there for MINIMISATION - a minimised window
+			// reports an extent of zero and a swapchain of zero crashes the
+			// driver - and the comment beside it says, in as many words, that
+			// something more dynamic would be needed if windowed resizing were
+			// ever implemented. This is that.
+			//
+			// Moving it rather than removing it keeps what it was for: the
+			// floor is now the size the window is MEANT to be, so a minimised
+			// window still clamps up to that instead of to zero, and frames go
+			// on not being displayed until it comes back.
+			gls.windowWidth = glConfig.vidWidth;
+			gls.windowHeight = glConfig.vidHeight;
+
 			vk_restart_swapchain( __func__ );
 			R_Set2DRatio();
 		}

@@ -393,9 +393,23 @@ fi
 #
 # So SDL resized the window, the surface knows its new size, and the renderer
 # rebuilt the swapchain at the OLD extent and then blitted a 1280-wide region
-# out of an 800-wide image. Updating glConfig is not enough: the extent used at
-# swapchain creation and the blit regions come from the renderer's own idea of
-# how big it is, and that is the thing still to be tracked down.
+# out of an 800-wide image.
+#
+# HALF OF THAT IS FIXED. The extent came from a floor that never moved:
+# vk_create_swapchain clamps the extent up to gls.windowWidth, which was set
+# once at startup to the size the window was launched at. The clamp is there for
+# minimisation - a minimised window reports zero and a zero swapchain crashes
+# the driver - and the comment beside it says in as many words that something
+# more dynamic would be needed if windowed resizing were ever implemented. The
+# floor moves with the window now and the vkCreateSwapchainKHR error is gone.
+#
+# WHAT IS LEFT is the blit, still asking for a 1280-wide region out of an image
+# that is now 800 wide. Its region comes from glConfig.vidWidth, which IS 800 by
+# then - so the frame being complained about was recorded before the rebuild and
+# is referring to attachments that have since been replaced. That points at the
+# ORDER of the rebuild rather than at any one number: RE_BeginFrame is early in
+# the frame but not before everything. Next step is to find what is already
+# recorded by the time it runs.
 #
 # The rung stays in - the cvars are unlatched, WIN_Resize works, the swapchain
 # is rebuilt - because all of that is correct and none of it is what is wrong.

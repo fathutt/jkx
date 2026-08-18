@@ -1,4 +1,4 @@
-# JKX
+# JKX Engine
 
 A single-player engine for **Jedi Knight II: Jedi Outcast** and **Jedi Knight: Jedi Academy**, built on
 Vulkan 1.3.
