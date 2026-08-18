@@ -455,10 +455,16 @@ void main() {
 		float NH = 0.0;
 		float VH = 0.0;
 
+		// No light reaching the surface means no specular from it. The guard is
+		// belt and braces next to the floor in V_SmithJointApprox - that one
+		// removes the infinity, this one removes the whole computation for the
+		// case that produced it - and it is also what the physics says.
 		#if defined(USE_LIGHT_VECTOR)
-			NH = clamp( dot( N, H ), 0.0, 1.0 );
-			VH = clamp( dot( E, H ), 0.0, 1.0 );
-			Fs = CalcSpecular( specular.rgb, NH, NL, NE, LH, VH, roughness );
+			if ( NL > 0.0 ) {
+				NH = clamp( dot( N, H ), 0.0, 1.0 );
+				VH = clamp( dot( E, H ), 0.0, 1.0 );
+				Fs = CalcSpecular( specular.rgb, NH, NL, NE, LH, VH, roughness );
+			}
 		#endif
 
 		// ~sunny
@@ -468,7 +474,7 @@ void main() {
 		// deluxe_specular_scale will be 1.0 when r_deluxeMapping = 0
 		// and match r_deuxeSpecular value when r_deluxeMapping = 1
 		#if defined(USE_LIGHTMAP) || defined(USE_LIGHT_VERTEX)
-			if ( deluxe_specular_scale != 0.0 )
+			if ( deluxe_specular_scale != 0.0 && NL > 0.0 )
 			{
 				NH = clamp( dot( N, H ), 0.0, 1.0 );
 				VH = clamp( dot( E, H ), 0.0, 1.0 );

@@ -71,7 +71,7 @@ JOBS="${JOBS:-$(nproc)}"
 
 STAGES=( "$@" )
 if [ "${#STAGES[@]}" -eq 0 ]; then
-    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokeskin smokeskinshift smokelightmap smokemapent smokemenumodel smokemenulight smokepbrchar smokevidrestart smokecubemap smoketransparency smoketcmod smokedeform smokephys smokepak move smokesan prepass fog noassets )
+    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokeskin smokeskinshift smokelightmap smokemapent smokemenumodel smokemenulight smokepbrchar smokevidrestart smokecubemap smoketransparency smoketcmod smokedeform smokephys smokephysshaded smokepak move smokesan prepass fog noassets )
 fi
 
 failed=()
@@ -1103,6 +1103,23 @@ stage_smoketransparency() {
 stage_smokephys() {
     JKX_SMOKE_PHYS=1 \
     JKX_SMOKE_DISPLAY="${JKX_SMOKE_PHYS_DISPLAY:-:77}" \
+        bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
+}
+
+# The same squares, shaded, which is a different question from the packings and
+# needs a different run rather than a second screenshot in the same one: the
+# extra frames a software rasteriser needs to settle between two debug views
+# pushed the phys lane past its timeout and made six checks fail on screenshots
+# that were never taken.
+#
+# A PHYSICALLY-BASED WORLD SURFACE USED TO COME OUT BLACK, for months, and the
+# check is written against arithmetic rather than against a shade: 185, 63, 63
+# is ambientColor times the albedo, which is what the sum has to be when NL is
+# zero. The long note is at the check itself in smoke_headless.sh.
+stage_smokephysshaded() {
+    JKX_SMOKE_PHYS=1 \
+    JKX_SMOKE_PHYS_VIEW=0 \
+    JKX_SMOKE_DISPLAY="${JKX_SMOKE_PHYSSHADED_DISPLAY:-:93}" \
         bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
 }
 

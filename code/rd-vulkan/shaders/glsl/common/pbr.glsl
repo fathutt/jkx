@@ -54,7 +54,38 @@
 	{
 		float Vis_SmithV = NL * (NV * (1 - a) + a);
 		float Vis_SmithL = NV * (NL * (1 - a) + a);
-		return 0.5 * (1.0 / (Vis_SmithV + Vis_SmithL));
+
+		// The denominator goes to zero, and the reciprocal of zero is what made
+		// every physically-based world surface in this renderer BLACK.
+		//
+		// NL is zero on any surface facing away from the light, which on a
+		// lightmapped world is most of them. Then Vis_SmithV is zero, Vis_SmithL
+		// is NV*a, and when the roughness or the view term is small enough that
+		// the sum underflows, this returned an infinity. CalcSpecular multiplies
+		// it by D and F, and INFINITY TIMES ZERO IS NaN - the same arithmetic
+		// that produced the overexposed menu models, one function further down.
+		//
+		// From there the poison travels: reflectance = Fd + Fs is NaN, the first
+		// term of the lighting is NaN, and adding the ambient term to a NaN
+		// leaves a NaN, which is written to an unsigned normalised target as
+		// zero. Black.
+		//
+		// Measured on the fixture, and it is worth writing the numbers down
+		// because four debug views appeared to contradict each other for a week:
+		//
+		//   Fd            (81, 81, 81)     the Lambert term, correct
+		//   Fs            black            NOT zero - NaN, which writes as black
+		//   reflectance   black            81 + NaN
+		//   ambient*diff  (185, 63, 63)    the term that should have survived
+		//   shaded        black            because NaN + anything is NaN
+		//
+		// isnan(Fs) confirmed it directly: the squares came back pure red on a
+		// probe that painted NaN red, Inf green.
+		//
+		// The floor is on the denominator rather than on the result because the
+		// quantity is a visibility term: at grazing angles it is legitimately
+		// large, and clamping the answer would darken cases that are correct.
+		return 0.5 / max( Vis_SmithV + Vis_SmithL, 1e-5 );
 	}
 
 	vec3 CalcSpecular( in vec3 specular, in float NH, in float NL,
