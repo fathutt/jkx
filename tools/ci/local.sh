@@ -71,7 +71,7 @@ JOBS="${JOBS:-$(nproc)}"
 
 STAGES=( "$@" )
 if [ "${#STAGES[@]}" -eq 0 ]; then
-    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokeskin smokeskinshift smokelightmap smokehdrlightmap smokemapent smokemenumodel smokemenulight smokepbrchar smokevidrestart smokevsync smokeresize smokemsaa smokecubemap smoketransparency smoketcmod smokedeform smokephys smokephysshaded smokepak move smokesan prepass fog noassets )
+    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokeskin smokeskinshift smokelightmap smokehdrlightmap smokegamecmd smokemapent smokemenumodel smokemenulight smokepbrchar smokevidrestart smokevsync smokeresize smokemsaa smokecubemap smoketransparency smoketcmod smokedeform smokephys smokephysshaded smokepak move smokesan prepass fog noassets )
 fi
 
 failed=()
@@ -769,6 +769,31 @@ stage_smokelightmap() {
 stage_smokehdrlightmap() {
     JKX_SMOKE_HDRLIGHTMAP=1 \
     JKX_SMOKE_DISPLAY="${JKX_SMOKE_HDRLIGHTMAP_DISPLAY:-:74}" \
+        bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
+}
+
+# A console command that reaches the GAME, which is a wire nothing here has ever
+# tested.
+#
+# Every command this harness sends is a cvar or a command the ENGINE registers -
+# map, screenshot_tga, wait, imagelist - and Cmd_ExecuteString finds all of those
+# before it gets anywhere near the game's own table. So the branch that ends in
+# ge->ConsoleCommand() had never executed on this bench, and a report that
+# exitview did nothing on a live cutscene could not be told apart from a report
+# that exitview never arrived.
+#
+# It arrives. entitylist prints ET_PLAYER, which nothing else in this engine
+# prints, and exitview is claimed silently rather than coming back as unknown.
+#
+# What that settles, measured both ways with the same binary and the same file:
+# run the cfg BEFORE the map and both commands come back Unknown command,
+# because Cmd_ExecuteString falls through to CL_ForwardCommandToServer and
+# sv.state is not SS_GAME yet. Run it after and they work. The wire was never
+# the problem; the ordering was, and now something asserts the wire so the next
+# report about a game command can be about the command.
+stage_smokegamecmd() {
+    JKX_SMOKE_GAMECMD=1 \
+    JKX_SMOKE_DISPLAY="${JKX_SMOKE_GAMECMD_DISPLAY:-:73}" \
         bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
 }
 

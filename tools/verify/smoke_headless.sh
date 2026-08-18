@@ -447,6 +447,43 @@ if [ "${JKX_SMOKE_MSAA:-0}" = "1" ]; then
     INMAP_STEP+=( +exec jkx_msaa.cfg +wait 70 )
 fi
 
+# Does a console command reach the GAME at all?
+#
+# This is not a question about a feature, it is a question about a wire, and it
+# has been open since a report that neither exitview nor use did anything on a
+# live cutscene - with cheats on, in_camera true and no "Unknown command" in the
+# log either. Three possible answers and no way to tell them apart: the command
+# never got to ConsoleCommand(), or it got there and the handler declined, or it
+# ran and did nothing visible.
+#
+# Nothing on this bench could say which. Every command the harness sends is
+# either a cvar or a command the ENGINE registers - map, screenshot_tga, wait,
+# imagelist - and all of those are found by Cmd_ExecuteString before it ever
+# reaches the game. The game's own table has never been consulted here once.
+#
+# entitylist is the probe: it is in the game's svcmds table, it is CMD_NONE so
+# no cheat gates it, and it prints a line per live entity with a type name in
+# it. If ET_PLAYER comes back, the wire is good and the cutscene problem is
+# somewhere else entirely. If it does not, the wire is the problem, and every
+# other command in that table is unreachable too.
+#
+# exitview goes in the same file, after it, because it is the command that
+# started this and it is also CMD_NONE. It does nothing outside a cinematic -
+# no cinematic here - so it cannot be checked by its effect. What it CAN do is
+# say "Unknown command", and the absence of that is worth asserting on its own:
+# a command that is not unknown is a command the game claimed.
+if [ "${JKX_SMOKE_GAMECMD:-0}" = "1" ]; then
+    {
+        echo "wait 5"
+        echo "entitylist"
+        echo "wait 10"
+        echo "exitview"
+        echo "wait 10"
+    } > "$RUN/base/jkx_gamecmd.cfg"
+
+    INMAP_STEP+=( +exec jkx_gamecmd.cfg +wait 40 )
+fi
+
 
 # The map's own furniture, photographed twice: as early as a frame can be had,
 # and again once everything has settled.
@@ -1770,6 +1807,15 @@ if [ "${JKX_SMOKE_MSAA:-0}" = "1" ]; then
     require 'Wrote screenshots/jkx_msaa_off.tga'
     require 'Wrote screenshots/jkx_msaa_on.tga'
     msaa_checks
+fi
+
+if [ "${JKX_SMOKE_GAMECMD:-0}" = "1" ]; then
+    # The wire, in one string. ET_PLAYER is printed by the game's own
+    # entitylist and by nothing else in this engine.
+    require 'ET_PLAYER'
+
+    forbid 'Unknown command "entitylist"'
+    forbid 'Unknown command "exitview"'
 fi
 
 if [ "${JKX_SMOKE_RESIZE:-0}" = "1" ]; then

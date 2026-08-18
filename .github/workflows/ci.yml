@@ -483,6 +483,17 @@ jobs:
           JKX_SMOKE_TIMEOUT: '900'
         run: bash tools/verify/smoke_headless.sh build
 
+      # A console command that reaches the game rather than the engine. Every
+      # command this harness sends is a cvar or something the engine registers,
+      # so the branch ending in ge->ConsoleCommand() had never run here - and a
+      # report that a game command did nothing could not be told apart from one
+      # that it never arrived.
+      - name: A console command reaching the game
+        env:
+          JKX_SMOKE_GAMECMD: '1'
+          JKX_SMOKE_DISPLAY: ':95'
+        run: bash tools/verify/smoke_headless.sh build
+
       # A model the map owns. Everything else this bench draws is put on
       # screen by the console or is the player; a map's prop gets its model
       # through G_ModelIndex, which is a configstring index, and cgame turns
