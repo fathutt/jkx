@@ -632,10 +632,35 @@ qboolean ShaderRequiresCPUDeforms( const shader_t *shader ) {
 			deformStage_t *ds = tess.shader->deforms[ 0 ];
 
 			switch ( ds->deformation ) {
+				case DEFORM_BULGE:
+					// Bulge is the one deform that reads a texture coordinate:
+					// its phase is st.x, which is what makes the wave travel
+					// across the surface rather than lift all of it at once.
+					//
+					// An environment-mapped stage has no incoming texture
+					// coordinate to read. TYPE_SINGLE_TEXTURE_ENV and its
+					// relatives do not bind the st0 attribute at all - see
+					// vk_push_vertex_input_binding_attribute, where the two
+					// lines that would are commented out - because the
+					// coordinate is computed from the reflection vector in the
+					// vertex shader. So the GLSL cannot even declare
+					// in_tex_coord0 there, let alone read it.
+					//
+					// The CPU path can: RB_DeformTessGeometry runs before
+					// texture coordinates are generated, so tess.texCoords[0]
+					// still holds the coordinate the vertex arrived with, which
+					// is exactly what the deform wants. Send this combination
+					// there rather than letting the vertex shader bulge every
+					// vertex by the same amount and call it done.
+					if ( shader->numUnfoggedPasses > 0 &&
+						shader->stages[0]->bundle[0].tcGen == TCGEN_ENVIRONMENT_MAPPED ) {
+						return qtrue;
+					}
+					return qfalse;
+
 				case DEFORM_NONE:
 				case DEFORM_NORMALS:
 				case DEFORM_WAVE:
-				case DEFORM_BULGE:
 				case DEFORM_MOVE:
 				case DEFORM_PROJECTION_SHADOW:
 					return qfalse;

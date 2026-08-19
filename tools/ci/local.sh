@@ -1169,7 +1169,9 @@ stage_smoketransparency() {
 # can be in the stage list at all: the three that work are guarded and the one
 # that does not is printed every run.
 #
-# It is LOCATED, and by four probes in the shader rather than by reasoning - the
+# CLOSED, and the last step of the diagnosis was the interesting one.
+#
+# It was located by four probes in the shader rather than by reasoning - the
 # reasoning was wrong twice before the probes:
 #
 #   return pos                                     drawn, 2016 px
@@ -1177,21 +1179,39 @@ stage_smoketransparency() {
 #   return pos + normal * scale(.., 0.0, ..) * 4   drawn AND animating, 392
 #   return pos + normal * st.x * 4.0               NOT DRAWN
 #
-# So it is in_tex_coord0 in the VERTEX shader on this path, and it is not a
-# value but a poison: the arithmetic comes out non-finite and the triangle is
-# discarded. The bulge case is the only one of the five deforms that touches st,
-# which is why it alone fails.
+# Which said: st is not a value, it is a poison. The arithmetic comes out
+# non-finite and the triangle is discarded. Bulge is the only one of the five
+# deforms that touches st, which is why it alone failed.
+#
+# And then the note here said "the attribute is bound, so it is the data that is
+# wrong, look at the vertex input state" - and that was one step short, because
+# THE ARGUMENT BEING PASSED WAS NEVER THE ATTRIBUTE. gen_vert.tmpl called
+# DeformPosition( position, normal, frag_tex_coord0 ), and frag_tex_coord0 is
+# this shader's OUTPUT varying; the first assignment to it is a hundred lines
+# further down. Reading an unwritten out variable is undefined in GLSL and
+# behaves exactly like a poisoned attribute would.
+#
+# The tell was sitting in the next file along: refraction.tmpl makes the same
+# call with in_tex_coord0. The same value handled two ways in two files is an
+# argument on its own, and it points at whichever one disagrees with the CPU
+# path - RB_CalcBulgeVertexes reads tess.texCoords[0], the coordinate as it
+# arrived. One token, twice.
 #
 # Setting the height or the width to zero in the fixture did not narrow it down
 # and cost two runs. The reason is worth keeping: NAN TIMES ZERO IS NAN. A
 # literal 0.0 in the shader removes the term; a zero uniform multiplied by a
-# poisoned attribute does not. A deliberate zero is only a control if it removes
-# the operand rather than scaling it.
+# poisoned value does not. A deliberate zero is only a control if it removes the
+# operand rather than scaling it.
 #
-# Next: the deform branch is the only place gen_vert reads in_tex_coord0 under
-# USE_VBO_MDV, so the vertex input state of THAT permutation is where to look.
-# The validation layer says nothing, so the attribute is bound - it is the data
-# that is wrong.
+# The bulge check is gated now: 0 pixels and spread 0 before, 504 after, and
+# putting frag_tex_coord0 back turns it red on the first frame.
+#
+# One combination still goes to the CPU rather than the vertex shader, and it is
+# not a workaround: an environment-mapped stage has no incoming texture
+# coordinate at all - the pipeline does not bind st0 for those types - so there
+# is nothing for the phase to be. RB_DeformTessGeometry runs before texture
+# coordinates are generated and can read the one the vertex arrived with.
+# ShaderRequiresCPUDeforms sends bulge-on-env there.
 # The physical map, written six ways.
 #
 # A physically-based material carries roughness, metalness and occlusion, and

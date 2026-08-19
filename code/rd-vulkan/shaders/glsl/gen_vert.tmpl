@@ -135,6 +135,25 @@ out gl_PerVertex {
 	vec4 gl_Position;
 };
 
+// What the deform reads for its phase, and why it is not always an attribute.
+//
+// An environment-mapped stage does not HAVE an incoming texture coordinate: the
+// pipeline does not bind st0 for those types at all (the two lines that would
+// are commented out in vk_push_vertex_input_binding_attribute) because the
+// coordinate is computed from the reflection vector further down. So there is
+// nothing to declare and nothing to pass.
+//
+// Zero here is unreachable rather than wrong: ShaderRequiresCPUDeforms sends a
+// bulge on an environment-mapped stage down the CPU path, where tess.texCoords
+// still holds the coordinate the vertex arrived with. It is written out anyway
+// so that a future permutation that reaches this line bulges uniformly instead
+// of failing to compile - and so that the reason is here to read.
+#ifdef USE_ENV
+	#define DEFORM_ST vec2( 0.0 )
+#else
+	#define DEFORM_ST in_tex_coord0
+#endif
+
 #define SHADER_VERT
 #include "common/utils.glsl"
 #include "common/deform.glsl"
@@ -150,8 +169,25 @@ void main() {
 		vec3 tangent = normalize(in_tangent.xyz);
 	#endif
 
+	// in_tex_coord0, NOT frag_tex_coord0. The second is this shader's OUTPUT
+	// varying and it has not been written yet at this point - the first
+	// assignment to it is a hundred lines below - so what was being handed to
+	// the deform was whatever the register happened to hold. Reading an unwritten
+	// out variable is undefined in GLSL and behaves like it.
+	//
+	// Only DEFORM_BULGE ever looked at the third argument, which is why only
+	// bulge was broken and why it was broken so completely: st.x scales the
+	// phase, so the displacement was an arbitrary number and the square left the
+	// frame entirely. "deformVertexes bulge does nothing" was the report; it was
+	// doing something, somewhere else.
+	//
+	// refraction.tmpl has the same call written correctly, which is the tell:
+	// the same value handled two ways in two files is an argument on its own,
+	// and it points at the one that disagrees with the CPU path. That path -
+	// RB_CalcBulgeVertexes - reads tess.texCoords[0], the coordinate as it
+	// arrived, before tcGen and tcMod. in_tex_coord0 is that coordinate.
 	if ( u_global.deform.type != 0 ){ // !DEFORM_NONE
-		position	= DeformPosition( position, normal, frag_tex_coord0 );
+		position	= DeformPosition( position, normal, DEFORM_ST );
 		normal		= DeformNormal( position, normal );
 	}
 #elif defined(USE_VBO_GHOUL2)
@@ -168,8 +204,10 @@ void main() {
 		vec3 tangent = normalize(skin_matrix * vec4(in_tangent.xyz, 0.0));	
 	#endif
 
+	// The same substitution as above, and the same reason. Two call sites, one
+	// mistake, copied.
 	if ( u_global.deform.type != 0 ){ // !DEFORM_NONE
-		position	= DeformPosition( position, normal, frag_tex_coord0 );
+		position	= DeformPosition( position, normal, DEFORM_ST );
 		normal		= DeformNormal( position, normal );
 	}
 #else

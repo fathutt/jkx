@@ -2245,11 +2245,21 @@ nothing here was checked"
 the colour and jkx_smoke.shader says which keyword owns it"
     fi
 
-    # Reported and not gated, because it is the open defect rather than a
-    # regression to guard: on the vertex-buffer path the bulge square is not
-    # drawn at all. See stage_smokedeform in tools/ci/local.sh.
-    python3 "$HERE/tga_colour_change.py" "$first" "$later" "$later2" \
-        --differ 0,204,102:20 || true
+    # Gated now. It was reported and not gated for as long as the bulge square
+    # was not drawn at all on the vertex-buffer path, which is what "spread 0"
+    # in the table at ShaderRequiresCPUDeforms means. It is 504.
+    #
+    # The cause was one token: gen_vert.tmpl handed DeformPosition
+    # frag_tex_coord0, this shader's OUTPUT varying, a hundred lines before
+    # anything wrote to it. Only bulge reads that argument, so only bulge was
+    # affected, and it was affected completely - st.x scales the phase, so the
+    # displacement was whatever the register held and the square left the frame.
+    if ! python3 "$HERE/tga_colour_change.py" "$first" "$later" "$later2" \
+            --differ 0,204,102:20; then
+        report "deformVertexes bulge did not move the square it owns; the phase \
+comes from the vertex's own texture coordinate, so a bulge that does nothing \
+means the vertex shader is not being given one"
+    fi
 fi
 
 # The physical map, written six ways, read off the roughness debug view.
