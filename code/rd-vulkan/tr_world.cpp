@@ -1400,10 +1400,20 @@ qboolean R_inPVS( const vec3_t p1, const vec3_t p2, byte *mask ) {
 	// here said before overwriting it.
 	(void)mask;
 
+	// A point inside a solid leaf has cluster -1, and -1 >> 3 is -1 in C: the
+	// row would be read one byte BEFORE its start. Both points need the guard,
+	// not just one - the answer is supposed to be the same whichever way round
+	// the caller passes them, and a one-sided check breaks that as well.
 	leaf = R_PointInLeaf( p1 );
+	if ( leaf->cluster < 0 )
+		return qfalse;
+
 	mask = CM_ClusterPVS( leaf->cluster );
 
 	leaf = R_PointInLeaf( p2 );
+	if ( leaf->cluster < 0 )
+		return qfalse;
+
 	if ( mask && !( mask[leaf->cluster >> 3] & ( 1 << ( leaf->cluster & 7 ) ) ) )
 		return qfalse;
 
@@ -1516,8 +1526,13 @@ void R_AddWorldSurfaces ( viewParms_t *viewParms, trRefdef_t *refdef ) {
 	ClearBounds( tr.viewParms.visBounds[0], tr.viewParms.visBounds[1] );
 
 	// perform frustum culling and add all the potentially visible surfaces
-	if ( tr.refdef.num_dlights > 32 ) {
-		tr.refdef.num_dlights = 32 ;
+	// The name, not the number. These two lines used to read 32, which is what
+	// MAX_DLIGHTS happens to be today - so the clamp is correct right now and
+	// would silently stay at 32 after the constant is raised. That is the
+	// failure mode backlog section 4 is aimed at: "we raised it and nothing
+	// changed". Quake3e spells the name in both places; so do we.
+	if ( tr.refdef.num_dlights > MAX_DLIGHTS ) {
+		tr.refdef.num_dlights = MAX_DLIGHTS;
 	}
 
 	R_RecursiveWorldNode( tr.world->nodes, 15 );

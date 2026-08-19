@@ -1708,6 +1708,23 @@ void R_RenderView( const viewParms_t *parms ) {
 	if ( parms->viewportWidth <= 0 || parms->viewportHeight <= 0 )
 		return;
 
+	// Light one lightmap style white and every other one black, so it is
+	// obvious what that style covers. Lightstyles are alive in these games and
+	// there was no way to look at one on its own.
+	if ( r_debugStyle->integer >= 0 && r_debugStyle->integer < MAX_LIGHT_STYLES ) {
+		color4ub_t			white = { 0xff, 0xff, 0xff, 0xff };
+		color4ub_t			black = { 0x00, 0x00, 0x00, 0xff };
+		byteAlias_t			*ba;
+		int					i;
+
+		ba = (byteAlias_t *)&black;
+		for ( i = 0; i < MAX_LIGHT_STYLES; i++ ) {
+			RE_SetLightStyle( i, ba->i );
+		}
+		ba = (byteAlias_t *)&white;
+		RE_SetLightStyle( r_debugStyle->integer, ba->i );
+	}
+
 	tr.viewCount++;
 
 	tr.viewParms = *parms;

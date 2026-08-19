@@ -2374,6 +2374,17 @@ static void ParseSkyParms( const char **text ) {
 	if (shader.noTC) {
 		imgFlags |= IMGFLAG_NO_COMPRESSION;
 	}
+	// The seam along the join between two skybox faces is what mipping does at
+	// a texture edge: the filter reaches for texels past the edge of the face,
+	// and there are none. Dropping mip and picmip on the sky only is the fix
+	// upstream ships; open item 5 (the seam on one plane in Jedi Outcast) is
+	// the thing to look at with this on.
+	if ( r_neatsky->integer ) {
+		// clear the two, rather than assigning IMGFLAG_NONE the way upstream
+		// does: that would also drop IMGFLAG_NO_COMPRESSION and put block
+		// artifacts back on a sky that asked not to be compressed.
+		imgFlags &= ~( IMGFLAG_MIPMAP | IMGFLAG_PICMIP );
+	}
 
 	shader.sky = (skyParms_t*)R_Hunk_Alloc(sizeof(skyParms_t), h_low);
 
@@ -2952,6 +2963,10 @@ static qboolean ParseShader( const char **text )
 		else if (!Q_stricmp(token, "skyparms"))
 		{
 			ParseSkyParms(text);
+			// Unconditional here, where upstream gates both on r_neatsky. That
+			// is deliberate and we are ahead of it: this covers the material,
+			// r_neatsky covers the six face images inside ParseSkyParms, and
+			// the two are separate flags on separate objects.
 			shader.noPicMip = 1;
 			shader.noMipMaps = 1;
 			continue;
@@ -3564,6 +3579,11 @@ shader_t *R_FindShader( const char *name, const int *lightmapIndexes, const byte
 	shaderText = FindShaderInShaderText(strippedName);
 	
 	if (shaderText) {
+		// The list of everything the material files actually define, which is
+		// otherwise only obtainable by reading every .shader by hand.
+		if ( r_printShaders->integer ) {
+			CL_RefPrintf( PRINT_ALL, "*SHADER* %s\n", name );
+		}
 		//vk_debug("shader [%s] pre load\n", strippedName);
 
 		if (!ParseShader(&shaderText)) {

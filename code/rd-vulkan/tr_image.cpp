@@ -243,7 +243,13 @@ void R_InitFogTable( void ) {
 	exp = 0.5;
 
 	for ( i = 0 ; i < FOG_TABLE_SIZE ; i++ ) {
-		d = pow ( (float)i/(FOG_TABLE_SIZE-1), exp );
+		// powf, not pow. Measured, not assumed: this file is C++, so pow(float,
+		// float) already resolves to the float overload - the object code is
+		// byte-identical and both spellings emit a call to powf. Upstream writes
+		// powf; matching it means the reader does not have to know that rule.
+		// Not the same case as section 40.1, where the file moved from C to C++
+		// and the resolution really did change under an unchanged source line.
+		d = powf( (float)i/(FOG_TABLE_SIZE-1), exp );
 
 		tr.fogTable[i] = d;
 	}

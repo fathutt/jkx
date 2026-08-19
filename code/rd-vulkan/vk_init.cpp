@@ -734,9 +734,11 @@ void vk_initialize( void )
 	// copyable at all, and that is fixed when the attachment is created.
 	vk.softParticlesActive = r_softParticles->integer ? qtrue : qfalse;
 
-	vk.vboWorldActive = qtrue;
-	vk.vboGhoul2Active = qtrue;
-	vk.vboMdvActive = qtrue; 
+	// Latched, and one cvar for all three: they are the same lever, and a
+	// bisect that has to remember which of three names to try is a worse lever.
+	vk.vboWorldActive = r_vbo->integer ? qtrue : qfalse;
+	vk.vboGhoul2Active = vk.vboWorldActive;
+	vk.vboMdvActive = vk.vboWorldActive;
 	
 	if ( r_normalMapping->integer )
 		vk.normalMappingActive = qtrue;

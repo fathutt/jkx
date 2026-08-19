@@ -143,6 +143,10 @@ cvar_t	*r_singleShader;
 cvar_t	*r_colorMipLevels;
 cvar_t	*r_picmip;
 cvar_t	*r_showtris;
+cvar_t	*r_neatsky;
+cvar_t	*r_printShaders;
+cvar_t	*r_debugStyle;
+cvar_t	*r_vbo;
 cvar_t	*r_showsky;
 cvar_t	*r_dissolveType;
 cvar_t	*r_dissolveFreeze;
@@ -303,6 +307,7 @@ cvar_t	*r_uiScale=0;
 cvar_t	*r_Ghoul2UnSqash=0;
 cvar_t	*r_Ghoul2NoLerp=0;
 cvar_t	*r_Ghoul2NoBlend=0;
+cvar_t	*r_Ghoul2TimeBase=0;
 cvar_t	*r_Ghoul2BlendMultiplier=0;
 
 cvar_t	*broadsword=0;
@@ -907,6 +912,42 @@ static const size_t numCommands = ARRAY_LEN( commands );
 
 /*
 ===============
+R_AdoptLegacyCvar
+
+Carry a value written under an old cvar name over to the one we register now.
+
+Renaming a cvar to match the rest of the family is only half the job: whatever
+is already in the user's config keeps the old name, and without this the
+setting would quietly stop working - the same defect in different clothes as
+the one the rename is fixing. Read once at startup, and only when the new name
+is still at its default, so an explicit new setting always wins.
+===============
+*/
+static void R_AdoptLegacyCvar( const char *oldName, cvar_t *current )
+{
+	const char *legacy;
+
+	if ( current == NULL )
+		return;
+
+	legacy = Cvar_VariableString( oldName );
+	if ( legacy == NULL || legacy[0] == '\0' )
+		return;
+
+	if ( strcmp( legacy, current->resetString ) == 0 )
+		return;	// old name is at its default too, nothing to carry
+
+	if ( strcmp( current->string, current->resetString ) != 0 )
+		return;	// new name was set explicitly, leave it alone
+
+	CL_RefPrintf( PRINT_ALL, "%s has been renamed to %s, carrying the value over\n",
+		oldName, current->name );
+
+	Cvar_Set( current->name, legacy );
+}
+
+/*
+===============
 R_Register
 ===============
 */
@@ -918,7 +959,28 @@ void R_Register( void )
 	// latched and archived variables
 	//
 	r_allowExtensions					= Cvar_Get( "r_allowExtensions",					"1",						CVAR_ARCHIVE_ND|CVAR_LATCH, "" );
-	r_ext_compressed_textures			= Cvar_Get( "r_ext_compress_textures",			"0",						CVAR_ARCHIVE_ND, "" );
+	r_neatsky							= Cvar_Get( "r_neatsky",							"0",						CVAR_ARCHIVE_ND|CVAR_LATCH,
+											"no mipmapping and no picmip on the sky, which is where the seam between skybox faces comes from" );
+
+	// A lever, not a feature. When a defect shows up on a machine we do not
+	// have, "turn this off and try again" halves the search space in one line -
+	// and vk_init.cpp had this nailed to qtrue, so there was nothing to turn
+	// off. Upstream keeps it as a cvar.
+	//
+	// r_fbo, which Quake3e also exposes, is deliberately NOT here: the only
+	// branch that would render straight to the swapchain lives inside an
+	// "#if 0" in vk_frame.cpp, so the knob would accept a value and not do what
+	// its name says. A dead knob is worse than an absent one.
+	r_vbo								= Cvar_Get( "r_vbo",								"1",						CVAR_ARCHIVE_ND|CVAR_LATCH,
+											"keep world, Ghoul2 and mdv geometry in vertex buffers" );
+	// The rest of the Quake 3 family spells this "r_ext_compressed_textures".
+	// Ours was one letter short, so a config written for any other engine of the
+	// family did nothing here and said nothing about it - and check_cvars.py
+	// cannot catch it, because it looks for two SPELLINGS of one name and these
+	// are two different names. Old spelling still read once at startup, the same
+	// way g_saberMoreRealistic was handled in section 6.
+	r_ext_compressed_textures			= Cvar_Get( "r_ext_compressed_textures",			"0",						CVAR_ARCHIVE_ND, "" );
+	R_AdoptLegacyCvar( "r_ext_compress_textures", r_ext_compressed_textures );
 	r_ext_compressed_lightmaps			= Cvar_Get( "r_ext_compress_lightmaps",			"0",						CVAR_ARCHIVE_ND|CVAR_LATCH, "" );
 	r_ext_preferred_tc_method			= Cvar_Get( "r_ext_preferred_tc_method",			"0",						CVAR_ARCHIVE_ND|CVAR_LATCH, "" );
 	r_ext_gamma_control					= Cvar_Get( "r_ext_gamma_control",				"1",						CVAR_ARCHIVE_ND|CVAR_LATCH, "" );
@@ -1157,9 +1219,15 @@ void R_Register( void )
 	r_weldModelNormalsAngle				= Cvar_Get( "r_weldModelNormalsAngle",			"120",						CVAR_ARCHIVE|CVAR_LATCH, "the widest angle between two coincident normals that is still a smooth join" );
 	r_shownormals						= Cvar_Get( "r_shownormals",						"0",						CVAR_CHEAT, "" );
 	r_clear								= Cvar_Get( "r_clear",							"0",						CVAR_CHEAT, "" );
-	r_offsetFactor						= Cvar_Get( "r_offsetfactor",					"-1",						CVAR_CHEAT, "" );
-	r_offsetUnits						= Cvar_Get( "r_offsetunits",						"-2",						CVAR_CHEAT, "" );
+	r_offsetFactor						= Cvar_Get( "r_offsetFactor",					"-1",						CVAR_CHEAT, "" );
+	R_AdoptLegacyCvar( "r_offsetfactor", r_offsetFactor );
+	r_offsetUnits						= Cvar_Get( "r_offsetUnits",						"-2",						CVAR_CHEAT, "" );
+	R_AdoptLegacyCvar( "r_offsetunits", r_offsetUnits );
 	r_lockpvs							= Cvar_Get( "r_lockpvs",							"0",						CVAR_CHEAT, "" );
+	r_debugStyle						= Cvar_Get( "r_debugStyle",						"-1",						CVAR_CHEAT,
+											"light one lightmap style white and every other one black, to see what it covers" );
+	r_printShaders						= Cvar_Get( "r_printShaders",					"0",						CVAR_NONE,
+											"print the name of every explicitly defined material as it is found" );
 	r_noportals							= Cvar_Get( "r_noportals",						"0",						CVAR_NONE, "" );
 	r_shadows							= Cvar_Get( "cg_shadows",						"1",						CVAR_NONE, "" );
 	r_shadowRange						= Cvar_Get( "r_shadowRange",						"1000",						CVAR_NONE, "" );
@@ -1333,6 +1401,13 @@ Ghoul2 Insert Start
 											"Never interpolate between animation frames" );
 	r_Ghoul2NoBlend						= Cvar_Get( "r_ghoul2noblend",					"0",						CVAR_NONE,
 											"Never blend between animations" );
+	// The last of the five Ghoul2 knobs, and the one that lets section 3 ask
+	// "is the jitter in the animation or in the clock feeding it" without a code
+	// change. Default 2 is exactly what this renderer did before the cvar
+	// existed, so nothing moves until somebody turns it.
+	r_Ghoul2TimeBase					= Cvar_Get( "r_ghoul2timebase",					"2",						CVAR_NONE,
+											"which clock drives Ghoul2 animation: 0 the time the caller passed in, "
+											"1 the client clock only, 2 the client clock falling back to the server one" );
 	r_Ghoul2BlendMultiplier				= Cvar_Get( "r_ghoul2blendmultiplier",			"1",						CVAR_NONE,
 											"Scale every animation blend time. 0 disables blending" );
 	broadsword							= Cvar_Get( "broadsword",						"0",						CVAR_ARCHIVE_ND, "" );

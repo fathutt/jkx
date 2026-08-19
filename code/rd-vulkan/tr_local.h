@@ -2128,6 +2128,12 @@ extern cvar_t	*r_displayRefresh;		// optional display refresh option
 extern cvar_t	*r_ignorehwgamma;		// overrides hardware gamma capabilities
 
 extern cvar_t	*r_allowExtensions;				// global enable/disable of OpenGL extensions
+void		RE_SetLightStyle( int style, int color );
+
+extern cvar_t	*r_neatsky;						// no mip and no picmip on skybox faces
+extern cvar_t	*r_printShaders;				// dump every explicit shader as it is found
+extern cvar_t	*r_debugStyle;					// light all but one lightmap style black
+extern cvar_t	*r_vbo;							// world, ghoul2 and mdv geometry in vertex buffers
 extern cvar_t	*r_ext_compressed_textures;		// these control use of specific extensions
 extern cvar_t	*r_ext_compressed_lightmaps;	// turns on compression of lightmaps, off by default
 extern cvar_t	*r_ext_preferred_tc_method;
@@ -2513,8 +2519,8 @@ void RB_CheckOverflow( int verts, int indexes );
 void RB_StageIteratorGeneric( void );
 void RB_StageIteratorSky( void );
 
-void RB_AddQuadStamp( vec3_t origin, vec3_t left, vec3_t up, color4ub_t color );
-void RB_AddQuadStampExt( vec3_t origin, vec3_t left, vec3_t up, color4ub_t color, float s1, float t1, float s2, float t2 );
+void RB_AddQuadStamp( const vec3_t origin, const vec3_t left, const vec3_t up, color4ub_t color );
+void RB_AddQuadStampExt( const vec3_t origin, const vec3_t left, const vec3_t up, color4ub_t color, float s1, float t1, float s2, float t2 );
 void RB_AddQuadStamp2( float x, float y, float w, float h, float s1, float t1, float s2, float t2, color4ub_t color );
 
 /*

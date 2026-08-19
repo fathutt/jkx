@@ -46,25 +46,27 @@ qhandle_t R_RegisterMD3(const char *name, model_t *mod)
 	unsigned	*buf;
 	int			lod;
 	int			ident;
-	qboolean	loaded = qfalse;
-	int			numLoaded;
+	qboolean	loaded;
 	char filename[MAX_QPATH], namebuf[MAX_QPATH+20];
-	char *fext, defex[] = "md3";
+	const char *fext;
 
-	numLoaded = 0;
+	// strchr finds the FIRST dot in the whole path, so any directory with a dot
+	// in its name took the extension apart in the wrong place and the model
+	// stopped loading. COM_GetExtension looks at the last path component only.
+	fext = COM_GetExtension( name );
+	if ( !fext[0] )
+		fext = "md3";
+	COM_StripExtension( name, filename, sizeof( filename ) );
 
-	strcpy(filename, name);
-
-	fext = strchr(filename, '.');
-	if(!fext)
-		fext = defex;
-	else
-	{
-		*fext = '\0';
-		fext++;
-	}
-
-	for (lod = MD3_MAX_LODS - 1 ; lod >= 0 ; lod--)
+	// LODs are registered from most detailed to least, and the slot a file
+	// lands in is mod->numLods, not the number in its filename. This is what
+	// makes a missing or broken file harmless: the loop stops, and every slot
+	// below numLods holds something real. The old loop counted DOWN, stopped at
+	// the first failure and then "filled the gaps with duplicates" - copying
+	// mod->data.mdv[lod + 1], which is exactly the entry that had just failed
+	// to load. R_ComputeLOD already clamps to numLods - 1, so nothing below
+	// needs the duplicates.
+	for ( lod = 0 ; lod < MD3_MAX_LODS ; lod++ )
 	{
 		if(lod)
 			Com_sprintf(namebuf, sizeof(namebuf), "%s_%d.%s", filename, lod, fext);
@@ -82,7 +84,7 @@ qhandle_t R_RegisterMD3(const char *name, model_t *mod)
 		switch(ident)
 		{
 			case MD3_IDENT:
-				loaded = R_LoadMD3(mod, lod, buf, namebuf);
+				loaded = R_LoadMD3(mod, mod->numLods, buf, namebuf);
 				break;
 			case MDXA_IDENT:
 				loaded = R_LoadMDXA(mod, buf, namebuf, bAlreadyCached);
@@ -92,30 +94,24 @@ qhandle_t R_RegisterMD3(const char *name, model_t *mod)
 				break;
 			default:
 				CL_RefPrintf(PRINT_WARNING, "R_RegisterMD3: unknown ident for %s\n", name);
+				loaded = qfalse;
 				break;
 		}
 
 		if(loaded)
 		{
 			mod->numLods++;
-			numLoaded++;
 		}
 		else
-			break;
-	}
-
-	if(numLoaded)
-	{
-		// duplicate into higher lod spots that weren't
-		// loaded, in case the user changes r_lodbias on the fly
-		for(lod--; lod >= 0; lod--)
 		{
-			mod->numLods++;
-			mod->data.mdv[lod] = mod->data.mdv[lod + 1];
+			if ( mod->numLods < MD3_MAX_LODS )
+				mod->data.mdv[mod->numLods] = NULL;
+			break;
 		}
-
-		return mod->index;
 	}
+
+	if ( mod->numLods )
+		return mod->index;
 
 #ifdef _DEBUG
 	CL_RefPrintf(PRINT_WARNING,"R_RegisterMD3: couldn't load %s\n", name);
@@ -620,25 +616,20 @@ qhandle_t R_RegisterMDX_Server(const char *name, model_t *mod)
 	unsigned	*buf;
 	int			lod;
 	int			ident;
-	qboolean	loaded = qfalse;
-	int			numLoaded;
+	qboolean	loaded;
 	char filename[MAX_QPATH], namebuf[MAX_QPATH+20];
-	char *fext, defex[] = "md3";
+	const char *fext;
 
-	numLoaded = 0;
+	// Same two defects as R_RegisterMD3 above, in a second copy of the same
+	// loop - see the comments there. This one only ever sees MDXA and MDXM,
+	// which carry no LOD files of their own, but it took the path apart with
+	// strchr and filled gaps from an entry that had just failed all the same.
+	fext = COM_GetExtension( name );
+	if ( !fext[0] )
+		fext = "md3";
+	COM_StripExtension( name, filename, sizeof( filename ) );
 
-	strcpy(filename, name);
-
-	fext = strchr(filename, '.');
-	if(!fext)
-		fext = defex;
-	else
-	{
-		*fext = '\0';
-		fext++;
-	}
-
-	for (lod = MD3_MAX_LODS - 1 ; lod >= 0 ; lod--)
+	for ( lod = 0 ; lod < MD3_MAX_LODS ; lod++ )
 	{
 		if(lod)
 			Com_sprintf(namebuf, sizeof(namebuf), "%s_%d.%s", filename, lod, fext);
@@ -663,30 +654,24 @@ qhandle_t R_RegisterMDX_Server(const char *name, model_t *mod)
 				break;
 			default:
 				//CL_RefPrintf(PRINT_WARNING, "R_RegisterMDX_Server: unknown ident for %s\n", name);
+				loaded = qfalse;
 				break;
 		}
 
 		if(loaded)
 		{
 			mod->numLods++;
-			numLoaded++;
 		}
 		else
-			break;
-	}
-
-	if(numLoaded)
-	{
-		// duplicate into higher lod spots that weren't
-		// loaded, in case the user changes r_lodbias on the fly
-		for(lod--; lod >= 0; lod--)
 		{
-			mod->numLods++;
-			mod->data.mdv[lod] = mod->data.mdv[lod + 1];
+			if ( mod->numLods < MD3_MAX_LODS )
+				mod->data.mdv[mod->numLods] = NULL;
+			break;
 		}
-
-		return mod->index;
 	}
+
+	if ( mod->numLods )
+		return mod->index;
 
 /*#ifdef _DEBUG
 	CL_RefPrintf(PRINT_WARNING,"R_RegisterMDX_Server: couldn't load %s\n", name);

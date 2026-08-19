@@ -161,6 +161,8 @@ qboolean G2_TestModelPointers(CGhoul2Info *ghlInfo);
 #define NUM_G2T_TIME (2)
 static int G2TimeBases[NUM_G2T_TIME];
 
+extern cvar_t	*r_Ghoul2TimeBase;
+
 void G2API_SetTime(int currentTime,int clock)
 {
 	assert(clock>=0&&clock<NUM_G2T_TIME);
@@ -178,12 +180,33 @@ void G2API_SetTime(int currentTime,int clock)
 #endif
 }
 
-int	G2API_GetTime(int argTime) // this may or may not return arg depending on ghoul2_time cvar
+// Which clock drives animation. The comment below used to promise that the
+// argument "may or may not" be used depending on a cvar, and there was no such
+// cvar in this tree: the argument was ignored unconditionally, in both games,
+// on every call. rd-vanilla registers r_ghoul2timebase and then never reads it
+// either, so the knob was dead upstream as well - and a knob that does nothing
+// is worse than an absent one, because it accepts a value and answers nothing.
+//
+// Now it selects, and 2 - the default - is what this code already did.
+int	G2API_GetTime(int argTime)
 {
-	int ret=G2TimeBases[1];
-	if ( !ret )
+	int ret;
+
+	switch ( r_Ghoul2TimeBase ? r_Ghoul2TimeBase->integer : 2 )
 	{
-		ret = G2TimeBases[0];
+	case 0:
+		ret = argTime;			// the clock the caller actually passed in
+		break;
+	case 1:
+		ret = G2TimeBases[1];	// client clock only, even when it is zero
+		break;
+	default:
+		ret = G2TimeBases[1];
+		if ( !ret )
+		{
+			ret = G2TimeBases[0];
+		}
+		break;
 	}
 
 	return ret;

@@ -859,7 +859,11 @@ static	void R_LoadVisibility( const lump_t *l, world_t &worldData ) {
 	int		len;
 	byte	*buf;
 
-	len = ( worldData.numClusters + 63 ) & ~63;
+	// novis is a PVS row: one BIT per cluster, indexed as mask[c >> 3]. The
+	// rounding to 64 is in bits, so the byte count is that divided by eight -
+	// without the shift this allocates and fills eight times what any consumer
+	// reads. Not a leak, just waste on every map. Same fix as Quake3e 53e8f6d5.
+	len = ( ( worldData.numClusters + 63 ) & ~63 ) >> 3;
 	worldData.novis = (unsigned char *)R_Hunk_Alloc( len, h_low );
 	memset( worldData.novis, 0xff, len );
 
@@ -1404,7 +1408,7 @@ R_MergedWidthPoints
 returns true if there are grid points merged on a width edge
 =================
 */
-static int R_MergedWidthPoints( const srfGridMesh_t *grid, int offset ) {
+static qboolean R_MergedWidthPoints( const srfGridMesh_t *grid, int offset ) {
 	int i, j;
 
 	for (i = 1; i < grid->width-1; i++) {
@@ -1425,7 +1429,7 @@ R_MergedHeightPoints
 returns true if there are grid points merged on a height edge
 =================
 */
-static int R_MergedHeightPoints( const srfGridMesh_t *grid, int offset ) {
+static qboolean R_MergedHeightPoints( const srfGridMesh_t *grid, int offset ) {
 	int i, j;
 
 	for (i = 1; i < grid->height-1; i++) {
