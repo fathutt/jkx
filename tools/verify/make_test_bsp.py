@@ -62,6 +62,7 @@ HALF = 256.0
 FLOOR_Z = -64.0
 
 CONTENTS_SOLID = 1
+CONTENTS_WATER = 32
 SURF_NODAMAGE = 0x1
 
 
@@ -72,17 +73,29 @@ def qpath(name):
     return b + b"\0" * (MAX_QPATH - len(b))
 
 
-def shaders(visible, sky=None):
+def shaders(visible, sky=None, water=None):
     """One the brush sides carry, one the floor carries, one the sky wall.
 
     CMod_LoadBrushes and CMod_LoadBrushSides both range-check shaderNum against
     this lump, so the count here is not free - it is the bound they check.
+
+    The water entry carries CONTENTS_WATER and NOT CONTENTS_SOLID.
+
+    Worth being exact about which of the two content fields does what, because
+    they have the same name and different owners. THIS one, in the BSP, is what
+    the collision model reads - it is why a player swims rather than walks. What
+    the RENDERER reads is shader->contentFlags, and that comes from the
+    `surfaceparm water` line in the .shader file (tr_shader.cpp:373), not from
+    here. So a water fixture needs both, and a lane that sets only one of them
+    tests half of what it looks like it tests.
     """
     out = b""
     out += qpath("textures/jkx/solid") + struct.pack("<ii", 0, CONTENTS_SOLID)
     out += qpath(visible) + struct.pack("<ii", SURF_NODAMAGE, CONTENTS_SOLID)
     if sky:
         out += qpath(sky) + struct.pack("<ii", SURF_NODAMAGE, CONTENTS_SOLID)
+    if water:
+        out += qpath(water) + struct.pack("<ii", SURF_NODAMAGE, CONTENTS_WATER)
     return out
 
 
@@ -109,6 +122,34 @@ PLANE_UNDER = 12    # ( 0  0 -1)  z >= FLOOR_Z - SLAB, the underside of the slab
 # above, and a thin slab is one more way for a trace with a big box to go
 # through it.
 SLAB = 64.0
+
+# The pool: a horizontal quad hanging over the floor, marked CONTENTS_WATER.
+#
+# It is a SURFACE and not a brush on purpose. What the renderer decides from is
+# shader->contentFlags, which come from the shader lump entry the surface points
+# at, so a water face needs a shader entry that says water and nothing else -
+# the collision side of a real water volume is the game's business and no
+# renderer lane can see it.
+#
+# Height and extent are chosen so the floor stays visible AROUND it as well as
+# THROUGH it: depth attenuation, foam at the edge and refraction all need a
+# reference that is the same picture without water in front of it, in the same
+# frame rather than in another one.
+#
+# BELOW the eye, and that is not a detail. The quad's normal points up, world
+# faces are culled, and the player's eye sits at FLOOR_Z + 24 + 26. The first
+# version of this put the surface at FLOOR_Z + 96, which is above that: the
+# pool was a back face, nothing drew, and the lane reported a frame with no
+# water in it and no error anywhere.
+#
+# The depth under it is CONSTANT - floor and surface are both horizontal - and
+# that is on purpose for now: a constant is a number to predict, where a
+# gradient is a shape to argue about. When depth attenuation needs to be shown
+# varying, the honest way is a second floor quad at a lower height under half
+# the pool, which gives two predicted numbers instead of one.
+WATER_Z = FLOOR_Z + 24.0
+WATER_HALF = 120.0
+WATER_Y = 200.0
 
 
 def planes():
@@ -395,7 +436,7 @@ def hdr_lightmap(size=HDR_LIGHTMAP_SIZE, value=HDR_LIGHTMAP_VALUE):
     return header + rgbe(value) * (size * size)
 
 
-def drawverts(sky=False):
+def drawverts(sky=False, water=False):
     """Four corners of the floor.
 
     RBSP has four lightmap coordinate pairs and four colours per vertex rather
@@ -425,10 +466,25 @@ def drawverts(sky=False):
                 out += struct.pack("<3f", *normal)      # facing the room
                 out += bytes([255, 255, 255, 255] * MAXLIGHTMAPS)
 
+    if water:
+        # Wound the same way as the floor - see drawindexes for why that is not
+        # the order it reads right on paper - and with texture coordinates that
+        # run over the whole quad, so a scrolling normal map has somewhere to
+        # scroll.
+        for x, y, s, t in ((-WATER_HALF, WATER_Y - WATER_HALF, 0.0, 0.0),
+                           (WATER_HALF, WATER_Y - WATER_HALF, 1.0, 0.0),
+                           (WATER_HALF, WATER_Y + WATER_HALF, 1.0, 1.0),
+                           (-WATER_HALF, WATER_Y + WATER_HALF, 0.0, 1.0)):
+            out += struct.pack("<3f", x, y, WATER_Z)
+            out += struct.pack("<2f", s, t)
+            out += struct.pack("<8f", *([s, t] * MAXLIGHTMAPS))
+            out += struct.pack("<3f", 0.0, 0.0, 1.0)
+            out += bytes([255, 255, 255, 255] * MAXLIGHTMAPS)
+
     return out
 
 
-def drawindexes(sky=False):
+def drawindexes(sky=False, water=False):
     """Two triangles per surface, and the numbers are RELATIVE to firstVert.
 
     Not absolute indices into the lump. ParseFace does `verts += ds->firstVert`
@@ -462,10 +518,12 @@ def drawindexes(sky=False):
     out = struct.pack("<6i", 0, 2, 1, 0, 3, 2)
     if sky:
         out += struct.pack("<6i", 0, 2, 1, 0, 3, 2) * len(SKY_WALLS)
+    if water:
+        out += struct.pack("<6i", 0, 2, 1, 0, 3, 2)
     return out
 
 
-def surfaces(sky=False, fog=False, lightmap=False):
+def surfaces(sky=False, fog=False, lightmap=False, water=False, water_shader_num=2):
     """One planar quad, lit per vertex or from a lightmap page.
 
     lightmapNum is LIGHTMAP_BY_VERTEX in every slot by default: with no lightmap
@@ -517,6 +575,25 @@ def surfaces(sky=False, fog=False, lightmap=False):
             out += struct.pack("<3f", 0.0, 0.0, 1.0)
             out += struct.pack("<3f", *normal)
             out += struct.pack("<2i", 0, 0)
+
+    if water:
+        first_vert = 4 + (len(SKY_WALLS) * 4 if sky else 0)
+        first_index = 6 + (len(SKY_WALLS) * 6 if sky else 0)
+
+        out += struct.pack("<3i", water_shader_num, -1, MST_PLANAR)
+        out += struct.pack("<2i", first_vert, 4)
+        out += struct.pack("<2i", first_index, 6)
+        out += bytes([LS_NORMAL] + [LS_NONE] * 3)
+        out += bytes([LS_NORMAL] + [LS_NONE] * 3)
+        out += struct.pack("<4i", *([LIGHTMAP_BY_VERTEX] * MAXLIGHTMAPS))
+        out += struct.pack("<4i", *([0] * MAXLIGHTMAPS))
+        out += struct.pack("<4i", *([0] * MAXLIGHTMAPS))
+        out += struct.pack("<2i", 0, 0)
+        out += struct.pack("<3f", -WATER_HALF, WATER_Y - WATER_HALF, WATER_Z)
+        out += struct.pack("<3f", 1.0, 0.0, 0.0)
+        out += struct.pack("<3f", 0.0, 1.0, 0.0)
+        out += struct.pack("<3f", 0.0, 0.0, 1.0)
+        out += struct.pack("<2i", 0, 0)
 
     return out
 
@@ -776,7 +853,7 @@ def entities(props=(), npcs=(), cloud=False):
 
 
 def build(visible_shader, sky_shader=None, fog_shader=None, lightmap=None,
-          props=(), npcs=(), cloud=False):
+          props=(), npcs=(), cloud=False, water_shader=None):
     """lightmap is None, "internal" or "hdr".
 
     "internal" puts a page in LUMP_LIGHTMAPS, which is how every retail map is
@@ -787,10 +864,18 @@ def build(visible_shader, sky_shader=None, fog_shader=None, lightmap=None,
     ever took the first.
     """
     sky = bool(sky_shader)
+    water = bool(water_shader)
     count = 1 + len(SKY_WALLS) if sky else 1
+    if water:
+        count += 1
+    # The shader lump is written in this order, so the water entry lands after
+    # the sky one when both are present. Working the index out here rather than
+    # in surfaces() keeps the two in step: a surface pointing at the wrong
+    # shader entry is not an error, it is a water face that draws as the floor.
+    water_shader_num = 3 if sky else 2
     lumps = {
         LUMP_ENTITIES: entities(props, npcs, cloud),
-        LUMP_SHADERS: shaders(visible_shader, sky_shader),
+        LUMP_SHADERS: shaders(visible_shader, sky_shader, water_shader),
         LUMP_PLANES: planes(),
         LUMP_NODES: nodes(),
         LUMP_LEAFS: leafs(count),
@@ -799,10 +884,11 @@ def build(visible_shader, sky_shader=None, fog_shader=None, lightmap=None,
         LUMP_MODELS: models(count),
         LUMP_BRUSHES: brushes(),
         LUMP_BRUSHSIDES: brushsides(),
-        LUMP_DRAWVERTS: drawverts(sky),
-        LUMP_DRAWINDEXES: drawindexes(sky),
+        LUMP_DRAWVERTS: drawverts(sky, water),
+        LUMP_DRAWINDEXES: drawindexes(sky, water),
         LUMP_FOGS: fogs(fog_shader),
-        LUMP_SURFACES: surfaces(sky, bool(fog_shader), lightmap is not None),
+        LUMP_SURFACES: surfaces(sky, bool(fog_shader), lightmap is not None,
+                                water, water_shader_num),
         LUMP_LIGHTMAPS: lightmaps(lightmap == "internal"),
         LUMP_LIGHTGRID: lightgrid(),
         LUMP_VISIBILITY: visibility(),
@@ -897,6 +983,11 @@ def check_surfaces(data, failures):
 def check():
     failures = []
     for label, args in (("plain", ("jkx/smoke", None)),
+                        ("with water", ("jkx/smoke", None, None, None,
+                                        (), (), False, "jkx/water")),
+                        ("with a sky and water", ("jkx/smoke", "textures/jkx/sky",
+                                                  None, None, (), (), False,
+                                                  "jkx/water")),
                         ("with a sky", ("jkx/smoke", "textures/jkx/sky")),
                         ("with a sky and fog",
                          ("jkx/smoke", "textures/jkx/sky", "textures/jkx/fog"))):
@@ -905,6 +996,42 @@ def check():
         check_surfaces(data, failures)
         if len(failures) != before:
             failures[before:] = ["%s: %s" % (label, f) for f in failures[before:]]
+
+    # Water: the surface's shaderNum has to land on the entry that says water.
+    #
+    # This is the trap named in build(). A surface pointing at the wrong shader
+    # entry is not an error anywhere - the map loads, the face draws, and it
+    # draws as whatever that entry is. Every water lane downstream would then be
+    # photographing the floor shader and agreeing with itself.
+    #
+    # This checks the BSP side. The renderer's side is the `surfaceparm water`
+    # line in the .shader file, and nothing here can see that; see the note in
+    # shaders() for why the two are different fields with the same name.
+    for label, sky in (("with water", None), ("with a sky and water", "textures/jkx/sky")):
+        data = build("jkx/smoke", sky, None, None, (), (), False, "jkx/water")
+
+        sofs, slen = struct.unpack_from("<2i", data, 8 + LUMP_SURFACES * 8)
+        hofs, hlen = struct.unpack_from("<2i", data, 8 + LUMP_SHADERS * 8)
+        shader_size = MAX_QPATH + 8
+
+        # The water face is the last surface written.
+        last = slen // SURFACE_SIZE - 1
+        num = struct.unpack_from("<i", data, sofs + last * SURFACE_SIZE)[0]
+
+        if num < 0 or (num + 1) * shader_size > hlen:
+            failures.append("%s: the water surface points at shader %d, which is "
+                            "not in the lump" % (label, num))
+            continue
+
+        base = hofs + num * shader_size
+        name = data[base:base + MAX_QPATH].split(b"\0")[0].decode()
+        contents = struct.unpack_from("<i", data, base + MAX_QPATH + 4)[0]
+
+        if not contents & CONTENTS_WATER:
+            failures.append("%s: the water surface points at shader %d (%s), "
+                            "whose contents are 0x%x and do not include water - "
+                            "the renderer decides from exactly this number"
+                            % (label, num, name, contents))
 
     # The lightmap lump against the surface that refers to it.
     #
@@ -1022,6 +1149,7 @@ def main(argv):
     prop_specs = []
     npc_specs = []
     cloud = False
+    water = None
     path = None
     i = 0
     while i < len(args):
@@ -1043,6 +1171,9 @@ def main(argv):
         elif args[i] == "--cloud":
             cloud = True
             i += 1
+        elif args[i] == "--water" and i + 1 < len(args):
+            water = args[i + 1]
+            i += 2
         elif args[i] == "--prop" and i + 1 < len(args):
             # Repeatable. MODEL[:Y[:Z]] - see parse_props.
             prop_specs.append(args[i + 1])
@@ -1060,7 +1191,7 @@ def main(argv):
 
     if path is None:
         print("usage: %s <out.bsp> [--shader NAME] [--sky NAME] [--fog NAME] "
-              "[--lightmap] [--lightmap-hdr] [--cloud] "
+              "[--lightmap] [--lightmap-hdr] [--cloud] [--water NAME] "
               "[--prop MODEL[:Y[:Z]] ...] [--npc NAME[:Y[:Z]] ...]"
               % argv[0],
               file=sys.stderr)
@@ -1068,7 +1199,7 @@ def main(argv):
 
     props = parse_props(prop_specs)
     npcs = parse_npcs(npc_specs)
-    data = build(visible, sky, fog, lightmap, props, npcs, cloud)
+    data = build(visible, sky, fog, lightmap, props, npcs, cloud, water)
     with open(path, "wb") as f:
         f.write(data)
 

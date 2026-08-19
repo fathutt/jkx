@@ -593,3 +593,34 @@ jkx/ph_orms
 		rgbGen lightingDiffuse
 	}
 }
+
+// Water, as a retail map would write it - and the reason both halves are here.
+//
+// `surfaceparm water` is what the RENDERER reads: it sets shader->contentFlags
+// (tr_shader.cpp:373), and that is how a surface is known to be water at draw
+// time. The BSP shader lump has a contents field of its own with the same name,
+// which the collision model reads instead; the map generator writes that one.
+// A fixture that set only one of the two would look like a water lane and test
+// half of one.
+//
+// `nonsolid` because a water volume is not solid, and `trans` because it is
+// see-through - both of these are what a real water shader carries, and the
+// clearSolid mask in infoParms means the order matters: water clears solid, and
+// declaring solid again afterwards would put it back.
+//
+// The stage itself is the OLD path, deliberately: one flat blue at half alpha,
+// which is exactly the "painted plane" the whole water item exists to replace.
+// It is the A side of every A/B this fixture will be asked for, so it must stay
+// dull.
+jkx/water
+{
+	surfaceparm water
+	surfaceparm nonsolid
+	surfaceparm trans
+	{
+		map $whiteimage
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen const ( 0.0 0.2 0.6 )
+		alphaGen const 0.5
+	}
+}

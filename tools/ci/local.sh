@@ -71,7 +71,7 @@ JOBS="${JOBS:-$(nproc)}"
 
 STAGES=( "$@" )
 if [ "${#STAGES[@]}" -eq 0 ]; then
-    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokeskin smokeskinshift smokelightmap smokehdrlightmap smokegamecmd smokeshadow smokecloud smokemapent smokemenumodel smokemenulight smokepbrchar smokevidrestart smokevsync smokeresize smokemsaa smokedglow smokepicmip smokecubemap smoketransparency smokesoftparticles smoketcmod smokedeform smokephys smokephysshaded smokepak move smokesan prepass fog noassets )
+    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokeskin smokeskinshift smokelightmap smokehdrlightmap smokegamecmd smokeshadow smokecloud smokemapent smokemenumodel smokemenulight smokepbrchar smokevidrestart smokevsync smokeresize smokemsaa smokedglow smokepicmip smokecubemap smoketransparency smokesoftparticles smokewater smoketcmod smokedeform smokephys smokephysshaded smokepak move smokesan prepass fog noassets )
 fi
 
 failed=()
@@ -1236,6 +1236,15 @@ stage_smokepicmip() {
 stage_smokesoftparticles() {
     JKX_SMOKE_SOFTPARTICLES=1 \
     JKX_SMOKE_DISPLAY="${JKX_SMOKE_SOFTPARTICLES_DISPLAY:-:90}" \
+        bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
+}
+
+# Water. Today the lane photographs what the OLD path draws, and that is
+# deliberate: it is the A side of every measurement the water item will need,
+# and a lane written after the feature can only agree with it.
+stage_smokewater() {
+    JKX_SMOKE_WATER=1 \
+    JKX_SMOKE_DISPLAY="${JKX_SMOKE_WATER_DISPLAY:-:91}" \
         bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
 }
 

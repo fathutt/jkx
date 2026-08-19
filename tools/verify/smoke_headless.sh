@@ -1641,6 +1641,23 @@ elif [ "${JKX_SMOKE_SOFTPARTICLES:-0}" = "1" ]; then
         --prop models/jkx/soft_far.md3:184:38 \
         --prop models/jkx/soft_mid.md3:232:4 \
         --prop models/jkx/soft_near.md3:248:-43 >/dev/null
+elif [ "${JKX_SMOKE_WATER:-0}" = "1" ]; then
+    # A pool over the floor: a horizontal quad marked as water, hanging 96 units
+    # above the floor and 320 units across, so the floor is visible both THROUGH
+    # it and AROUND it in the same frame.
+    #
+    # That arrangement is the whole design. Depth attenuation, foam at the edge
+    # and refraction are all differences between water and no water, and a
+    # difference measured against another frame measures the camera as well - a
+    # lesson this bench has already paid for twice (see the fog stage). Here the
+    # control is in the picture.
+    #
+    # This lane exists BEFORE the effect it will measure. Right now it asserts
+    # what the old path draws - one flat blue at half alpha over a white floor -
+    # and that is the point: it is the A side, and a lane written after the
+    # feature has nothing to compare against but itself.
+    python3 "$HERE/make_test_bsp.py" "$RUN/base/maps/jkx_room.bsp" \
+        --water jkx/water >/dev/null
 elif [ "${JKX_SMOKE_MAPENT:-0}" = "1" ]; then
     # The same room with one piece of furniture in it. See the note above
     # INMAP_STEP for what the two shots of it are for; the model is the
@@ -2852,6 +2869,35 @@ fixture measures. All three squares at 140 means r_softParticleNear never \
 reached the shader; three levels in the wrong order means it is fading on \
 something other than the distance from the eye"
         fi
+    fi
+fi
+
+# Water, the A side.
+#
+# The pool is drawn over two different backgrounds in one frame - the white
+# floor under it and the grey room around it - and both results are arithmetic:
+# half alpha of ( 0.0 0.2 0.6 ) over 255 is (128, 153, 204), and over 191 it is
+# (96, 121, 172). Two numbers, both predicted, and between them they say the
+# surface is there, it is blending, and it is blending against what is actually
+# behind it rather than against a constant.
+#
+# There is no B side yet, and that is the point of writing this now. When the
+# water path lands, this frame is what it has to be compared against; a lane
+# written afterwards can only agree with whatever the new path happens to draw.
+if [ "${JKX_SMOKE_WATER:-0}" = "1" ]; then
+    shot="$RUN/home/base/screenshots/jkx_inmap.tga"
+
+    if [ ! -f "$shot" ]; then
+        report "the pool was never photographed, so nothing here was checked"
+    else
+        for want in "128,153,204:20000" "96,121,172:12000"; do
+            if ! python3 "$HERE/tga_has_colour.py" "$shot" "$want"; then
+                report "the water surface is not blending the way its blendFunc \
+says it should over ${want%%:*}. A water quad that is not there at all is the \
+first thing to check: its normal points up, world faces are culled, and a \
+surface placed above the eye is a back face"
+            fi
+        done
     fi
 fi
 
