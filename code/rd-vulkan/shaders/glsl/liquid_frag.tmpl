@@ -33,6 +33,13 @@ layout(set = VK_DESC_UNIFORM, binding = VK_DESC_UNIFORM_GLOBAL_BINDING) uniform 
 // two things.
 layout(set = VK_DESC_TEXTURE0, binding = 0) uniform sampler2D texture0;
 
+// The depth of everything that was drawn before the transparent surfaces, as a
+// texture. Soft particles built this; the body of a liquid reads exactly the
+// same thing for a different reason - how far the light has travelled through
+// it before coming back out, which is what decides both the colour of the body
+// and where the shore is.
+layout(set = VK_DESC_UNIFORM, binding = VK_DESC_UNIFORM_SCENE_DEPTH_BINDING) uniform sampler2D scene_depth_texture;
+
 layout(location = 0) in vec4 frag_color;
 layout(location = 1) in vec3 var_WorldPos;
 layout(location = 2) in vec3 var_Normal;
@@ -113,10 +120,81 @@ void main()
 	vec3 deep = base.rgb * frag_color.rgb;
 	vec3 sky  = u_global.liquidSky.rgb;
 
-	out_color.rgb = mix( deep, sky, fresnel ) + sky * spec;
+	// How deep the water is under this pixel, in the units the map is modelled
+	// in: the distance to the bottom minus the distance to the surface, both
+	// read out of the depth of the scene by inverting the projection.
+	//
+	// viewDepth.z says whether that texture holds THIS view yet - it is resolved
+	// between the surfaces that write depth and the surfaces that only read it,
+	// so a liquid whose material sorts as opaque is drawn before it exists. Zero
+	// there means the two terms below stay switched off rather than reading the
+	// frame before.
+	float thickness = 0.0;
+
+	if ( u_global.viewDepth.z > 0.5 && u_global.viewDepth.y != 0.0 ) {
+		float b = u_global.viewDepth.x;
+		float c = u_global.viewDepth.y;
+
+		float bottomD = texelFetch( scene_depth_texture, ivec2( gl_FragCoord.xy ), 0 ).r;
+		float bottomZ = c / ( bottomD + b );
+		float surfaceZ = c / ( gl_FragCoord.z + b );
+
+		// Along the view ray rather than straight down, which is what the two
+		// distances actually measure. It is also the right quantity: a shallow
+		// pool seen at a grazing angle IS more opaque, because the light has
+		// further to go through it.
+		thickness = max( bottomZ - surfaceZ, 0.0 );
+	}
+
+	// Absorption. Beer's law, one coefficient per channel, which is the whole
+	// reason deep water is blue and a glass of it is not: red is absorbed first
+	// and the light that survives the trip is what is left.
+	vec3 absorb = exp( -thickness * u_global.liquidBody.rgb );
+
+	// Transmitted plus inscattered, which is the shape the answer has whether or
+	// not the transmitted half is any good. What survives the body is `deep` -
+	// today the material's own colour, and the refracted image of what is behind
+	// the surface once that lands - and what the body adds on its own account is
+	// the colour it tends to with depth.
+	vec3 body = deep * absorb + u_global.liquidDeep.rgb * ( 1.0 - absorb );
+
+	// Foam at the shore. Where the body is thin, the surface meets something
+	// solid, and that edge is the single most recognisable thing about the
+	// outline of a body of water - without it the shore is a hard line drawn by
+	// the depth test, which is the same defect soft particles fixed for smoke.
+	float foam = 0.0;
+
+	if ( u_global.liquidBody.w > 0.0 && u_global.viewDepth.z > 0.5 ) {
+		foam = 1.0 - clamp( thickness / u_global.liquidBody.w, 0.0, 1.0 );
+
+		// Squared, so the band hugs the edge instead of washing half the pool
+		// out, and modulated by the waves so the line is not a clean offset
+		// curve. The same slope that makes the highlight makes the froth ragged.
+		// Against the surface's own normal rather than against world Z. Every
+		// water face anyone has built is horizontal, and code that relies on
+		// that stops working the first time somebody tilts one.
+		foam = foam * foam * ( 0.75 + clamp( 1.0 - dot( Nw, N ), 0.0, 1.0 ) );
+		foam = clamp( foam, 0.0, 1.0 );
+	}
+
+	out_color.rgb = mix( body, sky, fresnel ) + sky * spec;
+	out_color.rgb = mix( out_color.rgb, u_global.liquidFoam.rgb, foam * u_global.liquidFoam.w );
 
 	// More opaque where it reflects. A surface showing you the sky is not one
 	// you can see the bottom through.
+	// Opacity: what the material asked for, plus what the body absorbs, plus
+	// what the reflection hides. Thin water at the shore is nearly clear, deep
+	// water is not, and a surface showing you the sky is not one you can see the
+	// bottom through.
 	float alpha = base.a * frag_color.a;
-	out_color.a = clamp( alpha + ( 1.0 - alpha ) * fresnel, 0.0, 1.0 );
+
+	if ( u_global.viewDepth.z > 0.5 ) {
+		float opaque = 1.0 - dot( absorb, vec3( 0.3333 ) );
+		alpha = alpha + ( 1.0 - alpha ) * opaque;
+	}
+
+	alpha = alpha + ( 1.0 - alpha ) * fresnel;
+	alpha = max( alpha, foam * u_global.liquidFoam.w );
+
+	out_color.a = clamp( alpha, 0.0, 1.0 );
 }

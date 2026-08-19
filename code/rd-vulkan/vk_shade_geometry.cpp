@@ -3295,6 +3295,31 @@ void RB_StageIteratorGeneric( void )
 			// unmeasured things at once.
 			VectorSet( uniform_global.liquidSky, 0.55f, 0.68f, 0.85f );
 			uniform_global.liquidSky[3] = r_liquidFresnel->value;
+
+			// How fast the body swallows each channel, per unit of distance.
+			// Red first, which is what makes deep water blue; the numbers are
+			// clear water scaled to the units a map is built in rather than to
+			// metres, and r_liquidClarity is how far light gets before the
+			// scale below has taken most of it.
+			{
+				const float clarity = MAX( r_liquidClarity->value, 1.0f );
+
+				uniform_global.liquidBody[0] = 3.0f / clarity;
+				uniform_global.liquidBody[1] = 1.2f / clarity;
+				uniform_global.liquidBody[2] = 0.7f / clarity;
+				uniform_global.liquidBody[3] = r_liquidFoam->value;
+			}
+
+			// What the body adds on its own account. A placeholder in the same
+			// sense the sky colour is: the honest answer comes from the map's
+			// own fog volume, which is what a mapper already uses to say what
+			// being under this water looks like, and reading it here is a job
+			// for the pass that also does refraction.
+			VectorSet( uniform_global.liquidDeep, 0.02f, 0.09f, 0.14f );
+			uniform_global.liquidDeep[3] = 0.0f;
+
+			VectorSet( uniform_global.liquidFoam, 1.0f, 1.0f, 1.0f );
+			uniform_global.liquidFoam[3] = ( r_liquidFoam->value > 0.0f ) ? 1.0f : 0.0f;
 		}
 
 		// Soft particles. Off unless the scene depth for this view has actually
@@ -3302,6 +3327,31 @@ void RB_StageIteratorGeneric( void )
 		// depth to the surfaces that only read it.
 		Com_Memset( uniform_global.softParticle, 0, sizeof( uniform_global.softParticle ) );
 		Com_Memset( uniform_global.softParticleNear, 0, sizeof( uniform_global.softParticleNear ) );
+
+		// How to read the scene depth texture, for everything that reads it.
+		//
+		//     d = ( p10 * z + p14 ) / ( p11 * z )   ->   dist = c / ( d + b )
+		//
+		// with b = -p10/p11 and c = -p14/p11. Taken from the matrix rather than
+		// from zNear and zFar so that reversed depth, the oblique near plane
+		// portals use, and anything else that rewrites those entries all come
+		// out right without this code knowing about them.
+		{
+			const float *p = backEnd.viewParms.projectionMatrix;
+
+			if ( p[11] != 0.0f ) {
+				uniform_global.viewDepth[0] = -p[10] / p[11];
+				uniform_global.viewDepth[1] = -p[14] / p[11];
+			} else {
+				uniform_global.viewDepth[0] = 0.0f;
+				uniform_global.viewDepth[1] = 0.0f;
+			}
+
+			// Whether the texture holds this view yet. A surface drawn before
+			// the resolve would be reading the previous frame.
+			uniform_global.viewDepth[2] = ( backEnd.softParticlesReady && !backEnd.isGlowPass ) ? 1.0f : 0.0f;
+			uniform_global.viewDepth[3] = 0.0f;
+		}
 
 		// Not on the interface, and the crosshair check is what said so.
 		//
@@ -3316,22 +3366,11 @@ void RB_StageIteratorGeneric( void )
 			&& ( r_softParticleScale->value > 0.0f || r_softParticleNear->value > 0.0f )
 			&& ( pStage->stateBits & GLS_BLEND_BITS ) != 0 )
 		{
-			const float *p = backEnd.viewParms.projectionMatrix;
-
-			// Turning a depth buffer value back into a distance from the eye
-			// takes two numbers out of the projection matrix and nothing else:
-			//
-			//     d = ( p10 * z + p14 ) / ( p11 * z )   ->   dist = c / ( d + b )
-			//
-			// with b = -p10/p11 and c = -p14/p11. Taking them from the matrix
-			// rather than from zNear and zFar means reversed depth, the oblique
-			// near plane used by portals, and anything else that rewrites those
-			// entries all come out right without this code knowing about them.
-			if ( p[11] != 0.0f )
+			// The two numbers that read the depth texture live in viewDepth and
+			// are filled above, for every consumer rather than for this one.
+			if ( uniform_global.viewDepth[1] != 0.0f )
 			{
 				uniform_global.softParticle[0] = r_softParticleScale->value;
-				uniform_global.softParticle[1] = -p[10] / p[11];
-				uniform_global.softParticle[2] = -p[14] / p[11];
 				uniform_global.softParticleNear[0] = r_softParticleNear->value;
 
 				// Which channel the fade belongs on. An additive stage ignores

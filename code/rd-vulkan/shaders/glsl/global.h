@@ -258,6 +258,19 @@ STRUCT (
 		// projection matrix on the CPU so the shader needs neither zNear nor
 		// zFar, w unused.
 		VEC4				( softParticle )
+		// viewDepth: the two numbers that turn a depth buffer value back into a
+		// distance from the eye - dist = y / ( depth + x ) - taken from the
+		// projection matrix on the CPU so no shader needs zNear or zFar. z says
+		// whether the scene depth texture holds THIS view yet: it is resolved
+		// on the way from the surfaces that write depth to the surfaces that
+		// only read it, and anything drawn before that point must not read it.
+		// w unused.
+		//
+		// Shared rather than per-effect. Soft particles wanted them first and
+		// liquids want the same two, and a second copy under a second name is
+		// how two consumers start disagreeing about which projection they are
+		// inverting.
+		VEC4				( viewDepth )
 		// softParticleNear: x how many units in front of the eye a surface is
 		// fully faded out (zero means that half is off), y z w unused.
 		//
@@ -278,9 +291,18 @@ STRUCT (
 		//              w how much of the Fresnel term is applied at all - zero
 		//              is the switch that turns the reflection half off without
 		//              turning the waves off.
+		// liquidBody:  rgb absorption per unit of distance through the body,
+		//              w the width of the foam band at the shore in units
+		//              (zero turns the foam off).
+		// liquidDeep:  rgb the colour the body tends to with depth - what it
+		//              adds on its own account, against what survives the trip.
+		// liquidFoam:  rgb the colour of the froth, w how much of it is applied.
 		VEC4				( liquid )
 		VEC4				( liquidLight )
 		VEC4				( liquidSky )
+		VEC4				( liquidBody )
+		VEC4				( liquidDeep )
+		VEC4				( liquidFoam )
     , vkUniformGlobal_t )
 
     #undef TCMOD_T

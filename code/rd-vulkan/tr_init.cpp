@@ -155,6 +155,8 @@ cvar_t	*r_liquidWaveScale;
 cvar_t	*r_liquidWaveSpeed;
 cvar_t	*r_liquidNormalScale;
 cvar_t	*r_liquidFresnel;
+cvar_t	*r_liquidClarity;
+cvar_t	*r_liquidFoam;
 cvar_t	*r_weldModelNormals;
 cvar_t	*r_weldModelNormalsAngle;
 cvar_t	*r_shownormals;
@@ -1116,7 +1118,11 @@ void R_Register( void )
 	Cvar_CheckRange( r_liquidWaveScale, 1, 4096, qfalse );
 	Cvar_CheckRange( r_liquidWaveSpeed, 0, 16, qfalse );
 	Cvar_CheckRange( r_liquidNormalScale, 0, 8, qfalse );
+	r_liquidClarity						= Cvar_Get( "r_liquidClarity",				"192",						CVAR_ARCHIVE_ND, "how far light gets through a liquid body, in world units" );
+	r_liquidFoam						= Cvar_Get( "r_liquidFoam",					"24",						CVAR_ARCHIVE_ND, "how wide the band of foam at the shore is, in world units" );
 	Cvar_CheckRange( r_liquidFresnel, 0, 1, qfalse );
+	Cvar_CheckRange( r_liquidClarity, 1, 8192, qfalse );
+	Cvar_CheckRange( r_liquidFoam, 0, 512, qfalse );
 	// The seams on a character, and the reason they are there. A vertex is
 	// duplicated wherever the texture mapping is cut and again wherever the body
 	// is cut into surfaces, and the exporter gave each copy its own normal, so

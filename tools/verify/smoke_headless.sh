@@ -606,7 +606,10 @@ fi
 #         This is the shot that separates "the liquid path runs" from "the waves
 #         run", and without it a difference between the first and the last says
 #         only that SOMETHING changed;
-#   wave  the new path in full.
+#   wave  the new path in full, foam off;
+#   foam  the same again with the shore band on, so the band is the only thing
+#         that differs between two frames and can be located rather than
+#         guessed at.
 #
 # The append is HERE and not down with the fixture that builds the pool, and
 # that is not tidiness. INMAP_STEP is one array in script order: everything
@@ -627,12 +630,17 @@ if [ "${JKX_SMOKE_WATER:-0}" = "1" ]; then
         echo "screenshot_tga jkx_liquid_flat"
         echo "wait 10"
         echo "set r_liquidNormalScale 1"
+        echo "set r_liquidFoam 0"
         echo "wait 20"
         echo "screenshot_tga jkx_liquid_wave"
         echo "wait 10"
+        echo "set r_liquidFoam 24"
+        echo "wait 20"
+        echo "screenshot_tga jkx_liquid_foam"
+        echo "wait 10"
     } > "$RUN/base/jkx_liquid.cfg"
 
-    INMAP_STEP+=( +exec jkx_liquid.cfg +wait 110 )
+    INMAP_STEP+=( +exec jkx_liquid.cfg +wait 150 )
 fi
 
 if [ "${JKX_SMOKE_MSAA:-0}" = "1" ]; then
@@ -2911,42 +2919,49 @@ something other than the distance from the eye"
     fi
 fi
 
-# Water: three pictures of one pool, and each says what the one before it could
+# Water: four pictures of one pool, and each says what the one before it could
 # not.
 #
-# The pool covers exactly the same 69823 pixels in all three, because the
-# geometry never changes - so every difference below is shading and nothing
-# else. What differs is how many DISTINCT colours those pixels take:
+# The pool is TILTED - two units off the floor at the near edge, sixty-four at
+# the far one - and everything below depends on that. A body of water at a
+# constant depth has one absorption value across the whole of it and no shore at
+# all; the shallow end is what turns "deeper is bluer" and "there is froth where
+# it runs out" into statements about a picture.
 #
-#   off   10   the old path. Two flat blends and their antialiased edges.
-#   flat  67   the liquid path with the waves turned off: Fresnel varies with
-#              the viewing angle across the surface and nothing else does.
-#   wave 318   the waves.
+# What is measured is not how many colours there are. Absorption alone paints a
+# smooth gradient with thousands of shades in it, so a colour count cannot tell
+# a gradient from a gradient with ripples on it. What can is the biggest jump
+# between two NEIGHBOURING pixels, which is what tga_max_step was written for:
 #
-# The middle shot is the one that earns its place. Without it, a difference
-# between the first and the last says only that SOMETHING changed - it cannot
-# separate "the new path runs" from "the waves run", and those are two different
-# things to have broken.
+#   off    step 0    one flat colour with an alpha over it
+#   flat   step 1    the liquid path with the waves off - absorption varies
+#                    smoothly with depth and nothing else varies at all
+#   wave   step 7    the ripples
 #
-# The thresholds are set between the measured values rather than at them, and
-# the flat shot is asserted from BOTH sides: at least a hundred colours, so the
-# path is running, and fewer than three hundred, so the waves are not. An
-# upper bound is not something tga_is_a_picture offers, so it is spelled as a
-# check that must fail - which is the same statement and needs no new tool.
+# The range is asserted alongside it on the flat shot, because a step of one is
+# also what a picture that drew nothing would report. Sixty-eight shades is what
+# the old path spans and a hundred and ninety is what absorption spans, so the
+# two questions - "is the body varying with depth" and "is the surface rippling"
+# - are separated by two different numbers rather than by one number twice.
+#
+# Both upper bounds are spelled as checks that must fail. tga_max_step offers a
+# maximum and not a minimum, and inverting it is the same statement without a
+# new tool.
 if [ "${JKX_SMOKE_WATER:-0}" = "1" ]; then
     off="$RUN/home/base/screenshots/jkx_liquid_off.tga"
     flat="$RUN/home/base/screenshots/jkx_liquid_flat.tga"
     wave="$RUN/home/base/screenshots/jkx_liquid_wave.tga"
+    foam="$RUN/home/base/screenshots/jkx_liquid_foam.tga"
 
-    if [ ! -f "$off" ] || [ ! -f "$flat" ] || [ ! -f "$wave" ]; then
-        report "the pool was not photographed three times, so nothing here was checked"
+    if [ ! -f "$off" ] || [ ! -f "$flat" ] || [ ! -f "$wave" ] || [ ! -f "$foam" ]; then
+        report "the pool was not photographed four times, so nothing here was checked"
     else
         # The old path, and it is arithmetic: half alpha of ( 0.0 0.2 0.6 ) over
         # the white floor is (128, 153, 204), and over the grey room around it
         # (96, 121, 172). Two backgrounds in one frame, so this also says the
         # surface is blending against what is behind it and not against a
         # constant.
-        for want in "128,153,204:20000" "96,121,172:12000"; do
+        for want in "128,153,204:20000" "96,121,172:20000"; do
             if ! python3 "$HERE/tga_has_colour.py" "$off" "$want"; then
                 report "with r_liquids 0 the pool is not the colour its blendFunc \
 says it should be over ${want%%:*}. A pool that is not drawn at all is the first \
@@ -2955,22 +2970,34 @@ above the eye is a back face"
             fi
         done
 
-        if ! python3 "$HERE/tga_is_a_picture.py" "$flat" 100; then
-            report "r_liquids 1 changed nothing: the frame has as few colours as \
-the old path drew. Either the liquid pipeline was not selected for the surface \
-or it is drawing the same flat blend"
+        # The liquid path is running and the body varies with depth: a wide
+        # range of shades, and no local jumps in it.
+        if ! python3 "$HERE/tga_max_step.py" "$flat" --dominant b --min 15 \
+            --max-step 3 --min-range 150; then
+            report "with r_liquids 1 and the waves off the pool is either flat - \
+so the liquid path was not selected, or the body is not absorbing with depth - \
+or it is already rippling, which means r_liquidNormalScale 0 did not reach the \
+shader"
         fi
 
-        if python3 "$HERE/tga_is_a_picture.py" "$flat" 300 >/dev/null 2>&1; then
-            report "with r_liquidNormalScale 0 the pool has as many colours as it \
-does with the waves on, so the wave field is being applied when it was asked not \
-to be - and the shot that is supposed to isolate the waves is measuring them"
-        fi
-
-        if ! python3 "$HERE/tga_is_a_picture.py" "$wave" 300; then
-            report "the wave field changed nothing measurable. The normal is \
-computed from the world position of the fragment, so a surface whose position \
+        # And the waves are what the last shot adds.
+        if python3 "$HERE/tga_max_step.py" "$wave" --dominant b --min 15 \
+            --max-step 4 >/dev/null 2>&1; then
+            report "the wave field changed nothing measurable: neighbouring \
+pixels on the surface are as smooth as they are with r_liquidNormalScale 0. The \
+normal is computed from the world position of the fragment, so a position that \
 never reaches the fragment shader gives a constant normal and exactly this"
+        fi
+
+        # Foam, and where it is. The only difference between the last two frames
+        # is r_liquidFoam, so the band can be located rather than guessed at -
+        # and where it belongs is the SHALLOW end, which on this fixture is the
+        # near edge and therefore the bottom of the frame.
+        if ! python3 "$HERE/tga_diff_where.py" "$wave" "$foam" \
+            0.2,0.5,0.8,1.0 4000 40000; then
+            report "the shore band is missing, too small, or in the wrong half \
+of the frame. It lives where the body is THIN, so a band across the deep end \
+means the thickness is being read with its sign the wrong way round"
         fi
     fi
 fi

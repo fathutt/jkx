@@ -593,9 +593,11 @@ void main() {
 	if ( u_global.softParticle.x > 0.0 || u_global.softParticleNear.x > 0.0 ) {
 		// dist = c / ( d + b ), the two numbers taken from the projection
 		// matrix on the CPU. Distance from the eye, in the units the map is
-		// modelled in, for both the fragment and whatever is behind it.
-		float b = u_global.softParticle.y;
-		float c = u_global.softParticle.z;
+		// modelled in, for both the fragment and whatever is behind it. They
+		// live in viewDepth because liquid surfaces invert the same projection
+		// and a second copy is how two readers start disagreeing about which.
+		float b = u_global.viewDepth.x;
+		float c = u_global.viewDepth.y;
 
 		float sceneD = texelFetch( scene_depth_texture, ivec2( gl_FragCoord.xy ), 0 ).r;
 

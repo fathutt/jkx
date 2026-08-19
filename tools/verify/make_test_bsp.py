@@ -136,20 +136,47 @@ SLAB = 64.0
 # reference that is the same picture without water in front of it, in the same
 # frame rather than in another one.
 #
+# TILTED, and that is the whole reason there is anything to measure.
+#
+# The first version was horizontal, at a constant height over a horizontal
+# floor, so the body of water was the same thickness everywhere. Nothing that
+# depends on thickness has anything to grip on that: absorption is one number
+# across the whole surface and foam, which lives where the water is thin, has
+# nowhere to be. A pool with a shallow end is not a decoration here, it is the
+# only arrangement in which "deeper is bluer" and "there is froth at the shore"
+# are statements about a picture.
+#
+# So the near edge sits two units off the floor and the far edge sixty-four, and
+# the surface normal is tilted to match. That also puts the one code path that
+# would otherwise never run under the lane: every water face anyone has ever
+# built is horizontal, and the shader builds its wave frame against the
+# surface's own normal rather than against world Z precisely so that it does not
+# stop working when one is not. A horizontal fixture cannot tell those two
+# apart.
+#
 # BELOW the eye, and that is not a detail. The quad's normal points up, world
 # faces are culled, and the player's eye sits at FLOOR_Z + 24 + 26. The first
 # version of this put the surface at FLOOR_Z + 96, which is above that: the
 # pool was a back face, nothing drew, and the lane reported a frame with no
 # water in it and no error anywhere.
-#
-# The depth under it is CONSTANT - floor and surface are both horizontal - and
-# that is on purpose for now: a constant is a number to predict, where a
-# gradient is a shape to argue about. When depth attenuation needs to be shown
-# varying, the honest way is a second floor quad at a lower height under half
-# the pool, which gives two predicted numbers instead of one.
-WATER_Z = FLOOR_Z + 24.0
+WATER_Z_NEAR = FLOOR_Z + 2.0
+WATER_Z_FAR = FLOOR_Z + 64.0
 WATER_HALF = 120.0
 WATER_Y = 200.0
+
+
+def water_normal():
+    """The tilted pool's normal, from its own slope.
+
+    Written out rather than typed in, because a normal that disagrees with the
+    geometry it belongs to is not an error anywhere: the surface still draws,
+    the lighting is simply wrong by an amount nobody can eyeball on a flat
+    colour. The shader builds its wave frame on this vector.
+    """
+    dz = WATER_Z_FAR - WATER_Z_NEAR
+    dy = 2.0 * WATER_HALF
+    length = math.sqrt(dy * dy + dz * dz)
+    return (0.0, -dz / length, dy / length)
 
 
 def planes():
@@ -471,14 +498,15 @@ def drawverts(sky=False, water=False):
         # the order it reads right on paper - and with texture coordinates that
         # run over the whole quad, so a scrolling normal map has somewhere to
         # scroll.
-        for x, y, s, t in ((-WATER_HALF, WATER_Y - WATER_HALF, 0.0, 0.0),
-                           (WATER_HALF, WATER_Y - WATER_HALF, 1.0, 0.0),
-                           (WATER_HALF, WATER_Y + WATER_HALF, 1.0, 1.0),
-                           (-WATER_HALF, WATER_Y + WATER_HALF, 0.0, 1.0)):
-            out += struct.pack("<3f", x, y, WATER_Z)
+        nx, ny, nz = water_normal()
+        for x, y, z, s, t in ((-WATER_HALF, WATER_Y - WATER_HALF, WATER_Z_NEAR, 0.0, 0.0),
+                              (WATER_HALF, WATER_Y - WATER_HALF, WATER_Z_NEAR, 1.0, 0.0),
+                              (WATER_HALF, WATER_Y + WATER_HALF, WATER_Z_FAR, 1.0, 1.0),
+                              (-WATER_HALF, WATER_Y + WATER_HALF, WATER_Z_FAR, 0.0, 1.0)):
+            out += struct.pack("<3f", x, y, z)
             out += struct.pack("<2f", s, t)
             out += struct.pack("<8f", *([s, t] * MAXLIGHTMAPS))
-            out += struct.pack("<3f", 0.0, 0.0, 1.0)
+            out += struct.pack("<3f", nx, ny, nz)
             out += bytes([255, 255, 255, 255] * MAXLIGHTMAPS)
 
     return out
@@ -589,10 +617,10 @@ def surfaces(sky=False, fog=False, lightmap=False, water=False, water_shader_num
         out += struct.pack("<4i", *([0] * MAXLIGHTMAPS))
         out += struct.pack("<4i", *([0] * MAXLIGHTMAPS))
         out += struct.pack("<2i", 0, 0)
-        out += struct.pack("<3f", -WATER_HALF, WATER_Y - WATER_HALF, WATER_Z)
+        out += struct.pack("<3f", -WATER_HALF, WATER_Y - WATER_HALF, WATER_Z_NEAR)
         out += struct.pack("<3f", 1.0, 0.0, 0.0)
         out += struct.pack("<3f", 0.0, 1.0, 0.0)
-        out += struct.pack("<3f", 0.0, 0.0, 1.0)
+        out += struct.pack("<3f", *water_normal())
         out += struct.pack("<2i", 0, 0)
 
     return out
