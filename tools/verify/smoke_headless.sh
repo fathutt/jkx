@@ -431,6 +431,48 @@ fi
 # 81, three channels, and see the note beside the check for where it comes from.
 HDR_FLOOR_LEVEL="81,81,81"
 
+# entitylist on the skin lane, and what it settled.
+#
+# "The NPC_spawner does not spawn" was in the open list for days - no skin, no
+# character in frame, no error either - and there was no way to ask the game
+# what it thought existed until the game-command wire was proved. There is now:
+# entitylist is in the game's own svcmds table, CMD_NONE, one line per live
+# entity with the classname on it.
+#
+# It spawns. Both of them, plus their NPC_goal entities:
+#
+#   0:ET_PLAYER   player
+#   1:ET_GENERAL  info_player_deathmatch
+#   2:ET_PLAYER   NPC
+#   3:ET_GENERAL  lightsaber
+#   4:ET_PLAYER   NPC
+#   5:ET_GENERAL  NPC_goal
+#   6:ET_GENERAL  NPC_goal
+#
+# So the entry was wrong and the lane was already doing its job - the offset it
+# was written to reproduce is in the log of the same run, skin 1 at handle 5 and
+# skin 2 at handle 6, the same four the report from real hardware gave.
+#
+# The count stays as a CHECK rather than going away with the question, and that
+# is the point of keeping it. This lane's whole value is that two characters
+# exist BEFORE cgame does; if they ever stop spawning it goes back to measuring
+# nothing at all, silently, exactly as it appeared to be doing here.
+if [ "${JKX_SMOKE_SKINSHIFT:-0}" = "1" ]; then
+    {
+        echo "wait 5"
+        echo "entitylist"
+        echo "wait 10"
+    } > "$RUN/base/jkx_ents.cfg"
+
+    # PREPENDED, not appended, and the first attempt got this wrong. INMAP_STEP
+    # begins by loading jkx_room; the skin map is the one the main command line
+    # loads, before INMAP_STEP runs at all. An entitylist on the end of
+    # INMAP_STEP is an entitylist of the WRONG MAP, and it duly came back with
+    # three entities and no NPC - which looks exactly like the defect being
+    # chased and is not it.
+    INMAP_STEP=( +exec jkx_ents.cfg +wait 30 "${INMAP_STEP[@]}" )
+fi
+
 if [ "${JKX_SMOKE_MSAA:-0}" = "1" ]; then
     {
         echo "wait 5"
@@ -1946,6 +1988,17 @@ if [ "${JKX_SMOKE_VSYNC:-0}" = "1" ]; then
 fi
 
 if [ "${JKX_SMOKE_SKINSHIFT:-0}" = "1" ]; then
+    # The two characters exist, and this is checked BEFORE the handles are,
+    # because a lane measuring an offset between two numbering spaces with
+    # nothing in either of them is a lane that passes by having nothing to
+    # disagree about. entitylist is the game's own list of what is alive.
+    npcs=$( grep -c ':ET_PLAYER           NPC$' "$RUN/run.log" || true )
+    if [ "$npcs" -ne 2 ]; then
+        report "the skin map has $npcs NPC(s) and should have two; this lane's \
+whole value is two characters existing before cgame does, and with none of them \
+the handle checks below are comparing empty spaces"
+    fi
+
     require 'skin 1 is handle 5'
     require 'skin 2 is handle 6'
     require '2 model skin(s) renumbered from configstring indexes to renderer handles'
