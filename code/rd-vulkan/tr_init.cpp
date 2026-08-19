@@ -150,6 +150,11 @@ cvar_t	*r_depthPrepass;
 cvar_t	*r_softParticles;
 cvar_t	*r_softParticleScale;
 cvar_t	*r_softParticleNear;
+cvar_t	*r_liquids;
+cvar_t	*r_liquidWaveScale;
+cvar_t	*r_liquidWaveSpeed;
+cvar_t	*r_liquidNormalScale;
+cvar_t	*r_liquidFresnel;
 cvar_t	*r_weldModelNormals;
 cvar_t	*r_weldModelNormalsAngle;
 cvar_t	*r_shownormals;
@@ -1093,6 +1098,25 @@ void R_Register( void )
 	// screen - the same defect as the far one, at the other end.
 	r_softParticleNear					= Cvar_Get( "r_softParticleNear",				"24",						CVAR_ARCHIVE_ND, "how many units in front of the camera a transparent surface has faded out completely" );
 	Cvar_CheckRange( r_softParticleNear, 0, 512, qfalse );
+
+	// Liquid surfaces. Not latched: which path a liquid face takes is decided
+	// per draw, so both can be photographed inside one run - which is the only
+	// way a lane can say the new one changed anything.
+	//
+	// One switch for water, slime and lava rather than one each, because they
+	// are one rendering path with different material parameters. The parameters
+	// below are the temporary shape of that: they belong in the .shader file so
+	// that a mapper can author a swamp without an engine change, and they are
+	// cvars today only because there is one liquid to tune and no keyword yet.
+	r_liquids							= Cvar_Get( "r_liquids",						"1",						CVAR_ARCHIVE_ND, "shade water, slime and lava surfaces as liquids" );
+	r_liquidWaveScale					= Cvar_Get( "r_liquidWaveScale",				"96",						CVAR_ARCHIVE_ND, "how many world units across one wave is" );
+	r_liquidWaveSpeed					= Cvar_Get( "r_liquidWaveSpeed",				"1",						CVAR_ARCHIVE_ND, "how fast the waves travel" );
+	r_liquidNormalScale					= Cvar_Get( "r_liquidNormalScale",				"1",						CVAR_ARCHIVE_ND, "how steep the procedural surface normal is" );
+	r_liquidFresnel						= Cvar_Get( "r_liquidFresnel",					"1",						CVAR_ARCHIVE_ND, "how much of the surface turns to reflection at a grazing angle" );
+	Cvar_CheckRange( r_liquidWaveScale, 1, 4096, qfalse );
+	Cvar_CheckRange( r_liquidWaveSpeed, 0, 16, qfalse );
+	Cvar_CheckRange( r_liquidNormalScale, 0, 8, qfalse );
+	Cvar_CheckRange( r_liquidFresnel, 0, 1, qfalse );
 	// The seams on a character, and the reason they are there. A vertex is
 	// duplicated wherever the texture mapping is cut and again wherever the body
 	// is cut into surfaces, and the exporter gave each copy its own normal, so

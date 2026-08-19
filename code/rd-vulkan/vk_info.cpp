@@ -101,6 +101,7 @@ const char *vk_shadertype_string( Vk_Shader_Type code ) {
         CASE_STR(TYPE_COLOR_RED);
         CASE_STR(TYPE_FOG_ONLY);
         CASE_STR(TYPE_DOT);
+        CASE_STR(TYPE_LIQUID);
 
 
         CASE_STR(TYPE_SINGLE_TEXTURE_LIGHTING);

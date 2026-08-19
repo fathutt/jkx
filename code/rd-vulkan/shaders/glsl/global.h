@@ -203,7 +203,7 @@ STRUCT (
     INT	    ( type )
 , vktcGen_t )
 
-#if defined(PER_PIXEL_LIGHTING) || defined(USE_LIGHT_VECTOR) || defined(USE_VBO_MODEL) || defined(IS_REFRACTION_GLSL) || defined(IS_GEN_FRAG_GLSL)
+#if defined(PER_PIXEL_LIGHTING) || defined(USE_LIGHT_VECTOR) || defined(USE_VBO_MODEL) || defined(IS_REFRACTION_GLSL) || defined(IS_GEN_FRAG_GLSL) || defined(IS_LIQUID_GLSL)
     #define TCMOD_T(n)          vktcMod_t n;
     #define TCGEN_T(n)          vktcGen_t n;
     #define BUMDLE_T(n)         vkBundle_t n;
@@ -266,6 +266,21 @@ STRUCT (
 		// one in the distance from the camera, so a single distance would be
 		// two different quantities wearing one name.
 		VEC4				( softParticleNear )
+		// Liquid surfaces - water today, and slime, swamp and lava on the same
+		// path later, because what differs between them is these numbers and
+		// not the technique.
+		//
+		// liquid:      x time in seconds, y wavelength in units, z speed,
+		//              w how steep the procedural normal is.
+		// liquidLight: xyz the direction light arrives from, w the specular
+		//              exponent.
+		// liquidSky:   xyz what the surface reflects at a grazing angle,
+		//              w how much of the Fresnel term is applied at all - zero
+		//              is the switch that turns the reflection half off without
+		//              turning the waves off.
+		VEC4				( liquid )
+		VEC4				( liquidLight )
+		VEC4				( liquidSky )
     , vkUniformGlobal_t )
 
     #undef TCMOD_T

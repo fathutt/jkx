@@ -1,0 +1,53 @@
+#version 450
+#extension GL_GOOGLE_include_directive : enable
+
+// The vertex half of the water path.
+//
+// Water in this engine is an ordinary world brush face with `surfaceparm water`
+// on its material, so there is no skinning here and no model VBO variant: one
+// module, and the fragment half does all of the work. What it needs from here is
+// the fragment's position in the WORLD - the waves are a function of where the
+// surface is, not of its texture coordinates, which is the whole reason they do
+// not swim when the camera moves - plus the direction back to the eye and the
+// geometric normal to build a frame on.
+#define IS_LIQUID_GLSL
+#include "global.h"
+
+layout(push_constant) uniform Transform {
+	mat4 mvp;
+};
+
+layout(set = VK_DESC_UNIFORM, binding = VK_DESC_UNIFORM_CAMERA_BINDING) uniform Camera {
+	vec4 u_ViewOrigin;
+};
+
+layout(location = 0) in vec3 in_position;
+layout(location = 1) in vec4 in_color;
+layout(location = 2) in vec2 in_tex_coord0;
+layout(location = 5) in vec3 in_normal;
+
+layout(location = 0) out vec4 frag_color;
+layout(location = 1) out vec3 var_WorldPos;
+layout(location = 2) out vec3 var_Normal;
+layout(location = 3) out vec3 var_ViewDir;
+layout(location = 4) out vec4 var_ScreenPos;
+
+out gl_PerVertex {
+	vec4 gl_Position;
+};
+
+void main() {
+	gl_Position = mvp * vec4( in_position, 1.0 );
+
+	frag_color = in_color;
+	var_WorldPos = in_position;
+	var_Normal = normalize( in_normal );
+
+	// Not normalised here. Interpolating a normalised direction across a large
+	// quad and using it as if it were still unit length is wrong by more the
+	// bigger the quad is, and a pool is a big quad; the fragment half
+	// normalises what it gets.
+	var_ViewDir = u_ViewOrigin.xyz - in_position;
+
+	var_ScreenPos = gl_Position;
+}

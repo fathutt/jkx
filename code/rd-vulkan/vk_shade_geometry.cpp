@@ -2999,6 +2999,7 @@ void RB_StageIteratorGeneric( void )
 	{
 		int			forceRGBGen = 0;
 		qboolean	is_refraction = qfalse;
+		qboolean	is_liquid = qfalse;
 
 		pStage = tess.xstages[stage];
 
@@ -3038,6 +3039,22 @@ void RB_StageIteratorGeneric( void )
 #endif
 		{
 			is_refraction = qtrue;
+		}
+
+		// Liquid surfaces. Decided per draw rather than at shader load, so that
+		// r_liquids turns the new path off inside a running frame and the two
+		// can be photographed against each other without a map reload.
+		//
+		// Only the first stage, and only in the main pass. A liquid material
+		// with several stages is drawing something ON the liquid - scum, a
+		// caustic decal, a scrolling overlay - and those still belong to the old
+		// path; and the glow and refraction sweeps walk the same list again for
+		// their own reasons.
+		if ( tess.shader->liquidType != LIQUID_NONE && r_liquids->integer
+			&& !backEnd.isGlowPass && !backEnd.refractionFill && !backEnd.depthPrepass
+			&& stage == 0 )
+		{
+			is_liquid = qtrue;
 		}
 
 		for ( i = 0; i < pStage->numTexBundles; i++ ) {
@@ -3154,6 +3171,13 @@ void RB_StageIteratorGeneric( void )
 					( pStage->mtEnv3 ? TYPE_MULTI_TEXTURE_ADD3 : TYPE_MULTI_TEXTURE_ADD2);
 			}
 
+			// liquid
+			if ( is_liquid )
+			{
+				def.shader_type = TYPE_LIQUID;
+				tess_flags |= TESS_NNN;
+			}
+
 			// refraction
 			if ( is_refraction ) 
 			{
@@ -3238,6 +3262,40 @@ void RB_StageIteratorGeneric( void )
 
 		VectorCopy4( pStage->normalScale, uniform_global.normalScale );
 		VectorCopy4( pStage->specularScale, uniform_global.specularScale );
+
+		// Liquid parameters. Filled only for the surfaces that take that path,
+		// because everything here is read by exactly one shader.
+		if ( is_liquid )
+		{
+			// Seconds, from the same clock the deforms use, so that a liquid
+			// surface and a deform on the same map agree about what time it is.
+			uniform_global.liquid[0] = backEnd.refdef.floatTime;
+			uniform_global.liquid[1] = r_liquidWaveScale->value;
+			uniform_global.liquid[2] = r_liquidWaveSpeed->value;
+			uniform_global.liquid[3] = r_liquidNormalScale->value;
+
+			// Where the light comes from. The map's own sun when it has one -
+			// which is what a liquid outdoors is lit by - and straight down
+			// otherwise, because a highlight from nowhere is still better than a
+			// highlight from the wrong place and a map without a sun is indoors.
+			if ( tr.sunShader != NULL && VectorLength( tr.sunDirection ) > 0.5f ) {
+				VectorCopy( tr.sunDirection, uniform_global.liquidLight );
+			} else {
+				VectorSet( uniform_global.liquidLight, 0.0f, 0.0f, 1.0f );
+			}
+
+			// Tight rather than broad. A wide highlight on water reads as
+			// plastic; the sharpness is most of what says "liquid".
+			uniform_global.liquidLight[3] = 128.0f;
+
+			// What the surface turns into at a grazing angle. A constant for
+			// now, and it is the honest placeholder: the right answer is the
+			// reflection probe the cubemap path already builds, and hanging that
+			// on here before the waves have been looked at would be two
+			// unmeasured things at once.
+			VectorSet( uniform_global.liquidSky, 0.55f, 0.68f, 0.85f );
+			uniform_global.liquidSky[3] = r_liquidFresnel->value;
+		}
 
 		// Soft particles. Off unless the scene depth for this view has actually
 		// been resolved, which happens on the way from the surfaces that write

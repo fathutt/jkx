@@ -325,6 +325,9 @@ void vk_destroy_shader_modules( void )
     for ( i = 0; i < 2; i++ )
         vkDestroyShaderModule(vk.device, vk.shaders.depth_resolve_fs[i], NULL);
 
+    vkDestroyShaderModule(vk.device, vk.shaders.liquid_vs, NULL);
+    vkDestroyShaderModule(vk.device, vk.shaders.liquid_fs, NULL);
+
     vkDestroyShaderModule(vk.device, vk.shaders.dot_vs, NULL);
     vkDestroyShaderModule(vk.device, vk.shaders.dot_fs, NULL);
 

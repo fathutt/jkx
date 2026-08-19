@@ -1,0 +1,109 @@
+#version 450
+#extension GL_GOOGLE_include_directive : enable
+
+// Water: a surface normal that is computed rather than sampled.
+//
+// What the old path draws is one flat colour with the texture coordinates
+// wobbled, and no amount of wobbling a flat colour produces a highlight. The
+// thing an eye actually reads water by is the SPECULAR response - a thousand
+// small facets catching the light at slightly different angles - and that is a
+// question about the normal, not about the texture. So there is no texture here
+// at all: the normal comes from two travelling wave fields summed together, and
+// everything else follows from it.
+//
+// Deliberately procedural rather than two scrolling normal maps, which is the
+// usual recipe. A map has a resolution and therefore a distance at which it
+// turns to mush and a distance at which it tiles visibly; a function has
+// neither, and it costs no memory and no asset. The cost is that it is a sum of
+// sines and looks like one if you use too few octaves.
+#define IS_LIQUID_GLSL
+#include "global.h"
+
+layout(set = VK_DESC_UNIFORM, binding = VK_DESC_UNIFORM_GLOBAL_BINDING) uniform Global {
+	vkUniformGlobal_t u_global;
+};
+
+layout(location = 0) in vec4 frag_color;
+layout(location = 1) in vec3 var_WorldPos;
+layout(location = 2) in vec3 var_Normal;
+layout(location = 3) in vec3 var_ViewDir;
+layout(location = 4) in vec4 var_ScreenPos;
+
+layout(location = 0) out vec4 out_color;
+
+// One travelling wave: a sine along a direction, and its slope.
+//
+// The slope is what is wanted, not the height. A displacement this shader
+// cannot apply - the geometry is four vertices and the vertex shader cannot add
+// more - but the NORMAL of the surface it would have made is exactly what the
+// lighting reads, and that is available in closed form. This is why the water
+// looks like it has waves while its silhouette stays flat, and why the silhouette
+// is the one thing this cannot fix.
+vec2 WaveSlope( vec2 pos, vec2 dir, float wavelength, float speed, float time, float amplitude )
+{
+	float k = 6.2831853 / wavelength;
+	float phase = dot( pos, dir ) * k + time * speed * k;
+
+	// d/dpos of ( amplitude * sin( phase ) ), which is the gradient of the
+	// height field along dir.
+	return dir * ( amplitude * k * cos( phase ) );
+}
+
+void main()
+{
+	float time      = u_global.liquid.x;
+	float wavelength = u_global.liquid.y;
+	float speed     = u_global.liquid.z;
+	float strength  = u_global.liquid.w;
+
+	vec3  N = normalize( var_Normal );
+	vec3  V = normalize( var_ViewDir );
+
+	// Four layers at unrelated angles and shrinking wavelengths. Unrelated
+	// matters: two directions that are a simple fraction of a turn apart build a
+	// visible lattice, and the eye finds a lattice in water immediately.
+	vec2 p = var_WorldPos.xy;
+	vec2 slope = vec2( 0.0 );
+
+	slope += WaveSlope( p, normalize( vec2(  1.00,  0.17 ) ), wavelength,         speed,        time, 1.00 );
+	slope += WaveSlope( p, normalize( vec2( -0.31,  1.00 ) ), wavelength * 0.53,  speed * 1.31, time, 0.55 );
+	slope += WaveSlope( p, normalize( vec2(  0.67, -0.74 ) ), wavelength * 0.27,  speed * 1.77, time, 0.28 );
+	slope += WaveSlope( p, normalize( vec2( -0.88, -0.43 ) ), wavelength * 0.13,  speed * 2.19, time, 0.13 );
+
+	// The slope is a gradient in the plane; the normal of a height field is
+	// ( -dh/dx, -dh/dy, 1 ). Built against the surface's own normal so that this
+	// is not silently a floor-only path - a water face is horizontal in every
+	// map anyone has made, and code that assumes so stops working the first time
+	// somebody tilts one.
+	vec3 up      = N;
+	vec3 tangent = normalize( abs( up.z ) < 0.99 ? cross( vec3( 0.0, 0.0, 1.0 ), up ) : vec3( 1.0, 0.0, 0.0 ) );
+	vec3 bitangent = cross( up, tangent );
+
+	vec3 Nw = normalize( up - ( tangent * slope.x + bitangent * slope.y ) * strength );
+
+	// Fresnel. Looking straight down at water you see the bottom; looking along
+	// it you see the sky, and the crossover is steep. Schlick, with the 0.02
+	// that water actually has at normal incidence rather than a number chosen to
+	// look right.
+	float NV = clamp( dot( Nw, V ), 0.0, 1.0 );
+	float fresnel = 0.02 + 0.98 * pow( 1.0 - NV, 5.0 );
+	fresnel *= u_global.liquidSky.w;
+
+	// The specular highlight, which is the whole point of having a normal.
+	vec3  L = normalize( u_global.liquidLight.xyz );
+	vec3  H = normalize( L + V );
+	float NH = clamp( dot( Nw, H ), 0.0, 1.0 );
+	float spec = pow( NH, max( u_global.liquidLight.w, 1.0 ) );
+
+	// The material's own colour is what the water looks like when you look
+	// straight into it, so the map author keeps control of that; the reflection
+	// colour is what it becomes at a grazing angle.
+	vec3 deep = frag_color.rgb;
+	vec3 sky  = u_global.liquidSky.rgb;
+
+	out_color.rgb = mix( deep, sky, fresnel ) + sky * spec;
+
+	// More opaque where it reflects. A surface showing you the sky is not one
+	// you can see the bottom through.
+	out_color.a = clamp( frag_color.a + ( 1.0 - frag_color.a ) * fresnel, 0.0, 1.0 );
+}

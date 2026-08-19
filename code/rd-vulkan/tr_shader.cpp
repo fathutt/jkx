@@ -4464,6 +4464,27 @@ shader_t *FinishShader( void )
 		shader.sort = SS_ENVIRONMENT;
 	}
 
+	// A liquid is what the material says it is, and the material says it with
+	// `surfaceparm water` / `slime` / `lava`. Recorded here rather than asked
+	// for per draw because contentFlags is finished by this point and never
+	// changes afterwards.
+	//
+	// Not the same field as the contents in the BSP shader lump, which carries
+	// the same name and belongs to the collision model: that one is why a player
+	// swims, this one is why a surface is shaded as a liquid. A map can set
+	// either without the other, so the renderer has to read its own.
+	//
+	// Lava first, because a material is entitled to say more than one of these
+	// and the hottest answer is the one that decides what it looks like.
+	if ( shader.contentFlags & CONTENTS_LAVA )
+		shader.liquidType = LIQUID_LAVA;
+	else if ( shader.contentFlags & CONTENTS_SLIME )
+		shader.liquidType = LIQUID_SLIME;
+	else if ( shader.contentFlags & CONTENTS_WATER )
+		shader.liquidType = LIQUID_WATER;
+	else
+		shader.liquidType = LIQUID_NONE;
+
 	//
 	// set polygon offset
 	//

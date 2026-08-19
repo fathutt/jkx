@@ -96,7 +96,17 @@ def expand_program(program: dict, axes: dict) -> list[Variant]:
 
     product = program.get("product")
     if not product:
-        return [Variant(program["name"], source, stage, list(program.get("defines", [])))]
+        # The slot belongs to the variant whether or not the program has axes.
+        # It used to be read only inside the product expansion below, so a
+        # single-variant program that declared one had it silently dropped: the
+        # module was compiled, went into the pak, and never reached the
+        # vk.shaders field that names it. What that looks like from the outside
+        # is a pipeline created with VK_NULL_HANDLE for both stages - the
+        # validation layer says "module is not a valid VkShaderModule" and the
+        # surface simply does not draw.
+        return [Variant(program["name"], source, stage,
+                        list(program.get("defines", [])),
+                        program.get("slot"))]
 
     variants: list[Variant] = []
 
@@ -125,6 +135,18 @@ def expand_program(program: dict, axes: dict) -> list[Variant]:
             )
 
     recurse(0, {}, {}, [])
+
+    # A program that names a slot has to produce variants that carry it.
+    #
+    # Losing it is not an error anywhere downstream: the module still compiles,
+    # still goes into the pak, and the only sign is a vk.shaders field left at
+    # VK_NULL_HANDLE and a pipeline that fails to create at draw time. That is
+    # what happened the first time a single-variant program declared one, and it
+    # cost a run to find - so it is asserted here, where it is one line.
+    if program.get("slot") and any(v.slot is None for v in variants):
+        raise ValueError(f"program {program['name']!r} declares a slot but "
+                         f"produced variants without one")
+
     return variants
 
 

@@ -597,6 +597,44 @@ if [ "${JKX_SMOKE_SOFTPARTICLES:-0}" = "1" ]; then
     INMAP_STEP+=( +exec jkx_soft.cfg +wait 110 )
 fi
 
+# Three pictures of one pool, in one run, so that each says what the one before
+# it could not.
+#
+#   off   the old path - one flat colour with an alpha, which is the thing being
+#         replaced and the only shot with numbers to predict;
+#   flat  the new path with the waves turned off - Fresnel and nothing else.
+#         This is the shot that separates "the liquid path runs" from "the waves
+#         run", and without it a difference between the first and the last says
+#         only that SOMETHING changed;
+#   wave  the new path in full.
+#
+# The append is HERE and not down with the fixture that builds the pool, and
+# that is not tidiness. INMAP_STEP is one array in script order: everything
+# appended after the block that loads jkx_room2 runs in the SECOND room, which
+# has no pool in it. Written down there first, all three shots came back
+# identical - three pictures of a room with no water in it - and nothing failed.
+# The picmip lane has the same note for the same reason.
+if [ "${JKX_SMOKE_WATER:-0}" = "1" ]; then
+    {
+        echo "wait 5"
+        echo "set r_liquids 0"
+        echo "wait 20"
+        echo "screenshot_tga jkx_liquid_off"
+        echo "wait 10"
+        echo "set r_liquids 1"
+        echo "set r_liquidNormalScale 0"
+        echo "wait 20"
+        echo "screenshot_tga jkx_liquid_flat"
+        echo "wait 10"
+        echo "set r_liquidNormalScale 1"
+        echo "wait 20"
+        echo "screenshot_tga jkx_liquid_wave"
+        echo "wait 10"
+    } > "$RUN/base/jkx_liquid.cfg"
+
+    INMAP_STEP+=( +exec jkx_liquid.cfg +wait 110 )
+fi
+
 if [ "${JKX_SMOKE_MSAA:-0}" = "1" ]; then
     {
         echo "wait 5"
@@ -1658,6 +1696,7 @@ elif [ "${JKX_SMOKE_WATER:-0}" = "1" ]; then
     # feature has nothing to compare against but itself.
     python3 "$HERE/make_test_bsp.py" "$RUN/base/maps/jkx_room.bsp" \
         --water jkx/water >/dev/null
+
 elif [ "${JKX_SMOKE_MAPENT:-0}" = "1" ]; then
     # The same room with one piece of furniture in it. See the note above
     # INMAP_STEP for what the two shots of it are for; the model is the
@@ -2872,32 +2911,67 @@ something other than the distance from the eye"
     fi
 fi
 
-# Water, the A side.
+# Water: three pictures of one pool, and each says what the one before it could
+# not.
 #
-# The pool is drawn over two different backgrounds in one frame - the white
-# floor under it and the grey room around it - and both results are arithmetic:
-# half alpha of ( 0.0 0.2 0.6 ) over 255 is (128, 153, 204), and over 191 it is
-# (96, 121, 172). Two numbers, both predicted, and between them they say the
-# surface is there, it is blending, and it is blending against what is actually
-# behind it rather than against a constant.
+# The pool covers exactly the same 69823 pixels in all three, because the
+# geometry never changes - so every difference below is shading and nothing
+# else. What differs is how many DISTINCT colours those pixels take:
 #
-# There is no B side yet, and that is the point of writing this now. When the
-# water path lands, this frame is what it has to be compared against; a lane
-# written afterwards can only agree with whatever the new path happens to draw.
+#   off   10   the old path. Two flat blends and their antialiased edges.
+#   flat  67   the liquid path with the waves turned off: Fresnel varies with
+#              the viewing angle across the surface and nothing else does.
+#   wave 318   the waves.
+#
+# The middle shot is the one that earns its place. Without it, a difference
+# between the first and the last says only that SOMETHING changed - it cannot
+# separate "the new path runs" from "the waves run", and those are two different
+# things to have broken.
+#
+# The thresholds are set between the measured values rather than at them, and
+# the flat shot is asserted from BOTH sides: at least a hundred colours, so the
+# path is running, and fewer than three hundred, so the waves are not. An
+# upper bound is not something tga_is_a_picture offers, so it is spelled as a
+# check that must fail - which is the same statement and needs no new tool.
 if [ "${JKX_SMOKE_WATER:-0}" = "1" ]; then
-    shot="$RUN/home/base/screenshots/jkx_inmap.tga"
+    off="$RUN/home/base/screenshots/jkx_liquid_off.tga"
+    flat="$RUN/home/base/screenshots/jkx_liquid_flat.tga"
+    wave="$RUN/home/base/screenshots/jkx_liquid_wave.tga"
 
-    if [ ! -f "$shot" ]; then
-        report "the pool was never photographed, so nothing here was checked"
+    if [ ! -f "$off" ] || [ ! -f "$flat" ] || [ ! -f "$wave" ]; then
+        report "the pool was not photographed three times, so nothing here was checked"
     else
+        # The old path, and it is arithmetic: half alpha of ( 0.0 0.2 0.6 ) over
+        # the white floor is (128, 153, 204), and over the grey room around it
+        # (96, 121, 172). Two backgrounds in one frame, so this also says the
+        # surface is blending against what is behind it and not against a
+        # constant.
         for want in "128,153,204:20000" "96,121,172:12000"; do
-            if ! python3 "$HERE/tga_has_colour.py" "$shot" "$want"; then
-                report "the water surface is not blending the way its blendFunc \
-says it should over ${want%%:*}. A water quad that is not there at all is the \
-first thing to check: its normal points up, world faces are culled, and a \
-surface placed above the eye is a back face"
+            if ! python3 "$HERE/tga_has_colour.py" "$off" "$want"; then
+                report "with r_liquids 0 the pool is not the colour its blendFunc \
+says it should be over ${want%%:*}. A pool that is not drawn at all is the first \
+thing to check: its normal points up, world faces are culled, and a surface \
+above the eye is a back face"
             fi
         done
+
+        if ! python3 "$HERE/tga_is_a_picture.py" "$flat" 100; then
+            report "r_liquids 1 changed nothing: the frame has as few colours as \
+the old path drew. Either the liquid pipeline was not selected for the surface \
+or it is drawing the same flat blend"
+        fi
+
+        if python3 "$HERE/tga_is_a_picture.py" "$flat" 300 >/dev/null 2>&1; then
+            report "with r_liquidNormalScale 0 the pool has as many colours as it \
+does with the waves on, so the wave field is being applied when it was asked not \
+to be - and the shot that is supposed to isolate the waves is measuring them"
+        fi
+
+        if ! python3 "$HERE/tga_is_a_picture.py" "$wave" 300; then
+            report "the wave field changed nothing measurable. The normal is \
+computed from the world position of the fragment, so a surface whose position \
+never reaches the fragment shader gives a constant normal and exactly this"
+        fi
     fi
 fi
 

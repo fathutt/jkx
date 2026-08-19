@@ -307,6 +307,17 @@ typedef enum {
 	TYPE_DOT,
 	TYPE_REFRACTION,
 
+	// Liquid surfaces: a world brush face with a normal that is computed rather
+	// than sampled - see liquid_frag.tmpl.
+	//
+	// One type for water, slime, swamp and lava rather than one each. What
+	// differs between them is material parameters - how much light the body
+	// absorbs, how long the waves are, whether it emits - and not the technique;
+	// even lava, which is opaque and glowing, shares the normal, the motion and
+	// the highlight. A second pipeline would buy a second set of permutations
+	// and a second place for the two to drift apart.
+	TYPE_LIQUID,
+
 	TYPE_SINGLE_TEXTURE_LIGHTING,
 	TYPE_SINGLE_TEXTURE_LIGHTING_LINEAR,
 
@@ -1027,6 +1038,8 @@ typedef struct {
 		VkShaderModule refraction_vs[3];
 		VkShaderModule refraction_fs[2];	// [0] pbr, [1] fastlight - see refraction_frag.tmpl
 		VkShaderModule depth_resolve_fs[2];	// [0] single-sample, [1] multisampled
+		VkShaderModule liquid_vs;
+		VkShaderModule liquid_fs;
 
 		VkShaderModule normalmap;
 	} shaders;

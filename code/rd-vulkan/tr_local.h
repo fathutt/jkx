@@ -759,6 +759,20 @@ typedef enum {
 	DEPTHPREPASS_SKIP			// contributes no depth of its own
 } depthPrepass_t;
 
+// A liquid surface, and which one.
+//
+// The renderer reads shader->contentFlags for this, and the surfaceparm table
+// already knows lava and slime alongside water, so all three cost the same
+// nothing to recognise. Only water is shaded today; the others are here so that
+// the field is a kind rather than a boolean, because a boolean called isWater
+// is the thing that has to be found and changed the day slime arrives.
+typedef enum {
+	LIQUID_NONE = 0,
+	LIQUID_WATER,
+	LIQUID_SLIME,
+	LIQUID_LAVA,
+} liquidType_t;
+
 typedef struct shader_s {
 	char		name[MAX_QPATH];					// game path, including extension
 	int			lightmapSearchIndex[MAXLIGHTMAPS];	// for a shader to match, both name and lightmapIndex must match
@@ -823,6 +837,13 @@ typedef struct shader_s {
 
 	
 	qboolean	useDistortion;
+
+	// Which liquid this material is, if any - see liquidType_t.
+	//
+	// Set once when the shader is finished, because that is where contentFlags
+	// is known; whether the new path is actually taken is decided per draw from
+	// r_liquids, so the two paths can be compared inside one run.
+	liquidType_t	liquidType;
 	qboolean	hasGlow;							// True if this shader has a stage with glow in it (just an optimization).
 
 	int			hasScreenMap;
@@ -2153,6 +2174,11 @@ extern	cvar_t	*r_depthPrepass;		// lay down opaque depth before shading
 extern	cvar_t	*r_softParticles;		// fade transparent surfaces near solid geometry
 extern	cvar_t	*r_softParticleScale;	// fade distance, in world units
 extern	cvar_t	*r_softParticleNear;	// fade-out distance in front of the camera
+extern	cvar_t	*r_liquids;				// shade water, slime and lava faces as liquid surfaces
+extern	cvar_t	*r_liquidWaveScale;		// how many units across one wave is
+extern	cvar_t	*r_liquidWaveSpeed;		// how fast the waves travel
+extern	cvar_t	*r_liquidNormalScale;	// how steep the procedural normal is
+extern	cvar_t	*r_liquidFresnel;		// how much of the surface turns to reflection at a grazing angle
 extern	cvar_t	*r_weldModelNormals;	// share one normal between coincident model vertexes
 extern	cvar_t	*r_weldModelNormalsAngle;	// how wide a join still counts as smooth
 extern	cvar_t	*r_shownormals;			// draws wireframe normals

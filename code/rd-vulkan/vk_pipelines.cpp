@@ -356,6 +356,7 @@ static void vk_push_vertex_input_binding_attribute( const Vk_Pipeline_Def *def )
             break;
 
         case TYPE_REFRACTION:
+        case TYPE_LIQUID:
             vk_push_bind( 0, sizeof( vec4_t ) );					// xyz array
             vk_push_bind( 1, sizeof( color4ub_t ) );				// color array
             vk_push_bind( 2, sizeof( vec2_t ) );					// st0 array
@@ -581,12 +582,14 @@ static void vk_push_vertex_input_binding_attribute( const Vk_Pipeline_Def *def )
     }
 #endif
 
-    if ( ( def->shader_type == TYPE_FOG_ONLY || def->shader_type == TYPE_REFRACTION ) || 
+    if ( ( def->shader_type == TYPE_FOG_ONLY || def->shader_type == TYPE_REFRACTION
+            || def->shader_type == TYPE_LIQUID ) ||
             ( def->shader_type >= TYPE_GENERIC_BEGIN && def->shader_type <= TYPE_GENERIC_END ) )
     {
         // bind attributes for fog and generic gpu shading shaders
         switch ( def->shader_type ) {
             case TYPE_REFRACTION:
+            case TYPE_LIQUID:
             case TYPE_FOG_ONLY:
             case TYPE_SINGLE_TEXTURE_ENV:
             case TYPE_MULTI_TEXTURE_MUL2_ENV:
@@ -805,6 +808,12 @@ VkPipeline vk_create_pipeline( const Vk_Pipeline_Def *def, renderPass_t renderPa
     if ( def->vbo_mdv )     vbo = 2;
 
     switch ( def->shader_type ) {
+        case TYPE_LIQUID:
+            // One module each. A liquid face is a world brush face, so there
+            // is no skinning variant and no model VBO variant to pick between.
+            vs_module = &vk.shaders.liquid_vs;
+            fs_module = &vk.shaders.liquid_fs;
+        break;
         case TYPE_REFRACTION:
             vs_module = &vk.shaders.refraction_vs[vbo];
             // The fastlight half has no physical-map sampler at all, because on
@@ -972,6 +981,7 @@ VkPipeline vk_create_pipeline( const Vk_Pipeline_Def *def, renderPass_t renderPa
             case TYPE_COLOR_GREEN:
             case TYPE_COLOR_RED:
             case TYPE_REFRACTION:
+            case TYPE_LIQUID:
                 break;
             default:
                 // switch to fogged modules

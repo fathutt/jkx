@@ -103,6 +103,9 @@
       "name": "depth_resolve_{depthms}",
       "slot": "depth_resolve_fs[{depthms.index}]" },
 
+    { "name": "liquid_vert", "source": "liquid.tmpl",      "stage": "vert", "defines": [], "slot": "liquid_vs" },
+    { "name": "liquid_frag", "source": "liquid_frag.tmpl", "stage": "frag", "defines": [], "slot": "liquid_fs" },
+
     { "source": "gen_vert.tmpl", "stage": "vert",
       "product": ["vbo", "fastlight", "light", "tx", "cl", "env", "fog"],
       "name": "vert_{vbo}{fastlight}{light}{tx}{cl}{env}{fog}",
