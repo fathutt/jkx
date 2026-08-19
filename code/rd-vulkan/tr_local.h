@@ -1253,6 +1253,9 @@ typedef struct srfTriangles_s {
 
 extern	void (*rb_surfaceTable[SF_NUM_SURFACE_TYPES])(void *);
 
+// A refEntity type by name, for messages. See tr_surface.cpp.
+const char *RE_EntityTypeName( int type );
+
 /*
 ==============================================================================
 

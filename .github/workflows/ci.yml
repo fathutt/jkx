@@ -503,6 +503,16 @@ jobs:
           JKX_SMOKE_DISPLAY: ':97'
         run: bash tools/verify/smoke_headless.sh build
 
+      # An entity type the renderer has no surface for must not end the level.
+      # R_AddEntitySurface's default was Com_Error( ERR_DROP ), so a map with an
+      # fx_cloudlayer threw the player back to the menu - and so did fighting
+      # Galak Mech in JK2.
+      - name: An unimplemented entity type does not drop the level
+        env:
+          JKX_SMOKE_CLOUD: '1'
+          JKX_SMOKE_DISPLAY: ':99'
+        run: bash tools/verify/smoke_headless.sh build
+
       # A model the map owns. Everything else this bench draws is put on
       # screen by the console or is the player; a map's prop gets its model
       # through G_ModelIndex, which is a configstring index, and cgame turns

@@ -1993,6 +1993,34 @@ RB_SurfaceAxis
 Draws x/y/z lines from the origin for orientation debugging
 ===================
 */
+/*
+===================
+RE_EntityTypeName
+
+For a message that names the thing rather than a number. A reType in a log is
+worth nothing to the person reading it - and the person reading it is usually
+somebody reporting that a map looks wrong, not somebody with the header open.
+===================
+*/
+const char *RE_EntityTypeName( int type )
+{
+	switch ( type ) {
+		case RT_MODEL:			return "RT_MODEL";
+		case RT_POLY:			return "RT_POLY";
+		case RT_SPRITE:			return "RT_SPRITE";
+		case RT_ORIENTED_QUAD:	return "RT_ORIENTED_QUAD";
+		case RT_LINE:			return "RT_LINE";
+		case RT_ELECTRICITY:	return "RT_ELECTRICITY";
+		case RT_CYLINDER:		return "RT_CYLINDER";
+		case RT_LATHE:			return "RT_LATHE";
+		case RT_BEAM:			return "RT_BEAM";
+		case RT_SABER_GLOW:		return "RT_SABER_GLOW";
+		case RT_PORTALSURFACE:	return "RT_PORTALSURFACE";
+		case RT_CLOUDS:			return "RT_CLOUDS";
+		default:				return "unknown";
+	}
+}
+
 static void RB_SurfaceAxis( void ) {
 	int i;
 
@@ -2064,9 +2092,53 @@ void RB_SurfaceEntity( const surfaceType_t *surfType ) {
 	case RT_CYLINDER:
 		RB_SurfaceCylinder();
 		break;
+
+	// NOT the debug axis, and this is the whole point of the change.
+	//
+	// RB_SurfaceAxis draws three coloured lines from the origin and its own
+	// comment says what it is for: orientation debugging. Using it as the
+	// default for an entity type this renderer has not implemented means the
+	// GAME draws developer geometry in front of the player, in normal play, on
+	// a retail map - which is what "there is an RGB cross floating in the air"
+	// turned out to be.
+	//
+	// Two types reach here and both are live gamecode, not leftovers:
+	//
+	//   RT_CLOUDS   fx_cloudlayer, "mostly for bespin undercity but could be
+	//               used other places" - CG_Clouds builds it every frame in
+	//               both games
+	//   RT_LATHE    the Galak Mech shield bubble. Commented out in Jedi
+	//               Academy's cgame; LIVE in Jedi Outcast's, which means
+	//               fighting Galak in JK2 draws a cross where the shield is
+	//
+	// Neither has a surface function in this renderer. Until they do, drawing
+	// NOTHING is the honest answer: a missing effect is a thing a player can
+	// fail to notice, and a magenta-red-green cross is not.
+	//
+	// Said once per type rather than per frame, because this is called from the
+	// back end and CG_Clouds submits its entity every frame of every scene.
 	default:
-		allow_merge = qfalse;
-		RB_SurfaceAxis();
+		{
+			static qboolean saidType[RT_MAX_REF_ENTITY_TYPE + 1];
+			const int type = backEnd.currentEntity->e.reType;
+
+			allow_merge = qfalse;
+
+			if ( type >= 0 && type <= RT_MAX_REF_ENTITY_TYPE && !saidType[type] ) {
+				saidType[type] = qtrue;
+				CL_RefPrintf( PRINT_ALL, S_COLOR_YELLOW "WARNING: refEntity type %i "
+					"(%s) has no surface in this renderer and will not be drawn\n",
+					type, RE_EntityTypeName( type ) );
+			}
+
+			// The aid is kept, behind the cheat cvar it belongs behind. Drawing
+			// the axis is genuinely the fastest way to find out WHERE one of
+			// these entities is when somebody reports a missing effect - it was
+			// only ever wrong as a default.
+			if ( r_debugSurface->integer ) {
+				RB_SurfaceAxis();
+			}
+		}
 		break;
 	}
 

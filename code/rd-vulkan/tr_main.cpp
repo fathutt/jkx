@@ -1527,6 +1527,21 @@ static void R_AddEntitySurface( const trRefdef_t *refdef, trRefEntity_t *ent, in
 	case RT_LINE:
 	case RT_CYLINDER:
 	case RT_SABER_GLOW:
+	// The two that used to reach the default below and END THE LEVEL.
+	//
+	// RT_CLOUDS is fx_cloudlayer - "mostly for bespin undercity but could be
+	// used other places" - and CG_Clouds submits one every frame in both games.
+	// RT_LATHE is the Galak Mech shield bubble, commented out in Jedi Academy's
+	// cgame and LIVE in Jedi Outcast's. Neither has a surface function in this
+	// renderer, and the default here is Com_Error( ERR_DROP ), so a map with a
+	// cloud layer in it did not look wrong - it dropped to the menu with "Bad
+	// reType", and so did fighting Galak in JK2.
+	//
+	// They come through here now and reach RB_SurfaceEntity, which draws
+	// nothing for them and says which type once. A missing effect is something
+	// a player can fail to notice. Being thrown out of the level is not.
+	case RT_CLOUDS:
+	case RT_LATHE:
 		// self blood sprites, talk balloons, etc should not be drawn in the primary
 		// view.  We can't just do this check for all entities, because md3
 		// entities may still want to cast shadows from them
@@ -1584,8 +1599,32 @@ static void R_AddEntitySurface( const trRefdef_t *refdef, trRefEntity_t *ent, in
 		}
 		break;
 
+	// Not ERR_DROP any more, and the reasoning is the same one step further
+	// out. A reType this renderer does not know is a fault in the gamecode or a
+	// corrupted entity, and neither is improved by throwing the player out of
+	// the level: the entity is one of hundreds in the scene and skipping it
+	// costs that entity. Ending the level costs everything the player was
+	// doing, and does it with four words.
+	//
+	// Once per type, because this runs per entity per frame.
 	default:
-		Com_Error(ERR_DROP, "R_AddEntitySurfaces: Bad reType");
+		{
+			static qboolean saidType[RT_MAX_REF_ENTITY_TYPE + 1];
+			const int type = ent->e.reType;
+
+			if ( type >= 0 && type <= RT_MAX_REF_ENTITY_TYPE ) {
+				if ( !saidType[type] ) {
+					saidType[type] = qtrue;
+					CL_RefPrintf( PRINT_ALL, S_COLOR_YELLOW "WARNING: refEntity type "
+						"%i (%s) is not known to this renderer; the entity is skipped\n",
+						type, RE_EntityTypeName( type ) );
+				}
+			} else {
+				CL_RefPrintf( PRINT_ALL, S_COLOR_YELLOW "WARNING: refEntity type %i is "
+					"outside the enum; something wrote over an entity\n", type );
+			}
+		}
+		break;
 	}
 }
 /*

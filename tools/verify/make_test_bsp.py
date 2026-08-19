@@ -670,7 +670,7 @@ def parse_npcs(specs):
     return out
 
 
-def entities(props=(), npcs=()):
+def entities(props=(), npcs=(), cloud=False):
     """Worldspawn, one player start, and any props the MAP owns.
 
     Standing, not forty units above it. The player's box reaches 24 below his
@@ -746,11 +746,37 @@ def entities(props=(), npcs=()):
             b'}\n'
         )
 
+    # An entity whose refEntity type this renderer has no surface function for.
+    #
+    # fx_cloudlayer is the one that exists in real maps - "mostly for bespin
+    # undercity but could be used other places" - and CG_Clouds submits it as
+    # RT_CLOUDS every frame. RB_SurfaceEntity has no case for that, and until
+    # now the default drew RB_SurfaceAxis: three coloured lines from the origin,
+    # a developer's orientation aid, in front of the player, in normal play.
+    #
+    # The fixture never had one, so the whole default branch of RB_SurfaceEntity
+    # was unreachable from this bench - which is why "there is an RGB cross
+    # floating in the air" could only ever be reported from a real map.
+    #
+    # radius small and contents zero: the layer must not reach the player or
+    # anything else this fixture measures. It is here to be SUBMITTED, not to be
+    # looked at.
+    if cloud:
+        out += (
+            b'{\n'
+            b'"classname" "fx_cloudlayer"\n'
+            + b'"origin" "0 200 %d"\n' % int(FLOOR_Z + 96) +
+            b'"radius" "64"\n'
+            b'"random" "16"\n'
+            b'"wait" "0"\n'
+            b'}\n'
+        )
+
     return out + b'\0'
 
 
 def build(visible_shader, sky_shader=None, fog_shader=None, lightmap=None,
-          props=(), npcs=()):
+          props=(), npcs=(), cloud=False):
     """lightmap is None, "internal" or "hdr".
 
     "internal" puts a page in LUMP_LIGHTMAPS, which is how every retail map is
@@ -763,7 +789,7 @@ def build(visible_shader, sky_shader=None, fog_shader=None, lightmap=None,
     sky = bool(sky_shader)
     count = 1 + len(SKY_WALLS) if sky else 1
     lumps = {
-        LUMP_ENTITIES: entities(props, npcs),
+        LUMP_ENTITIES: entities(props, npcs, cloud),
         LUMP_SHADERS: shaders(visible_shader, sky_shader),
         LUMP_PLANES: planes(),
         LUMP_NODES: nodes(),
@@ -995,6 +1021,7 @@ def main(argv):
     lightmap = None
     prop_specs = []
     npc_specs = []
+    cloud = False
     path = None
     i = 0
     while i < len(args):
@@ -1013,6 +1040,9 @@ def main(argv):
         elif args[i] == "--lightmap-hdr":
             lightmap = "hdr"
             i += 1
+        elif args[i] == "--cloud":
+            cloud = True
+            i += 1
         elif args[i] == "--prop" and i + 1 < len(args):
             # Repeatable. MODEL[:Y[:Z]] - see parse_props.
             prop_specs.append(args[i + 1])
@@ -1030,7 +1060,7 @@ def main(argv):
 
     if path is None:
         print("usage: %s <out.bsp> [--shader NAME] [--sky NAME] [--fog NAME] "
-              "[--lightmap] [--lightmap-hdr] "
+              "[--lightmap] [--lightmap-hdr] [--cloud] "
               "[--prop MODEL[:Y[:Z]] ...] [--npc NAME[:Y[:Z]] ...]"
               % argv[0],
               file=sys.stderr)
@@ -1038,7 +1068,7 @@ def main(argv):
 
     props = parse_props(prop_specs)
     npcs = parse_npcs(npc_specs)
-    data = build(visible, sky, fog, lightmap, props, npcs)
+    data = build(visible, sky, fog, lightmap, props, npcs, cloud)
     with open(path, "wb") as f:
         f.write(data)
 

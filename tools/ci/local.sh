@@ -71,7 +71,7 @@ JOBS="${JOBS:-$(nproc)}"
 
 STAGES=( "$@" )
 if [ "${#STAGES[@]}" -eq 0 ]; then
-    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokeskin smokeskinshift smokelightmap smokehdrlightmap smokegamecmd smokeshadow smokemapent smokemenumodel smokemenulight smokepbrchar smokevidrestart smokevsync smokeresize smokemsaa smokecubemap smoketransparency smoketcmod smokedeform smokephys smokephysshaded smokepak move smokesan prepass fog noassets )
+    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokeskin smokeskinshift smokelightmap smokehdrlightmap smokegamecmd smokeshadow smokecloud smokemapent smokemenumodel smokemenulight smokepbrchar smokevidrestart smokevsync smokeresize smokemsaa smokecubemap smoketransparency smoketcmod smokedeform smokephys smokephysshaded smokepak move smokesan prepass fog noassets )
 fi
 
 failed=()
@@ -818,6 +818,35 @@ stage_smokegamecmd() {
 stage_smokeshadow() {
     JKX_SMOKE_SHADOW=1 \
     JKX_SMOKE_DISPLAY="${JKX_SMOKE_SHADOW_DISPLAY:-:72}" \
+        bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
+}
+
+# An entity whose refEntity type this renderer has no surface for, and what that
+# used to cost.
+#
+# The lane was written to catch a coloured cross - RB_SurfaceEntity's default
+# was RB_SurfaceAxis, a developer's orientation aid, drawn in front of the
+# player in normal play. It found something worse on its first run:
+# R_AddEntitySurface has no case for RT_CLOUDS either, and ITS default is
+# Com_Error( ERR_DROP, "Bad reType" ). A map with an fx_cloudlayer in it - "mostly
+# for bespin undercity but could be used other places" - did not look wrong, it
+# threw the player back to the menu with four words.
+#
+# RT_LATHE reaches the same two defaults and is live in Jedi Outcast's cgame for
+# the Galak Mech shield bubble, so fighting Galak in JK2 did the same.
+#
+# Both types are routed through now and draw nothing, and the renderer says
+# which type once. What the lane asserts is that the level SURVIVES and that the
+# type is named - not that clouds are drawn, because they are not implemented.
+# Implementing RB_SurfaceClouds and RB_SurfaceLathe is a separate piece of work
+# and the message is what will say when it is needed.
+#
+# The whole default branch of both switches was unreachable from this bench
+# until the fixture had one of these entities, which is why this could only ever
+# be reported from a real map.
+stage_smokecloud() {
+    JKX_SMOKE_CLOUD=1 \
+    JKX_SMOKE_DISPLAY="${JKX_SMOKE_CLOUD_DISPLAY:-:71}" \
         bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
 }
 

@@ -1236,6 +1236,20 @@ elif [ "${JKX_SMOKE_HDRLIGHTMAP:-0}" = "1" ]; then
     # would pass while the defect was still there.
     python3 "$HERE/make_test_bsp.py" "$RUN/base/maps/jkx_room.bsp" \
         --shader jkx/lightmapped --lightmap-hdr >/dev/null
+elif [ "${JKX_SMOKE_CLOUD:-0}" = "1" ]; then
+    # An entity whose refEntity type this renderer has no surface function for.
+    #
+    # fx_cloudlayer is submitted by CG_Clouds as RT_CLOUDS every frame, and
+    # RB_SurfaceEntity has no case for it. The default used to draw
+    # RB_SurfaceAxis - three coloured lines from the origin, a developer's
+    # orientation aid - which is what "there is an RGB cross floating in the
+    # air" was. It now draws nothing and says which type once.
+    #
+    # The whole default branch was unreachable from this bench until this
+    # entity existed, which is why the cross could only be reported from a real
+    # map. RT_LATHE reaches the same branch and is live in Jedi Outcast's cgame
+    # for the Galak Mech shield, so this covers two.
+    python3 "$HERE/make_test_bsp.py" "$RUN/base/maps/jkx_room.bsp" --cloud >/dev/null
 elif [ "${JKX_SMOKE_PHYS:-0}" = "1" ]; then
     # Seven squares in a column: six packings of the same three physical values
     # and one control with a different roughness.
@@ -1877,6 +1891,30 @@ if [ "${JKX_SMOKE_MSAA:-0}" = "1" ]; then
     require 'Wrote screenshots/jkx_msaa_off.tga'
     require 'Wrote screenshots/jkx_msaa_on.tga'
     msaa_checks
+fi
+
+if [ "${JKX_SMOKE_CLOUD:-0}" = "1" ]; then
+    # THE LEVEL SURVIVES. That is what this lane is for, and it is not what it
+    # was written to look for - it was written for a coloured cross and found a
+    # dropped level on the first run.
+    #
+    # R_AddEntitySurface had no case for RT_CLOUDS and its default was
+    # Com_Error( ERR_DROP, "Bad reType" ), so a map with an fx_cloudlayer in it
+    # did not draw the layer wrong, it threw the player back to the menu. The
+    # same for RT_LATHE, which Jedi Outcast's cgame submits for the Galak Mech
+    # shield.
+    forbid 'Bad reType'
+
+    # And the type is named, once. CG_Clouds submits its entity every frame, so
+    # a message per call would be a log made of one line.
+    require 'RT_CLOUDS) has no surface in this renderer'
+
+    count=$( grep -c 'RT_CLOUDS) has no surface' "$RUN/run.log" || true )
+    if [ "$count" -gt 2 ]; then
+        report "the unimplemented-surface warning was printed $count time(s) and \
+should be once per type per renderer; it is called from the back end and the \
+entity is submitted every frame"
+    fi
 fi
 
 if [ "${JKX_SMOKE_SHADOW:-0}" = "1" ]; then
