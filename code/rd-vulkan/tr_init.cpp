@@ -906,7 +906,7 @@ void R_Register( void )
 	// latched and archived variables
 	//
 	r_allowExtensions					= Cvar_Get( "r_allowExtensions",					"1",						CVAR_ARCHIVE_ND|CVAR_LATCH, "" );
-	r_ext_compressed_textures			= Cvar_Get( "r_ext_compress_textures",			"0",						CVAR_ARCHIVE_ND|CVAR_LATCH, "" );
+	r_ext_compressed_textures			= Cvar_Get( "r_ext_compress_textures",			"0",						CVAR_ARCHIVE_ND, "" );
 	r_ext_compressed_lightmaps			= Cvar_Get( "r_ext_compress_lightmaps",			"0",						CVAR_ARCHIVE_ND|CVAR_LATCH, "" );
 	r_ext_preferred_tc_method			= Cvar_Get( "r_ext_preferred_tc_method",			"0",						CVAR_ARCHIVE_ND|CVAR_LATCH, "" );
 	r_ext_gamma_control					= Cvar_Get( "r_ext_gamma_control",				"1",						CVAR_ARCHIVE_ND|CVAR_LATCH, "" );
@@ -939,12 +939,18 @@ void R_Register( void )
 	r_DynamicGlowWidth					= Cvar_Get( "r_DynamicGlowWidth",				"0",						CVAR_ARCHIVE_ND, "" );
 	r_DynamicGlowHeight					= Cvar_Get( "r_DynamicGlowHeight",				"0",						CVAR_ARCHIVE_ND, "" );
 	r_DynamicGlowScale					= Cvar_Get( "r_DynamicGlowScale",				"0.25",						CVAR_ARCHIVE_ND|CVAR_LATCH, "" );
-	r_picmip							= Cvar_Get( "r_picmip",							"0",						CVAR_ARCHIVE|CVAR_LATCH, "" );
+	// The TEXTURES rung. None of these is latched any more: RE_BeginFrame
+	// notices them and calls R_ReloadImages, which reads every file-backed
+	// texture from disk again and uploads it with the settings in force now.
+	// They are all UPLOAD-time settings - picmip shifts the dimensions,
+	// texturebits and compression choose the internal format, intensity is
+	// baked into the pixels - which is why they needed a restart at all.
+	r_picmip							= Cvar_Get( "r_picmip",							"0",						CVAR_ARCHIVE, "" );
 	Cvar_CheckRange( r_picmip, 0, 16, qtrue );
-	r_smartpicmip						= Cvar_Get( "r_smartpicmip",						"1",						CVAR_ARCHIVE_ND|CVAR_LATCH, "Applies r_picmip setting to map textures only." );
+	r_smartpicmip						= Cvar_Get( "r_smartpicmip",						"1",						CVAR_ARCHIVE_ND, "Applies r_picmip setting to map textures only." );
 	r_colorMipLevels					= Cvar_Get( "r_colorMipLevels",					"0",						CVAR_LATCH, "" );
 	r_detailTextures					= Cvar_Get( "r_detailtextures",					"1",						CVAR_ARCHIVE_ND|CVAR_LATCH, "" );
-	r_texturebits						= Cvar_Get( "r_texturebits",						"0",						CVAR_ARCHIVE_ND|CVAR_LATCH, "" );
+	r_texturebits						= Cvar_Get( "r_texturebits",						"0",						CVAR_ARCHIVE_ND, "" );
 	r_texturebitslm						= Cvar_Get( "r_texturebitslm",					"0",						CVAR_ARCHIVE_ND|CVAR_LATCH, "" );
 	r_overBrightBits					= Cvar_Get( "r_overBrightBits",					"0",						CVAR_ARCHIVE_ND|CVAR_LATCH, "" );
 	// Two, which is what the maps were lit for.
@@ -969,7 +975,7 @@ void R_Register( void )
 	Cvar_CheckRange( r_subdivisions, 0, 80, qfalse );
 
 	r_fullbright						= Cvar_Get( "r_fullbright",						"0",						CVAR_ARCHIVE_ND, "" );
-	r_intensity							= Cvar_Get( "r_intensity",						"1",						CVAR_LATCH, "" );
+	r_intensity							= Cvar_Get( "r_intensity",						"1",						CVAR_NONE, "" );
 	r_singleShader						= Cvar_Get( "r_singleShader",					"0",						CVAR_CHEAT|CVAR_LATCH, "" );
 	r_lodCurveError						= Cvar_Get( "r_lodCurveError",					"250",						CVAR_ARCHIVE_ND, "" );
 	r_lodbias							= Cvar_Get( "r_lodbias",							"0",						CVAR_ARCHIVE_ND, "" );
@@ -1190,8 +1196,22 @@ void R_Register( void )
 	r_dlightSaturation					= Cvar_Get("r_dlightSaturation",					"1",						CVAR_ARCHIVE_ND, "");
 	Cvar_CheckRange(r_dlightSaturation, 0, 1, qfalse);
 
-	r_roundImagesDown					= Cvar_Get("r_roundImagesDown",					"1",						CVAR_ARCHIVE_ND | CVAR_LATCH, "");
-	r_nomip								= Cvar_Get("r_nomip",							"0",						CVAR_ARCHIVE | CVAR_LATCH, "Apply picmip only on worldspawn textures");
+	r_roundImagesDown					= Cvar_Get("r_roundImagesDown",					"1",						CVAR_ARCHIVE_ND, "");
+	r_nomip								= Cvar_Get("r_nomip",							"0",						CVAR_ARCHIVE, "Apply picmip only on worldspawn textures");
+
+	// Registering a cvar marks it modified, and the TEXTURES rung in
+	// RE_BeginFrame watches exactly these. Without this the first frame of every
+	// launch reloads every texture in the game to apply the settings it was
+	// just started with - which on the first run of the picmip lane happened
+	// before the map even loaded, and reloaded the nine images that existed at
+	// that point for nothing.
+	r_picmip->modified = qfalse;
+	r_texturebits->modified = qfalse;
+	r_ext_compressed_textures->modified = qfalse;
+	r_intensity->modified = qfalse;
+	r_smartpicmip->modified = qfalse;
+	r_roundImagesDown->modified = qfalse;
+	r_nomip->modified = qfalse;
 	Cvar_CheckRange(r_nomip, 0, 1, qtrue);
 	r_refraction						= Cvar_Get("r_refraction",						"1",						CVAR_ARCHIVE | CVAR_LATCH, "Screen-space refraction for distorting surfaces" );
 	Cvar_CheckRange(r_refraction, 0, 1, qtrue);

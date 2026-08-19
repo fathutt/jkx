@@ -473,6 +473,64 @@ if [ "${JKX_SMOKE_SKINSHIFT:-0}" = "1" ]; then
     INMAP_STEP=( +exec jkx_ents.cfg +wait 30 "${INMAP_STEP[@]}" )
 fi
 
+# Texture settings changed while the game runs - the TEXTURES rung.
+#
+# A different KIND of rung from the three before it. Vertical sync, the window
+# size, the sample count and dynamic glow all change the shape of the render
+# target; these do not. r_picmip, r_texturebits, compression and r_intensity are
+# applied when a texture is UPLOADED, and nothing keeps the original bytes, so
+# the answer is not to rebuild the pipelines - it is to read every file-backed
+# texture from disk again. R_ReloadImages does that in place, through the same
+# replace-an-image machinery that was built to stop a crash when a cinematic
+# changed size mid-level.
+#
+# THE OBSERVABLE IS A NUMBER AND IT IS EXACT: imagelist prints every image's
+# upload dimensions, and picmip is a shift on exactly those. A sky face is 64 by
+# 64, so r_picmip 1 makes it 32 by 32.
+#
+# The sky and not the wide texture, and that took a run to learn. The obvious
+# choice was textures/jkx/wide, 4096 by 64, the biggest thing in the fixture -
+# and it is declared nopicmip, on purpose, because the lane that proves the 4096
+# texture ceiling is gone would fail the moment a picmip setting halved it. The
+# fixture said so in a comment above the shader and the first version of this
+# lane measured it anyway.
+#
+# So the wide texture is the CONTROL now, which is a better lane than the one
+# intended: the sky says picmip is applied, and the wide texture says nopicmip
+# is still honoured. A reload that ignored the flag would pass the first check
+# and fail the second.
+#
+# A picture would not do for either. picmip on a flat colour changes nothing a
+# pixel check can see, and most of this fixture is flat colours by design.
+#
+# Three imagelists: before, with picmip 1, and after it goes back to 0. The
+# third is what says the reload is not one-way - a rung that can only make
+# things worse is not a rung.
+if [ "${JKX_SMOKE_PICMIP:-0}" = "1" ]; then
+    {
+        echo "wait 5"
+        echo "echo JKXMARK picmip0"
+        echo "imagelist"
+        echo "wait 10"
+        echo "set r_picmip 1"
+        echo "wait 20"
+        echo "echo JKXMARK picmip1"
+        echo "imagelist"
+        echo "wait 10"
+        echo "set r_picmip 0"
+        echo "wait 20"
+        echo "echo JKXMARK picmip0again"
+        echo "imagelist"
+        echo "wait 10"
+    } > "$RUN/base/jkx_picmip.cfg"
+
+    # The append is NOT here. textures/jkx/wide belongs to the second room, and
+    # the second room is loaded further down this file - so a step added at this
+    # point runs before the texture it measures exists. The first run of this
+    # lane duly listed three imagelists that had no wide texture in them at all.
+    # See the append after the fog block.
+fi
+
 # Dynamic glow changed while the game runs, and it finishes the TARGETS rung.
 #
 # Same shape as the multisample lane below and the same reason it cannot be the
@@ -1251,6 +1309,12 @@ else
 
         INMAP_STEP+=( +exec jkx_fog.cfg +wait $(( SETTLE + 70 )) )
     fi
+
+    # LAST, and after the second room is loaded, because the texture this lane
+    # measures - textures/jkx/wide, 4096 by 64 - is that room's floor.
+    if [ "${JKX_SMOKE_PICMIP:-0}" = "1" ]; then
+        INMAP_STEP+=( +exec jkx_picmip.cfg +wait 90 )
+    fi
     fi
 fi
 
@@ -2008,6 +2072,50 @@ forbid() {
 # both skins. If a future change makes the offset go away here, this lane says so
 # loudly, because an offset that has quietly stopped happening means the fix is
 # no longer being tested rather than that the defect is gone.
+if [ "${JKX_SMOKE_PICMIP:-0}" = "1" ]; then
+    # The reload happened at all.
+    require 'reloaded '
+
+    # And it did what it is for. Three imagelists in one log, each after its own
+    # marker; the wide texture is 4096x64 in the first and the third, and
+    # 2048x32 in the second. awk rather than grep because what matters is WHICH
+    # listing a line belongs to.
+    picmip_size() {
+        awk -v mark="JKXMARK $1" -v want="$2" '
+            index($0, mark) { seen = 1 }
+            # Counted from the END, because every line in this log carries a
+            # date and a time in front of it and counting from the front counts
+            # those too.
+            seen && $NF == want { print $(NF-5) "x" $(NF-4); exit }
+        ' "$RUN/run.log"
+    }
+
+    for pair in "picmip0 64x64" "picmip1 32x32" "picmip0again 64x64"; do
+        set -- $pair
+        got=$( picmip_size "$1" textures/jkx/sky_ft )
+
+        if [ "$got" != "$2" ]; then
+            report "at $1 the sky face is $got and should be $2. picmip is a \
+shift applied when a texture is UPLOADED, so a change that does not re-upload \
+changes nothing - and one that only goes one way is not a rung"
+        fi
+    done
+
+    # The control, and it is the half of this lane that is easy to lose. The
+    # wide texture is nopicmip on purpose - the 4096 texture ceiling is proved
+    # against it - so a reload that applied picmip to everything regardless of
+    # the flag would pass every check above and quietly break the lane next
+    # door.
+    for mark in picmip0 picmip1 picmip0again; do
+        got=$( picmip_size "$mark" textures/jkx/wide )
+
+        if [ "$got" != "4096x64" ]; then
+            report "at $mark the nopicmip texture is $got and should be 4096x64 \
+throughout; the reload is applying picmip to an image whose shader opted out"
+        fi
+    done
+fi
+
 if [ "${JKX_SMOKE_DGLOW:-0}" = "1" ]; then
     require 'Wrote screenshots/jkx_dglow_on.tga'
     require 'Wrote screenshots/jkx_dglow_off.tga'

@@ -71,7 +71,7 @@ JOBS="${JOBS:-$(nproc)}"
 
 STAGES=( "$@" )
 if [ "${#STAGES[@]}" -eq 0 ]; then
-    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokeskin smokeskinshift smokelightmap smokehdrlightmap smokegamecmd smokeshadow smokecloud smokemapent smokemenumodel smokemenulight smokepbrchar smokevidrestart smokevsync smokeresize smokemsaa smokedglow smokecubemap smoketransparency smoketcmod smokedeform smokephys smokephysshaded smokepak move smokesan prepass fog noassets )
+    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokeskin smokeskinshift smokelightmap smokehdrlightmap smokegamecmd smokeshadow smokecloud smokemapent smokemenumodel smokemenulight smokepbrchar smokevidrestart smokevsync smokeresize smokemsaa smokedglow smokepicmip smokecubemap smoketransparency smoketcmod smokedeform smokephys smokephysshaded smokepak move smokesan prepass fog noassets )
 fi
 
 failed=()
@@ -1116,6 +1116,38 @@ stage_smokemsaa() {
 stage_smokedglow() {
     JKX_SMOKE_DGLOW=1 \
     JKX_SMOKE_DISPLAY="${JKX_SMOKE_DGLOW_DISPLAY:-:70}" \
+        bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
+}
+
+# Texture settings changed while the game runs - the TEXTURES rung, and the last
+# one before EVERYTHING.
+#
+# A different KIND of rung from the three before it. Vertical sync, the window
+# size, the sample count and dynamic glow all change the shape of the render
+# target, so the answer is to rebuild what was built against it. These do not:
+# r_picmip, r_texturebits, compression and r_intensity are applied when a
+# texture is UPLOADED, and nothing keeps the original bytes. The answer is to
+# read every file-backed texture from disk again, which R_ReloadImages does in
+# place through the same replace-an-image machinery that was built to stop a
+# crash when a cinematic changed size mid-level.
+#
+# Two exact numbers and a control. A sky face is 64 by 64 and r_picmip 1 makes
+# it 32 by 32; textures/jkx/wide is 4096 by 64 and stays there, because it is
+# declared nopicmip so that the lane proving the 4096 ceiling is gone cannot be
+# quietly halved. A reload that applied picmip regardless of the flag would pass
+# the first check and break the lane next door.
+#
+# The first version of this lane measured the wide texture - the biggest thing
+# in the fixture and the one texture in it that opts out. The fixture said so,
+# in a comment directly above the shader.
+#
+# Found on the way: the reload fired during start-up, because registering a cvar
+# marks it modified and this rung watches seven of them; and destroying an image
+# whose upload was still recorded in the unsubmitted staging command buffer -
+# vk_wait_idle waits for what was SUBMITTED, which that is not.
+stage_smokepicmip() {
+    JKX_SMOKE_PICMIP=1 \
+    JKX_SMOKE_DISPLAY="${JKX_SMOKE_PICMIP_DISPLAY:-:69}" \
         bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
 }
 

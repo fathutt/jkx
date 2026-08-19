@@ -1256,6 +1256,10 @@ extern	void (*rb_surfaceTable[SF_NUM_SURFACE_TYPES])(void *);
 // A refEntity type by name, for messages. See tr_surface.cpp.
 const char *RE_EntityTypeName( int type );
 
+// Every file-backed texture read from disk again and uploaded with the settings
+// in force now - the TEXTURES rung. See vk_image.cpp.
+void		R_ReloadImages( void );
+
 /*
 ==============================================================================
 

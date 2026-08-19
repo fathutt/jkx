@@ -675,6 +675,54 @@ void RE_BeginFrame( stereoFrame_t stereoFrame ) {
 		vk_restart_swapchain( __func__ );
 	}
 
+	// The TEXTURES rung, and it is a different KIND of rung from the three
+	// above rather than a bigger one.
+	//
+	// Vertical sync, the window size, the sample count and dynamic glow all
+	// change the shape of the render target, so the answer is to rebuild the
+	// things built against it. None of these does. They are applied when a
+	// texture is UPLOADED - picmip shifts the dimensions, texturebits and the
+	// compressed format decide the internal format, intensity is baked into the
+	// pixels by R_LightScaleTexture - and nothing keeps the original bytes
+	// afterwards. So the swapchain, the render passes and every pipeline are
+	// all still correct, and what has to happen is that the images are read
+	// from disk again.
+	//
+	// R_ReloadImages does that in place: vk_create_image replaces the VkImage
+	// behind an existing image_t and rewrites its descriptor, so every shader
+	// stage, model and skin that points at it keeps pointing at it. That
+	// machinery was built to stop a crash when a cinematic changed size
+	// mid-level; this is the same operation a few hundred times over.
+	//
+	// r_intensity is in here and r_gamma is not, and the difference is worth
+	// keeping straight: gamma is applied by the post-process shader every frame
+	// and costs nothing to change, intensity is multiplied into the texels at
+	// upload and cannot be undone without the file.
+	//
+	// r_detailtextures is NOT here. It is read by FinishShader when a stage is
+	// parsed, not when an image is uploaded, so answering it means re-parsing
+	// shaders - a rung of its own, and a bigger one.
+	if ( r_picmip->modified || r_texturebits->modified
+		|| r_ext_compressed_textures->modified || r_intensity->modified
+		|| r_smartpicmip->modified || r_roundImagesDown->modified
+		|| r_nomip->modified )
+	{
+		r_picmip->modified = qfalse;
+		r_texturebits->modified = qfalse;
+		r_ext_compressed_textures->modified = qfalse;
+		r_intensity->modified = qfalse;
+		r_smartpicmip->modified = qfalse;
+		r_roundImagesDown->modified = qfalse;
+		r_nomip->modified = qfalse;
+
+		// The intensity table is built from the cvar and read by
+		// R_LightScaleTexture during the upload, so it has to be rebuilt BEFORE
+		// anything is uploaded rather than after.
+		R_SetColorMappings();
+
+		R_ReloadImages();
+	}
+
 	//
 	// texturemode stuff
 	//

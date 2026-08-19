@@ -1353,6 +1353,10 @@ byte *vk_resample_image_data( const int target_format, byte *data, const int dat
 // vk_upload_image_data.
 static qboolean vk_image_replaced = qfalse;
 
+// Set for the duration of R_ReloadImages and nothing else. See its note, and
+// the use of it in vk_upload_image_data.
+static qboolean vk_bulk_reload = qfalse;
+
 void vk_upload_image_data( image_t *image, int x, int y, int width, 
 	int height, int mipmaps, byte *pixels, int size, qboolean update, int layer ) 
 {
@@ -1518,7 +1522,12 @@ void vk_upload_image_data( image_t *image, int x, int y, int width,
 	if ( vk_image_replaced ) {
 		vk_image_replaced = qfalse;
 
-		if ( vk.frame_count > 0 ) {
+		// Not during a bulk reload. The stall above is there because a frame
+		// may already be sampling the image being replaced; R_ReloadImages runs
+		// from RE_BeginFrame, before any frame is recording, and holds the
+		// device idle for the whole pass. Paying a fence wait per image there
+		// turns a settings change into minutes.
+		if ( vk.frame_count > 0 && !vk_bulk_reload ) {
 			vk_flush_staging_buffer( qfalse );
 		}
 	}
@@ -1804,6 +1813,153 @@ void vk_delete_textures( void ) {
 
 	Com_Memset(tr.scratchImage, 0, sizeof(tr.scratchImage));
 	Com_Memset(glState.currenttextures, 0, sizeof(glState.currenttextures));
+}
+
+/*
+================
+R_ReloadImages
+
+Every texture that came from a file, read from disk again and uploaded with the
+settings in force now. THE TEXTURES RUNG of the ladder that replaces
+vid_restart - see the note in RE_BeginFrame.
+
+Why a rung is needed at all: r_picmip, r_texturebits, texture compression and
+r_intensity are not read when a texture is SAMPLED, they are applied when it is
+UPLOADED. vk_generate_image_upload_data shifts the dimensions by r_picmip,
+chooses the internal format from r_texturebits and the compressed format, and
+R_LightScaleTexture bakes r_intensity into the pixels. Nothing keeps the
+original bytes afterwards, so the only way to answer a change was to destroy the
+renderer and let the game register everything again - which is what vid_restart
+does and why moving one slider costs a level reload.
+
+What makes this small is machinery that already exists for another reason.
+vk_create_image already replaces an image in place: it retires the old VkImage
+onto the command buffer's list, makes a new one at the new size, and rewrites
+the descriptor - so every shader stage, every model and every skin that points
+at this image_t keeps pointing at it and sees the new texture. That was built to
+stop a crash when a cinematic changed size mid-level. It is exactly the
+operation this needs, a few hundred times over.
+
+What is NOT reloaded, and it is worth being plain about rather than hiding
+behind a total:
+
+  *white, *default, *dlight, *fog, the scratch images   made from code
+  _lightmapatlas, *lightmap                             made from the BSP
+  <name>_ORMS, <name>_SDR                               packed from several
+                                                        files at parse time
+  cubemaps                                              generated, not loaded
+
+The first two are recognised by their leading * or _, which is the convention
+the renderer already uses for an image with no file behind it. The packed
+physical maps have synthetic names that no file matches, so the load simply
+fails and they are counted and skipped. That means a picmip change does not
+shrink a packed roughness map, and the count says so.
+
+Detail textures are not here either, and not by oversight: r_detailtextures is
+read by FinishShader when a stage is parsed, not when an image is uploaded.
+Answering it means re-parsing shaders, which is a different rung and a bigger
+one.
+================
+*/
+void R_ReloadImages( void )
+{
+	int		i;
+	int		reloaded = 0, generated = 0, noFile = 0;
+	int		start, end;
+
+	if ( tr.images.count == 0 ) {
+		return;
+	}
+
+	start = Sys_Milliseconds();
+
+	// Before anything is thrown away, and BOTH of these are needed.
+	//
+	// vk_wait_idle waits for work that was SUBMITTED. The staging command
+	// buffer is neither submitted nor closed: uploads are recorded into it and
+	// left there until the top of the next frame. So an image whose upload is
+	// still sitting in it is an image the device is not using and a command
+	// buffer very much is - and destroying it produced exactly that, on the
+	// first run of this lane:
+	//
+	//   vkEndCommandBuffer(): was called in VkCommandBuffer 0x... which is
+	//   invalid because bound VkImage 0x... was destroyed
+	//
+	// followed by a segfault in the driver's worker thread. Flush first, then
+	// wait; after that nothing anywhere refers to any of these images.
+	vk_flush_staging_buffer( qfalse );
+	vk_wait_idle();
+
+	vk_bulk_reload = qtrue;
+
+	for ( i = 0; i < tr.images.count; i++ ) {
+		image_t	*image = tr.images.items[i];
+		byte	*pic;
+		int		width, height;
+
+		if ( image == NULL || image->imgName == NULL ) {
+			continue;
+		}
+
+		// The renderer's own convention for "there is no file behind this".
+		if ( image->imgName[0] == '*' || image->imgName[0] == '_' ) {
+			generated++;
+			continue;
+		}
+
+		// A cubemap is assembled rather than loaded, and vk_upload_cube takes
+		// no pixels at all.
+		if ( image->flags & IMGFLAG_CUBEMAP ) {
+			generated++;
+			continue;
+		}
+
+		R_LoadImage( image->imgName, &pic, &width, &height );
+
+		if ( pic == NULL ) {
+			noFile++;
+			continue;
+		}
+
+		// From the file, not from the image: the dimensions on the image_t are
+		// what the LAST upload produced, and if picmip has changed since then
+		// they are already shifted. Uploading from those would shift them
+		// again, and again on every change, which is a texture that halves
+		// every time the player touches a slider.
+		image->width = width;
+		image->height = height;
+
+		vk_upload_image( image, pic );
+
+		R_Z_Free( pic );
+		reloaded++;
+
+		// Drained every time rather than left to fill. The list holds
+		// VK_MAX_RETIRED_IMAGES and vk_retire_image answers an overflow with a
+		// vk_wait_idle per image - correct, and unbearable a few hundred times.
+		// The device is already idle here, so releasing immediately is safe.
+		{
+			uint32_t slot;
+			for ( slot = 0; slot < NUM_COMMAND_BUFFERS; slot++ ) {
+				vk_release_retired_images( &vk.tess[slot] );
+			}
+		}
+	}
+
+	vk_bulk_reload = qfalse;
+
+	// One flush for the whole pass instead of one per image.
+	if ( vk.frame_count > 0 ) {
+		vk_flush_staging_buffer( qfalse );
+	}
+
+	vk_wait_idle();
+
+	end = Sys_Milliseconds();
+
+	CL_RefPrintf( PRINT_ALL, "reloaded %i image(s) in %i ms; %i generated and "
+		"%i with no file to reload from were left alone\n",
+		reloaded, end - start, generated, noFile );
 }
 
 image_t *R_GetLoadedImage( const char *name, int flags ) {

@@ -605,6 +605,16 @@ jobs:
           JKX_SMOKE_TIMEOUT: '900'
         run: bash tools/verify/smoke_headless.sh build
 
+      # The TEXTURES rung: picmip changed at runtime re-uploads every
+      # file-backed texture, and a shader that opted out with nopicmip still
+      # opts out.
+      - name: Texture settings changed without a restart
+        env:
+          JKX_SMOKE_PICMIP: '1'
+          JKX_SMOKE_DISPLAY: ':74'
+          JKX_SMOKE_TIMEOUT: '900'
+        run: bash tools/verify/smoke_headless.sh build
+
       # Cubemaps generated and convolved. r_cubeMapping defaults to zero, so the
       # loader, the convolve command and the whole prefilter had never run here;
       # the fixture needed no new data, because the entity list the loader falls
