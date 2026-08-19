@@ -71,7 +71,7 @@ JOBS="${JOBS:-$(nproc)}"
 
 STAGES=( "$@" )
 if [ "${#STAGES[@]}" -eq 0 ]; then
-    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokeskin smokeskinshift smokelightmap smokehdrlightmap smokegamecmd smokeshadow smokecloud smokemapent smokemenumodel smokemenulight smokepbrchar smokevidrestart smokevsync smokeresize smokemsaa smokedglow smokepicmip smokecubemap smoketransparency smoketcmod smokedeform smokephys smokephysshaded smokepak move smokesan prepass fog noassets )
+    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokeskin smokeskinshift smokelightmap smokehdrlightmap smokegamecmd smokeshadow smokecloud smokemapent smokemenumodel smokemenulight smokepbrchar smokevidrestart smokevsync smokeresize smokemsaa smokedglow smokepicmip smokecubemap smoketransparency smokesoftparticles smoketcmod smokedeform smokephys smokephysshaded smokepak move smokesan prepass fog noassets )
 fi
 
 failed=()
@@ -1230,6 +1230,15 @@ stage_smokepicmip() {
 #
 # Mutation tested: turn the additive material opaque and the lane reports level
 # 165 at zero pixels and names the blendFunc.
+# Soft particles: a translucent surface fading out where it approaches solid
+# geometry. Three squares at three distances from one backdrop, twice - with the
+# fade off and on - so the lane measures the effect and not just the picture.
+stage_smokesoftparticles() {
+    JKX_SMOKE_SOFTPARTICLES=1 \
+    JKX_SMOKE_DISPLAY="${JKX_SMOKE_SOFTPARTICLES_DISPLAY:-:90}" \
+        bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
+}
+
 stage_smoketransparency() {
     JKX_SMOKE_TRANSPARENCY=1 \
     JKX_SMOKE_DISPLAY="${JKX_SMOKE_TRANSPARENCY_DISPLAY:-:80}" \

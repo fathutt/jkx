@@ -160,7 +160,16 @@ void vk_create_render_passes()
     attachments[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     //attachments[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     attachments[1].stencilLoadOp = glConfig.stencilBits ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-    if ( vk.bloomActive || vk.dglowActive || vk.refractionActive ) {
+    // Soft particles belong in this list, and finding out why cost a run.
+    //
+    // Ending a render pass whose depth is DONT_CARE throws the depth away. The
+    // resolve that follows then reads an empty buffer, every distance comes
+    // back as the far plane, every fade evaluates to one, and the picture is
+    // exactly the picture with the feature switched off - which is the hardest
+    // kind of wrong to notice, because nothing fails and nothing complains.
+    // What gave it away was the debug view: the resolved depth read 1.0
+    // everywhere, including where an opaque backdrop stood.
+    if ( vk.bloomActive || vk.dglowActive || vk.refractionActive || vk.softParticlesActive ) {
         attachments[1].storeOp = VK_ATTACHMENT_STORE_OP_STORE; // keep it for post-bloom/dynamic-glow pass
         //attachments[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_STORE;
         attachments[1].stencilStoreOp = glConfig.stencilBits ? VK_ATTACHMENT_STORE_OP_STORE : VK_ATTACHMENT_STORE_OP_DONT_CARE;
@@ -208,7 +217,7 @@ void vk_create_render_passes()
 #endif
 
 
-        if ( vk.bloomActive || vk.dglowActive || vk.refractionActive ) {
+        if ( vk.bloomActive || vk.dglowActive || vk.refractionActive || vk.softParticlesActive ) {
             attachments[2].storeOp = VK_ATTACHMENT_STORE_OP_STORE; // keep it for post-bloom/dynamic-glow pass
         }
         else {
@@ -1496,6 +1505,26 @@ void vk_depth_resolve( void )
 	// Whatever pipeline state the full-screen draw left behind is not the state
 	// the surface path expects to find. Same note as vk_bloom.
 	vk.cmd->last_pipeline = VK_NULL_HANDLE;
+
+	// And the viewport and scissor cache, which the resolve pipeline set from
+	// its own static state. Marking the depth range unknown is how the rest of
+	// the backend says "re-issue both", and without it the first surface after
+	// the break inherits whatever the full-screen draw was using.
+	vk.cmd->depth_range = DEPTH_RANGE_COUNT;
+
+	// And the record of which descriptor sets are current.
+	//
+	// The draw above bound set zero against a DIFFERENT pipeline layout, which
+	// unbinds every set the surface path had. A draw item only records the sets
+	// that were MARKED since the previous item, and vk_update_descriptor marks
+	// one only when it CHANGES - so with the cache left alone, the first
+	// surfaces after the break record an empty range and go out against nothing
+	// at all. That is VUID-vkCmdDrawIndexed-None-08600, and it is the same
+	// defect the sky items had; the note in RB_BindDescriptorSets describes it
+	// at length and this is the second way into it.
+	//
+	// Clearing the cache makes the next item mark and bind all of them.
+	Com_Memset( &vk.cmd->descriptor_set, 0, sizeof( vk.cmd->descriptor_set ) );
 
 	vk_begin_post_depth_extract_render_pass();
 }

@@ -562,6 +562,32 @@ if [ "${JKX_SMOKE_DGLOW:-0}" = "1" ]; then
     INMAP_STEP+=( +exec jkx_dglow.cfg +wait 70 )
 fi
 
+# The same scene twice, with the fade off and on.
+#
+# r_softParticles itself is latched - it decides whether the depth attachment
+# can be read at all, and that is settled when the attachment is created - so
+# the lever this lane pulls is r_softParticleScale, which is the fade distance
+# and turns the effect off at zero. That keeps both halves inside one run and
+# one map load, which is what makes the two pictures comparable at all.
+#
+# The off shot first, so that a run which dies halfway leaves the picture that
+# proves the fixture is right rather than the one that proves the feature is.
+if [ "${JKX_SMOKE_SOFTPARTICLES:-0}" = "1" ]; then
+    {
+        echo "wait 5"
+        echo "set r_softParticleScale 0"
+        echo "wait 20"
+        echo "screenshot_tga jkx_soft_off"
+        echo "wait 10"
+        echo "set r_softParticleScale 64"
+        echo "wait 20"
+        echo "screenshot_tga jkx_soft_on"
+        echo "wait 10"
+    } > "$RUN/base/jkx_soft.cfg"
+
+    INMAP_STEP+=( +exec jkx_soft.cfg +wait 80 )
+fi
+
 if [ "${JKX_SMOKE_MSAA:-0}" = "1" ]; then
     {
         echo "wait 5"
@@ -1554,6 +1580,58 @@ elif [ "${JKX_SMOKE_TRANSPARENCY:-0}" = "1" ]; then
         --prop models/jkx/trans_add.md3:180:30 \
         --prop models/jkx/trans_blend.md3:180:0 \
         --prop models/jkx/trans_filter.md3:180:-30 >/dev/null
+elif [ "${JKX_SMOKE_SOFTPARTICLES:-0}" = "1" ]; then
+    # Soft particles, measured as arithmetic rather than as an impression.
+    #
+    # The obvious fixture is one translucent square crossing the floor, so that
+    # the hard line becomes a gradient. It is also the wrong one: a gradient is
+    # awkward to assert on, the band it covers depends on how big the floor slab
+    # is, and "looks soft" is satisfied equally well by a square that was never
+    # drawn at all.
+    #
+    # So: three identical translucent squares and one opaque backdrop, and the
+    # only thing that differs between them is how far in front of the backdrop
+    # each one stands - 96, 48 and 32 units. The fade is
+    # clamp( distance / r_softParticleScale ), so at a scale of 64 the three come
+    # out at 1.0, 0.75 and 0.5 of their alpha, and the material says what that
+    # means on screen: white at a quarter alpha over a 0.4 backdrop is
+    # 0.4 + 0.15 * k, which is 140, 130 and 121 out of 255 - truncated, not
+    # rounded; see the check.
+    #
+    # Three numbers in a known order, predicted before the run. A fade that reads
+    # the depth of the wrong thing does not land on them; one that never runs
+    # leaves all three at 140; and the far square is its own control, because at
+    # 96 units it is past the scale and must NOT move.
+    #
+    # Two things about the numbers themselves. The distances are chosen so that
+    # 0.4 + 0.15 * k lands away from a half - 121.4, 130.7, 140.25 - because a
+    # level that rounds on the boundary makes the lane flake on the last bit of
+    # the framebuffer. And the squares grow with distance so that all three cover
+    # about the same number of pixels, or the counts below would be asserting the
+    # perspective as well as the effect.
+    #
+    # The heights are fitted to a measured run rather than derived. The single
+    # player camera looks slightly downward and sits behind the player, so where
+    # a given world offset lands on screen is not something to work out on paper;
+    # what was worked out on paper twice put two of the squares on top of each
+    # other, and the overlap blended to a fourth level that belonged to neither.
+    python3 "$HERE/make_test_md3.py" \
+        "$RUN/base/models/jkx/trans_backdrop.md3" \
+        --flat --size 90 --shader "jkx/trans_backdrop" >/dev/null
+
+    for triple in "far:11" "mid:13" "near:14"; do
+        name="${triple%%:*}"
+        half="${triple##*:}"
+        python3 "$HERE/make_test_md3.py" \
+            "$RUN/base/models/jkx/soft_$name.md3" \
+            --flat --size "$half" --shader "jkx/trans_blend" >/dev/null
+    done
+
+    python3 "$HERE/make_test_bsp.py" "$RUN/base/maps/jkx_room.bsp" \
+        --prop models/jkx/trans_backdrop.md3:280:0 \
+        --prop models/jkx/soft_far.md3:184:38 \
+        --prop models/jkx/soft_mid.md3:232:4 \
+        --prop models/jkx/soft_near.md3:248:-43 >/dev/null
 elif [ "${JKX_SMOKE_MAPENT:-0}" = "1" ]; then
     # The same room with one piece of furniture in it. See the note above
     # INMAP_STEP for what the two shots of it are for; the model is the
@@ -2686,6 +2764,53 @@ if [ "${JKX_SMOKE_TRANSPARENCY:-0}" = "1" ]; then
         report "a blended surface is not the colour the blend arithmetic says \
 it should be; see the table above this check in smoke_headless.sh for which \
 level belongs to which blendFunc"
+    fi
+fi
+
+# Soft particles: three squares, three fade factors, three numbers.
+#
+# See the fixture for the arithmetic. In short, white at a quarter alpha over a
+# 0.4 backdrop is 0.4 + 0.15 * k where k is the fade, so the three squares at
+# 96, 48 and 32 units in front of the backdrop must read 140, 130 and 121 with
+# a scale of 64 - and all three must read 140 with the scale at zero.
+#
+# TRUNCATED, not rounded. 0.15 * 0.75 over 0.4 is 130.69 out of 255 and the
+# engine writes 130; predicting 131 is how this check failed the first time it
+# was run, and the same arithmetic explains 140 from 140.25 and 121 from 121.4.
+#
+# BOTH halves are asserted, and the off half is not a formality. A lane whose
+# two sides agree proves nothing about the feature and everything about the
+# lever, and this bench has already spent a session on a lever that turned out
+# not to be connected to anything. If the off shot does not show three squares
+# at one level, the fixture is wrong and the on shot means nothing.
+if [ "${JKX_SMOKE_SOFTPARTICLES:-0}" = "1" ]; then
+    off="$RUN/home/base/screenshots/jkx_soft_off.tga"
+    on="$RUN/home/base/screenshots/jkx_soft_on.tga"
+
+    if [ ! -f "$off" ] || [ ! -f "$on" ]; then
+        report "the soft-particle scene was never photographed, so nothing here was checked"
+    else
+        # Off: one level for all three squares, and enough of it to be three
+        # squares rather than one. The backdrop is its own witness that the
+        # scene is the scene.
+        if ! python3 "$HERE/tga_grey_levels.py" "$off" \
+            --expect 102:40000 --expect 140:4500; then
+            report "with the fade off the three translucent squares are not the \
+colour the plain blend arithmetic says they should be, so the fixture is wrong \
+and the other half of this lane means nothing"
+        fi
+
+        # On: the near two have moved, in the right direction, by the right
+        # amount - and the far one has not moved at all, because at 80 units it
+        # is past the fade distance.
+        if ! python3 "$HERE/tga_grey_levels.py" "$on" \
+            --expect 102:40000 --expect 140:1500 \
+            --expect 130:1500 --expect 121:1500; then
+            report "the depth-based fade did not land on the levels the fade \
+arithmetic predicts. All three squares still at 140 means the scene depth was \
+never resolved or never read; any other set of levels means it was read but \
+turned into the wrong distance"
+        fi
     fi
 fi
 

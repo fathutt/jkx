@@ -238,6 +238,11 @@ static void RB_PrepareForEntity( int entityNum, float originalTime )
 }
 
 
+// Defined below, next to the pass machinery it belongs to. Needed here because
+// the surface loop has to flush what it has accumulated before the depth
+// resolve ends the render pass out from under it.
+static void RB_DrawItems( int numDrawItems, const DrawItem *drawItems );
+
 static void RB_SubmitDrawSurfs( drawSurf_t *drawSurfs, int numDrawSurfs, float originalTime ) 
 {
 	uint32_t		i; 
@@ -326,6 +331,24 @@ static void RB_SubmitDrawSurfs( drawSurf_t *drawSurfs, int numDrawSurfs, float o
 				&& oldShaderSort < SOFT_PARTICLE_INSERT_POINT
 				&& shader->sort >= SOFT_PARTICLE_INSERT_POINT )
 			{
+				// The draw items accumulated so far have to reach the command
+				// buffer BEFORE the render pass they belong to is ended.
+				//
+				// This is the part that is easy to get wrong, and I did: the
+				// surface loop does not record anything as it goes. It fills a
+				// Pass with draw items and RB_SubmitRenderPass walks them at the
+				// very end, so ending a render pass from inside the loop ends
+				// one that nothing has been drawn into yet. The resolve then
+				// read an empty depth buffer, every fade came out at one, and
+				// the result was pixel-for-pixel the picture with the feature
+				// turned off.
+				if ( backEndData->currentPass ) {
+					RB_DrawItems( backEndData->currentPass->numDrawItems,
+						backEndData->currentPass->drawItems );
+
+					backEndData->currentPass->numDrawItems = 0;
+				}
+
 				vk_depth_resolve();
 
 				backEnd.softParticlesReady = qtrue;
