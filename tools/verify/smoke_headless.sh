@@ -734,20 +734,47 @@ INMAP_STEP+=( +debugview roughness +wait 10 +screenshot_tga jkx_debugview
 # and which nothing could reach while every mesh went through the vertex
 # buffer. Written down; r_depthPrepass is off by default.
 #
-# Fog is the other one, and that is an open question rather than a tidy-up. With
-# these four steps added, a fog run stops responding at the end - stuck inside
-# the driver in vk_present_frame, on the frame after the last screenshot, three
-# times out of three, while the same run without them passes. The test model is
-# cleared long before the fog steps begin and the fog lane is the only one that
-# hangs, so something about drawing a mesh through the batch path leaves state
-# that the fog pass then chokes on. That is a real finding and it is written
-# down in the backlog rather than left as a flaky stage; this check runs in the
-# other seven lanes meanwhile.
-if [ "${JKX_SMOKE_FOG:-0}" != "1" ] && [ "${JKX_SMOKE_PLAIN:-0}" != "1" ]; then
-INMAP_STEP+=( +testmodel models/jkx/anim.md3 1 +wait 30 +screenshot_tga jkx_md3_a
-              +wait 10
-              +testmodel models/jkx/anim.md3 0 +wait 30 +screenshot_tga jkx_md3_b
-              +wait 10 +testmodel +wait 10 )
+# Fog used to be the other one, and the reason was written down here as an open
+# defect: "with these four steps added, a fog run stops responding at the end -
+# stuck inside the driver in vk_present_frame, on the frame after the last
+# screenshot, three times out of three". It said something about the batch mesh
+# path leaving state the fog pass chokes on.
+#
+# THERE IS NO HANG. Line 20 of that run's log says what happened:
+#
+#   WARNING: the command line holds more than 96 +commands; the last 9 were
+#   dropped and will not run
+#
+# The last nine were +r_drawfog 1, the fog screenshot, imagelist and +quit. The
+# engine drew the frame before them, ran out of things to do, and rendered an
+# idle map until the harness killed it - and an idle render loop's main thread
+# is always inside vk_present_frame, which is what the stack said and what was
+# read as a deadlock. Confirmed by measurement rather than by reasoning: the
+# futex the main thread waits on CHANGES between samples, so it is cycling
+# rather than stuck, and the engine answers SIGTERM and shuts down cleanly.
+#
+# The bench already had a check for exactly this - forbid 'were dropped and will
+# not run', a few hundred lines down - and it never fired, because the steps
+# were taken OUT of the fog lane on account of the hang they were thought to
+# cause. The check could not see the configuration that would have tripped it.
+#
+# Eleven +commands become two. That is the same fix the seam steps already use,
+# and it is why they use it.
+if [ "${JKX_SMOKE_PLAIN:-0}" != "1" ]; then
+    {
+        echo "testmodel models/jkx/anim.md3 1"
+        echo "wait 30"
+        echo "screenshot_tga jkx_md3_a"
+        echo "wait 10"
+        echo "testmodel models/jkx/anim.md3 0"
+        echo "wait 30"
+        echo "screenshot_tga jkx_md3_b"
+        echo "wait 10"
+        echo "testmodel"
+        echo "wait 10"
+    } > "$RUN/base/jkx_md3.cfg"
+
+INMAP_STEP+=( +exec jkx_md3.cfg +wait 110 )
 
 # The lit one, which is the only picture on this bench where a normal decides a
 # colour. One frame, so it can be compared with itself; two quads sharing a
@@ -1165,12 +1192,33 @@ else
         #
         # r_drawfog is 0 for the whole run otherwise, because a global fog repaints
         # the clear colour and washes every other colour check in this file.
-        INMAP_STEP+=( +cg_thirdPerson 0
-                      +cg_bobup 0 +cg_bobpitch 0 +cg_bobroll 0
-                      +setviewpos 0 0 -15 90 +wait $SETTLE
-                      +screenshot_tga jkx_nofog +wait 15
-                      +r_drawfog 1 +wait 20 +screenshot_tga jkx_fog +wait 15
-                      +r_drawfog 0 +wait 10 )
+        #
+        # Through a file, and this lane is where the reason is clearest. Thirteen
+        # +commands become two, and the thirteen were what pushed the fog run past
+        # MAX_CONSOLE_LINES the moment the animated model was added back to it -
+        # first taking nine commands with them and then, after the model steps
+        # moved to a file of their own, taking exactly one: the +quit. A run whose
+        # +quit was dropped does not end, and a run that does not end is read as a
+        # hang. That happened twice on this bench for two different reasons and
+        # cost days both times.
+        {
+            echo "cg_thirdPerson 0"
+            echo "cg_bobup 0"
+            echo "cg_bobpitch 0"
+            echo "cg_bobroll 0"
+            echo "setviewpos 0 0 -15 90"
+            echo "wait $SETTLE"
+            echo "screenshot_tga jkx_nofog"
+            echo "wait 15"
+            echo "r_drawfog 1"
+            echo "wait 20"
+            echo "screenshot_tga jkx_fog"
+            echo "wait 15"
+            echo "r_drawfog 0"
+            echo "wait 10"
+        } > "$RUN/base/jkx_fog.cfg"
+
+        INMAP_STEP+=( +exec jkx_fog.cfg +wait $(( SETTLE + 70 )) )
     fi
     fi
 fi

@@ -522,6 +522,36 @@ stage_prepass() {
 # The check is two frames from one standing position seconds apart, differing by
 # r_drawfog alone - so the floor is the same floor, unfogged white in one and
 # fog-coloured in the other.
+#
+# The animated model is back in this lane, and the open defect it was taken out
+# for does not exist. The note said "a fog run stops responding at the end -
+# stuck inside the driver in vk_present_frame, three times out of three" and
+# blamed the batch mesh path for leaving state the fog pass chokes on.
+#
+# Line 20 of that run's log:
+#
+#   WARNING: the command line holds more than 96 +commands; the last 9 were
+#   dropped and will not run
+#
+# The last nine were r_drawfog, the fog screenshot, imagelist and +quit. The
+# engine finished the frame before them, had nothing left to do, and rendered an
+# idle map until the timeout - and an idle render loop's main thread is always
+# inside vk_present_frame. The stack was read as a deadlock because it looked
+# like one.
+#
+# Measured rather than argued: the futex the main thread waits on CHANGES
+# between samples, so it is cycling and not stuck, and the process answers
+# SIGTERM and shuts down cleanly through vk_shutdown.
+#
+# The bench had a check for this already - forbid 'were dropped and will not
+# run'. It never fired, because the steps that would have tripped it had been
+# removed from this lane on account of the hang they were believed to cause. A
+# check cannot see a configuration that was deleted to avoid the thing the check
+# is for.
+#
+# Both groups of steps are files now: eleven +commands for the model and
+# thirteen for the fog become two apiece. Removing the model alone left the
+# count at exactly ninety-seven, and the one command dropped was the +quit.
 stage_fog() {
     JKX_SMOKE_FOG=1 \
     JKX_SMOKE_DISPLAY="${JKX_SMOKE_FOG_DISPLAY:-:91}" \
