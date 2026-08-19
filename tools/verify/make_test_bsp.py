@@ -1008,6 +1008,518 @@ def check_surfaces(data, failures):
                 break
 
 
+# ---------------------------------------------------------------------------
+# Deliberate damage, and the invariants it breaks.
+#
+# Everything above writes a map the engine should accept. This part writes maps
+# the engine should REFUSE, one broken field at a time, because "the loader is
+# careful" is a claim about the maps nobody generates - a truncated download, a
+# compiler that crashed halfway through writing, a file someone edited. A loader
+# that walks off the end of one of these does it inside SV_SpawnServer, after
+# Hunk_Clear has already wiped the renderer, so what a player sees is not a
+# rejected map: it is a dead process on a map that "sometimes does not work".
+#
+# The list is derived from the format rather than from any loader. RBSP is a
+# directory of eighteen lumps and a graph of integer indices between them, so
+# there are exactly two families of thing that can be wrong, and the second one
+# is not visible to a reader that only checks the first:
+#
+#   the directory  - an offset or a length that is negative, that leaves the
+#                    file, or that is not a whole number of records. Nothing
+#                    inside the lump has to be read for this to be fatal: the
+#                    loader has already been handed a pointer and a count.
+#
+#   the graph      - an index that leaves the lump it points into. Every one of
+#                    these reads a plausible-looking integer out of whatever
+#                    happens to follow the lump, which is why they are the
+#                    expensive half: a directory fault dies immediately and an
+#                    index fault dies later, somewhere else, in code that did
+#                    nothing wrong.
+#
+# Each kind changes ONE field and nothing else - the file keeps its length and
+# its layout, and --check asserts that no corruption moves more than eight
+# bytes. That is the whole point: when a lane goes red, the field named in the
+# kind is the field the engine failed to check, with no second candidate.
+#
+# Field offsets are sizeof-arithmetic on the structures in qfiles.h, and they
+# are spelled out rather than computed so that a structure change breaks this
+# loudly instead of shifting it quietly.
+BAD_INDEX = 4242            # past the end of every lump in the fixture
+
+SURFACE_SHADERNUM = 0       # dsurface_t
+SURFACE_FOGNUM = 4
+SURFACE_FIRSTVERT = 12
+SURFACE_NUMVERTS = 16
+SURFACE_FIRSTINDEX = 20
+SURFACE_NUMINDEXES = 24
+
+NODE_PLANENUM = 0           # dnode_t
+NODE_CHILD0 = 4
+NODE_CHILD1 = 8
+
+LEAF_FIRSTLEAFSURFACE = 32  # dleaf_t
+LEAF_NUMLEAFSURFACES = 36
+
+MODEL_FIRSTSURFACE = 24     # dmodel_t
+MODEL_NUMSURFACES = 28
+
+BRUSHSIDE_PLANENUM = 0      # dbrushside_t
+
+
+def lump_at(data, index):
+    """The directory entry for a lump: (fileofs, filelen)."""
+    return struct.unpack_from("<2i", data, 8 + index * 8)
+
+
+def set_lump(data, index, ofs, length):
+    struct.pack_into("<2i", data, 8 + index * 8, ofs, length)
+
+
+def poke(data, offset, value):
+    struct.pack_into("<i", data, offset, value)
+
+
+def record_at(data, index, n):
+    """Byte offset of record n of a lump, by that lump's own record size."""
+    ofs, _ = lump_at(data, index)
+    return ofs + n * RECORD_SIZES[index]
+
+
+def count_in(data, index):
+    _, length = lump_at(data, index)
+    return length // RECORD_SIZES[index]
+
+
+# The corruptions. Each is (name, tag, description, function), where the tag
+# names the invariant validate() below reports when it is broken - that pairing
+# is what --check verifies, so a corruption that quietly stops corrupting
+# anything fails the unit tests rather than passing a headless lane.
+def _c_ident(d):
+    d[0:4] = b"XBSP"
+
+
+def _c_version(d):
+    poke(d, 4, BSP_VERSION + 99)
+
+
+def _c_lump_past_eof(d):
+    ofs, length = lump_at(d, LUMP_SURFACES)
+    set_lump(d, LUMP_SURFACES, ofs, length + len(d))
+
+
+def _c_lump_negative_ofs(d):
+    _, length = lump_at(d, LUMP_SURFACES)
+    set_lump(d, LUMP_SURFACES, -64, length)
+
+
+def _c_lump_negative_len(d):
+    ofs, _ = lump_at(d, LUMP_SURFACES)
+    set_lump(d, LUMP_SURFACES, ofs, -SURFACE_SIZE)
+
+
+def _c_lump_odd_size(d):
+    # Not a whole number of dplane_t: the "funny lump size" of every id Tech
+    # loader since Quake. One byte short is enough and is the shape a truncated
+    # write actually has.
+    ofs, length = lump_at(d, LUMP_PLANES)
+    set_lump(d, LUMP_PLANES, ofs, length - 1)
+
+
+def _c_node_plane(d):
+    poke(d, record_at(d, LUMP_NODES, 0) + NODE_PLANENUM, BAD_INDEX)
+
+
+def _c_node_child_node(d):
+    # A positive child is a node index, and the fixture has exactly one node.
+    poke(d, record_at(d, LUMP_NODES, 0) + NODE_CHILD0, BAD_INDEX)
+
+
+def _c_node_child_leaf(d):
+    # A negative child is -(leaf + 1), and the fixture has exactly two leafs.
+    poke(d, record_at(d, LUMP_NODES, 0) + NODE_CHILD1, -(BAD_INDEX + 1))
+
+
+def _c_node_cycle(d):
+    # Node zero's front child is node zero. Every walk of a BSP tree is a
+    # recursion with no depth limit in it, so this is not an out-of-range read -
+    # it is an unbounded one, and the first symptom is the stack.
+    poke(d, record_at(d, LUMP_NODES, 0) + NODE_CHILD0, 0)
+
+
+def _c_leaf_surfaces(d):
+    # The leaf claims a run of leafsurfaces longer than the lump.
+    poke(d, record_at(d, LUMP_LEAFS, 0) + LEAF_NUMLEAFSURFACES, BAD_INDEX)
+
+
+def _c_leafsurface_range(d):
+    # The entry inside the lump, which is a different check from the one above:
+    # the run is legal and what it holds is not.
+    ofs, _ = lump_at(d, LUMP_LEAFSURFACES)
+    poke(d, ofs, BAD_INDEX)
+
+
+def _c_brushside_plane(d):
+    poke(d, record_at(d, LUMP_BRUSHSIDES, 0) + BRUSHSIDE_PLANENUM, BAD_INDEX)
+
+
+def _c_surface_shader(d):
+    poke(d, record_at(d, LUMP_SURFACES, 0) + SURFACE_SHADERNUM, BAD_INDEX)
+
+
+def _c_surface_fog(d):
+    # fogNum is stored one less than the index the renderer uses, so this asks
+    # for fog 4243 in a map with no fogs at all.
+    poke(d, record_at(d, LUMP_SURFACES, 0) + SURFACE_FOGNUM, BAD_INDEX)
+
+
+def _c_surface_firstvert(d):
+    poke(d, record_at(d, LUMP_SURFACES, 0) + SURFACE_FIRSTVERT, BAD_INDEX)
+
+
+def _c_surface_numverts(d):
+    # Past the end of the lump AND past SHADER_MAX_VERTEXES, which are two
+    # different limits with two different consequences.
+    poke(d, record_at(d, LUMP_SURFACES, 0) + SURFACE_NUMVERTS, BAD_INDEX)
+
+
+def _c_surface_numindexes(d):
+    poke(d, record_at(d, LUMP_SURFACES, 0) + SURFACE_NUMINDEXES, BAD_INDEX)
+
+
+def _c_model_surfaces(d):
+    # Model zero is the world and owns every surface in it.
+    poke(d, record_at(d, LUMP_MODELS, 0) + MODEL_NUMSURFACES, BAD_INDEX)
+
+
+def _c_vis_short(d):
+    # The lump's own header says one cluster of one byte; the lump is left with
+    # room for the header and nothing else. CM_ClusterPVS indexes the vector
+    # with a leaf's cluster and there is no vector.
+    ofs, _ = lump_at(d, LUMP_VISIBILITY)
+    set_lump(d, LUMP_VISIBILITY, ofs, 8)
+
+
+def _c_lightarray_range(d):
+    # One unsigned short per grid cell, naming a record in LUMP_LIGHTGRID. The
+    # fixture has exactly one record, and this cell asks for the four thousandth
+    # - which is read every time anything in the map is lit, not at load time.
+    ofs, _ = lump_at(d, LUMP_LIGHTARRAY)
+    struct.pack_into("<H", d, ofs, BAD_INDEX)
+
+
+def _c_entities_unterminated(d):
+    # The entity lump is a C string and the terminator is inside the lump. Take
+    # it out and the parser reads past the end of the hunk block the lump was
+    # copied into.
+    ofs, length = lump_at(d, LUMP_ENTITIES)
+    set_lump(d, LUMP_ENTITIES, ofs, length - 1)
+
+
+CORRUPTIONS = (
+    ("ident", "header.ident",
+     "the four magic bytes are not RBSP", _c_ident),
+    ("version", "header.version",
+     "the version is not the one this engine reads", _c_version),
+    ("lump-past-eof", "lump.surfaces.range",
+     "the surfaces lump ends past the end of the file", _c_lump_past_eof),
+    ("lump-negative-ofs", "lump.surfaces.range",
+     "the surfaces lump starts at a negative offset", _c_lump_negative_ofs),
+    ("lump-negative-len", "lump.surfaces.range",
+     "the surfaces lump has a negative length", _c_lump_negative_len),
+    ("lump-odd-size", "lump.planes.stride",
+     "the planes lump is not a whole number of planes", _c_lump_odd_size),
+    ("node-plane", "node.planeNum",
+     "a node splits on a plane that does not exist", _c_node_plane),
+    ("node-child-node", "node.child",
+     "a node's front child is a node that does not exist", _c_node_child_node),
+    ("node-child-leaf", "node.child",
+     "a node's back child is a leaf that does not exist", _c_node_child_leaf),
+    ("node-cycle", "node.cycle",
+     "a node is its own front child, so the tree is not a tree",
+     _c_node_cycle),
+    ("leaf-surfaces", "leaf.leafSurfaces",
+     "a leaf claims more leafsurfaces than the lump holds", _c_leaf_surfaces),
+    ("leafsurface-range", "leafsurface.value",
+     "a leafsurface names a surface that does not exist",
+     _c_leafsurface_range),
+    ("brushside-plane", "brushside.planeNum",
+     "a brush side is on a plane that does not exist", _c_brushside_plane),
+    ("surface-shader", "surface.shaderNum",
+     "a surface carries a shader that does not exist", _c_surface_shader),
+    ("surface-fog", "surface.fogNum",
+     "a surface is in a fog volume that does not exist", _c_surface_fog),
+    ("surface-firstvert", "surface.firstVert",
+     "a surface's vertices start past the end of the vertex lump",
+     _c_surface_firstvert),
+    ("surface-numverts", "surface.numVerts",
+     "a surface has more vertices than the lump holds", _c_surface_numverts),
+    ("surface-numindexes", "surface.numIndexes",
+     "a surface has more indices than the lump holds", _c_surface_numindexes),
+    ("model-surfaces", "model.numSurfaces",
+     "the world model owns more surfaces than exist", _c_model_surfaces),
+    ("vis-short", "vis.length",
+     "the visibility lump is shorter than its own header says", _c_vis_short),
+    ("lightarray-range", "lightarray.value",
+     "a light grid cell names a grid record that does not exist",
+     _c_lightarray_range),
+    ("entities-unterminated", "entities.terminator",
+     "the entity string has no terminator inside its lump",
+     _c_entities_unterminated),
+)
+
+CORRUPT_KINDS = tuple(name for name, _, _, _ in CORRUPTIONS)
+
+
+def corrupt(data, kind):
+    """Break one field of a finished BSP and return the result."""
+    for name, _, _, fn in CORRUPTIONS:
+        if name == kind:
+            out = bytearray(data)
+            fn(out)
+            return bytes(out)
+    raise ValueError("unknown corruption: %s" % kind)
+
+
+def corrupt_description(kind):
+    for name, _, description, _ in CORRUPTIONS:
+        if name == kind:
+            return description
+    raise ValueError("unknown corruption: %s" % kind)
+
+
+def validate(data):
+    """Everything the format says about a BSP, as (tag, message) pairs.
+
+    This is the reader the engine ought to have, written from qfiles.h and from
+    nothing else - deliberately, because a check written from the loader can
+    only ever agree with the loader. It has two uses: it is the assertion that
+    the fixture the bench generates is well formed, and it is what --check uses
+    to prove that each corruption really did break the thing it claims to break.
+
+    Directory faults return early. Once a lump's offset or length is wrong there
+    is nothing meaningful to say about the integers inside it, and a page of
+    consequential complaints buries the one that matters.
+    """
+    out = []
+    header_size = 8 + HEADER_LUMPS * 8
+
+    if len(data) < header_size:
+        return [("header.size", "shorter than a %d byte header" % header_size)]
+    if data[:4] != BSP_IDENT:
+        out.append(("header.ident", "ident is %r, not %r"
+                    % (bytes(data[:4]), BSP_IDENT)))
+    if struct.unpack_from("<i", data, 4)[0] != BSP_VERSION:
+        out.append(("header.version", "version is %d, not %d"
+                    % (struct.unpack_from("<i", data, 4)[0], BSP_VERSION)))
+
+    for i in range(HEADER_LUMPS):
+        ofs, length = lump_at(data, i)
+        name = LUMP_NAMES[i]
+        if ofs < header_size or length < 0 or ofs + length > len(data):
+            out.append(("lump.%s.range" % name,
+                        "%s: %d..%d is outside a %d byte file"
+                        % (name, ofs, ofs + length, len(data))))
+            continue
+        size = RECORD_SIZES.get(i)
+        if size and length % size:
+            out.append(("lump.%s.stride" % name,
+                        "%s: %d bytes is not a whole number of %d byte records"
+                        % (name, length, size)))
+
+    if out:
+        return out
+
+    num_planes = count_in(data, LUMP_PLANES)
+    num_nodes = count_in(data, LUMP_NODES)
+    num_leafs = count_in(data, LUMP_LEAFS)
+    num_leafsurfaces = count_in(data, LUMP_LEAFSURFACES)
+    num_surfaces = count_in(data, LUMP_SURFACES)
+    num_shaders = count_in(data, LUMP_SHADERS)
+    num_fogs = count_in(data, LUMP_FOGS)
+    num_verts = count_in(data, LUMP_DRAWVERTS)
+    num_indexes = count_in(data, LUMP_DRAWINDEXES)
+    num_models = count_in(data, LUMP_MODELS)
+    num_brushsides = count_in(data, LUMP_BRUSHSIDES)
+    num_grid = count_in(data, LUMP_LIGHTGRID)
+
+    for n in range(num_nodes):
+        base = record_at(data, LUMP_NODES, n)
+        plane = struct.unpack_from("<i", data, base + NODE_PLANENUM)[0]
+        if plane < 0 or plane >= num_planes:
+            out.append(("node.planeNum",
+                        "node %d splits on plane %d of %d"
+                        % (n, plane, num_planes)))
+        for c in range(2):
+            child = struct.unpack_from("<i", data, base + NODE_CHILD0 + c * 4)[0]
+            if child >= 0:
+                if child >= num_nodes:
+                    out.append(("node.child",
+                                "node %d child %d is node %d of %d"
+                                % (n, c, child, num_nodes)))
+            elif -(child + 1) >= num_leafs:
+                out.append(("node.child", "node %d child %d is leaf %d of %d"
+                            % (n, c, -(child + 1), num_leafs)))
+
+    # The tree, walked. Bounds alone do not make a tree: a child that is in
+    # range and points back up the way it came is a loop, and a loop is what the
+    # loader's own recursion runs into rather than what it reads.
+    if num_nodes:
+        seen = set()
+        stack = [0]
+        while stack:
+            n = stack.pop()
+            if n in seen:
+                out.append(("node.cycle",
+                            "node %d is reached twice, so the tree has a loop"
+                            % n))
+                break
+            seen.add(n)
+            base = record_at(data, LUMP_NODES, n)
+            for c in range(2):
+                child = struct.unpack_from("<i", data,
+                                           base + NODE_CHILD0 + c * 4)[0]
+                if 0 <= child < num_nodes:
+                    stack.append(child)
+
+    for n in range(num_leafs):
+        base = record_at(data, LUMP_LEAFS, n)
+        first, count = struct.unpack_from("<2i", data,
+                                          base + LEAF_FIRSTLEAFSURFACE)
+        if first < 0 or count < 0 or first + count > num_leafsurfaces:
+            out.append(("leaf.leafSurfaces",
+                        "leaf %d holds leafsurfaces %d..%d of %d"
+                        % (n, first, first + count, num_leafsurfaces)))
+
+    ofs, _ = lump_at(data, LUMP_LEAFSURFACES)
+    for n in range(num_leafsurfaces):
+        value = struct.unpack_from("<i", data, ofs + n * 4)[0]
+        if value < 0 or value >= num_surfaces:
+            out.append(("leafsurface.value",
+                        "leafsurface %d names surface %d of %d"
+                        % (n, value, num_surfaces)))
+
+    for n in range(num_brushsides):
+        base = record_at(data, LUMP_BRUSHSIDES, n)
+        plane = struct.unpack_from("<i", data, base + BRUSHSIDE_PLANENUM)[0]
+        if plane < 0 or plane >= num_planes:
+            out.append(("brushside.planeNum",
+                        "brush side %d is on plane %d of %d"
+                        % (n, plane, num_planes)))
+
+    for n in range(num_surfaces):
+        base = record_at(data, LUMP_SURFACES, n)
+        shader = struct.unpack_from("<i", data, base + SURFACE_SHADERNUM)[0]
+        fog = struct.unpack_from("<i", data, base + SURFACE_FOGNUM)[0]
+        first_vert, num = struct.unpack_from("<2i", data,
+                                             base + SURFACE_FIRSTVERT)
+        first_index, count = struct.unpack_from("<2i", data,
+                                                base + SURFACE_FIRSTINDEX)
+
+        if shader < 0 or shader >= num_shaders:
+            out.append(("surface.shaderNum",
+                        "surface %d carries shader %d of %d"
+                        % (n, shader, num_shaders)))
+        # -1 is "no fog"; anything else is an index into the fog lump.
+        if fog < -1 or fog >= num_fogs:
+            out.append(("surface.fogNum", "surface %d is in fog %d of %d"
+                        % (n, fog, num_fogs)))
+        if first_vert < 0 or first_vert >= max(num_verts, 1):
+            out.append(("surface.firstVert",
+                        "surface %d starts at vertex %d of %d"
+                        % (n, first_vert, num_verts)))
+        elif num < 0 or first_vert + num > num_verts:
+            out.append(("surface.numVerts",
+                        "surface %d holds vertices %d..%d of %d"
+                        % (n, first_vert, first_vert + num, num_verts)))
+        if first_index < 0 or first_index >= max(num_indexes, 1):
+            out.append(("surface.firstIndex",
+                        "surface %d starts at index %d of %d"
+                        % (n, first_index, num_indexes)))
+        elif count < 0 or first_index + count > num_indexes:
+            out.append(("surface.numIndexes",
+                        "surface %d holds indices %d..%d of %d"
+                        % (n, first_index, first_index + count, num_indexes)))
+
+    for n in range(num_models):
+        base = record_at(data, LUMP_MODELS, n)
+        first, count = struct.unpack_from("<2i", data,
+                                          base + MODEL_FIRSTSURFACE)
+        if first < 0 or count < 0 or first + count > num_surfaces:
+            out.append(("model.numSurfaces",
+                        "model %d owns surfaces %d..%d of %d"
+                        % (n, first, first + count, num_surfaces)))
+
+    vofs, vlen = lump_at(data, LUMP_VISIBILITY)
+    if vlen:
+        if vlen < 8:
+            out.append(("vis.length",
+                        "the visibility lump is %d bytes and holds no header"
+                        % vlen))
+        else:
+            clusters, cluster_bytes = struct.unpack_from("<2i", data, vofs)
+            need = 8 + clusters * cluster_bytes
+            if clusters < 0 or cluster_bytes < 0 or vlen < need:
+                out.append(("vis.length",
+                            "the visibility lump is %d bytes and its own header "
+                            "asks for %d" % (vlen, need)))
+
+    aofs, alen = lump_at(data, LUMP_LIGHTARRAY)
+    for n in range(alen // 2):
+        value = struct.unpack_from("<H", data, aofs + n * 2)[0]
+        if value >= num_grid:
+            out.append(("lightarray.value",
+                        "light grid cell %d names record %d of %d"
+                        % (n, value, num_grid)))
+            break
+
+    eofs, elen = lump_at(data, LUMP_ENTITIES)
+    if elen == 0 or data[eofs + elen - 1] != 0:
+        out.append(("entities.terminator",
+                    "the entity string does not end inside its own lump"))
+
+    return out
+
+
+def check_corruptions(failures):
+    """--corrupt is only worth having if it corrupts.
+
+    Three claims, and each has been wrong at some point in something shaped like
+    this. That the clean map passes the format's own reader, so a red lane is
+    about the engine and not about the fixture. That every kind breaks the
+    invariant it names - a corruption whose offset arithmetic is off by four
+    lands in a neighbouring field, still writes a file, and the engine still
+    rejects it, so the lane goes green while testing something else entirely.
+    And that nothing else moves: same length, at most eight bytes different.
+    """
+    clean = build("jkx/smoke")
+
+    for tag, message in validate(clean):
+        failures.append("the clean fixture fails its own format check: "
+                        "%s: %s" % (tag, message))
+
+    for name, tag, _, _ in CORRUPTIONS:
+        broken = corrupt(clean, name)
+
+        if len(broken) != len(clean):
+            failures.append("--corrupt %s changed the file length, so it is not "
+                            "one field" % name)
+            continue
+
+        moved = sum(1 for a, b in zip(clean, broken) if a != b)
+        if moved == 0:
+            failures.append("--corrupt %s changed nothing" % name)
+            continue
+        if moved > 8:
+            failures.append("--corrupt %s changed %d bytes, which is more than "
+                            "one field" % (name, moved))
+
+        tags = [t for t, _ in validate(broken)]
+        if tag not in tags:
+            failures.append("--corrupt %s should break %s and the format check "
+                            "reports %s instead"
+                            % (name, tag, ", ".join(tags) or "nothing"))
+
+
 def check():
     failures = []
     for label, args in (("plain", ("jkx/smoke", None)),
@@ -1156,6 +1668,8 @@ def check():
             failures.append("%s: %d bytes is not a whole number of %d byte records"
                             % (name, length, size))
 
+    check_corruptions(failures)
+
     for f in failures:
         print("error: %s" % f, file=sys.stderr)
     if failures:
@@ -1163,6 +1677,8 @@ def check():
 
     print("test map: %d bytes, %d lumps, every record size and offset checks out"
           % (len(data), HEADER_LUMPS))
+    print("%d corruptions, each breaking the one invariant it names"
+          % len(CORRUPTIONS))
     return 0
 
 
@@ -1170,6 +1686,16 @@ def main(argv):
     args = argv[1:]
     if "--check" in args:
         return check()
+
+    # The list of kinds, so that the shell lane loops over what this file
+    # defines rather than over a copy of it. A second copy is a second thing to
+    # forget: a kind added here and not there is a check nobody runs, and it
+    # looks exactly like a check that passes.
+    if "--corrupt-list" in args:
+        for name, _, description, _ in CORRUPTIONS:
+            print("%s %s" % (name, description))
+        return 0
+
     visible = "jkx/smoke"
     sky = None
     fog = None
@@ -1178,6 +1704,7 @@ def main(argv):
     npc_specs = []
     cloud = False
     water = None
+    damage = None
     path = None
     i = 0
     while i < len(args):
@@ -1202,6 +1729,13 @@ def main(argv):
         elif args[i] == "--water" and i + 1 < len(args):
             water = args[i + 1]
             i += 2
+        elif args[i] == "--corrupt" and i + 1 < len(args):
+            damage = args[i + 1]
+            if damage not in CORRUPT_KINDS:
+                print("unknown corruption: %s\nknown: %s"
+                      % (damage, " ".join(CORRUPT_KINDS)), file=sys.stderr)
+                return 2
+            i += 2
         elif args[i] == "--prop" and i + 1 < len(args):
             # Repeatable. MODEL[:Y[:Z]] - see parse_props.
             prop_specs.append(args[i + 1])
@@ -1220,14 +1754,18 @@ def main(argv):
     if path is None:
         print("usage: %s <out.bsp> [--shader NAME] [--sky NAME] [--fog NAME] "
               "[--lightmap] [--lightmap-hdr] [--cloud] [--water NAME] "
-              "[--prop MODEL[:Y[:Z]] ...] [--npc NAME[:Y[:Z]] ...]"
-              % argv[0],
+              "[--prop MODEL[:Y[:Z]] ...] [--npc NAME[:Y[:Z]] ...] "
+              "[--corrupt KIND]\n"
+              "       %s --corrupt-list"
+              % (argv[0], argv[0]),
               file=sys.stderr)
         return 2
 
     props = parse_props(prop_specs)
     npcs = parse_npcs(npc_specs)
     data = build(visible, sky, fog, lightmap, props, npcs, cloud, water)
+    if damage:
+        data = corrupt(data, damage)
     with open(path, "wb") as f:
         f.write(data)
 
@@ -1246,6 +1784,9 @@ def main(argv):
         note = ", external %s %dx%d at %g" % (
             os.path.basename(target), HDR_LIGHTMAP_SIZE, HDR_LIGHTMAP_SIZE,
             HDR_LIGHTMAP_VALUE)
+
+    if damage:
+        note += ", CORRUPTED: %s - %s" % (damage, corrupt_description(damage))
 
     print("%s: %d bytes, shader %s%s%s%s"
           % (path, len(data), visible, ", sky %s" % sky if sky else "",

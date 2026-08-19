@@ -206,6 +206,12 @@ typedef struct {
 
 #define BSP_VERSION			1
 
+// Two ints at the head of the visibility lump: the number of clusters and the
+// number of bytes per PVS row. It used to be spelled out in cm_load.cpp alone,
+// which is why the renderer's copy of the same loader read past the lump
+// without noticing - it had no name for the thing it was skipping.
+#define VIS_HEADER			8
+
 
 // there shouldn't be any problem with increasing these values at the
 // expense of more memory allocation in the utilities

@@ -50,6 +50,10 @@
 #               the two sets of frames compared. It is a change that must not
 #               change the picture, and "the map still loads" cannot tell that
 #               from a wall that has gone missing behind the camera
+#   badbsp      the same fixture with one field of it broken, twenty-two times
+#               over, checking that the engine refuses it with a message instead
+#               of reading past the end of a lump. The only lane here that asks
+#               what happens when the DATA is wrong rather than the code
 #
 # What it cannot cover: MSVC itself - its dialect and its linker. That used to
 # be read as "Windows", which is a much larger thing; the windows stage compiles
@@ -71,7 +75,7 @@ JOBS="${JOBS:-$(nproc)}"
 
 STAGES=( "$@" )
 if [ "${#STAGES[@]}" -eq 0 ]; then
-    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokeskin smokeskinshift smokelightmap smokehdrlightmap smokegamecmd smokeshadow smokecloud smokemapent smokemenumodel smokemenulight smokepbrchar smokevidrestart smokevsync smokeresize smokemsaa smokedglow smokepicmip smokecubemap smoketransparency smokesoftparticles smokewater smoketcmod smokedeform smokephys smokephysshaded smokepak move smokesan prepass fog noassets )
+    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokeskin smokeskinshift smokelightmap smokehdrlightmap smokegamecmd smokeshadow smokecloud smokemapent smokemenumodel smokemenulight smokepbrchar smokevidrestart smokevsync smokeresize smokemsaa smokedglow smokepicmip smokecubemap smoketransparency smokesoftparticles smokewater smoketcmod smokedeform smokephys smokephysshaded smokepak move smokesan prepass fog noassets badbsp )
 fi
 
 failed=()
@@ -568,6 +572,31 @@ stage_noassets() {
     JKX_SMOKE_SOUND=1 \
     JKX_SMOKE_DISPLAY="${JKX_SMOKE_NOASSETS_DISPLAY:-:90}" \
         bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
+}
+
+# The map the engine should REFUSE, twenty-two times, one broken field each.
+#
+# Every other engine lane here loads a map that is right and asks whether the
+# picture is right. None of them asks what happens to a map that is WRONG, and
+# the answer to that is not a cosmetic question: SV_SpawnServer calls Hunk_Clear
+# before CM_LoadMap, so a loader that walks off the end of a lump does it with
+# the renderer's world already freed and no frame left to photograph. What a
+# player gets is a dead process on a map that "sometimes does not work".
+#
+# The stage passes when a kind is refused with a message and the process
+# survives to +quit. The kinds that do something else today are in
+# tools/ci/badbsp-baseline.txt with what they do, and that file is the point of
+# the lane rather than an apology for it - a strip that comes up green the day
+# it is written is a strip nobody has shown to catch anything. On the commit it
+# was written against, eight of twenty-two were refused, nine were loaded and
+# stood in without a word, four segfaulted and one never came back.
+#
+# It is not a smoke lane and does not go through smoke_headless.sh: there is no
+# picture to check, no screenshot to compare and no validation layer, and the
+# twenty-two runs together take about as long as one smoke run does.
+stage_badbsp() {
+    JKX_BADBSP_DISPLAY="${JKX_BADBSP_DISPLAY:-:89}" \
+        bash "$ROOT/tools/verify/bad_bsp.sh" "$BUILD_ROOT/release"
 }
 
 stage_smokewide() {

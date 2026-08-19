@@ -232,10 +232,33 @@ void CMod_LoadNodes( lump_t *l, clipMap_t &cm ) {
 
 	for (i=0 ; i<count ; i++, out++, in++)
 	{
-		out->plane = cm.planes + LittleLong( in->planeNum );
+		const int planeNum = LittleLong( in->planeNum );
+
+		if ( planeNum < 0 || planeNum >= cm.numPlanes ) {
+			Com_Error( ERR_DROP, "CMod_LoadNodes: node %i has plane %i of %i", i, planeNum, cm.numPlanes );
+		}
+		out->plane = cm.planes + planeNum;
+
+		// A child is a node index, or the ones-complement of a leaf index when
+		// negative. Both were stored raw and followed later by the trace code,
+		// which is where the crash landed - a long way from the file it came
+		// from.
 		for (j=0 ; j<2 ; j++)
 		{
 			child = LittleLong (in->children[j]);
+			if ( child >= 0 ) {
+				if ( child >= count ) {
+					Com_Error( ERR_DROP, "CMod_LoadNodes: node %i child %i is node %i of %i",
+						i, j, child, count );
+				}
+			} else {
+				const int leaf = -1 - child;
+
+				if ( leaf < 0 || leaf >= cm.numLeafs ) {
+					Com_Error( ERR_DROP, "CMod_LoadNodes: node %i child %i is leaf %i of %i",
+						i, j, leaf, cm.numLeafs );
+				}
+			}
 			out->children[j] = child;
 		}
 	}
@@ -283,8 +306,18 @@ void CMod_LoadBrushes( lump_t *l, clipMap_t &cm ) {
 	out = cm.brushes;
 
 	for ( i=0 ; i<count ; i++, out++, in++ ) {
-		out->sides = cm.brushsides + LittleLong(in->firstSide);
-		out->numsides = LittleLong(in->numSides);
+		{
+			const int firstSide = LittleLong(in->firstSide);
+			const int numSides = LittleLong(in->numSides);
+
+			if ( firstSide < 0 || numSides < 0 ||
+				(int64_t)firstSide + numSides > cm.numBrushSides ) {
+				Com_Error( ERR_DROP, "CMod_LoadBrushes: brush %i wants sides %i..%i of %i",
+					i, firstSide, firstSide + numSides, cm.numBrushSides );
+			}
+			out->sides = cm.brushsides + firstSide;
+			out->numsides = numSides;
+		}
 
 		out->shaderNum = LittleLong( in->shaderNum );
 		if ( out->shaderNum < 0 || out->shaderNum >= cm.numShaders ) {
@@ -470,6 +503,9 @@ void CMod_LoadBrushSides (lump_t *l, clipMap_t &cm)
 
 	for ( i=0 ; i<count ; i++, in++, out++) {
 		num = LittleLong( in->planeNum );
+		if ( num < 0 || num >= cm.numPlanes ) {
+			Com_Error( ERR_DROP, "CMod_LoadBrushSides: side %i has plane %i of %i", i, num, cm.numPlanes );
+		}
 		out->plane = &cm.planes[num];
 		out->shaderNum = LittleLong( in->shaderNum );
 		if ( out->shaderNum < 0 || out->shaderNum >= cm.numShaders ) {
@@ -507,9 +543,16 @@ void CMod_LoadEntityString( lump_t *l, clipMap_t &cm, const char* name ) {
 		return;
 	}
 
-	cm.entityString = (char *) Z_Malloc( l->filelen, TAG_BSP, qfalse);
-	cm.numEntityChars = l->filelen;
+	// One byte more than the lump, and a terminator we write ourselves. The
+	// entity lump is a C string by convention only - nothing in the format
+	// obliges it to end in a zero - and every consumer hands it to COM_Parse,
+	// which stops at one. Without this, a lump that does not carry a terminator
+	// is parsed past the end of the block it was copied into. The .ent branch
+	// above already did it this way; the branch that reads the map did not.
+	cm.entityString = (char *) Z_Malloc( l->filelen + 1, TAG_BSP, qfalse);
+	cm.numEntityChars = l->filelen + 1;
 	memcpy (cm.entityString, cmod_base + l->fileofs, l->filelen);
+	cm.entityString[l->filelen] = '\0';
 }
 
 /*
@@ -517,7 +560,6 @@ void CMod_LoadEntityString( lump_t *l, clipMap_t &cm, const char* name ) {
 CMod_LoadVisibility
 =================
 */
-#define	VIS_HEADER	8
 void CMod_LoadVisibility( lump_t *l, clipMap_t &cm ) {
 	int		len;
 	byte	*buf;
@@ -531,10 +573,38 @@ void CMod_LoadVisibility( lump_t *l, clipMap_t &cm ) {
 	}
 	buf = cmod_base + l->fileofs;
 
+	// The two ints are read out of the lump before anything says the lump is
+	// long enough to hold them, and the rows they describe are indexed later as
+	// visibility + cluster * clusterBytes.
+	if ( len < VIS_HEADER ) {
+		Com_Error( ERR_DROP, "CMod_LoadVisibility: visibility lump is %i bytes", len );
+	}
+
 	cm.vised = qtrue;
 	cm.visibility = (unsigned char *) Z_Malloc( len, TAG_BSP, qtrue );
-	cm.numClusters = LittleLong( ((int *)buf)[0] );
-	cm.clusterBytes = LittleLong( ((int *)buf)[1] );
+
+	{
+		const int numClusters = LittleLong( ((int *)buf)[0] );
+		const int clusterBytes = LittleLong( ((int *)buf)[1] );
+
+		if ( numClusters < 0 || clusterBytes < 0 ||
+			(int64_t)numClusters * clusterBytes > len - VIS_HEADER ) {
+			Com_Error( ERR_DROP, "CMod_LoadVisibility: %i clusters of %i bytes do not fit in %i",
+				numClusters, clusterBytes, len - VIS_HEADER );
+		}
+		if ( numClusters < cm.numClusters ) {
+			Com_Error( ERR_DROP, "CMod_LoadVisibility: %i clusters in the table, %i referred to by leafs",
+				numClusters, cm.numClusters );
+		}
+		if ( clusterBytes < ( numClusters + 7 ) >> 3 ) {
+			Com_Error( ERR_DROP, "CMod_LoadVisibility: %i bytes per row is short for %i clusters",
+				clusterBytes, numClusters );
+		}
+
+		cm.numClusters = numClusters;
+		cm.clusterBytes = clusterBytes;
+	}
+
 	memcpy (cm.visibility, buf + VIS_HEADER, len - VIS_HEADER );
 }
 
@@ -628,7 +698,121 @@ CM_LoadMap
 Loads in the map and all submodels
 ==================
 */
+/*
+=================
+CMod_ValidateReferences
+
+Every index that points from one lump into another, checked once, after all of
+them are loaded.
+
+It is a pass of its own rather than a check inside each loader because the load
+order does not match the reference order: leafs are read before the leafbrush
+and leafsurface arrays they index into, and submodels before the patches. A
+check written in place would be comparing against a count that is still zero,
+which reads like a check and is not one.
+=================
+*/
+static void CMod_ValidateReferences( clipMap_t &cm )
+{
+	int i;
+
+	for ( i = 0 ; i < cm.numLeafBrushes ; i++ ) {
+		if ( cm.leafbrushes[i] < 0 || cm.leafbrushes[i] >= cm.numBrushes ) {
+			Com_Error( ERR_DROP, "CM_LoadMap: leafbrush %i is brush %i of %i",
+				i, cm.leafbrushes[i], cm.numBrushes );
+		}
+	}
+
+	for ( i = 0 ; i < cm.numLeafSurfaces ; i++ ) {
+		if ( cm.leafsurfaces[i] < 0 || cm.leafsurfaces[i] >= cm.numSurfaces ) {
+			Com_Error( ERR_DROP, "CM_LoadMap: leafsurface %i is surface %i of %i",
+				i, cm.leafsurfaces[i], cm.numSurfaces );
+		}
+	}
+
+	// A node whose child index leads back to itself, directly or round a longer
+	// loop, is not an out-of-range read: every index is legal. What it does is
+	// hang CM_PointLeafnum_r, which descends with a plain "while (num >= 0)"
+	// and never leaves. For a test machine that is the worst failure there is -
+	// it reads as "slow", not as "broken".
+	//
+	// Reachability from the root, once, with a mark per node: a well-formed BSP
+	// tree visits each node exactly once, so a second visit is a cycle and a
+	// node never visited is unreachable. Iterative, because a stack overflow
+	// while checking for unbounded descent would be its own joke.
+	if ( cm.numNodes > 0 ) {
+		byte *visited = (byte *)Z_Malloc( cm.numNodes, TAG_TEMP_WORKSPACE, qtrue );
+		int *stack = (int *)Z_Malloc( cm.numNodes * sizeof( int ), TAG_TEMP_WORKSPACE, qfalse );
+		int top = 0;
+
+		stack[top++] = 0;
+		while ( top > 0 ) {
+			const int num = stack[--top];
+			int j;
+
+			if ( visited[num] ) {
+				Z_Free( stack );
+				Z_Free( visited );
+				Com_Error( ERR_DROP, "CM_LoadMap: node %i is reached twice, the tree has a cycle", num );
+			}
+			visited[num] = 1;
+
+			for ( j = 0 ; j < 2 ; j++ ) {
+				const int child = cm.nodes[num].children[j];
+
+				if ( child >= 0 ) {
+					stack[top++] = child;
+				}
+			}
+		}
+
+		for ( i = 0 ; i < cm.numNodes ; i++ ) {
+			if ( !visited[i] ) {
+				Z_Free( stack );
+				Z_Free( visited );
+				Com_Error( ERR_DROP, "CM_LoadMap: node %i is not reachable from the root", i );
+			}
+		}
+
+		Z_Free( stack );
+		Z_Free( visited );
+	}
+
+	for ( i = 0 ; i < cm.numLeafs ; i++ ) {
+		const cLeaf_t *leaf = &cm.leafs[i];
+
+		if ( leaf->firstLeafBrush < 0 || leaf->numLeafBrushes < 0 ||
+			(int64_t)leaf->firstLeafBrush + leaf->numLeafBrushes > cm.numLeafBrushes ) {
+			Com_Error( ERR_DROP, "CM_LoadMap: leaf %i wants leafbrushes %i..%i of %i",
+				i, leaf->firstLeafBrush, leaf->firstLeafBrush + leaf->numLeafBrushes,
+				cm.numLeafBrushes );
+		}
+
+		if ( leaf->firstLeafSurface < 0 || leaf->numLeafSurfaces < 0 ||
+			(int64_t)leaf->firstLeafSurface + leaf->numLeafSurfaces > cm.numLeafSurfaces ) {
+			Com_Error( ERR_DROP, "CM_LoadMap: leaf %i wants leafsurfaces %i..%i of %i",
+				i, leaf->firstLeafSurface, leaf->firstLeafSurface + leaf->numLeafSurfaces,
+				cm.numLeafSurfaces );
+		}
+
+		// -1 is a solid leaf and legal; anything past the vis table is not, and
+		// it is used to index a PVS row.
+		if ( leaf->cluster < -1 || leaf->cluster > INT_MAX - 64 ) {
+			Com_Error( ERR_DROP, "CM_LoadMap: leaf %i has cluster %i", i, leaf->cluster );
+		}
+
+		if ( leaf->area < -1 || leaf->area >= cm.numAreas ) {
+			Com_Error( ERR_DROP, "CM_LoadMap: leaf %i has area %i of %i", i, leaf->area, cm.numAreas );
+		}
+	}
+}
+
 void *gpvCachedMapDiskImage = NULL;
+// Its length, which used to be knowable only inside CM_LoadMap. The renderer
+// reads this same buffer through R_CachedMapImage() and had no way to ask how
+// long it is - so every bounds check it could make against the lump table was
+// unmakeable. See RE_LoadWorldMap.
+int   giCachedMapDiskImageSize = 0;
 char  gsCachedMapDiskImage[MAX_QPATH];
 qboolean gbUsingCachedMapDataRightNow = qfalse;	// if true, signifies that you can't delete this at the moment!! (used during z_malloc()-fail recovery attempt)
 
@@ -648,6 +832,7 @@ qboolean CM_DeleteCachedMap(qboolean bGuaranteedOkToDelete)
 		{
 			Z_Free(	gpvCachedMapDiskImage );
 					gpvCachedMapDiskImage = NULL;
+					giCachedMapDiskImageSize = 0;
 
 			bActuallyFreedSomething = qtrue;
 		}
@@ -695,6 +880,7 @@ static void CM_LoadMap_Actual( const char *name, qboolean clientload, int *check
 		{
 			Z_Free(gpvCachedMapDiskImage);
 				   gpvCachedMapDiskImage = NULL;
+				   giCachedMapDiskImageSize = 0;
 		   gsCachedMapDiskImage[0] = '\0';
 
 		   CM_ClearMap();
@@ -777,6 +963,7 @@ static void CM_LoadMap_Actual( const char *name, qboolean clientload, int *check
 			}
 			gsCachedMapDiskImage[0]	= '\0';		// flag that map isn't valid, until name is filled in
 			gpvCachedMapDiskImage	= Z_Malloc( iBSPLen, TAG_BSP_DISKIMAGE, qfalse);
+			giCachedMapDiskImageSize = iBSPLen;
 			FS_Read(gpvCachedMapDiskImage, iBSPLen, h);
 			FS_FCloseFile( h );
 
@@ -809,6 +996,7 @@ static void CM_LoadMap_Actual( const char *name, qboolean clientload, int *check
 			if ( bad ) {
 				Z_Free( gpvCachedMapDiskImage );
 				gpvCachedMapDiskImage = NULL;
+				giCachedMapDiskImageSize = 0;
 
 				Com_Error( ERR_DROP, "CM_LoadMap: %s: %s", name, bad );
 				return;
@@ -821,6 +1009,21 @@ static void CM_LoadMap_Actual( const char *name, qboolean clientload, int *check
 		}
 
 		cmod_base = (byte *)buf;
+
+		// Every loader below indexes through header.lumps[N].fileofs, and until
+		// now nothing established that those offsets land inside the file that
+		// was read. The renderer loads this same BSP a second time and has the
+		// same check; this one matters more, because CM_LoadMap runs first -
+		// a hostile map never reaches the renderer's copy.
+		for ( int lump = 0 ; lump < HEADER_LUMPS ; lump++ ) {
+			const int ofs = header.lumps[lump].fileofs;
+			const int len = header.lumps[lump].filelen;
+
+			if ( ofs < 0 || len < 0 || (int64_t)ofs + len > iBSPLen ) {
+				Com_Error( ERR_DROP, "CM_LoadMap: %s lump %i is at %i..%i, outside a file of %i bytes",
+					name, lump, ofs, ofs + len, iBSPLen );
+			}
+		}
 
 		// load into heap
 		CMod_LoadShaders( &header.lumps[LUMP_SHADERS], cm );
@@ -835,6 +1038,7 @@ static void CM_LoadMap_Actual( const char *name, qboolean clientload, int *check
 		CMod_LoadEntityString (&header.lumps[LUMP_ENTITIES], cm, name );
 		CMod_LoadVisibility( &header.lumps[LUMP_VISIBILITY], cm );
 		CMod_LoadPatches( &header.lumps[LUMP_SURFACES], &header.lumps[LUMP_DRAWVERTS], cm );
+		CMod_ValidateReferences( cm );
 
 		TotalSubModels += cm.numSubModels;
 
@@ -848,6 +1052,7 @@ static void CM_LoadMap_Actual( const char *name, qboolean clientload, int *check
 		{
 			Z_Free(	gpvCachedMapDiskImage );
 					gpvCachedMapDiskImage = NULL;
+					giCachedMapDiskImageSize = 0;
 		}
 		else
 		{

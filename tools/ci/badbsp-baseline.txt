@@ -1,0 +1,25 @@
+# What the engine does today with a BSP broken one field at a time.
+# Written by tools/verify/bad_bsp.sh --write-baseline; see the note at
+# the top of that script. This file may shrink, never grow: a kind
+# listed here is a hole somebody has to close, and a kind that starts
+# failing without a line here fails the stage.
+#
+# The two below are not holes. Both are checked; both deliberately let the map
+# load, and this file cannot tell "not checked" from "checked and tolerated" -
+# it classifies by whether the world came up.
+#
+#   surface-fog            the fog index is range-checked in R_LoadSurfaces and
+#                          reset to zero with a warning. Dropping a whole map
+#                          over one surface pointing at a fog that is not there
+#                          would be a worse answer than drawing it unfogged.
+#
+#   entities-unterminated  the entity lump is copied by length and terminated by
+#                          the loader, in both the clipmap and the renderer, so
+#                          a lump without a trailing zero is no longer read past
+#                          its end. Nothing is left to refuse.
+#
+# Anything that appears here later, and is not one of these two, is a hole.
+#
+# kind                     outcome
+surface-fog               loaded
+entities-unterminated     loaded

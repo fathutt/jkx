@@ -154,6 +154,7 @@ const void	*PD_Load( const char *name, size_t *size );
 // because a module cannot see another module's globals; here they are globals,
 // and the accessors that wrapped them are gone with the table.
 extern void			*gpvCachedMapDiskImage;
+extern int			giCachedMapDiskImageSize;
 extern char			gsCachedMapDiskImage[MAX_QPATH];
 extern qboolean		gbUsingCachedMapDataRightNow;
 extern qboolean		gbAlreadyDoingLoad;

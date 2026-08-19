@@ -871,10 +871,43 @@ static	void R_LoadVisibility( const lump_t *l, world_t &worldData ) {
 	if ( !len ) {
 		return;
 	}
+
+	// The two ints below are read out of the lump before anything establishes
+	// that the lump is long enough to hold them, and the rows they describe are
+	// then indexed as vis + cluster * clusterBytes. Three numbers, none checked.
+	if ( len < VIS_HEADER ) {
+		Com_Error( ERR_DROP, "R_LoadVisibility: visibility lump is %i bytes in %s", len, worldData.name );
+	}
+
 	buf = fileBase + l->fileofs;
 
-	worldData.numClusters = LittleLong( ((int *)buf)[0] );
-	worldData.clusterBytes = LittleLong( ((int *)buf)[1] );
+	{
+		const int numClusters = LittleLong( ((int *)buf)[0] );
+		const int clusterBytes = LittleLong( ((int *)buf)[1] );
+
+		if ( numClusters < 0 || clusterBytes < 0 ||
+			(int64_t)numClusters * clusterBytes > len - VIS_HEADER ) {
+			Com_Error( ERR_DROP, "R_LoadVisibility: %i clusters of %i bytes do not fit in %i in %s",
+				numClusters, clusterBytes, len - VIS_HEADER, worldData.name );
+		}
+
+		// The leaves have already been read, and each of them grew numClusters
+		// to cover its own cluster number. A vis table that describes fewer
+		// clusters than the leaves refer to is the same out-of-range read,
+		// arrived at from the other side.
+		if ( numClusters < worldData.numClusters ) {
+			Com_Error( ERR_DROP, "R_LoadVisibility: %i clusters in the table, %i referred to by leaves in %s",
+				numClusters, worldData.numClusters, worldData.name );
+		}
+
+		if ( clusterBytes < ( numClusters + 7 ) >> 3 ) {
+			Com_Error( ERR_DROP, "R_LoadVisibility: %i bytes per row is short for %i clusters in %s",
+				clusterBytes, numClusters, worldData.name );
+		}
+
+		worldData.numClusters = numClusters;
+		worldData.clusterBytes = clusterBytes;
+	}
 
 	// CM_Load should have given us the vis data to share, so
 	// we don't need to allocate another copy
@@ -1032,10 +1065,10 @@ static void GenerateNormals( srfSurfaceFace_t *face )
 ParseFace
 ===============
 */
-static void ParseFace( const dsurface_t *ds, const drawVert_t *verts, msurface_t *surf, int *indexes, world_t &worldData, int index ) {
+static void ParseFace( const dsurface_t *ds, const drawVert_t *verts, int numVerts, msurface_t *surf, const int *indexes, int numIndexes, world_t &worldData, int index ) {
 	int					i, j;
 	srfSurfaceFace_t	*cv;
-	int					numPoints, numIndexes;
+	int					numPoints;
 	int					lightmapNum[MAXLIGHTMAPS];
 	int					sfaceSize, ofsIndexes;
 
@@ -1048,27 +1081,21 @@ static void ParseFace( const dsurface_t *ds, const drawVert_t *verts, msurface_t
 	vk_init_surf_sprites( surf );
 #endif
 
-	// get fog volume
-	surf->fogIndex = LittleLong( ds->fogNum ) + 1;
-	if (index && !surf->fogIndex && tr.world->globalFog != -1)
-	{
-		surf->fogIndex = worldData.globalFog;
-	}
-
 	// get shader value
 	surf->shader = ShaderForShaderNum( ds->shaderNum, lightmapNum, ds->lightmapStyles, ds->vertexStyles, worldData );
 	if ( r_singleShader->integer && !surf->shader->sky ) {
 		surf->shader = tr.defaultShader;
 	}
 
-	numPoints = LittleLong( ds->numVerts );
+	// Both counts were read from the surface record here and used unchecked.
+	// They now arrive from R_LoadSurfaces, which is the only place that can
+	// compare them against the size of the lumps they index into.
+	numPoints = numVerts;
 	if (numPoints > MAX_FACE_POINTS) {
 		vk_debug("WARNING: MAX_FACE_POINTS exceeded: %i\n", numPoints);
 		numPoints = MAX_FACE_POINTS;
 		surf->shader = tr.defaultShader;
 	}
-
-	numIndexes = LittleLong( ds->numIndexes );
 
 	// create the srfSurfaceFace_t
 	sfaceSize = ( size_t ) &((srfSurfaceFace_t *)0)->points[numPoints];
@@ -1084,8 +1111,6 @@ static void ParseFace( const dsurface_t *ds, const drawVert_t *verts, msurface_t
 	
 	surf->cullinfo.type = CULLINFO_PLANE | CULLINFO_BOX;
 	ClearBounds( surf->cullinfo.bounds[0], surf->cullinfo.bounds[1] );
-
-	verts += LittleLong( ds->firstVert );
 
 	for ( i = 0 ; i < numPoints ; i++ ) {
 		for ( j = 0 ; j < 3 ; j++ ) {
@@ -1118,9 +1143,17 @@ static void ParseFace( const dsurface_t *ds, const drawVert_t *verts, msurface_t
 	}
 
 
-	indexes += LittleLong( ds->firstIndex );
+	// An index is an offset into this face's own points, so anything at or past
+	// numPoints reads past the end of the array that was just allocated for it.
+	// Nothing checked this before.
 	for ( i = 0 ; i < numIndexes ; i++ ) {
-		((int *)((byte *)cv + cv->ofsIndices ))[i] = LittleLong( indexes[ i ] );
+		const unsigned int idx = (unsigned int)LittleLong( indexes[ i ] );
+
+		if ( idx >= (unsigned int)numPoints ) {
+			Com_Error( ERR_DROP, "ParseFace: index %u out of range (%i points) in %s",
+				idx, numPoints, worldData.name );
+		}
+		((int *)((byte *)cv + cv->ofsIndices ))[i] = (int)idx;
 	}
 
 	// take the plane information from the lightmap vector
@@ -1165,7 +1198,7 @@ static void ParseFace( const dsurface_t *ds, const drawVert_t *verts, msurface_t
 ParseMesh
 ===============
 */
-static void ParseMesh ( const dsurface_t *ds, const drawVert_t *verts, msurface_t *surf, world_t &worldData, int index ) {
+static void ParseMesh ( const dsurface_t *ds, const drawVert_t *verts, int numVerts, msurface_t *surf, world_t &worldData, int index ) {
 	srfGridMesh_t			*grid;
 	int						i, j;
 	int						width, height, numPoints;
@@ -1183,13 +1216,6 @@ static void ParseMesh ( const dsurface_t *ds, const drawVert_t *verts, msurface_
 #ifdef USE_VBO_SS
 	vk_init_surf_sprites( surf );
 #endif
-
-	// get fog volume
-	surf->fogIndex = LittleLong( ds->fogNum ) + 1;
-	if (index && !surf->fogIndex && tr.world->globalFog != -1)
-	{
-		surf->fogIndex = worldData.globalFog;
-	}
 
 	// get shader value
 	surf->shader = ShaderForShaderNum( ds->shaderNum, lightmapNum, ds->lightmapStyles, ds->vertexStyles, worldData );
@@ -1217,8 +1243,16 @@ static void ParseMesh ( const dsurface_t *ds, const drawVert_t *verts, msurface_
 		return;
 	}
 
-	verts += LittleLong( ds->firstVert );
 	numPoints = width * height;
+
+	// The patch size is its own field, independent of numVerts, so the two can
+	// disagree - and it is the patch size that decides how many verts get read.
+	if ( numPoints > numVerts ) {
+		Com_Error( ERR_DROP, "ParseMesh: patch %dx%d wants %d verts, %d available in %s",
+			width, height, numPoints, numVerts, worldData.name );
+		return;
+	}
+
 	for ( i = 0 ; i < numPoints ; i++ ) {
 		for ( j = 0 ; j < 3 ; j++ ) {
 			points[i].xyz[j] = LittleFloat( verts[i].xyz[j] );
@@ -1261,10 +1295,9 @@ static void ParseMesh ( const dsurface_t *ds, const drawVert_t *verts, msurface_
 ParseTriSurf
 ===============
 */
-static void ParseTriSurf( const dsurface_t *ds, const drawVert_t *verts, msurface_t *surf, int *indexes, world_t &worldData, int index ) {
+static void ParseTriSurf( const dsurface_t *ds, const drawVert_t *verts, int numVerts, msurface_t *surf, const int *indexes, int numIndexes, world_t &worldData, int index ) {
 	srfTriangles_t	*tri;
 	int				i, j;
-	int				numVerts, numIndexes;
 
 	int lightmapNum[MAXLIGHTMAPS];
 
@@ -1275,21 +1308,11 @@ static void ParseTriSurf( const dsurface_t *ds, const drawVert_t *verts, msurfac
 	vk_init_surf_sprites( surf );
 #endif
 
-	// get fog volume
-	surf->fogIndex = LittleLong( ds->fogNum ) + 1;
-	if (index && !surf->fogIndex && tr.world->globalFog != -1)
-	{
-		surf->fogIndex = worldData.globalFog;
-	}
-
 	// get shader
 	surf->shader = ShaderForShaderNum( ds->shaderNum, lightmapNum, ds->lightmapStyles, ds->vertexStyles, worldData );
 	if ( r_singleShader->integer && !surf->shader->sky ) {
 		surf->shader = tr.defaultShader;
 	}
-
-	numVerts = LittleLong( ds->numVerts );
-	numIndexes = LittleLong( ds->numIndexes );
 
 	if ( numVerts >= SHADER_MAX_VERTEXES ) {
 		Com_Error(ERR_DROP, "ParseTriSurf: verts > MAX (%d > %d) on misc_model %s", numVerts, SHADER_MAX_VERTEXES, surf->shader->name );
@@ -1313,7 +1336,6 @@ static void ParseTriSurf( const dsurface_t *ds, const drawVert_t *verts, msurfac
 	ClearBounds( surf->cullinfo.bounds[0], surf->cullinfo.bounds[1] );
 
 	ClearBounds( tri->bounds[0], tri->bounds[1] );
-	verts += LittleLong( ds->firstVert );
 	for ( i = 0 ; i < numVerts ; i++ ) {
 		for ( j = 0 ; j < 3 ; j++ ) {
 			tri->verts[i].xyz[j] = LittleFloat( verts[i].xyz[j] );
@@ -1344,7 +1366,6 @@ static void ParseTriSurf( const dsurface_t *ds, const drawVert_t *verts, msurfac
 	}
 
 	// copy indexes
-	indexes += LittleLong( ds->firstIndex );
 	for ( i = 0 ; i < numIndexes ; i++ ) {
 		tri->indexes[i] = LittleLong( indexes[i] );
 		if ( tri->indexes[i] < 0 || tri->indexes[i] >= numVerts ) {
@@ -1362,7 +1383,7 @@ static void ParseTriSurf( const dsurface_t *ds, const drawVert_t *verts, msurfac
 ParseFlare
 ===============
 */
-static void ParseFlare( const dsurface_t *ds, const drawVert_t *verts, msurface_t *surf, int *indexes, world_t &worldData, int index ) {
+static void ParseFlare( const dsurface_t *ds, msurface_t *surf, world_t &worldData, int index ) {
 	srfFlare_t		*flare;
 	int				i;
 	int				lightmaps[MAXLIGHTMAPS] = { LIGHTMAP_BY_VERTEX };
@@ -1370,13 +1391,6 @@ static void ParseFlare( const dsurface_t *ds, const drawVert_t *verts, msurface_
 #ifdef USE_VBO_SS
 	vk_init_surf_sprites( surf );
 #endif
-
-	// get fog volume
-	surf->fogIndex = LittleLong( ds->fogNum ) + 1;
-	if (index && !surf->fogIndex && tr.world->globalFog != -1)
-	{
-		surf->fogIndex = worldData.globalFog;
-	}
 
 	// get shader
 	surf->shader = ShaderForShaderNum( ds->shaderNum, lightmaps, ds->lightmapStyles, ds->vertexStyles, worldData );
@@ -2155,15 +2169,77 @@ static	void R_LoadSurfaces( const lump_t *surfs, const lump_t *verts, const lump
 	if ( indexLump->filelen % sizeof(*indexes))
 		Com_Error (ERR_DROP, "LoadMap: funny lump size in %s",worldData.name);
 
+	// How much there actually is to point at. Every surface record below names
+	// a range inside these two lumps, and until now not one of those ranges was
+	// compared against the lump it indexes into: firstVert and firstIndex went
+	// straight into pointer arithmetic inside the Parse* functions.
+	const int totalVerts = verts->filelen / sizeof(*dv);
+	const int totalIndexes = indexLump->filelen / sizeof(*indexes);
+
 	out = (struct msurface_s *)R_Hunk_Alloc( count * sizeof(*out), h_low );
 
 	worldData.surfaces = out;
 	worldData.numsurfaces = count;
 
 	for ( i = 0 ; i < count ; i++, in++, out++ ) {
-		switch ( LittleLong( in->surfaceType ) ) {
+		const int	surfaceType = LittleLong( in->surfaceType );
+		int			firstVert = 0, numVerts = 0;
+		int			firstIndex = 0, numIndexes = 0;
+		unsigned	fogIndex;
+
+		if ( surfaceType != MST_FLARE ) {
+			firstVert = LittleLong( in->firstVert );
+
+			// A patch reads as many verts as its own width x height says, not
+			// numVerts, so here we only establish where its range starts and
+			// how much is left; ParseMesh checks the rest against that.
+			if ( surfaceType == MST_PATCH )
+				numVerts = 0;
+			else
+				numVerts = LittleLong( in->numVerts );
+
+			if ( firstVert < 0 || numVerts < 0 || (int64_t)firstVert + numVerts > totalVerts ) {
+				Com_Error( ERR_DROP, "R_LoadSurfaces: surface %i wants verts %i..%i of %i in %s",
+					i, firstVert, firstVert + numVerts, totalVerts, worldData.name );
+			}
+
+			if ( surfaceType != MST_PATCH ) {
+				firstIndex = LittleLong( in->firstIndex );
+				numIndexes = LittleLong( in->numIndexes );
+
+				if ( firstIndex < 0 || numIndexes < 0 || (int64_t)firstIndex + numIndexes > totalIndexes ) {
+					Com_Error( ERR_DROP, "R_LoadSurfaces: surface %i wants indexes %i..%i of %i in %s",
+						i, firstIndex, firstIndex + numIndexes, totalIndexes, worldData.name );
+				}
+
+				// A partial triangle is not an error worth dropping a map over,
+				// but drawing it would read one or two indexes of the next
+				// surface as if they were ours.
+				if ( numIndexes % 3 ) {
+					CL_RefPrintf( PRINT_WARNING, "WARNING: surface %i has %i indexes, not a multiple of three\n", i, numIndexes );
+					numIndexes -= numIndexes % 3;
+				}
+			}
+		}
+
+		// The fog index used to be written by each Parse* function straight
+		// from the file, and indexes worldData.fogs everywhere downstream.
+		fogIndex = (unsigned)( LittleLong( in->fogNum ) + 1 );
+		if ( fogIndex >= (unsigned)worldData.numfogs ) {
+			if ( surfaceType != MST_FLARE ) {
+				CL_RefPrintf( PRINT_WARNING, "WARNING: surface %i has fog index %u, %i fogs in %s\n",
+					i, fogIndex, worldData.numfogs, worldData.name );
+			}
+			fogIndex = 0;
+		}
+		out->fogIndex = (int)fogIndex;
+		if ( index && !out->fogIndex && tr.world->globalFog != -1 ) {
+			out->fogIndex = worldData.globalFog;
+		}
+
+		switch ( surfaceType ) {
 		case MST_PATCH:
-			ParseMesh ( in, dv, out, worldData, index );
+			ParseMesh ( in, dv + firstVert, totalVerts - firstVert, out, worldData, index );
 			{
 				srfGridMesh_t *surface = (srfGridMesh_t *)out->data;
 
@@ -2176,19 +2252,20 @@ static	void R_LoadSurfaces( const lump_t *surfs, const lump_t *verts, const lump
 			numMeshes++;
 			break;
 		case MST_TRIANGLE_SOUP:
-			ParseTriSurf( in, dv, out, indexes, worldData, index );
+			ParseTriSurf( in, dv + firstVert, numVerts, out, indexes + firstIndex, numIndexes, worldData, index );
 			numTriSurfs++;
 			break;
 		case MST_PLANAR:
-			ParseFace( in, dv, out, indexes, worldData, index );
+			ParseFace( in, dv + firstVert, numVerts, out, indexes + firstIndex, numIndexes, worldData, index );
 			numFaces++;
 			break;
 		case MST_FLARE:
-			ParseFlare( in, dv, out, indexes, worldData, index );
+			ParseFlare( in, out, worldData, index );
 			numFlares++;
 			break;
 		default:
-			Com_Error( ERR_DROP, "Bad surfaceType" );
+			Com_Error( ERR_DROP, "R_LoadSurfaces: surface %i has bad surfaceType %i in %s",
+				i, surfaceType, worldData.name );
 		}
 	}
 
@@ -2250,6 +2327,15 @@ static	void R_LoadSubmodels( const lump_t *l, world_t &worldData, int index ) {
 
 		CModelCache->InsertModelHandle(model->name, model->index);
 
+		{
+			const int first = LittleLong( in->firstSurface );
+			const int num = LittleLong( in->numSurfaces );
+
+			if ( first < 0 || num < 0 || (int64_t)first + num > worldData.numsurfaces ) {
+				Com_Error( ERR_DROP, "R_LoadSubmodels: model %i wants surfaces %i..%i of %i in %s",
+					i, first, first + num, worldData.numsurfaces, worldData.name );
+			}
+		}
 		out->firstSurface = worldData.surfaces + LittleLong( in->firstSurface );
 		out->numSurfaces = LittleLong( in->numSurfaces );
 	}
@@ -2262,13 +2348,26 @@ static	void R_LoadSubmodels( const lump_t *l, world_t &worldData, int index ) {
 R_SetParent
 =================
 */
-static	void R_SetParent ( mnode_t *node, mnode_t *parent )
+static	void R_SetParent ( mnode_t *node, mnode_t *parent, int depth, int maxDepth )
 {
+	// A child index pointing back at an ancestor makes this recurse until the
+	// stack runs out - or, when a node is its own child, never return at all.
+	// Nothing else notices, because a cycle is a perfectly well-formed set of
+	// numbers: every index is in range, the tree just has no bottom.
+	//
+	// Marking visited nodes by their parent pointer does not work here, because
+	// the root's parent is legitimately NULL and so an unvisited root and a
+	// re-entered root look identical. A depth bound has no such blind spot: no
+	// acyclic tree of N nodes is deeper than N.
+	if ( depth > maxDepth ) {
+		Com_Error( ERR_DROP, "R_SetParent: node tree deeper than %i nodes, it has a cycle", maxDepth );
+	}
+
 	node->parent = parent;
 	if (node->contents != -1)
 		return;
-	R_SetParent (node->children[0], node);
-	R_SetParent (node->children[1], node);
+	R_SetParent (node->children[0], node, depth + 1, maxDepth);
+	R_SetParent (node->children[1], node, depth + 1, maxDepth);
 }
 
 /*
@@ -2307,17 +2406,35 @@ static void R_LoadNodesAndLeafs ( const lump_t *nodeLump, const lump_t *leafLump
 		}
 
 		p = LittleLong(in->planeNum);
+		if ( (unsigned)p >= (unsigned)worldData.numplanes ) {
+			Com_Error( ERR_DROP, "R_LoadNodesAndLeafs: node %i has plane %i of %i in %s",
+				i, p, worldData.numplanes, worldData.name );
+		}
 		out->plane = worldData.planes + p;
 
 		out->contents = CONTENTS_NODE;	// differentiate from leafs
 
+		// A child is either a node index or, when negative, the ones-complement
+		// of a leaf index. Both were followed without asking whether they land
+		// inside the arrays that were just allocated.
 		for (j=0 ; j<2 ; j++)
 		{
 			p = LittleLong (in->children[j]);
-			if (p >= 0)
+			if (p >= 0) {
+				if ( p >= numNodes ) {
+					Com_Error( ERR_DROP, "R_LoadNodesAndLeafs: node %i child %i is node %i of %i in %s",
+						i, j, p, numNodes, worldData.name );
+				}
 				out->children[j] = worldData.nodes + p;
-			else
-				out->children[j] = worldData.nodes + numNodes + (-1 - p);
+			} else {
+				const int leaf = -1 - p;
+
+				if ( leaf < 0 || leaf >= numLeafs ) {
+					Com_Error( ERR_DROP, "R_LoadNodesAndLeafs: node %i child %i is leaf %i of %i in %s",
+						i, j, leaf, numLeafs, worldData.name );
+				}
+				out->children[j] = worldData.nodes + numNodes + leaf;
+			}
 		}
 	}
 
@@ -2332,19 +2449,40 @@ static void R_LoadNodesAndLeafs ( const lump_t *nodeLump, const lump_t *leafLump
 		}
 
 		out->cluster = LittleLong(inLeaf->cluster);
+		// numClusters is grown from this below and later multiplies clusterBytes
+		// to find a PVS row, so a large value here is an offset, not just a
+		// count. -1 stays legal: it means "solid leaf".
+		if ( out->cluster < -1 || out->cluster > INT_MAX - 64 ) {
+			Com_Error( ERR_DROP, "R_LoadNodesAndLeafs: leaf %i has cluster %i in %s",
+				i, out->cluster, worldData.name );
+		}
+
 		out->area = LittleLong(inLeaf->area);
+		if ( out->area < -1 || out->area >= MAX_MAP_AREAS ) {
+			Com_Error( ERR_DROP, "R_LoadNodesAndLeafs: leaf %i has area %i in %s",
+				i, out->area, worldData.name );
+		}
 
 		if ( out->cluster >= worldData.numClusters ) {
 			worldData.numClusters = out->cluster + 1;
 		}
 
-		out->firstmarksurface = worldData.marksurfaces +
-			LittleLong(inLeaf->firstLeafSurface);
-		out->nummarksurfaces = LittleLong(inLeaf->numLeafSurfaces);
+		{
+			const int first = LittleLong(inLeaf->firstLeafSurface);
+			const int num = LittleLong(inLeaf->numLeafSurfaces);
+
+			if ( first < 0 || num < 0 || (int64_t)first + num > worldData.nummarksurfaces ) {
+				Com_Error( ERR_DROP, "R_LoadNodesAndLeafs: leaf %i wants marksurfaces %i..%i of %i in %s",
+					i, first, first + num, worldData.nummarksurfaces, worldData.name );
+			}
+
+			out->firstmarksurface = worldData.marksurfaces + first;
+			out->nummarksurfaces = num;
+		}
 	}
 
 	// chain decendants
-	R_SetParent (worldData.nodes, NULL);
+	R_SetParent (worldData.nodes, NULL, 0, numNodes);
 }
 
 //=============================================================================
@@ -2397,7 +2535,14 @@ static	void R_LoadMarksurfaces ( const lump_t *l, world_t &worldData )
 
 	for ( i=0 ; i<count ; i++)
 	{
+		// Straight out of the file and straight into a pointer, with nothing in
+		// between. Quake3e special-cases 0xFFFFFFFF for one broken map; the
+		// range check covers that case and every other one.
 		j = LittleLong(in[i]);
+		if ( (unsigned)j >= (unsigned)worldData.numsurfaces ) {
+			Com_Error( ERR_DROP, "R_LoadMarksurfaces: surface %i of %i out of range in %s",
+				j, worldData.numsurfaces, worldData.name );
+		}
 		out[i] = worldData.surfaces + j;
 	}
 }
@@ -2504,6 +2649,15 @@ static	void R_LoadFogs( const lump_t *l, const lump_t *brushesLump, lump_t *side
 	}
 	sidesCount = sidesLump->filelen / sizeof(*sides);
 
+	// Below, firstSide is checked against sidesCount - 6. With fewer than six
+	// sides in the file that subtraction is negative, and the unsigned compare
+	// it is written as then passes for every value - the check that looks like
+	// the bounds check is the reason there is none.
+	if ( sidesCount < 6 ) {
+		Com_Error( ERR_DROP, "R_LoadFogs: %i brush sides in %s, a fog brush needs six",
+			sidesCount, worldData.name );
+	}
+
 	for ( i=0 ; i<count ; i++, fogs++) {
 		out->originalBrushNumber = LittleLong( fogs->brushNum );
 
@@ -2527,30 +2681,23 @@ static	void R_LoadFogs( const lump_t *l, const lump_t *brushesLump, lump_t *side
 				Com_Error( ERR_DROP, "fog brush sideNumber out of range" );
 			}
 
-			// brushes are always sorted with the axial sides first
-			sideNum = firstSide + 0;
-			planeNum = LittleLong( sides[ sideNum ].planeNum );
-			out->bounds[0][0] = -worldData.planes[ planeNum ].dist;
+			// brushes are always sorted with the axial sides first, so the six
+			// bounds come off six consecutive sides: even ones negated, odd
+			// ones not. Written out six times before, and the plane index -
+			// which is what actually indexes an array - was not checked in any
+			// of the six.
+			for ( n = 0; n < 6; n++ ) {
+				sideNum = firstSide + n;
+				planeNum = LittleLong( sides[ sideNum ].planeNum );
 
-			sideNum = firstSide + 1;
-			planeNum = LittleLong( sides[ sideNum ].planeNum );
-			out->bounds[1][0] = worldData.planes[ planeNum ].dist;
+				if ( (unsigned)planeNum >= (unsigned)worldData.numplanes ) {
+					Com_Error( ERR_DROP, "R_LoadFogs: fog brush side %i has plane %i of %i in %s",
+						sideNum, planeNum, worldData.numplanes, worldData.name );
+				}
 
-			sideNum = firstSide + 2;
-			planeNum = LittleLong( sides[ sideNum ].planeNum );
-			out->bounds[0][1] = -worldData.planes[ planeNum ].dist;
-
-			sideNum = firstSide + 3;
-			planeNum = LittleLong( sides[ sideNum ].planeNum );
-			out->bounds[1][1] = worldData.planes[ planeNum ].dist;
-
-			sideNum = firstSide + 4;
-			planeNum = LittleLong( sides[ sideNum ].planeNum );
-			out->bounds[0][2] = -worldData.planes[ planeNum ].dist;
-
-			sideNum = firstSide + 5;
-			planeNum = LittleLong( sides[ sideNum ].planeNum );
-			out->bounds[1][2] = worldData.planes[ planeNum ].dist;
+				d = worldData.planes[ planeNum ].dist;
+				out->bounds[n & 1][n >> 1] = ( n & 1 ) ? d : -d;
+			}
 		}
 
 		// get information from the shader for fog parameters
@@ -2625,6 +2772,7 @@ static void R_LoadLightGrid( const lump_t *l, world_t &worldData ) {
 	}
 
 	int numGridDataElements = l->filelen / sizeof(*w->lightGridData);
+	w->numGridDataElements = numGridDataElements;
 
 	w->lightGridData = (mgrid_t *)R_Hunk_Alloc( l->filelen, h_low );
 	memcpy( w->lightGridData, (void *)(fileBase + l->fileofs), l->filelen );
@@ -2677,6 +2825,22 @@ static void R_LoadLightGridArray( const lump_t *l, world_t &worldData ) {
 
 	w->lightGridArray = (unsigned short *)R_Hunk_Alloc( l->filelen, h_low );
 	memcpy( w->lightGridArray, (void *)(fileBase + l->fileofs), l->filelen );
+
+	// Each entry names a cell in lightGridData, and it is read not at load time
+	// but every time anything is lit - so an out-of-range entry is a read past
+	// the end of the grid on every frame that touches that cell, which is the
+	// hardest kind of this defect to ever catch in the act.
+	{
+		const int numGridDataElements = w->lightGridData ? w->numGridDataElements : 0;
+		int n;
+
+		for ( n = 0 ; n < w->numGridArrayElements ; n++ ) {
+			if ( w->lightGridArray[n] >= numGridDataElements ) {
+				Com_Error( ERR_DROP, "R_LoadLightGridArray: cell %i names grid entry %u of %i in %s",
+					n, (unsigned)w->lightGridArray[n], numGridDataElements, worldData.name );
+			}
+		}
+	}
 #ifdef Q3_BIG_ENDIAN
 	for ( i = 0 ; i < w->numGridArrayElements ; i++ ) {
 		w->lightGridArray[i] = LittleShort(w->lightGridArray[i]);
@@ -2707,8 +2871,16 @@ static void R_LoadEntities( const lump_t *l, world_t &worldData ) {
 	p = (char *)(fileBase + l->fileofs);
 
 	// store for reference by the cgame
+	//
+	// strcpy, from a lump, into an allocation exactly as long as that lump.
+	// The entity lump is a C string only by convention: nothing in the format
+	// obliges it to carry a terminator, and without one strcpy runs off the end
+	// of the lump looking for a zero and writes everything it finds past the end
+	// of this block. Both sides of the same missing byte. Copy the length we
+	// were given and terminate it ourselves.
 	w->entityString = (char *)R_Hunk_Alloc( l->filelen + 1, h_low );
-	strcpy( w->entityString, p );
+	memcpy( w->entityString, p, l->filelen );
+	w->entityString[l->filelen] = '\0';
 	w->entityParsePoint = w->entityString;
 
 	COM_BeginParseSession ("R_LoadEntities");
@@ -3215,15 +3387,17 @@ void RE_LoadWorldMap_Actual( const char *name, world_t &worldData, int index )
 
 	// check for cached disk file from the server first...
 	//
+	int bufferLen;
 	if (R_CachedMapImage())
 	{
 		buffer = (byte *)R_CachedMapImage();
+		bufferLen = R_CachedMapImageSize();
 	}
 	else
 	{
 		// still needs loading...
 		//
-		FS_ReadFile( name, (void **)&buffer );
+		bufferLen = FS_ReadFile( name, (void **)&buffer );
 		if ( !buffer ) {
 			Com_Error (ERR_DROP, "RE_LoadWorldMap: %s not found", name);
 		}
@@ -3243,6 +3417,21 @@ void RE_LoadWorldMap_Actual( const char *name, world_t &worldData, int index )
 	header = (dheader_t *)buffer;
 	fileBase = (byte *)header;
 
+	// The outermost check, and until now the missing one. Everything below
+	// reads through header->lumps[N].fileofs, and nothing established that
+	// those offsets land inside the file - so every bounds check further in
+	// was being made against a base pointer that could already be outside the
+	// allocation. Order matters here: the length has to be checked before the
+	// header is dereferenced, and the lump table before it is trusted.
+	if ( bufferLen < (int)sizeof( dheader_t ) ) {
+		Com_Error( ERR_DROP, "RE_LoadWorldMap: %s is %i bytes, shorter than a BSP header (%i)",
+			name, bufferLen, (int)sizeof( dheader_t ) );
+	}
+
+	if ( LittleLong( header->ident ) != BSP_IDENT ) {
+		Com_Error( ERR_DROP, "RE_LoadWorldMap: %s is not a BSP file", name );
+	}
+
 	int i = LittleLong (header->version);
 	if ( i != BSP_VERSION ) {
 		Com_Error (ERR_DROP, "RE_LoadWorldMap: %s has wrong version number (%i should be %i)",
@@ -3252,6 +3441,19 @@ void RE_LoadWorldMap_Actual( const char *name, world_t &worldData, int index )
 	// swap all the lumps
 	for (size_t i=0 ; i<sizeof(dheader_t)/4 ; i++) {
 		((int *)header)[i] = LittleLong ( ((int *)header)[i]);
+	}
+
+	// ...and only now is the table readable. Negative values are rejected
+	// before the addition, and the addition is done in 64 bits, so a pair that
+	// overflows int cannot wrap into a value that looks valid.
+	for ( int lump = 0 ; lump < HEADER_LUMPS ; lump++ ) {
+		const int ofs = header->lumps[lump].fileofs;
+		const int len = header->lumps[lump].filelen;
+
+		if ( ofs < 0 || len < 0 || (int64_t)ofs + len > bufferLen ) {
+			Com_Error( ERR_DROP, "RE_LoadWorldMap: %s lump %i is at %i..%i, outside a file of %i bytes",
+				name, lump, ofs, ofs + len, bufferLen );
+		}
 	}
 
 	// load into heap

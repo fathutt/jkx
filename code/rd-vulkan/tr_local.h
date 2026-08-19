@@ -1416,6 +1416,7 @@ typedef struct world_s {
 
 	mgrid_t		*lightGridData;
 	word		*lightGridArray;
+	int			numGridDataElements;	// how many cells lightGridArray may name
 	int			numGridArrayElements;
 
 

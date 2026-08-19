@@ -32,6 +32,7 @@ Foundation.
 // refimport table around a getter in the client around the variable - because
 // a module cannot see another module's globals. It can now.
 #define R_CachedMapImage()				( gpvCachedMapDiskImage )
+#define R_CachedMapImageSize()			( giCachedMapDiskImageSize )
 #define R_SetUsingCachedMap( onOff )	( gbUsingCachedMapDataRightNow = ( onOff ) )
 
 // Releasing the cached map image is NOT a rename, and the first attempt at one
