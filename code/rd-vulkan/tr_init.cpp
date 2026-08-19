@@ -158,6 +158,7 @@ cvar_t	*r_liquidFresnel;
 cvar_t	*r_liquidClarity;
 cvar_t	*r_liquidFoam;
 cvar_t	*r_liquidRefract;
+cvar_t	*r_liquidCaustic;
 cvar_t	*r_weldModelNormals;
 cvar_t	*r_weldModelNormalsAngle;
 cvar_t	*r_shownormals;
@@ -1125,7 +1126,11 @@ void R_Register( void )
 	Cvar_CheckRange( r_liquidClarity, 1, 8192, qfalse );
 	r_liquidRefract						= Cvar_Get( "r_liquidRefract",				"24",						CVAR_ARCHIVE_ND, "how far a liquid surface bends what is seen through it" );
 	Cvar_CheckRange( r_liquidFoam, 0, 512, qfalse );
+	// Modest on purpose. The web appears wherever the light nominally reaches,
+	// and there are no shadows yet - so under a rock as happily as beside it.
+	r_liquidCaustic						= Cvar_Get( "r_liquidCaustic",				"0.5",						CVAR_ARCHIVE_ND, "how much of the caustic web is applied under a liquid surface" );
 	Cvar_CheckRange( r_liquidRefract, 0, 256, qfalse );
+	Cvar_CheckRange( r_liquidCaustic, 0, 1, qfalse );
 	// The seams on a character, and the reason they are there. A vertex is
 	// duplicated wherever the texture mapping is cut and again wherever the body
 	// is cut into surfaces, and the exporter gave each copy its own normal, so

@@ -61,14 +61,40 @@ layout(location = 0) out vec4 out_color;
 // lighting reads, and that is available in closed form. This is why the water
 // looks like it has waves while its silhouette stays flat, and why the silhouette
 // is the one thing this cannot fix.
-vec2 WaveSlope( vec2 pos, vec2 dir, float wavelength, float speed, float time, float amplitude )
+// The gradient of one travelling wave, and its curvature.
+//
+// xy is d/dpos of ( amplitude * sin( phase ) ) - the slope of the height field
+// along dir, which is what the normal is built from. z is the second derivative
+// along the same direction, which is what the caustic is built from: a patch of
+// surface that is concave gathers the light passing through it and a convex one
+// spreads it, and for a sum of sines both are available in closed form. Nothing
+// here is sampled or differenced.
+vec3 WaveField( vec2 pos, vec2 dir, float wavelength, float speed, float time, float amplitude )
 {
 	float k = 6.2831853 / wavelength;
 	float phase = dot( pos, dir ) * k + time * speed * k;
 
-	// d/dpos of ( amplitude * sin( phase ) ), which is the gradient of the
-	// height field along dir.
-	return dir * ( amplitude * k * cos( phase ) );
+	return vec3( dir * ( amplitude * k * cos( phase ) ),
+		-amplitude * k * k * sin( phase ) );
+}
+
+// The four layers, in one place, because the caustic needs the same field
+// evaluated somewhere else - at the point on the BOTTOM that this piece of
+// surface sends its light to - and two copies of these numbers would be two
+// wave fields that slowly stopped matching.
+//
+// Unrelated angles matter: two directions a simple fraction of a turn apart
+// build a visible lattice, and the eye finds a lattice in water immediately.
+vec3 WaveSum( vec2 p, float wavelength, float speed, float time )
+{
+	vec3 sum = vec3( 0.0 );
+
+	sum += WaveField( p, normalize( vec2(  1.00,  0.17 ) ), wavelength,        speed,        time, 1.00 );
+	sum += WaveField( p, normalize( vec2( -0.31,  1.00 ) ), wavelength * 0.53, speed * 1.31, time, 0.55 );
+	sum += WaveField( p, normalize( vec2(  0.67, -0.74 ) ), wavelength * 0.27, speed * 1.77, time, 0.28 );
+	sum += WaveField( p, normalize( vec2( -0.88, -0.43 ) ), wavelength * 0.13, speed * 2.19, time, 0.13 );
+
+	return sum;
 }
 
 void main()
@@ -81,16 +107,8 @@ void main()
 	vec3  N = normalize( var_Normal );
 	vec3  V = normalize( var_ViewDir );
 
-	// Four layers at unrelated angles and shrinking wavelengths. Unrelated
-	// matters: two directions that are a simple fraction of a turn apart build a
-	// visible lattice, and the eye finds a lattice in water immediately.
 	vec2 p = var_WorldPos.xy;
-	vec2 slope = vec2( 0.0 );
-
-	slope += WaveSlope( p, normalize( vec2(  1.00,  0.17 ) ), wavelength,         speed,        time, 1.00 );
-	slope += WaveSlope( p, normalize( vec2( -0.31,  1.00 ) ), wavelength * 0.53,  speed * 1.31, time, 0.55 );
-	slope += WaveSlope( p, normalize( vec2(  0.67, -0.74 ) ), wavelength * 0.27,  speed * 1.77, time, 0.28 );
-	slope += WaveSlope( p, normalize( vec2( -0.88, -0.43 ) ), wavelength * 0.13,  speed * 2.19, time, 0.13 );
+	vec2 slope = WaveSum( p, wavelength, speed, time ).xy;
 
 	// The slope is a gradient in the plane; the normal of a height field is
 	// ( -dh/dx, -dh/dy, 1 ). Built against the surface's own normal so that this
@@ -191,6 +209,45 @@ void main()
 		float bottomZ = c / ( texelFetch( scene_depth_texture, ivec2( gl_FragCoord.xy ), 0 ).r + b );
 
 		thickness = max( bottomZ - surfaceZ, 0.0 );
+	}
+
+	// Caustics.
+	//
+	// The bright web on the bottom of a pool is the surface acting as a lens:
+	// where a patch of it is concave it gathers the light passing through, where
+	// it is convex it spreads it, and the effect grows with how far the light
+	// travels afterwards. In the thin-lens approximation that is the curvature
+	// of the height field times the depth, and for a sum of sines the curvature
+	// is in closed form - so this costs one more evaluation of the wave field
+	// and no texture, no pass and no second buffer.
+	//
+	// Evaluated at the point on the BOTTOM that this piece of surface sends its
+	// light to, not at the surface: the surface point is projected along the
+	// light direction by the thickness. Getting that wrong puts the web on the
+	// water rather than under it, which reads as dirt on the surface.
+	//
+	// Two honest limits, both worth stating rather than tuning away. There are
+	// no shadows in this renderer yet, so a caustic will appear under a rock as
+	// happily as beside it - which is why the default contribution is modest and
+	// why raising it is a decision to be taken again once shadows exist. And the
+	// pattern comes from the same wave field as the normal, deliberately: a
+	// caustic from its own texture and a ripple from a normal map drift apart,
+	// and the eye catches that immediately.
+	if ( haveScene && u_global.liquidCaustic.x > 0.0 && thickness > 0.0 ) {
+		vec3  Lc = normalize( u_global.liquidLight.xyz );
+		float lz = max( abs( Lc.z ), 0.2 );
+
+		vec2 bottom = p - Lc.xy / lz * thickness;
+
+		float curvature = WaveSum( bottom, wavelength, speed, time ).z;
+
+		// Concave gathers, so the sign is negative; depth is in the same units
+		// the wavelength is, and the scale is what turns "curvature times a
+		// distance" into a multiplier around one.
+		float gather = 1.0 - curvature * thickness * u_global.liquidCaustic.y;
+
+		behind *= mix( 1.0, clamp( gather, 0.0, 4.0 ), u_global.liquidCaustic.x );
+		deep = behind * base.rgb * frag_color.rgb;
 	}
 
 	// Absorption. Beer's law, one coefficient per channel, which is the whole

@@ -3351,6 +3351,15 @@ void RB_StageIteratorGeneric( void )
 			VectorSet( uniform_global.liquidFoam, 1.0f, 1.0f, 1.0f );
 			uniform_global.liquidFoam[3] = ( r_liquidFoam->value > 0.0f ) ? 1.0f : 0.0f;
 
+			uniform_global.liquidCaustic[0] = r_liquidCaustic->value;
+			// Turns curvature times a distance into a multiplier around one. The
+			// wave field's amplitude is nominal, so this is a scale and not a
+			// measurement; it is here rather than in the shader because the day it
+			// becomes a material property it will be read from the material.
+			uniform_global.liquidCaustic[1] = 0.02f;
+			uniform_global.liquidCaustic[2] =
+			uniform_global.liquidCaustic[3] = 0.0f;
+
 			uniform_global.liquidRefract[0] = r_liquidRefract->value;
 			uniform_global.liquidRefract[1] =
 			uniform_global.liquidRefract[2] =

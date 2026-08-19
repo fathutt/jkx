@@ -313,6 +313,10 @@ STRUCT (
 		//                screen fractions times distance - zero turns it off.
 		//                y z w unused.
 		VEC4				( liquidRefract )
+		// liquidCaustic: x how much of the effect is applied (zero is off),
+		//                y how strongly curvature times depth gathers light.
+		//                z w unused.
+		VEC4				( liquidCaustic )
     , vkUniformGlobal_t )
 
     #undef TCMOD_T

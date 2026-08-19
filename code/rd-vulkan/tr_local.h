@@ -2190,6 +2190,7 @@ extern	cvar_t	*r_liquidFresnel;		// how much of the surface turns to reflection 
 extern	cvar_t	*r_liquidClarity;		// how far light gets through the body, in units
 extern	cvar_t	*r_liquidFoam;			// width of the foam band at the shore, in units
 extern	cvar_t	*r_liquidRefract;		// how far a liquid surface bends what is behind it
+extern	cvar_t	*r_liquidCaustic;		// how much of the caustic web is applied
 extern	cvar_t	*r_weldModelNormals;	// share one normal between coincident model vertexes
 extern	cvar_t	*r_weldModelNormalsAngle;	// how wide a join still counts as smooth
 extern	cvar_t	*r_shownormals;			// draws wireframe normals

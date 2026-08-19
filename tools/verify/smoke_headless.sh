@@ -612,7 +612,10 @@ fi
 #         guessed at;
 #   straight  the same again with the bend switched off, which is the control
 #         for refraction and only means anything because the bottom of this
-#         pool has stripes on it.
+#         pool has stripes on it;
+#   dark  and once more with the caustic web switched off, which is its
+#         control - the web is a multiplier on what comes through the
+#         surface, so it too needs a bottom that is not one flat colour.
 #
 # The append is HERE and not down with the fixture that builds the pool, and
 # that is not tidiness. INMAP_STEP is one array in script order: everything
@@ -646,10 +649,15 @@ if [ "${JKX_SMOKE_WATER:-0}" = "1" ]; then
         echo "screenshot_tga jkx_liquid_straight"
         echo "wait 10"
         echo "set r_liquidRefract 24"
+        echo "set r_liquidCaustic 0"
+        echo "wait 20"
+        echo "screenshot_tga jkx_liquid_dark"
+        echo "wait 10"
+        echo "set r_liquidCaustic 0.5"
         echo "wait 10"
     } > "$RUN/base/jkx_liquid.cfg"
 
-    INMAP_STEP+=( +exec jkx_liquid.cfg +wait 190 )
+    INMAP_STEP+=( +exec jkx_liquid.cfg +wait 230 )
 fi
 
 if [ "${JKX_SMOKE_MSAA:-0}" = "1" ]; then
@@ -2930,7 +2938,7 @@ something other than the distance from the eye"
     fi
 fi
 
-# Water: five pictures of one pool, and each isolates exactly one thing.
+# Water: six pictures of one pool, and each isolates exactly one thing.
 #
 # The pool is TILTED - two units off the floor at the near edge, sixty-four at
 # the far one - and its bottom has STRIPES on it. Both are load-bearing. A body
@@ -2952,6 +2960,7 @@ fi
 #   flat -> wave       the wave field      18k
 #   wave -> foam       the shore band      13k
 #   straight -> foam   refraction           4k
+#   dark -> foam       the caustic web
 #
 # Counting colours was what this measured before and it stopped working the
 # moment the bottom got a pattern: stripes seen through water are local steps of
@@ -2963,14 +2972,15 @@ if [ "${JKX_SMOKE_WATER:-0}" = "1" ]; then
     wave="$RUN/home/base/screenshots/jkx_liquid_wave.tga"
     foam="$RUN/home/base/screenshots/jkx_liquid_foam.tga"
     straight="$RUN/home/base/screenshots/jkx_liquid_straight.tga"
+    dark="$RUN/home/base/screenshots/jkx_liquid_dark.tga"
 
     missing=""
-    for f in "$off" "$flat" "$wave" "$foam" "$straight"; do
+    for f in "$off" "$flat" "$wave" "$foam" "$straight" "$dark"; do
         [ -f "$f" ] || missing="$missing $(basename "$f")"
     done
 
     if [ -n "$missing" ]; then
-        report "the pool was not photographed five times -$missing - so nothing here was checked"
+        report "the pool was not photographed six times -$missing - so nothing here was checked"
     else
         # The old path, and it is arithmetic three times over. Half alpha of
         # ( 0.0 0.2 0.6 ) over the white stripe (255) is (128, 153, 204), over
@@ -3018,6 +3028,19 @@ the frame"
 scene as it stood before the transparent surfaces, so an empty copy - the break \
 not taken, or taken with nothing to copy into - gives exactly this; and a bottom \
 with no pattern on it would give it too, which is why this one has stripes"
+        fi
+
+        # The caustic web is a multiplier on what comes through the surface, so
+        # it lives where the water is - and where it is deepest, because the
+        # effect grows with how far the light travels after the surface has bent
+        # it. A difference sitting on the SHALLOW end would mean the depth is
+        # being read the wrong way round, which is the same mistake the foam
+        # check guards from the other side.
+        if ! python3 "$HERE/tga_diff_where.py" "$dark" "$foam" "$pool_box" 2000 90000; then
+            report "the caustic web changed nothing, or landed outside the pool. \
+It is computed at the point on the BOTTOM that each piece of surface sends its \
+light to, so a projection that lands on the surface instead puts the web on the \
+water rather than under it"
         fi
     fi
 fi
