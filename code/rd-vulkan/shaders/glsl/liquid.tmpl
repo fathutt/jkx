@@ -5,7 +5,16 @@
 //
 // Water in this engine is an ordinary world brush face with `surfaceparm water`
 // on its material, so there is no skinning here and no model VBO variant: one
-// module, and the fragment half does all of the work. What it needs from here is
+// module, and the fragment half does all of the work.
+//
+// No deform here either, and that is not an omission. A material with a deform
+// on it is not a static shader (isStaticShader in vk_vbo.cpp returns false on
+// numDeforms), so its surfaces never enter the world vertex buffer and are drawn
+// from tess.xyz - which RB_DeformTessGeometry has already written into. Nearly
+// every retail water material carries `deformVertexes wave`, so the position
+// arriving here is ALREADY moving up and down. That is the silhouette motion the
+// procedural normal cannot produce, and on retail maps it comes for free from
+// whoever built the map. What it needs from here is
 // the fragment's position in the WORLD - the waves are a function of where the
 // surface is, not of its texture coordinates, which is the whole reason they do
 // not swim when the camera moves - plus the direction back to the eye and the
@@ -31,6 +40,7 @@ layout(location = 1) out vec3 var_WorldPos;
 layout(location = 2) out vec3 var_Normal;
 layout(location = 3) out vec3 var_ViewDir;
 layout(location = 4) out vec4 var_ScreenPos;
+layout(location = 5) out vec2 var_TexCoord;
 
 out gl_PerVertex {
 	vec4 gl_Position;
@@ -50,4 +60,10 @@ void main() {
 	var_ViewDir = u_ViewOrigin.xyz - in_position;
 
 	var_ScreenPos = gl_Position;
+
+	// Straight through, with no tcMod applied. The turbulence a retail water
+	// material carries is the OLD way of pretending the surface moves, and this
+	// path replaces it; running it as well would wobble the body colour under a
+	// normal that already has waves in it, twice over and out of step.
+	var_TexCoord = in_tex_coord0;
 }

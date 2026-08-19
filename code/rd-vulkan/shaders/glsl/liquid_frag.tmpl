@@ -23,11 +23,22 @@ layout(set = VK_DESC_UNIFORM, binding = VK_DESC_UNIFORM_GLOBAL_BINDING) uniform 
 	vkUniformGlobal_t u_global;
 };
 
+// The material's own base texture, and it is not optional.
+//
+// The body colour of the liquid has to come from somewhere, and the first
+// version took it from rgbGen alone. That works on a fixture whose material is a
+// constant colour and fails on every retail map in the game: retail water is a
+// TEXTURE and carries no rgbGen at all, so the water would have come out white.
+// The two are multiplied, which is what the ordinary path does with the same
+// two things.
+layout(set = VK_DESC_TEXTURE0, binding = 0) uniform sampler2D texture0;
+
 layout(location = 0) in vec4 frag_color;
 layout(location = 1) in vec3 var_WorldPos;
 layout(location = 2) in vec3 var_Normal;
 layout(location = 3) in vec3 var_ViewDir;
 layout(location = 4) in vec4 var_ScreenPos;
+layout(location = 5) in vec2 var_TexCoord;
 
 layout(location = 0) out vec4 out_color;
 
@@ -98,12 +109,14 @@ void main()
 	// The material's own colour is what the water looks like when you look
 	// straight into it, so the map author keeps control of that; the reflection
 	// colour is what it becomes at a grazing angle.
-	vec3 deep = frag_color.rgb;
+	vec4 base = texture( texture0, var_TexCoord );
+	vec3 deep = base.rgb * frag_color.rgb;
 	vec3 sky  = u_global.liquidSky.rgb;
 
 	out_color.rgb = mix( deep, sky, fresnel ) + sky * spec;
 
 	// More opaque where it reflects. A surface showing you the sky is not one
 	// you can see the bottom through.
-	out_color.a = clamp( frag_color.a + ( 1.0 - frag_color.a ) * fresnel, 0.0, 1.0 );
+	float alpha = base.a * frag_color.a;
+	out_color.a = clamp( alpha + ( 1.0 - alpha ) * fresnel, 0.0, 1.0 );
 }
