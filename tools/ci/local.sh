@@ -139,6 +139,7 @@ stage_policy() {
     python3 "$ROOT/tools/ci/check_sources.py" "$ROOT" &&
     python3 "$ROOT/tools/ci/check_strings.py" "$ROOT" &&
     python3 "$ROOT/tools/ci/check_cvars.py" "$ROOT" &&
+    python3 "$ROOT/tools/ci/check_diagnostics.py" "$ROOT" &&
 
     # Every Vulkan object the renderer creates, against something that destroys
     # it. An object alive at vkDestroyDevice is a defect no compiler sees and a

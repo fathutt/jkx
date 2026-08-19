@@ -239,7 +239,7 @@ float UI_SaberBladeLengthForSaber( const char *saberName, int bladeNum )
 	UI_SaberParseParm( saberName, "saberLength", lengthString, sizeof(lengthString) );
 	if ( lengthString[0] )
 	{
-		length = atof( lengthString );
+		length = Q_atof( lengthString );
 		if ( length < 0.0f )
 		{
 			length = 0.0f;
@@ -249,7 +249,7 @@ float UI_SaberBladeLengthForSaber( const char *saberName, int bladeNum )
 	UI_SaberParseParm( saberName, va("saberLength%d", bladeNum+1), lengthString, sizeof(lengthString) );
 	if ( lengthString[0] )
 	{
-		length = atof( lengthString );
+		length = Q_atof( lengthString );
 		if ( length < 0.0f )
 		{
 			length = 0.0f;
@@ -266,7 +266,7 @@ float UI_SaberBladeRadiusForSaber( const char *saberName, int bladeNum )
 	UI_SaberParseParm( saberName, "saberRadius", radiusString, sizeof(radiusString) );
 	if ( radiusString[0] )
 	{
-		radius = atof( radiusString );
+		radius = Q_atof( radiusString );
 		if ( radius < 0.0f )
 		{
 			radius = 0.0f;
@@ -276,7 +276,7 @@ float UI_SaberBladeRadiusForSaber( const char *saberName, int bladeNum )
 	UI_SaberParseParm( saberName, va("saberRadius%d", bladeNum+1), radiusString, sizeof(radiusString) );
 	if ( radiusString[0] )
 	{
-		radius = atof( radiusString );
+		radius = Q_atof( radiusString );
 		if ( radius < 0.0f )
 		{
 			radius = 0.0f;

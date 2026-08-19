@@ -1092,7 +1092,7 @@ static void ParseFace( const dsurface_t *ds, const drawVert_t *verts, int numVer
 	// compare them against the size of the lumps they index into.
 	numPoints = numVerts;
 	if (numPoints > MAX_FACE_POINTS) {
-		vk_debug("WARNING: MAX_FACE_POINTS exceeded: %i\n", numPoints);
+		CL_RefPrintf( PRINT_WARNING, "WARNING: MAX_FACE_POINTS exceeded: %i\n", numPoints);
 		numPoints = MAX_FACE_POINTS;
 		surf->shader = tr.defaultShader;
 	}
@@ -2914,7 +2914,7 @@ static void R_LoadEntities( const lump_t *l, world_t &worldData ) {
 		if (!Q_strncmp(keyname, s, strlen(s)) ) {
 			char *vs = strchr(value, ';');
 			if (!vs) {
-				vk_debug("WARNING: no semi colon in vertexshaderremap '%s'\n", value );
+				CL_RefPrintf( PRINT_WARNING, "WARNING: no semi colon in vertexshaderremap '%s'\n", value );
 				break;
 			}
 			*vs++ = 0;
@@ -2928,7 +2928,7 @@ static void R_LoadEntities( const lump_t *l, world_t &worldData ) {
 		if (!Q_strncmp(keyname, s, strlen(s)) ) {
 			char *vs = strchr(value, ';');
 			if (!vs) {
-				vk_debug("WARNING: no semi colon in shaderremap '%s'\n", value );
+				CL_RefPrintf( PRINT_WARNING, "WARNING: no semi colon in shaderremap '%s'\n", value );
 				break;
 			}
 			*vs++ = 0;

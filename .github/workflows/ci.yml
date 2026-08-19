@@ -58,6 +58,9 @@ jobs:
       - name: One setting, one name
         run: python3 tools/ci/check_cvars.py .
 
+      - name: Diagnostics the user can actually see
+        run: python3 tools/ci/check_diagnostics.py .
+
       - name: Per-game branches (ratchet, and banned in the renderer)
         run: python3 tools/ci/check_jk2mode.py .
 
@@ -684,6 +687,14 @@ jobs:
           JKX_SMOKE_SOUND: '1'
           JKX_SMOKE_DISPLAY: ':89'
         run: bash tools/verify/smoke_headless.sh build
+
+      # The fixture broken one field at a time, twenty-two ways, each asked to
+      # be refused with a message rather than crashed on. Its baseline may
+      # shrink and never grow, so a check that stops holding fails here.
+      - name: A map file broken on purpose
+        env:
+          JKX_BADBSP_DISPLAY: ':89'
+        run: bash tools/verify/bad_bsp.sh build
 
       # Building the sanitizers and never running them checks nothing. The first
       # time this ran it reported two misaligned accesses in the zone allocator,

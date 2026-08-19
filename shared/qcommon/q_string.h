@@ -72,6 +72,19 @@ const char *Q_strchrs( const char *string, const char *search );
 
 void Q_strstrip( char *string, const char *strip, const char *repl );
 
+// atof that cannot answer with something that is not a number.
+//
+// Modern C libraries parse "inf", "nan" and "1e999" and return exactly that,
+// and every one of those values then travels: a NaN compares false against
+// everything, so the range check written to catch it - if ( x > limit ) - is
+// silently not a check at all, and says nothing while not being one. The
+// strings come out of .shader, .npc, .sab and .veh files, which are the formats
+// people edit by hand.
+//
+// Zero for anything that is not finite, which is what every caller here already
+// treats as "no value given".
+float Q_atof( const char *str );
+
 #if defined (_MSC_VER)
 	// vsnprintf is ISO/IEC 9899:1999
 	// abstracting this to make it portable

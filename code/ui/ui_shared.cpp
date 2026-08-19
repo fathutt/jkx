@@ -2613,35 +2613,35 @@ qboolean Script_Transition3(itemDef_t *item, const char **args)
 	{
 		if (String_Parse( args, &value))
 		{
-			minx = atof(value);
+			minx = Q_atof(value);
 			if (String_Parse( args, &value))
 			{
-				miny = atof(value);
+				miny = Q_atof(value);
 				if (String_Parse( args, &value))
 				{
-					minz = atof(value);
+					minz = Q_atof(value);
 					if (String_Parse( args, &value))
 					{
-						maxx = atof(value);
+						maxx = Q_atof(value);
 						if (String_Parse( args, &value))
 						{
-							maxy = atof(value);
+							maxy = Q_atof(value);
 							if (String_Parse( args, &value))
 							{
-								maxz = atof(value);
+								maxz = Q_atof(value);
 								if (String_Parse( args, &value))
 								{
-									fovtx = atof(value);
+									fovtx = Q_atof(value);
 									if (String_Parse( args, &value))
 									{
-										fovty = atof(value);
+										fovty = Q_atof(value);
 
 										if (String_Parse( args, &value))
 										{
 											time = atoi(value);
 											if (String_Parse( args, &value))
 											{
-												amt = atof(value);
+												amt = Q_atof(value);
 												//set up the variables
 												Menu_Transition3ItemByName((menuDef_t *) item->parent,
 														name,

@@ -118,7 +118,7 @@ qhandle_t RE_RegisterIndividualSkin( const char *name , qhandle_t hSkin)
 	FS_ReadFile( name, (void **)&text );
 	if ( !text ) {
 #ifndef FINAL_BUILD
-		vk_debug("WARNING: RE_RegisterSkin( '%s' ) failed to load!\n", name );
+		CL_RefPrintf( PRINT_WARNING, "WARNING: RE_RegisterSkin( '%s' ) failed to load!\n", name );
 #endif
 		return 0;
 	}

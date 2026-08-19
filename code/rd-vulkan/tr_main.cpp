@@ -1053,7 +1053,7 @@ static qboolean R_MirrorViewBySurface( const drawSurf_t *drawSurf, int entityNum
 
 	// don't recursively mirror
 	if (tr.viewParms.portalView != PV_NONE) {
-		vk_debug("WARNING: recursive mirror/portal found\n");
+		CL_RefPrintf( PRINT_WARNING, "WARNING: recursive mirror/portal found\n");
 		return qfalse;
 	}
 

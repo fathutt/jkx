@@ -66,7 +66,7 @@ qboolean	G_SpawnFloat( const char *key, const char *defaultString, float *out ) 
 	qboolean	present;
 
 	present = G_SpawnString( key, defaultString, &s );
-	*out = atof( s );
+	*out = Q_atof( s );
 	return present;
 }
 
@@ -835,10 +835,10 @@ void G_ParseField( const char *key, const char *value, gentity_t *ent ) {
 				*(int *)(b+f->ofs) = atoi(value);
 				break;
 			case F_FLOAT:
-				*(float *)(b+f->ofs) = atof(value);
+				*(float *)(b+f->ofs) = Q_atof(value);
 				break;
 			case F_ANGLEHACK:
-				v = atof(value);
+				v = Q_atof(value);
 				((float *)(b+f->ofs))[0] = 0;
 				((float *)(b+f->ofs))[1] = v;
 				((float *)(b+f->ofs))[2] = 0;

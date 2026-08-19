@@ -454,3 +454,19 @@ int Q_vsnprintf(char *str, size_t size, const char *format, va_list ap)
 	return retval;
 }
 #endif
+
+float Q_atof( const char *str )
+{
+	const float f = (float)atof( str );
+
+	// The comparison is the test: a NaN is not equal to itself, and neither
+	// infinity is less than the largest float. Written this way rather than
+	// with isfinite() so that it needs no header this file does not already
+	// have, and behaves the same under -ffast-math, where isfinite() is allowed
+	// to answer whatever it likes.
+	if ( !( f > -3.402823466e+38f && f < 3.402823466e+38f ) ) {
+		return 0.0f;
+	}
+
+	return f;
+}

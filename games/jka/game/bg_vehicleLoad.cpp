@@ -186,7 +186,7 @@ static qboolean BG_ParseVehWeaponParm( vehWeaponInfo_t *vehWeapon, const char *p
 		*(int *)(b+vehWeaponField->ofs) = atoi(value);
 		break;
 	case VF_FLOAT:
-		*(float *)(b+vehWeaponField->ofs) = atof(value);
+		*(float *)(b+vehWeaponField->ofs) = Q_atof(value);
 		break;
 	case VF_STRING:	// string on disk, pointer in memory
 		if (!*(char **)(b+vehWeaponField->ofs))
@@ -208,7 +208,7 @@ static qboolean BG_ParseVehWeaponParm( vehWeaponInfo_t *vehWeapon, const char *p
 		((float *)(b+vehWeaponField->ofs))[2] = vec[2];
 		break;
 	case VF_BOOL:
-		*(qboolean *)(b+vehWeaponField->ofs) = (qboolean)(atof(value)!=0);
+		*(qboolean *)(b+vehWeaponField->ofs) = (qboolean)(Q_atof(value)!=0);
 		break;
 	case VF_VEHTYPE:
 		vehType = (vehicleType_t)GetIDForString( VehicleTable, value );
@@ -810,7 +810,7 @@ static qboolean BG_ParseVehicleParm( vehicleInfo_t *vehicle, const char *parmNam
 		*(int *)(b+vehField->ofs) = atoi(value);
 		break;
 	case VF_FLOAT:
-		*(float *)(b+vehField->ofs) = atof(value);
+		*(float *)(b+vehField->ofs) = Q_atof(value);
 		break;
 	case VF_STRING:	// string on disk, pointer in memory
 		if (!*(char **)(b+vehField->ofs))
@@ -832,7 +832,7 @@ static qboolean BG_ParseVehicleParm( vehicleInfo_t *vehicle, const char *parmNam
 		((float *)(b+vehField->ofs))[2] = vec[2];
 		break;
 	case VF_BOOL:
-		*(qboolean *)(b+vehField->ofs) = (qboolean)(atof(value)!=0);
+		*(qboolean *)(b+vehField->ofs) = (qboolean)(Q_atof(value)!=0);
 		break;
 	case VF_VEHTYPE:
 		vehType = (vehicleType_t)GetIDForString( VehicleTable, value );
