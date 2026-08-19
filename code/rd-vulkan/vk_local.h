@@ -722,6 +722,13 @@ typedef struct {
 	VkImage			scene_depth_image;
 	VkImageView		scene_depth_image_view;
 
+	// And the colour at the same moment: the frame as it stood before any
+	// transparent surface was drawn, which is what a liquid surface refracts.
+	// Taken at the same break, and only when something in the frame is going to
+	// read it - see backEnd.needSceneColor.
+	VkImage			scene_color_image;
+	VkImageView		scene_color_image_view;
+
 	VkImage			msaa_image;
 	VkImageView		msaa_image_view;
 

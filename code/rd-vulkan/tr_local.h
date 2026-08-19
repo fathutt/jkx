@@ -1819,6 +1819,14 @@ typedef struct backEndState_s {
 	// can be asked about, and the fade has to stay off - a stale buffer would
 	// fade this frame's smoke against last frame's walls.
 	qboolean softParticlesReady;
+
+	// Set before the resolve when something still to be drawn in this view is
+	// going to read the colour of the scene - a liquid surface refracting what
+	// is behind it, today. The copy costs a full screen, so it is not taken on
+	// every frame of every map that has no water in it; the surfaces are known
+	// at that moment because the list is sorted and the rest of it can be
+	// looked at.
+	qboolean needSceneColor;
 } backEndState_t;
 
 typedef struct drawSurfsCommand_s drawSurfsCommand_t;
@@ -2181,6 +2189,7 @@ extern	cvar_t	*r_liquidNormalScale;	// how steep the procedural normal is
 extern	cvar_t	*r_liquidFresnel;		// how much of the surface turns to reflection at a grazing angle
 extern	cvar_t	*r_liquidClarity;		// how far light gets through the body, in units
 extern	cvar_t	*r_liquidFoam;			// width of the foam band at the shore, in units
+extern	cvar_t	*r_liquidRefract;		// how far a liquid surface bends what is behind it
 extern	cvar_t	*r_weldModelNormals;	// share one normal between coincident model vertexes
 extern	cvar_t	*r_weldModelNormalsAngle;	// how wide a join still counts as smooth
 extern	cvar_t	*r_shownormals;			// draws wireframe normals

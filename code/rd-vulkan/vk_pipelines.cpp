@@ -79,10 +79,12 @@ static void vk_create_layout_binding( int binding, VkDescriptorType type,
         vk_push_layout_binding( bind, type, VK_DESC_UNIFORM_FOGS_BINDING, VK_SHADER_STAGE_FRAGMENT_BIT );
         vk_push_layout_binding( bind, type, VK_DESC_UNIFORM_GLOBAL_BINDING, uniform_flags );
 
-        // Not a dynamic uniform buffer like the six above it, so it is pushed
-        // with its own type and left out of VK_DESC_UNIFORM_COUNT.
+        // Not dynamic uniform buffers like the six above them, so they are
+        // pushed with their own type and left out of VK_DESC_UNIFORM_COUNT.
         vk_push_layout_binding( bind, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
             VK_DESC_UNIFORM_SCENE_DEPTH_BINDING, VK_SHADER_STAGE_FRAGMENT_BIT );
+        vk_push_layout_binding( bind, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+            VK_DESC_UNIFORM_SCENE_COLOR_BINDING, VK_SHADER_STAGE_FRAGMENT_BIT );
 
         count = VK_DESC_UNIFORM_BINDING_COUNT;
     }
@@ -109,10 +111,10 @@ void vk_create_descriptor_layout( void )
         pool_size[0].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         pool_size[0].descriptorCount = MAX_DRAWIMAGES + 1 + 1 + 1 + ( VK_NUM_BLUR_PASSES * 4 ) + 1;
 
-        // The scene-depth binding lives on the uniform set, so one image
-        // descriptor per set in flight comes out of this pool and not out of
-        // the dynamic-uniform one below.
-        pool_size[0].descriptorCount += NUM_COMMAND_BUFFERS;
+        // The scene-depth and scene-colour bindings live on the uniform set, so
+        // two image descriptors per set in flight come out of this pool and not
+        // out of the dynamic-uniform one below.
+        pool_size[0].descriptorCount += NUM_COMMAND_BUFFERS * 2;
 
         if ( !vk.useFastLight || vk.cubemapActive )
             pool_size[0].descriptorCount += 1 + ( MAX_DRAWIMAGES * 2 ); // + 1:  brdf-lut | MAX_DRAWIMAGES * (physical + normal)

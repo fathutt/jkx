@@ -777,6 +777,36 @@ void vk_update_attachment_descriptors( void ) {
 				vkUpdateDescriptorSets( vk.device, 1, &desc, 0, NULL );
 			}
 
+			// And the colour at the same break, for liquid surfaces to refract.
+			// Linear rather than nearest: this one IS a picture, and a refracted
+			// sample lands between pixels by construction.
+			{
+				Vk_Sampler_Def cd;
+
+				Com_Memset( &cd, 0, sizeof( cd ) );
+				cd.gl_mag_filter = GL_LINEAR;
+				cd.gl_min_filter = GL_LINEAR;
+				cd.address_mode = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+				cd.max_lod_1_0 = qtrue;
+				cd.noAnisotropy = qtrue;
+
+				info.sampler = vk_find_sampler( &cd );
+				info.imageView = vk.scene_color_image_view;
+				info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+				desc.dstBinding = VK_DESC_UNIFORM_SCENE_COLOR_BINDING;
+
+				for ( i = 0; i < NUM_COMMAND_BUFFERS; i++ )
+				{
+					if ( vk.tess[i].uniform_descriptor == VK_NULL_HANDLE )
+						continue;
+
+					desc.dstSet = vk.tess[i].uniform_descriptor;
+					vkUpdateDescriptorSets( vk.device, 1, &desc, 0, NULL );
+				}
+
+				info.sampler = vk_find_sampler( &dd );
+			}
+
 			desc.dstBinding = 0;
 
 			// The depth attachment itself, for the resolve pass to read. Its
@@ -3320,6 +3350,11 @@ void RB_StageIteratorGeneric( void )
 
 			VectorSet( uniform_global.liquidFoam, 1.0f, 1.0f, 1.0f );
 			uniform_global.liquidFoam[3] = ( r_liquidFoam->value > 0.0f ) ? 1.0f : 0.0f;
+
+			uniform_global.liquidRefract[0] = r_liquidRefract->value;
+			uniform_global.liquidRefract[1] =
+			uniform_global.liquidRefract[2] =
+			uniform_global.liquidRefract[3] = 0.0f;
 		}
 
 		// Soft particles. Off unless the scene depth for this view has actually

@@ -40,6 +40,10 @@ layout(set = VK_DESC_TEXTURE0, binding = 0) uniform sampler2D texture0;
 // and where the shore is.
 layout(set = VK_DESC_UNIFORM, binding = VK_DESC_UNIFORM_SCENE_DEPTH_BINDING) uniform sampler2D scene_depth_texture;
 
+// And the colour at the same moment - the frame as it stood before any
+// transparent surface was drawn, which is what is behind this one.
+layout(set = VK_DESC_UNIFORM, binding = VK_DESC_UNIFORM_SCENE_COLOR_BINDING) uniform sampler2D scene_color_texture;
+
 layout(location = 0) in vec4 frag_color;
 layout(location = 1) in vec3 var_WorldPos;
 layout(location = 2) in vec3 var_Normal;
@@ -113,36 +117,79 @@ void main()
 	float NH = clamp( dot( Nw, H ), 0.0, 1.0 );
 	float spec = pow( NH, max( u_global.liquidLight.w, 1.0 ) );
 
-	// The material's own colour is what the water looks like when you look
-	// straight into it, so the map author keeps control of that; the reflection
-	// colour is what it becomes at a grazing angle.
+	// Everything below reads the scene as it stood before any transparent
+	// surface was drawn - the depth of it and the colour of it, both taken at
+	// the same break in the frame. viewDepth.z says whether that break has
+	// happened yet for THIS view: a liquid whose material sorts as opaque is
+	// drawn before it, and reading either texture then would be reading the
+	// frame before this one.
+	bool haveScene = ( u_global.viewDepth.z > 0.5 && u_global.viewDepth.y != 0.0 );
+
+	float b = u_global.viewDepth.x;
+	float c = u_global.viewDepth.y;
+
+	// Distance from the eye to this fragment, out of the same inversion, so that
+	// it and the distance to the bottom are the same kind of number.
+	float surfaceZ = haveScene ? c / ( gl_FragCoord.z + b ) : 0.0;
+
+	// Where this fragment is on the screen, which is where whatever is behind it
+	// was drawn.
+	vec2 screenUV = ( var_ScreenPos.xy / var_ScreenPos.w ) * 0.5 + 0.5;
+
+	// Refraction. The ray bends at the surface, so what is seen through it is
+	// not what is straight behind it: the offset is the part of the surface
+	// normal that lies ACROSS the view, which is zero looking straight down and
+	// largest where a wave is steepest.
+	//
+	// In screen space and not in the world, which is an approximation and a
+	// deliberate one - the honest version traces the bent ray against the
+	// bottom, and the bottom is a depth buffer. The error is a shift, it grows
+	// with the offset, and at the offsets water actually needs it is invisible.
+	vec2 refractUV = screenUV;
+
+	if ( haveScene && u_global.liquidRefract.x > 0.0 ) {
+		// Divided by the distance, so that the same physical bend covers less of
+		// the screen the further off it is - which is what perspective does and
+		// what stops a far-off pool from churning.
+		float dist = max( length( var_ViewDir ), 1.0 );
+		vec2  bend = vec2( dot( Nw, tangent ), dot( Nw, bitangent ) );
+
+		refractUV = clamp( screenUV + bend * ( u_global.liquidRefract.x / dist ),
+			vec2( 0.0 ), vec2( 1.0 ) );
+
+		// A sample that lands on something IN FRONT of the surface is not behind
+		// it, and taking it anyway is the classic artefact of this technique:
+		// whatever is standing in the water smears out across it. One extra
+		// depth fetch says so outright, and falling back to the unbent sample is
+		// both cheap and right - there IS no correct colour for that pixel, only
+		// a less wrong one.
+		if ( c / ( texture( scene_depth_texture, refractUV ).r + b ) < surfaceZ ) {
+			refractUV = screenUV;
+		}
+	}
+
+	// What comes through the surface: the scene behind it, tinted by the
+	// material. Without a scene to read - a liquid drawn before the break, or
+	// the path switched off - the material's own colour stands in, which is what
+	// this drew before refraction existed.
 	vec4 base = texture( texture0, var_TexCoord );
-	vec3 deep = base.rgb * frag_color.rgb;
 	vec3 sky  = u_global.liquidSky.rgb;
 
+	vec3 behind = haveScene ? texture( scene_color_texture, refractUV ).rgb : vec3( 1.0 );
+	vec3 deep = behind * base.rgb * frag_color.rgb;
+
 	// How deep the water is under this pixel, in the units the map is modelled
-	// in: the distance to the bottom minus the distance to the surface, both
-	// read out of the depth of the scene by inverting the projection.
+	// in: the distance to the bottom minus the distance to the surface.
 	//
-	// viewDepth.z says whether that texture holds THIS view yet - it is resolved
-	// between the surfaces that write depth and the surfaces that only read it,
-	// so a liquid whose material sorts as opaque is drawn before it exists. Zero
-	// there means the two terms below stay switched off rather than reading the
-	// frame before.
+	// Along the view ray rather than straight down, which is what the two
+	// distances actually measure. It is also the right quantity: a shallow pool
+	// seen at a grazing angle IS more opaque, because the light has further to
+	// go through it.
 	float thickness = 0.0;
 
-	if ( u_global.viewDepth.z > 0.5 && u_global.viewDepth.y != 0.0 ) {
-		float b = u_global.viewDepth.x;
-		float c = u_global.viewDepth.y;
+	if ( haveScene ) {
+		float bottomZ = c / ( texelFetch( scene_depth_texture, ivec2( gl_FragCoord.xy ), 0 ).r + b );
 
-		float bottomD = texelFetch( scene_depth_texture, ivec2( gl_FragCoord.xy ), 0 ).r;
-		float bottomZ = c / ( bottomD + b );
-		float surfaceZ = c / ( gl_FragCoord.z + b );
-
-		// Along the view ray rather than straight down, which is what the two
-		// distances actually measure. It is also the right quantity: a shallow
-		// pool seen at a grazing angle IS more opaque, because the light has
-		// further to go through it.
 		thickness = max( bottomZ - surfaceZ, 0.0 );
 	}
 
@@ -151,11 +198,11 @@ void main()
 	// and the light that survives the trip is what is left.
 	vec3 absorb = exp( -thickness * u_global.liquidBody.rgb );
 
-	// Transmitted plus inscattered, which is the shape the answer has whether or
-	// not the transmitted half is any good. What survives the body is `deep` -
-	// today the material's own colour, and the refracted image of what is behind
-	// the surface once that lands - and what the body adds on its own account is
-	// the colour it tends to with depth.
+	// Transmitted plus inscattered. What survives the trip is `deep` - the
+	// refracted image of what is behind the surface, tinted by the material -
+	// and what the body adds on its own account is the colour it tends to with
+	// depth. This is the shape the answer had before refraction landed, which is
+	// why landing it changed one line and not the model.
 	vec3 body = deep * absorb + u_global.liquidDeep.rgb * ( 1.0 - absorb );
 
 	// Foam at the shore. Where the body is thin, the surface meets something

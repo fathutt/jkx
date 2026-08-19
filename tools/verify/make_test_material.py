@@ -254,6 +254,48 @@ def build_phys(directory):
     return written
 
 
+def write_striped_tga(path, colour, stripes=16):
+    """Bands across the texture, for a surface that something else distorts.
+
+    A featureless floor cannot show refraction: bending the sample of a flat
+    colour lands on the same flat colour, and the picture is identical whether
+    the bend happened or not. That is the fixture-shares-the-defect trap in its
+    purest form, and it is why this exists - the water lane needs a bottom with
+    an EDGE in it, so that moving where a pixel is sampled from moves what is
+    sampled.
+
+    Bands rather than a checkerboard, and across rather than along: the pool is
+    seen nearly edge-on, so bands running across the view stay many pixels wide
+    on screen where a checkerboard would alias into mush at the far end.
+
+    Three white bands to one dark, and the white one is pure white, because this
+    floor still has to satisfy the check every lane shares - that most of the
+    frame below the horizon is floor, which is how a culled floor is caught. An
+    even split of two greys passes every water check in this file and fails that
+    one, which is the correct outcome and cost a run to see.
+    """
+    size = 64
+    rows = []
+    for y in range(size):
+        band = (y * stripes) // size
+        c = (16, 16, 16) if (band % 4 == 0) else colour
+        rows.append(bytes([c[2], c[1], c[0]]) * size)
+
+    with open(path, "wb") as f:
+        f.write(bytes([0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0]))
+        f.write(struct.pack("<HH", size, size))
+        f.write(bytes([24, 0]))
+        for row in rows:
+            f.write(row)
+
+
+def build_pool(directory):
+    os.makedirs(directory, exist_ok=True)
+    path = os.path.join(directory, "jkx_pool_floor.tga")
+    write_striped_tga(path, (255, 255, 255))
+    return [path]
+
+
 def build_tc(directory):
     os.makedirs(directory, exist_ok=True)
     written = []
@@ -339,6 +381,15 @@ def main(argv):
         written = build_phys(args[0])
         print("%d physical texture(s) in %s, %dx%d, 32-bit"
               % (len(written), args[0], SIZE, SIZE))
+        return 0
+
+    if "--pool" in args:
+        args = [a for a in args if a != "--pool"]
+        if len(args) != 1:
+            print("usage: %s --pool <directory>" % argv[0], file=sys.stderr)
+            return 2
+        written = build_pool(args[0])
+        print("%d striped texture(s) in %s" % (len(written), args[0]))
         return 0
 
     if "--tc" in args:

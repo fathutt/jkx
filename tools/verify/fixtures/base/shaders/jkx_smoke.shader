@@ -624,3 +624,21 @@ jkx/water
 		alphaGen const 0.5
 	}
 }
+
+// The bottom of the pool, and it exists because a flat floor cannot show
+// refraction.
+//
+// Bending where a sample is taken from lands on the same colour when everything
+// around it is that colour, so a featureless bottom gives a picture that is
+// identical whether the bend happened or not. That is the fixture sharing the
+// defect with the thing it is supposed to measure, and this bench has paid for
+// that lesson often enough to spot it in advance for once.
+//
+// Bands, so there is an edge in every direction the sample can move.
+jkx/pool_floor
+{
+	{
+		map textures/jkx/jkx_pool_floor
+		rgbGen identity
+	}
+}

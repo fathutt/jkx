@@ -200,6 +200,7 @@ static void RB_BeginDrawingView( void ) {
 	// The depth of this view has not been resolved yet, and the texture still
 	// holds the previous one.
 	backEnd.softParticlesReady = qfalse;
+	backEnd.needSceneColor = qfalse;
 }
 
 static void RB_PrepareForEntity( int entityNum, float originalTime )
@@ -331,6 +332,29 @@ static void RB_SubmitDrawSurfs( drawSurf_t *drawSurfs, int numDrawSurfs, float o
 				&& oldShaderSort < SOFT_PARTICLE_INSERT_POINT
 				&& shader->sort >= SOFT_PARTICLE_INSERT_POINT )
 			{
+				// Does anything still to come want the colour of the scene as
+				// well? A liquid surface refracts what is behind it, and the
+				// list is sorted, so the question is answerable here by looking
+				// at the rest of it - which is cheaper than copying a screen on
+				// every frame of every map that has no water in it.
+				backEnd.needSceneColor = qfalse;
+
+				if ( r_liquids->integer ) {
+					int		 j;
+					shader_t *s;
+
+					for ( j = i; j < numDrawSurfs; j++ ) {
+						int e, c;
+
+						R_DecomposeSort( drawSurfs[j].sort, &e, &s, &c );
+
+						if ( s->liquidType != LIQUID_NONE ) {
+							backEnd.needSceneColor = qtrue;
+							break;
+						}
+					}
+				}
+
 				// The draw items accumulated so far have to reach the command
 				// buffer BEFORE the render pass they belong to is ended.
 				//

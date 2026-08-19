@@ -450,6 +450,17 @@ void vk_create_attachments( void )
             copyDepth ? glConfig.vidWidth : 1,
             copyDepth ? glConfig.vidHeight : 1,
             &vk.scene_depth_image, &vk.scene_depth_image_view );
+
+        // The colour at the same break. Same size rule and the same reason for
+        // it: the descriptor is written either way, so an image has to exist,
+        // and one pixel is enough when nothing will read it.
+        create_color_attachment(
+            copyDepth ? glConfig.vidWidth : 1,
+            copyDepth ? glConfig.vidHeight : 1,
+            VK_SAMPLE_COUNT_1_BIT, vk.color_format,
+            VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+            &vk.scene_color_image, &vk.scene_color_image_view,
+            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, qfalse, 0 );
     }
 
     vk_alloc_attachment_memory();
@@ -488,6 +499,9 @@ void vk_create_attachments( void )
 
     VK_SET_OBJECT_NAME( vk.scene_depth_image, "scene depth copy", VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT );
     VK_SET_OBJECT_NAME( vk.scene_depth_image_view, "scene depth copy", VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT );
+
+    VK_SET_OBJECT_NAME( vk.scene_color_image, "scene colour copy", VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT );
+    VK_SET_OBJECT_NAME( vk.scene_color_image_view, "scene colour copy", VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT );
 
     VK_SET_OBJECT_NAME( vk.color_image, "color image", VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT );
     VK_SET_OBJECT_NAME( vk.color_image_view, "color image view", VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT );
@@ -589,6 +603,13 @@ void vk_destroy_attachments( void )
     uint32_t i;
 
     // depth
+    if (vk.scene_color_image) {
+        vkDestroyImage(vk.device, vk.scene_color_image, NULL);
+        vkDestroyImageView(vk.device, vk.scene_color_image_view, NULL);
+        vk.scene_color_image = VK_NULL_HANDLE;
+        vk.scene_color_image_view = VK_NULL_HANDLE;
+    }
+
     if (vk.scene_depth_image) {
         vkDestroyImage(vk.device, vk.scene_depth_image, NULL);
         vkDestroyImageView(vk.device, vk.scene_depth_image_view, NULL);

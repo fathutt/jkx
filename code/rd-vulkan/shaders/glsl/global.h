@@ -84,7 +84,13 @@
 //
 // A binding is not the scarce resource a set is; this costs nothing.
 #define VK_DESC_UNIFORM_SCENE_DEPTH_BINDING	7
-#define VK_DESC_UNIFORM_BINDING_COUNT		8
+
+// The colour of the scene at the same moment, and taken at the same break for
+// the same reason. A liquid surface refracts what is behind it, and what is
+// behind it is the frame as it stood before any transparent surface was drawn -
+// which is exactly what the resolve point already separates.
+#define VK_DESC_UNIFORM_SCENE_COLOR_BINDING	8
+#define VK_DESC_UNIFORM_BINDING_COUNT		9
 
 #ifdef GLSL
     #ifdef USE_TX2
@@ -303,6 +309,10 @@ STRUCT (
 		VEC4				( liquidBody )
 		VEC4				( liquidDeep )
 		VEC4				( liquidFoam )
+		// liquidRefract: x how far the sample behind the surface is pushed, in
+		//                screen fractions times distance - zero turns it off.
+		//                y z w unused.
+		VEC4				( liquidRefract )
     , vkUniformGlobal_t )
 
     #undef TCMOD_T

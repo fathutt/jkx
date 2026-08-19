@@ -1490,6 +1490,49 @@ void vk_depth_resolve( void )
 		VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
 		0, 0 );
 
+	// The colour of the scene, for whatever is about to refract it. A straight
+	// copy and not a resolve: vk.color_image is the single-sample attachment the
+	// multisampled one is already resolved into, so there is nothing left to
+	// resolve and nothing to hide behind a shader.
+	if ( backEnd.needSceneColor && vk.scene_color_image != VK_NULL_HANDLE )
+	{
+		VkImageCopy region;
+
+		vk_record_image_layout_transition( vk.cmd->command_buffer, vk.color_image, VK_IMAGE_ASPECT_COLOR_BIT,
+			VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+			VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, 0, 0 );
+
+		vk_record_image_layout_transition( vk.cmd->command_buffer, vk.scene_color_image, VK_IMAGE_ASPECT_COLOR_BIT,
+			VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+			VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 0, 0 );
+
+		region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		region.srcSubresource.mipLevel = 0;
+		region.srcSubresource.baseArrayLayer = 0;
+		region.srcSubresource.layerCount = 1;
+		region.srcOffset.x = 0;
+		region.srcOffset.y = 0;
+		region.srcOffset.z = 0;
+		region.dstSubresource = region.srcSubresource;
+		region.dstOffset = region.srcOffset;
+		region.extent.width = glConfig.vidWidth;
+		region.extent.height = glConfig.vidHeight;
+		region.extent.depth = 1;
+
+		vkCmdCopyImage( vk.cmd->command_buffer,
+			vk.color_image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+			vk.scene_color_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+			1, &region );
+
+		vk_record_image_layout_transition( vk.cmd->command_buffer, vk.scene_color_image, VK_IMAGE_ASPECT_COLOR_BIT,
+			VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+			VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 0, 0 );
+
+		vk_record_image_layout_transition( vk.cmd->command_buffer, vk.color_image, VK_IMAGE_ASPECT_COLOR_BIT,
+			VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+			VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 0, 0 );
+	}
+
 	vk_begin_depth_resolve_render_pass();
 	vkCmdBindPipeline( vk.cmd->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.depth_resolve_pipeline );
 	vkCmdBindDescriptorSets( vk.cmd->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,

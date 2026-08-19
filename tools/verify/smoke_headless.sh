@@ -609,7 +609,10 @@ fi
 #   wave  the new path in full, foam off;
 #   foam  the same again with the shore band on, so the band is the only thing
 #         that differs between two frames and can be located rather than
-#         guessed at.
+#         guessed at;
+#   straight  the same again with the bend switched off, which is the control
+#         for refraction and only means anything because the bottom of this
+#         pool has stripes on it.
 #
 # The append is HERE and not down with the fixture that builds the pool, and
 # that is not tidiness. INMAP_STEP is one array in script order: everything
@@ -638,9 +641,15 @@ if [ "${JKX_SMOKE_WATER:-0}" = "1" ]; then
         echo "wait 20"
         echo "screenshot_tga jkx_liquid_foam"
         echo "wait 10"
+        echo "set r_liquidRefract 0"
+        echo "wait 20"
+        echo "screenshot_tga jkx_liquid_straight"
+        echo "wait 10"
+        echo "set r_liquidRefract 24"
+        echo "wait 10"
     } > "$RUN/base/jkx_liquid.cfg"
 
-    INMAP_STEP+=( +exec jkx_liquid.cfg +wait 150 )
+    INMAP_STEP+=( +exec jkx_liquid.cfg +wait 190 )
 fi
 
 if [ "${JKX_SMOKE_MSAA:-0}" = "1" ]; then
@@ -1702,8 +1711,10 @@ elif [ "${JKX_SMOKE_WATER:-0}" = "1" ]; then
     # what the old path draws - one flat blue at half alpha over a white floor -
     # and that is the point: it is the A side, and a lane written after the
     # feature has nothing to compare against but itself.
+    python3 "$HERE/make_test_material.py" --pool "$RUN/base/textures/jkx" >/dev/null
+
     python3 "$HERE/make_test_bsp.py" "$RUN/base/maps/jkx_room.bsp" \
-        --water jkx/water >/dev/null
+        --shader jkx/pool_floor --water jkx/water >/dev/null
 
 elif [ "${JKX_SMOKE_MAPENT:-0}" = "1" ]; then
     # The same room with one piece of furniture in it. See the note above
@@ -2919,49 +2930,55 @@ something other than the distance from the eye"
     fi
 fi
 
-# Water: four pictures of one pool, and each says what the one before it could
-# not.
+# Water: five pictures of one pool, and each isolates exactly one thing.
 #
 # The pool is TILTED - two units off the floor at the near edge, sixty-four at
-# the far one - and everything below depends on that. A body of water at a
-# constant depth has one absorption value across the whole of it and no shore at
-# all; the shallow end is what turns "deeper is bluer" and "there is froth where
-# it runs out" into statements about a picture.
+# the far one - and its bottom has STRIPES on it. Both are load-bearing. A body
+# at constant depth has one absorption value across the whole of it and no shore
+# at all; and a featureless bottom cannot show refraction, because bending where
+# a sample is taken from lands on the same colour when everything around it is
+# that colour. Each of those is the fixture sharing the defect with the thing it
+# is meant to measure, which is the failure this bench keeps finding in itself.
 #
-# What is measured is not how many colours there are. Absorption alone paints a
-# smooth gradient with thousands of shades in it, so a colour count cannot tell
-# a gradient from a gradient with ripples on it. What can is the biggest jump
-# between two NEIGHBOURING pixels, which is what tga_max_step was written for:
+# The tilt also puts one code path under the lane that would otherwise never
+# run: every water face anyone has built is horizontal, the shader builds its
+# wave frame against the surface's own normal precisely so it does not stop
+# working when one is not, and a horizontal fixture cannot tell those apart.
 #
-#   off    step 0    one flat colour with an alpha over it
-#   flat   step 1    the liquid path with the waves off - absorption varies
-#                    smoothly with depth and nothing else varies at all
-#   wave   step 7    the ripples
+# What is asserted is DIFFERENCES, each between two frames that agree about
+# everything except one cvar, and each located rather than counted:
 #
-# The range is asserted alongside it on the flat shot, because a step of one is
-# also what a picture that drew nothing would report. Sixty-eight shades is what
-# the old path spans and a hundred and ninety is what absorption spans, so the
-# two questions - "is the body varying with depth" and "is the surface rippling"
-# - are separated by two different numbers rather than by one number twice.
+#   off  -> flat       absorption          88k pixels
+#   flat -> wave       the wave field      18k
+#   wave -> foam       the shore band      13k
+#   straight -> foam   refraction           4k
 #
-# Both upper bounds are spelled as checks that must fail. tga_max_step offers a
-# maximum and not a minimum, and inverting it is the same statement without a
-# new tool.
+# Counting colours was what this measured before and it stopped working the
+# moment the bottom got a pattern: stripes seen through water are local steps of
+# their own, and no single number over the whole surface can separate them from
+# ripples. A difference between two frames can, because the stripes are in both.
 if [ "${JKX_SMOKE_WATER:-0}" = "1" ]; then
     off="$RUN/home/base/screenshots/jkx_liquid_off.tga"
     flat="$RUN/home/base/screenshots/jkx_liquid_flat.tga"
     wave="$RUN/home/base/screenshots/jkx_liquid_wave.tga"
     foam="$RUN/home/base/screenshots/jkx_liquid_foam.tga"
+    straight="$RUN/home/base/screenshots/jkx_liquid_straight.tga"
 
-    if [ ! -f "$off" ] || [ ! -f "$flat" ] || [ ! -f "$wave" ] || [ ! -f "$foam" ]; then
-        report "the pool was not photographed four times, so nothing here was checked"
+    missing=""
+    for f in "$off" "$flat" "$wave" "$foam" "$straight"; do
+        [ -f "$f" ] || missing="$missing $(basename "$f")"
+    done
+
+    if [ -n "$missing" ]; then
+        report "the pool was not photographed five times -$missing - so nothing here was checked"
     else
-        # The old path, and it is arithmetic: half alpha of ( 0.0 0.2 0.6 ) over
-        # the white floor is (128, 153, 204), and over the grey room around it
-        # (96, 121, 172). Two backgrounds in one frame, so this also says the
-        # surface is blending against what is behind it and not against a
-        # constant.
-        for want in "128,153,204:20000" "96,121,172:20000"; do
+        # The old path, and it is arithmetic three times over. Half alpha of
+        # ( 0.0 0.2 0.6 ) over the white stripe (255) is (128, 153, 204), over
+        # the dark one (16) it is (8, 33, 84), and over the grey room beyond the
+        # floor (191) it is (96, 121, 172). Three different backgrounds under one
+        # surface in one frame: the pool is there, it is blending, and it is
+        # blending against what is actually behind each pixel.
+        for want in "128,153,204:15000" "8,33,84:3000" "96,121,172:20000"; do
             if ! python3 "$HERE/tga_has_colour.py" "$off" "$want"; then
                 report "with r_liquids 0 the pool is not the colour its blendFunc \
 says it should be over ${want%%:*}. A pool that is not drawn at all is the first \
@@ -2970,34 +2987,37 @@ above the eye is a back face"
             fi
         done
 
-        # The liquid path is running and the body varies with depth: a wide
-        # range of shades, and no local jumps in it.
-        if ! python3 "$HERE/tga_max_step.py" "$flat" --dominant b --min 15 \
-            --max-step 3 --min-range 150; then
-            report "with r_liquids 1 and the waves off the pool is either flat - \
-so the liquid path was not selected, or the body is not absorbing with depth - \
-or it is already rippling, which means r_liquidNormalScale 0 did not reach the \
-shader"
+        # Each cvar in turn, and each difference has to be inside the pool. A
+        # box rather than a count alone, because a change that shows up
+        # everywhere is not the one being asked about - and the whole frame is
+        # available to be wrong in.
+        pool_box="0.1,0.3,0.9,1.0"
+
+        if ! python3 "$HERE/tga_diff_where.py" "$off" "$flat" "$pool_box" 30000 200000; then
+            report "r_liquids 1 changed nothing, or changed the wrong part of the \
+frame. This difference is the body absorbing with depth, so it should cover most \
+of the pool and none of the room"
         fi
 
-        # And the waves are what the last shot adds.
-        if python3 "$HERE/tga_max_step.py" "$wave" --dominant b --min 15 \
-            --max-step 4 >/dev/null 2>&1; then
-            report "the wave field changed nothing measurable: neighbouring \
-pixels on the surface are as smooth as they are with r_liquidNormalScale 0. The \
-normal is computed from the world position of the fragment, so a position that \
-never reaches the fragment shader gives a constant normal and exactly this"
+        if ! python3 "$HERE/tga_diff_where.py" "$flat" "$wave" "$pool_box" 6000 80000; then
+            report "the wave field changed nothing measurable. The normal is \
+computed from the world position of the fragment, so a position that never \
+reaches the fragment shader gives a constant normal and exactly this"
         fi
 
-        # Foam, and where it is. The only difference between the last two frames
-        # is r_liquidFoam, so the band can be located rather than guessed at -
-        # and where it belongs is the SHALLOW end, which on this fixture is the
-        # near edge and therefore the bottom of the frame.
-        if ! python3 "$HERE/tga_diff_where.py" "$wave" "$foam" \
-            0.2,0.5,0.8,1.0 4000 40000; then
-            report "the shore band is missing, too small, or in the wrong half \
-of the frame. It lives where the body is THIN, so a band across the deep end \
-means the thickness is being read with its sign the wrong way round"
+        # Foam lives where the body is THIN, which on this pool is the near edge
+        # and therefore the bottom of the frame. A band across the deep end means
+        # the thickness is being read with its sign the wrong way round.
+        if ! python3 "$HERE/tga_diff_where.py" "$wave" "$foam" "0.2,0.5,0.8,1.0" 4000 60000; then
+            report "the shore band is missing, too small, or in the wrong half of \
+the frame"
+        fi
+
+        if ! python3 "$HERE/tga_diff_where.py" "$straight" "$foam" "$pool_box" 1500 40000; then
+            report "the bend changed nothing. Refraction reads the colour of the \
+scene as it stood before the transparent surfaces, so an empty copy - the break \
+not taken, or taken with nothing to copy into - gives exactly this; and a bottom \
+with no pattern on it would give it too, which is why this one has stripes"
         fi
     fi
 fi
