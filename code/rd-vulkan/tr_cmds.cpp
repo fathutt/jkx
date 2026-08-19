@@ -655,6 +655,26 @@ void RE_BeginFrame( stereoFrame_t stereoFrame ) {
 		vk_restart_swapchain( __func__ );
 	}
 
+	// Dynamic glow, which is the same rung and finishes it.
+	//
+	// vk.dglowActive decides whether a whole family of attachments exists - the
+	// extract target, its multisample twin and the blur chain - and therefore
+	// whether the render passes that name them and the pipelines built against
+	// those passes exist. Turning it on with nothing rebuilt is a set of render
+	// passes referring to attachments that were never created.
+	//
+	// r_DynamicGlowWidth and r_DynamicGlowHeight are not here, and that is not
+	// an omission: nothing in this renderer reads either of them. The glow
+	// targets are sized from gls.captureWidth. They were latched, which charged
+	// a video restart for a value that would then be ignored; they are not
+	// latched any more. See their registration in tr_init.cpp.
+	if ( r_DynamicGlow->modified ) {
+		r_DynamicGlow->modified = qfalse;
+
+		vk_set_dynamic_glow();
+		vk_restart_swapchain( __func__ );
+	}
+
 	//
 	// texturemode stuff
 	//

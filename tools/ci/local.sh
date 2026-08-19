@@ -71,7 +71,7 @@ JOBS="${JOBS:-$(nproc)}"
 
 STAGES=( "$@" )
 if [ "${#STAGES[@]}" -eq 0 ]; then
-    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokeskin smokeskinshift smokelightmap smokehdrlightmap smokegamecmd smokeshadow smokecloud smokemapent smokemenumodel smokemenulight smokepbrchar smokevidrestart smokevsync smokeresize smokemsaa smokecubemap smoketransparency smoketcmod smokedeform smokephys smokephysshaded smokepak move smokesan prepass fog noassets )
+    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokeskin smokeskinshift smokelightmap smokehdrlightmap smokegamecmd smokeshadow smokecloud smokemapent smokemenumodel smokemenulight smokepbrchar smokevidrestart smokevsync smokeresize smokemsaa smokedglow smokecubemap smoketransparency smoketcmod smokedeform smokephys smokephysshaded smokepak move smokesan prepass fog noassets )
 fi
 
 failed=()
@@ -1087,6 +1087,35 @@ stage_smokeresize() {
 stage_smokemsaa() {
     JKX_SMOKE_MSAA=1 \
     JKX_SMOKE_DISPLAY="${JKX_SMOKE_MSAA_DISPLAY:-:75}" \
+        bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
+}
+
+# Dynamic glow changed while the game runs, which finishes the TARGETS rung.
+#
+# Same machinery as the sample count above: vk.dglowActive decides whether the
+# extract target, its multisample twin and the whole blur chain exist, and
+# therefore whether the render passes naming them and the pipelines built
+# against those passes exist. All three are rebuilt.
+#
+# The lane found a real defect on its first run, and it was not in the rung.
+# vk_init_descriptors allocates the glow descriptor sets only if the effect was
+# on when it ran - and it runs once, from vk_initialize. Turning glow on
+# afterwards left an array of VK_NULL_HANDLE for
+# vk_update_attachment_descriptors to write into: a segfault, inside the
+# validation layer, during vk_restart_swapchain. They are allocated
+# unconditionally now; the pool was already sized for them.
+#
+# Bloom, refraction and the cubemap are allocated the same conditional way and
+# will need the same line when they get rungs.
+#
+# Two of these cvars are not in the rung and it is not an oversight: nothing in
+# this renderer reads r_DynamicGlowWidth or r_DynamicGlowHeight. The glow
+# targets are sized from gls.captureWidth. Both were CVAR_LATCH, which charged a
+# video restart to apply a value nobody would then read; they are not latched
+# any more.
+stage_smokedglow() {
+    JKX_SMOKE_DGLOW=1 \
+    JKX_SMOKE_DISPLAY="${JKX_SMOKE_DGLOW_DISPLAY:-:70}" \
         bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
 }
 

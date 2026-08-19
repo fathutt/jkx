@@ -598,6 +598,13 @@ jobs:
           JKX_SMOKE_TIMEOUT: '900'
         run: bash tools/verify/smoke_headless.sh build
 
+      - name: Dynamic glow changed without a restart
+        env:
+          JKX_SMOKE_DGLOW: '1'
+          JKX_SMOKE_DISPLAY: ':75'
+          JKX_SMOKE_TIMEOUT: '900'
+        run: bash tools/verify/smoke_headless.sh build
+
       # Cubemaps generated and convolved. r_cubeMapping defaults to zero, so the
       # loader, the convolve command and the whole prefilter had never run here;
       # the fixture needed no new data, because the entity list the loader falls

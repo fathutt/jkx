@@ -68,6 +68,30 @@ void vk_set_multisample( void )
 	CL_RefPrintf( PRINT_ALL, "MSAA max: %dx, using %dx\n", vkMaxSamples, vkSamples );
 }
 
+// The same shape as vk_set_multisample above and for the same reason: the value
+// was read once, inside vk_initialize, and so the only way to change it was to
+// destroy the renderer.
+//
+// maxActiveTextures is a device property and not a setting, which is why it is
+// re-read here rather than remembered - a device that cannot do four texture
+// units cannot do dynamic glow, and the answer to the cvar is no whatever the
+// player asked for. Saying which of the two decided it is the difference
+// between "the setting did not work" and "this device cannot".
+void vk_set_dynamic_glow( void )
+{
+	const qboolean wanted = r_DynamicGlow->integer ? qtrue : qfalse;
+	const qboolean capable = glConfig.maxActiveTextures >= 4 ? qtrue : qfalse;
+
+	vk.dglowActive = ( wanted && capable ) ? qtrue : qfalse;
+
+	if ( wanted && !capable ) {
+		CL_RefPrintf( PRINT_ALL, "dynamic glow: off - this device reports %i "
+			"active texture unit(s) and it needs four\n", glConfig.maxActiveTextures );
+	} else {
+		CL_RefPrintf( PRINT_ALL, "dynamic glow: %s\n", vk.dglowActive ? "on" : "off" );
+	}
+}
+
 // Not static any more: the resize path in RE_BeginFrame has to run it again.
 // It was called exactly once, from vk_initialize, at a moment when the window
 // and the render target are the same size by construction - so everything it
@@ -799,8 +823,7 @@ void vk_initialize( void )
 		vk.bloomActive = qtrue;
 
 	// Dynamic glow
-	if ( glConfig.maxActiveTextures >= 4 && r_DynamicGlow->integer )
-		vk.dglowActive = qtrue;
+	vk_set_dynamic_glow();
 
 	// "Hardware" fog mode
 	vk.hw_fog = r_drawfog->integer == 2 ? 1 : 0;

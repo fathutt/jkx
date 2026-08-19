@@ -808,11 +808,28 @@ void vk_init_descriptors( void ) {
 				VK_CHECK( vkAllocateDescriptorSets( vk.device, &alloc, &vk.bloom_image_descriptor[i] ) );
 		}
 
-		// dglow images
-		if ( vk.dglowActive ) {
-			for ( i = 0; i < ARRAY_LEN( vk.dglow_image_descriptor ); i++ )
-				VK_CHECK( vkAllocateDescriptorSets( vk.device, &alloc, &vk.dglow_image_descriptor[i] ) );
-		}
+		// dglow images - ALLOCATED WHETHER OR NOT IT IS ON.
+		//
+		// This function runs once, from vk_initialize. vk_restart_swapchain does
+		// not call it, which is correct - a descriptor set outlives the
+		// attachments it points at and only needs rewriting. But it means the
+		// answer to "is dynamic glow on" was frozen at start-up: turning it on
+		// afterwards left vk.dglow_image_descriptor[] full of VK_NULL_HANDLE,
+		// and vk_update_attachment_descriptors duly wrote to a null set. That is
+		// a segfault inside the validation layer, and it is what the dglow lane
+		// found on its first run.
+		//
+		// A descriptor set is a handful of bytes out of a pool that is already
+		// sized for the worst case - VK_NUM_BLUR_PASSES * 4 combined image
+		// samplers, allocated regardless of which effects are active. Paying for
+		// them always is cheaper than the alternative, which is a set that can
+		// only be created from a path that has already run.
+		//
+		// Bloom, refraction and the cubemap are allocated conditionally just
+		// above and below, and have the same shape: the day one of them gets a
+		// rung of its own, it needs this same line.
+		for ( i = 0; i < ARRAY_LEN( vk.dglow_image_descriptor ); i++ )
+			VK_CHECK( vkAllocateDescriptorSets( vk.device, &alloc, &vk.dglow_image_descriptor[i] ) );
 
 		alloc.descriptorSetCount = 1;
 		VK_CHECK( vkAllocateDescriptorSets( vk.device, &alloc, &vk.screenMap.color_descriptor ) ); // screenmap

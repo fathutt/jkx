@@ -1177,6 +1177,7 @@ void		vk_create_pipeline_layout( void );
 VkPipelineLayout vk_pipeline_layout( uint32_t pipeline );
 void		vk_set_render_scale( void );
 void		vk_set_multisample( void );
+void		vk_set_dynamic_glow( void );
 void		vk_destroy_pipelines( qboolean reset );
 void		vk_update_post_process_pipelines( void );
 

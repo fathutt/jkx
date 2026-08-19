@@ -473,6 +473,37 @@ if [ "${JKX_SMOKE_SKINSHIFT:-0}" = "1" ]; then
     INMAP_STEP=( +exec jkx_ents.cfg +wait 30 "${INMAP_STEP[@]}" )
 fi
 
+# Dynamic glow changed while the game runs, and it finishes the TARGETS rung.
+#
+# Same shape as the multisample lane below and the same reason it cannot be the
+# cheap path: vk.dglowActive decides whether a family of attachments exists -
+# the extract target, its multisample twin and the whole blur chain - and
+# therefore whether the render passes naming them and the pipelines built
+# against those passes exist. All three have to be rebuilt.
+#
+# The observable is the renderer's own line, "dynamic glow: on" / "off",
+# printed once per initialisation, exactly like "MSAA max: Nx, using Mx". A
+# picture cannot carry this on the bench: the fixture has no glow-marked
+# surfaces, so the effect is a black extract blurred into nothing, which is what
+# it also looks like when the setting never arrived.
+#
+# On and then back to off, so the run ends where every other lane's does.
+if [ "${JKX_SMOKE_DGLOW:-0}" = "1" ]; then
+    {
+        echo "wait 5"
+        echo "set r_DynamicGlow 1"
+        echo "wait 20"
+        echo "screenshot_tga jkx_dglow_on"
+        echo "wait 5"
+        echo "set r_DynamicGlow 0"
+        echo "wait 20"
+        echo "screenshot_tga jkx_dglow_off"
+        echo "wait 5"
+    } > "$RUN/base/jkx_dglow.cfg"
+
+    INMAP_STEP+=( +exec jkx_dglow.cfg +wait 70 )
+fi
+
 if [ "${JKX_SMOKE_MSAA:-0}" = "1" ]; then
     {
         echo "wait 5"
@@ -1977,6 +2008,25 @@ forbid() {
 # both skins. If a future change makes the offset go away here, this lane says so
 # loudly, because an offset that has quietly stopped happening means the fix is
 # no longer being tested rather than that the defect is gone.
+if [ "${JKX_SMOKE_DGLOW:-0}" = "1" ]; then
+    require 'Wrote screenshots/jkx_dglow_on.tga'
+    require 'Wrote screenshots/jkx_dglow_off.tga'
+
+    on=$( grep -c 'dynamic glow: on' "$RUN/run.log" || true )
+    off=$( grep -c 'dynamic glow: off' "$RUN/run.log" || true )
+
+    if [ "$on" -lt 1 ]; then
+        report "r_DynamicGlow 1 did not reach the renderer: no run reported \
+\"dynamic glow: on\". The attachments the glow passes name are created from \
+vk.dglowActive, so a change that does not rebuild them changes nothing"
+    fi
+
+    if [ "$off" -lt 2 ]; then
+        report "\"dynamic glow: off\" was reported $off time(s) and should be \
+twice - once at startup and once on the way back"
+    fi
+fi
+
 if [ "${JKX_SMOKE_MSAA:-0}" = "1" ]; then
     require 'Wrote screenshots/jkx_msaa_off.tga'
     require 'Wrote screenshots/jkx_msaa_on.tga'

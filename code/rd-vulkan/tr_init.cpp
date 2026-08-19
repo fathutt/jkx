@@ -916,14 +916,28 @@ void R_Register( void )
 	r_ext_texture_filter_anisotropic	= Cvar_Get( "r_ext_texture_filter_anisotropic",	"16",						CVAR_ARCHIVE_ND|CVAR_LATCH, "" );
 	r_gammaShaders						= Cvar_Get( "r_gammaShaders",					"1",						CVAR_ARCHIVE_ND|CVAR_LATCH, "Set gamma using pixel shaders inside the game window only." );
 	r_environmentMapping				= Cvar_Get( "r_environmentMapping",				"1",						CVAR_ARCHIVE_ND, "" );
-	r_DynamicGlow						= Cvar_Get( "r_DynamicGlow",						"0",						CVAR_ARCHIVE_ND|CVAR_LATCH, "Enable dynamic glow effect" );
+	// NOT latched. vk_set_dynamic_glow re-reads it and RE_BeginFrame rebuilds
+	// the attachments, the render passes and the pipelines against the answer -
+	// the TARGETS rung, the same one multisampling uses. The device survives,
+	// the textures survive, and the level is not reloaded.
+	r_DynamicGlow						= Cvar_Get( "r_DynamicGlow",						"0",						CVAR_ARCHIVE_ND, "Enable dynamic glow effect" );
+	r_DynamicGlow->modified = qfalse;
 	r_DynamicGlowAllStages				= Cvar_Get( "r_DynamicGlowAllStages",			"0",						CVAR_ARCHIVE_ND|CVAR_LATCH, "In Vanilla certain glow stages are skipped, render those anyway" );
 	r_DynamicGlowPasses					= Cvar_Get( "r_DynamicGlowPasses",				"5",						CVAR_ARCHIVE_ND, "" );
 	r_DynamicGlowDelta					= Cvar_Get( "r_DynamicGlowDelta",				"0.8f",						CVAR_ARCHIVE_ND, "" );
 	r_DynamicGlowIntensity				= Cvar_Get( "r_DynamicGlowIntensity",			"1.13f",					CVAR_ARCHIVE_ND, "" );
 	r_DynamicGlowSoft					= Cvar_Get( "r_DynamicGlowSoft",					"1",						CVAR_ARCHIVE_ND, "" );
-	r_DynamicGlowWidth					= Cvar_Get( "r_DynamicGlowWidth",				"0",						CVAR_ARCHIVE_ND|CVAR_LATCH, "" );
-	r_DynamicGlowHeight					= Cvar_Get( "r_DynamicGlowHeight",				"0",						CVAR_ARCHIVE_ND|CVAR_LATCH, "" );
+	// NOTHING READS THESE TWO. The glow attachments are sized from
+	// gls.captureWidth and gls.captureHeight in vk_create_attachments, and
+	// grep finds no other reference to either name in the renderer.
+	//
+	// They stay registered, because a config or a mod may set them and an
+	// unknown cvar in a config is a different kind of confusing. What goes is
+	// CVAR_LATCH: that flag tells the player "restart the video and this will
+	// apply", and here it is a promise about a value nobody will read. Better
+	// to do nothing quietly than to charge a restart for doing nothing.
+	r_DynamicGlowWidth					= Cvar_Get( "r_DynamicGlowWidth",				"0",						CVAR_ARCHIVE_ND, "" );
+	r_DynamicGlowHeight					= Cvar_Get( "r_DynamicGlowHeight",				"0",						CVAR_ARCHIVE_ND, "" );
 	r_DynamicGlowScale					= Cvar_Get( "r_DynamicGlowScale",				"0.25",						CVAR_ARCHIVE_ND|CVAR_LATCH, "" );
 	r_picmip							= Cvar_Get( "r_picmip",							"0",						CVAR_ARCHIVE|CVAR_LATCH, "" );
 	Cvar_CheckRange( r_picmip, 0, 16, qtrue );
