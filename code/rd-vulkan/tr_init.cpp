@@ -149,6 +149,7 @@ cvar_t	*r_dissolveFreeze;
 cvar_t	*r_depthPrepass;
 cvar_t	*r_softParticles;
 cvar_t	*r_softParticleScale;
+cvar_t	*r_softParticleNear;
 cvar_t	*r_weldModelNormals;
 cvar_t	*r_weldModelNormalsAngle;
 cvar_t	*r_shownormals;
@@ -1087,6 +1088,11 @@ void R_Register( void )
 	r_softParticles						= Cvar_Get( "r_softParticles",					"1",						CVAR_ARCHIVE_ND | CVAR_LATCH, "fade transparent surfaces out where they meet solid geometry" );
 	r_softParticleScale					= Cvar_Get( "r_softParticleScale",				"32",						CVAR_ARCHIVE_ND, "how many units ahead of solid geometry a transparent surface starts fading" );
 	Cvar_CheckRange( r_softParticleScale, 0, 512, qfalse );
+	// The other half of the same effect. A sprite the camera walks into is cut
+	// off by the near clip plane, and the cut is a straight rectangle across the
+	// screen - the same defect as the far one, at the other end.
+	r_softParticleNear					= Cvar_Get( "r_softParticleNear",				"24",						CVAR_ARCHIVE_ND, "how many units in front of the camera a transparent surface has faded out completely" );
+	Cvar_CheckRange( r_softParticleNear, 0, 512, qfalse );
 	// The seams on a character, and the reason they are there. A vertex is
 	// duplicated wherever the texture mapping is cut and again wherever the body
 	// is cut into surfaces, and the exporter gave each copy its own normal, so

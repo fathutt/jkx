@@ -2152,6 +2152,7 @@ extern	cvar_t	*r_dissolveFreeze;		// -1 runs the wipe, 0..100 holds it there
 extern	cvar_t	*r_depthPrepass;		// lay down opaque depth before shading
 extern	cvar_t	*r_softParticles;		// fade transparent surfaces near solid geometry
 extern	cvar_t	*r_softParticleScale;	// fade distance, in world units
+extern	cvar_t	*r_softParticleNear;	// fade-out distance in front of the camera
 extern	cvar_t	*r_weldModelNormals;	// share one normal between coincident model vertexes
 extern	cvar_t	*r_weldModelNormalsAngle;	// how wide a join still counts as smooth
 extern	cvar_t	*r_shownormals;			// draws wireframe normals

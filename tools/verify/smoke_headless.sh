@@ -583,9 +583,18 @@ if [ "${JKX_SMOKE_SOFTPARTICLES:-0}" = "1" ]; then
         echo "wait 20"
         echo "screenshot_tga jkx_soft_on"
         echo "wait 10"
+        # The near half on its own: the far fade off, and a fade-out distance
+        # far enough out that all three squares are inside it.
+        echo "set r_softParticleScale 0"
+        echo "set r_softParticleNear 512"
+        echo "wait 20"
+        echo "screenshot_tga jkx_soft_near"
+        echo "wait 10"
+        echo "set r_softParticleNear 24"
+        echo "wait 10"
     } > "$RUN/base/jkx_soft.cfg"
 
-    INMAP_STEP+=( +exec jkx_soft.cfg +wait 80 )
+    INMAP_STEP+=( +exec jkx_soft.cfg +wait 110 )
 fi
 
 if [ "${JKX_SMOKE_MSAA:-0}" = "1" ]; then
@@ -2801,7 +2810,7 @@ and the other half of this lane means nothing"
         fi
 
         # On: the near two have moved, in the right direction, by the right
-        # amount - and the far one has not moved at all, because at 80 units it
+        # amount - and the far one has not moved at all, because at 96 units it
         # is past the fade distance.
         if ! python3 "$HERE/tga_grey_levels.py" "$on" \
             --expect 102:40000 --expect 140:1500 \
@@ -2810,6 +2819,38 @@ and the other half of this lane means nothing"
 arithmetic predicts. All three squares still at 140 means the scene depth was \
 never resolved or never read; any other set of levels means it was read but \
 turned into the wrong distance"
+        fi
+
+        # The near half, on its own: the far fade off and the fade-out distance
+        # at 512, which is beyond all three squares, so all three fade and none
+        # of them clamps.
+        #
+        # These three levels are MEASURED, not predicted, and that is the honest
+        # part. The far fade above depends only on the GAP between two surfaces,
+        # so it does not care where the camera is; the near fade depends on the
+        # absolute distance from the eye, and in single player the eye sits
+        # behind the player at a distance that is nowhere in the map file. Read
+        # back out of the picture it is about 73 units, which is a sensible
+        # third-person camera and is exactly why this is measured: a number
+        # derived on paper here would be asserting where I guessed the camera
+        # was.
+        #
+        # What is asserted rather than merely recorded: three DIFFERENT levels,
+        # in the order the distances are in, and none of them 140. The near fade
+        # not running leaves all three at 140, and reading the wrong quantity
+        # does not land on three separated numbers by accident.
+        near="$RUN/home/base/screenshots/jkx_soft_near.tga"
+
+        if [ ! -f "$near" ]; then
+            report "the near-camera fade was never photographed, so half of \
+this lane checked nothing"
+        elif ! python3 "$HERE/tga_grey_levels.py" "$near" \
+            --expect 102:40000 --expect 121:1500 \
+            --expect 125:1500 --expect 126:1500; then
+            report "the fade towards the camera did not land on the levels this \
+fixture measures. All three squares at 140 means r_softParticleNear never \
+reached the shader; three levels in the wrong order means it is fading on \
+something other than the distance from the eye"
         fi
     fi
 fi

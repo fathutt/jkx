@@ -590,7 +590,7 @@ void main() {
 	//
 	// Last, deliberately: it scales what the surface finally contributes, so
 	// everything above - lighting, blends, fog - has to have happened already.
-	if ( u_global.softParticle.x > 0.0 ) {
+	if ( u_global.softParticle.x > 0.0 || u_global.softParticleNear.x > 0.0 ) {
 		// dist = c / ( d + b ), the two numbers taken from the projection
 		// matrix on the CPU. Distance from the eye, in the units the map is
 		// modelled in, for both the fragment and whatever is behind it.
@@ -609,7 +609,22 @@ void main() {
 		// the surface is NEARER than the surface: the surface is inside
 		// something, the difference is negative, and the clamp turns it off
 		// rather than inverting it.
-		float soft = clamp( ( sceneZ - fragZ ) / u_global.softParticle.x, 0.0, 1.0 );
+		float soft = 1.0;
+
+		if ( u_global.softParticle.x > 0.0 )
+			soft = clamp( ( sceneZ - fragZ ) / u_global.softParticle.x, 0.0, 1.0 );
+
+		// The near half. A sprite the camera walks into is cut off by the near
+		// clip plane, and the cut is a straight rectangle across the screen -
+		// the same defect as the one above, at the other end, and the one that
+		// shows up as the hard edges on fog sprites when the camera turns.
+		//
+		// Distance from the eye rather than from the near plane: the near plane
+		// is four units out and nothing wants a four-unit fade, so the number
+		// says where the surface has faded out completely and the fade runs the
+		// whole way from the eye to it.
+		if ( u_global.softParticleNear.x > 0.0 )
+			soft = min( soft, clamp( fragZ / u_global.softParticleNear.x, 0.0, 1.0 ) );
 
 		// An additive stage is drawn ONE, ONE and never looks at alpha, so on
 		// those the visible quantity is the colour. The renderer works out

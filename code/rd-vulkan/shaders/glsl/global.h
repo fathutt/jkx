@@ -258,6 +258,14 @@ STRUCT (
 		// projection matrix on the CPU so the shader needs neither zNear nor
 		// zFar, w unused.
 		VEC4				( softParticle )
+		// softParticleNear: x how many units in front of the eye a surface is
+		// fully faded out (zero means that half is off), y z w unused.
+		//
+		// The near half of the same effect and a separate number on purpose:
+		// the far fade is measured in the gap between two surfaces and the near
+		// one in the distance from the camera, so a single distance would be
+		// two different quantities wearing one name.
+		VEC4				( softParticleNear )
     , vkUniformGlobal_t )
 
     #undef TCMOD_T

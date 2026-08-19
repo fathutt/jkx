@@ -3243,9 +3243,19 @@ void RB_StageIteratorGeneric( void )
 		// been resolved, which happens on the way from the surfaces that write
 		// depth to the surfaces that only read it.
 		Com_Memset( uniform_global.softParticle, 0, sizeof( uniform_global.softParticle ) );
+		Com_Memset( uniform_global.softParticleNear, 0, sizeof( uniform_global.softParticleNear ) );
 
-		if ( backEnd.softParticlesReady && !backEnd.isGlowPass
-			&& r_softParticleScale->value > 0.0f
+		// Not on the interface, and the crosshair check is what said so.
+		//
+		// The 2D pass draws with the same shader and the same blend modes, and
+		// backEnd.softParticlesReady is still set from the scene that was drawn
+		// a moment earlier - so the crosshair, which sits at a depth that means
+		// nothing, was being faded against the world behind it. The far fade
+		// alone did not show it because the scene depth there is far away and
+		// the fade came out at one; the near fade does, because a 2D fragment's
+		// distance from the eye is a fraction of a unit.
+		if ( backEnd.softParticlesReady && !backEnd.isGlowPass && !backEnd.projection2D
+			&& ( r_softParticleScale->value > 0.0f || r_softParticleNear->value > 0.0f )
 			&& ( pStage->stateBits & GLS_BLEND_BITS ) != 0 )
 		{
 			const float *p = backEnd.viewParms.projectionMatrix;
@@ -3264,6 +3274,7 @@ void RB_StageIteratorGeneric( void )
 				uniform_global.softParticle[0] = r_softParticleScale->value;
 				uniform_global.softParticle[1] = -p[10] / p[11];
 				uniform_global.softParticle[2] = -p[14] / p[11];
+				uniform_global.softParticleNear[0] = r_softParticleNear->value;
 
 				// Which channel the fade belongs on. An additive stage ignores
 				// alpha entirely - fire and sparks are drawn ONE, ONE - so
