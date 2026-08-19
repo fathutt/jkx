@@ -51,6 +51,10 @@
     "fogmode": [
       { "id": "linear", "defines": ["USE_FOG_LINEAR"] },
       { "id": "exp",    "defines": ["USE_FOG_EXP"] }
+    ],
+    "depthms": [
+      { "id": "1s", "defines": [] },
+      { "id": "ms", "defines": ["USE_MSAA"] }
     ]
   },
 
@@ -93,6 +97,11 @@
       "product": ["fastlight"],
       "name": "refraction_frag_{fastlight}",
       "slot": "refraction_fs[{fastlight.index}]" },
+
+    { "source": "depth_resolve.tmpl", "stage": "frag",
+      "product": ["depthms"],
+      "name": "depth_resolve_{depthms}",
+      "slot": "depth_resolve_fs[{depthms.index}]" },
 
     { "source": "gen_vert.tmpl", "stage": "vert",
       "product": ["vbo", "fastlight", "light", "tx", "cl", "env", "fog"],

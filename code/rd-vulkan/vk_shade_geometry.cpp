@@ -743,6 +743,55 @@ void vk_update_attachment_descriptors( void ) {
 			vkUpdateDescriptorSets( vk.device, 1, &desc, 0, NULL );	
 		}
 #endif
+
+		// The resolved scene depth, on the uniform set rather than on one of its
+		// own - see VK_DESC_UNIFORM_SCENE_DEPTH_BINDING in global.h for why.
+		//
+		// Written whether or not soft particles are on, because when they are
+		// off the image is one pixel across and the descriptor still has to
+		// point at something. NEAREST because a depth averaged with its
+		// neighbour is not the depth of anything.
+		if ( vk.scene_depth_image_view != VK_NULL_HANDLE )
+		{
+			Vk_Sampler_Def dd;
+			uint32_t i;
+
+			Com_Memset( &dd, 0, sizeof( dd ) );
+			dd.gl_mag_filter = GL_NEAREST;
+			dd.gl_min_filter = GL_NEAREST;
+			dd.address_mode = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+			dd.max_lod_1_0 = qtrue;
+			dd.noAnisotropy = qtrue;
+
+			info.sampler = vk_find_sampler( &dd );
+			info.imageView = vk.scene_depth_image_view;
+			info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+			desc.dstBinding = VK_DESC_UNIFORM_SCENE_DEPTH_BINDING;
+
+			for ( i = 0; i < NUM_COMMAND_BUFFERS; i++ )
+			{
+				if ( vk.tess[i].uniform_descriptor == VK_NULL_HANDLE )
+					continue;
+
+				desc.dstSet = vk.tess[i].uniform_descriptor;
+				vkUpdateDescriptorSets( vk.device, 1, &desc, 0, NULL );
+			}
+
+			desc.dstBinding = 0;
+
+			// The depth attachment itself, for the resolve pass to read. Its
+			// layout here is the depth-specific read-only one and not the
+			// general shader-read one, because that is the layout the image is
+			// actually in at the moment it is sampled - the two have to agree
+			// or the read is undefined.
+			if ( vk.depth_sample_view != VK_NULL_HANDLE && vk.depth_sample_descriptor != VK_NULL_HANDLE )
+			{
+				info.imageView = vk.depth_sample_view;
+				info.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+				desc.dstSet = vk.depth_sample_descriptor;
+				vkUpdateDescriptorSets( vk.device, 1, &desc, 0, NULL );
+			}
+		}
 	}
 }
 
@@ -833,6 +882,9 @@ void vk_init_descriptors( void ) {
 
 		alloc.descriptorSetCount = 1;
 		VK_CHECK( vkAllocateDescriptorSets( vk.device, &alloc, &vk.screenMap.color_descriptor ) ); // screenmap
+
+		// depth attachment, read as a texture by the resolve pass
+		VK_CHECK( vkAllocateDescriptorSets( vk.device, &alloc, &vk.depth_sample_descriptor ) );
 
 #ifdef VK_PBR_BRDFLUT
 		if( vk.cubemapActive )
@@ -3186,6 +3238,44 @@ void RB_StageIteratorGeneric( void )
 
 		VectorCopy4( pStage->normalScale, uniform_global.normalScale );
 		VectorCopy4( pStage->specularScale, uniform_global.specularScale );
+
+		// Soft particles. Off unless the scene depth for this view has actually
+		// been resolved, which happens on the way from the surfaces that write
+		// depth to the surfaces that only read it.
+		Com_Memset( uniform_global.softParticle, 0, sizeof( uniform_global.softParticle ) );
+
+		if ( backEnd.softParticlesReady && !backEnd.isGlowPass
+			&& r_softParticleScale->value > 0.0f
+			&& ( pStage->stateBits & GLS_BLEND_BITS ) != 0 )
+		{
+			const float *p = backEnd.viewParms.projectionMatrix;
+
+			// Turning a depth buffer value back into a distance from the eye
+			// takes two numbers out of the projection matrix and nothing else:
+			//
+			//     d = ( p10 * z + p14 ) / ( p11 * z )   ->   dist = c / ( d + b )
+			//
+			// with b = -p10/p11 and c = -p14/p11. Taking them from the matrix
+			// rather than from zNear and zFar means reversed depth, the oblique
+			// near plane used by portals, and anything else that rewrites those
+			// entries all come out right without this code knowing about them.
+			if ( p[11] != 0.0f )
+			{
+				uniform_global.softParticle[0] = r_softParticleScale->value;
+				uniform_global.softParticle[1] = -p[10] / p[11];
+				uniform_global.softParticle[2] = -p[14] / p[11];
+
+				// Which channel the fade belongs on. An additive stage ignores
+				// alpha entirely - fire and sparks are drawn ONE, ONE - so
+				// fading alpha there does nothing at all, and the visible
+				// quantity is the colour. Everything else blends against alpha.
+				{
+					const uint32_t dst = pStage->stateBits & GLS_DSTBLEND_BITS;
+
+					uniform_global.softParticle[3] = ( dst == GLS_DSTBLEND_ONE ) ? 1.0f : 0.0f;
+				}
+			}
+		}
 
 		// removed glow handling statement, this results in unnecessary glow pass binds?
 		{

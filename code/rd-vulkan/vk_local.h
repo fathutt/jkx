@@ -698,6 +698,19 @@ typedef struct {
 	VkImage			depth_image;
 	VkImageView		depth_image_view;
 
+	// A second view of depth_image, depth aspect only, for reading it as a
+	// texture. The attachment view carries the stencil aspect too whenever the
+	// format has one, and a view with two aspects cannot be a sampled image.
+	VkImageView		depth_sample_view;
+	VkDescriptorSet	depth_sample_descriptor;
+
+	// The scene depth once it can be sampled: single-sample R32_SFLOAT, written
+	// by the resolve pass between the opaque surfaces and the transparent ones.
+	// One pixel across when soft particles are off - the descriptor still has to
+	// point at something, and it does not have to be big.
+	VkImage			scene_depth_image;
+	VkImageView		scene_depth_image_view;
+
 	VkImage			msaa_image;
 	VkImageView		msaa_image_view;
 
@@ -763,6 +776,20 @@ typedef struct {
 			VkRenderPass extract;
 		} refraction;
 
+		// Turns the depth attachment into a sampled single-sample image, so a
+		// transparent surface can ask how far away what is behind it is.
+		VkRenderPass depth_resolve;
+
+		// Same attachments as main and the same load ops as the refraction
+		// extract - colour and depth both loaded, depth stored. What resumes
+		// the frame after the depth copy for soft particles.
+		//
+		// It is a second handle to an identical description rather than a
+		// reuse of the refraction one because the two mean different things:
+		// vk.renderPassIndex picks pipelines, and RENDER_PASS_REFRACTION picks
+		// the refracting ones. Soft particles want the ordinary ones.
+		VkRenderPass post_depth;
+
 		struct {
 			VkRenderPass blur[VK_NUM_BLUR_PASSES * 2];
 			VkRenderPass extract;
@@ -797,6 +824,8 @@ typedef struct {
 		struct {
 			VkFramebuffer extract;
 		} refraction;
+
+		VkFramebuffer depth_resolve;
 
 		struct {
 			VkFramebuffer blur[VK_NUM_BLUR_PASSES * 2];
@@ -890,6 +919,7 @@ typedef struct {
 #endif
 
 	VkPipeline gamma_pipeline;
+	VkPipeline depth_resolve_pipeline;
 	VkPipeline bloom_extract_pipeline;
 	VkPipeline bloom_blur_pipeline[VK_NUM_BLUR_PASSES * 2]; // horizontal & vertical pairs
 	VkPipeline bloom_blend_pipeline;
@@ -996,6 +1026,7 @@ typedef struct {
 		VkShaderModule prefilterenvmap_fs;
 		VkShaderModule refraction_vs[3];
 		VkShaderModule refraction_fs[2];	// [0] pbr, [1] fastlight - see refraction_frag.tmpl
+		VkShaderModule depth_resolve_fs[2];	// [0] single-sample, [1] multisampled
 
 		VkShaderModule normalmap;
 	} shaders;
@@ -1042,6 +1073,7 @@ typedef struct {
 	qboolean cubemapActive;
 #endif
 	qboolean refractionActive;
+	qboolean softParticlesActive;
 
 	qboolean	offscreenRender;
 	qboolean	windowAdjusted;
@@ -1333,6 +1365,11 @@ qboolean	vk_bloom( void );
 // refraction
 void		vk_refraction_extract( void );
 void		vk_begin_post_refraction_extract_render_pass( void );
+
+// soft particles
+void		vk_depth_resolve( void );
+void		vk_begin_depth_resolve_render_pass( void );
+void		vk_begin_post_depth_extract_render_pass( void );
 
 // dynamic glow
 void		vk_begin_dglow_extract_render_pass( void );

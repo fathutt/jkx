@@ -68,7 +68,23 @@
 #define VK_DESC_UNIFORM_BONES_BINDING		4
 #define VK_DESC_UNIFORM_FOGS_BINDING		5
 #define VK_DESC_UNIFORM_GLOBAL_BINDING		6
+// Number of DYNAMIC uniform bindings on set 0, and therefore the number of
+// dynamic offsets handed to vkCmdBindDescriptorSets. The binding below is not
+// one of them and must not be counted here.
 #define VK_DESC_UNIFORM_COUNT				7
+
+// Depth of the scene as it stood before the transparent surfaces were drawn.
+//
+// It rides on the uniform set rather than on a set of its own for one reason:
+// set 0 is the only index present in EVERY pipeline layout this renderer
+// builds. A device that reports the Vulkan minimum drops to four sets and
+// loses VK_DESC_FOG_COLLAPSE and VK_DESC_PBR with them, so anything parked at
+// the end would be missing exactly where the fallback path runs - and soft
+// particles have no business depending on whether normal mapping is on.
+//
+// A binding is not the scarce resource a set is; this costs nothing.
+#define VK_DESC_UNIFORM_SCENE_DEPTH_BINDING	7
+#define VK_DESC_UNIFORM_BINDING_COUNT		8
 
 #ifdef GLSL
     #ifdef USE_TX2
@@ -187,7 +203,7 @@ STRUCT (
     INT	    ( type )
 , vktcGen_t )
 
-#if defined(PER_PIXEL_LIGHTING) || defined(USE_LIGHT_VECTOR) || defined(USE_VBO_MODEL) || defined(IS_REFRACTION_GLSL)
+#if defined(PER_PIXEL_LIGHTING) || defined(USE_LIGHT_VECTOR) || defined(USE_VBO_MODEL) || defined(IS_REFRACTION_GLSL) || defined(IS_GEN_FRAG_GLSL)
     #define TCMOD_T(n)          vktcMod_t n;
     #define TCGEN_T(n)          vktcGen_t n;
     #define BUMDLE_T(n)         vkBundle_t n;
@@ -236,6 +252,12 @@ STRUCT (
 		// image replaces the surface, z the highest mip the blur may reach
 		// (zero means no blur), w how far apart the colour channels refract.
 		VEC4				( refraction )
+		// softParticle: x the fade distance in world units (zero means the
+		// fade is off), y and z the two numbers that turn a depth buffer value
+		// back into view-space Z - Z = z / ( depth + y ) - taken from the
+		// projection matrix on the CPU so the shader needs neither zNear nor
+		// zFar, w unused.
+		VEC4				( softParticle )
     , vkUniformGlobal_t )
 
     #undef TCMOD_T

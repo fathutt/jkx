@@ -1,0 +1,33 @@
+#version 450
+#extension GL_GOOGLE_include_directive : enable
+
+// Turn the depth attachment into something a plain sampler2D can read.
+//
+// The output is the raw depth buffer value, not a distance: whoever reads it
+// already has the two numbers that turn it back into view-space Z, and doing
+// the division here would mean sending the projection into this pass as well.
+//
+// This shader is the only place in the renderer that has to know whether
+// multisampling is on. That is the entire point of it. A straight image copy
+// would have been shorter, but the copy has to keep the source's sample count -
+// vkCmdCopyImage requires it, and no command in Vulkan resolves depth - and
+// then sampler2DMS, which is a compile-time type, spreads into every shader
+// that wants scene depth. Six hundred generated permutations would have become
+// twelve hundred. Here it costs one define and one extra module.
+#ifdef USE_MSAA
+layout( set = 0, binding = 0 ) uniform sampler2DMS depth_texture;
+#else
+layout( set = 0, binding = 0 ) uniform sampler2D depth_texture;
+#endif
+
+layout( location = 0 ) out float out_depth;
+
+void main()
+{
+	// Same spelling either way: the last argument is a mip level for sampler2D
+	// and a sample index for sampler2DMS, and zero is what we want from both.
+	// Sample zero rather than an average because a depth averaged with its
+	// neighbour is not the depth of anything, and because the fade this feeds
+	// is gradual by construction - it cannot see the difference.
+	out_depth = texelFetch( depth_texture, ivec2( gl_FragCoord.xy ), 0 ).r;
+}

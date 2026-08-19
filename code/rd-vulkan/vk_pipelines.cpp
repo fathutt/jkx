@@ -65,7 +65,7 @@ static void vk_create_layout_binding( int binding, VkDescriptorType type,
     VkShaderStageFlags flags, VkDescriptorSetLayout *layout, qboolean is_uniform ) 
 {
     uint32_t count = 1;
-    VkDescriptorSetLayoutBinding bind[VK_DESC_UNIFORM_COUNT];
+    VkDescriptorSetLayoutBinding bind[VK_DESC_UNIFORM_BINDING_COUNT];
     VkDescriptorSetLayoutCreateInfo desc;
     
     vk_push_layout_binding( bind, type, binding, flags );
@@ -79,7 +79,12 @@ static void vk_create_layout_binding( int binding, VkDescriptorType type,
         vk_push_layout_binding( bind, type, VK_DESC_UNIFORM_FOGS_BINDING, VK_SHADER_STAGE_FRAGMENT_BIT );
         vk_push_layout_binding( bind, type, VK_DESC_UNIFORM_GLOBAL_BINDING, uniform_flags );
 
-        count = VK_DESC_UNIFORM_COUNT;
+        // Not a dynamic uniform buffer like the six above it, so it is pushed
+        // with its own type and left out of VK_DESC_UNIFORM_COUNT.
+        vk_push_layout_binding( bind, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+            VK_DESC_UNIFORM_SCENE_DEPTH_BINDING, VK_SHADER_STAGE_FRAGMENT_BIT );
+
+        count = VK_DESC_UNIFORM_BINDING_COUNT;
     }
 
     desc.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -103,6 +108,11 @@ void vk_create_descriptor_layout( void )
 
         pool_size[0].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         pool_size[0].descriptorCount = MAX_DRAWIMAGES + 1 + 1 + 1 + ( VK_NUM_BLUR_PASSES * 4 ) + 1;
+
+        // The scene-depth binding lives on the uniform set, so one image
+        // descriptor per set in flight comes out of this pool and not out of
+        // the dynamic-uniform one below.
+        pool_size[0].descriptorCount += NUM_COMMAND_BUFFERS;
 
         if ( !vk.useFastLight || vk.cubemapActive )
             pool_size[0].descriptorCount += 1 + ( MAX_DRAWIMAGES * 2 ); // + 1:  brdf-lut | MAX_DRAWIMAGES * (physical + normal)
@@ -1550,6 +1560,17 @@ static void vk_create_post_process_pipeline( int program_index, uint32_t width, 
             pipeline_name = "dglow blend pipeline";
             blend = qtrue;
             break;
+        case 6: // depth resolve
+            pipeline = &vk.depth_resolve_pipeline;
+            // The one shader in the renderer that knows whether multisampling
+            // is on, so that nothing else has to.
+            fs_module = vk.shaders.depth_resolve_fs[ vk.msaaActive ? 1 : 0 ];
+            renderpass = vk.render_pass.depth_resolve;
+            layout = vk.pipeline_layout_post_process;
+            samples = VK_SAMPLE_COUNT_1_BIT;
+            pipeline_name = "depth resolve pipeline";
+            blend = qfalse;
+            break;
 #ifdef VK_PBR_BRDFLUT
         case 5: // generate brdf LUT
             pipeline = &vk.brdflut_pipeline;
@@ -2438,6 +2459,12 @@ void vk_update_post_process_pipelines( void )
         vk_create_post_process_pipeline( 3, gls.captureWidth, gls.captureHeight );
     }
 
+    // Created whether or not soft particles are on, because the render pass and
+    // the one-pixel target exist either way and a pipeline is cheap. Creating
+    // it only when the cvar is set is how the dynamic glow descriptors got
+    // themselves a segfault - see vk_init_descriptors.
+    vk_create_post_process_pipeline( 6, glConfig.vidWidth, glConfig.vidHeight ); // depth resolve
+
     vk_create_bloom_pipelines();
     vk_create_dglow_pipelines();
 #ifdef VK_PBR_BRDFLUT
@@ -2469,6 +2496,11 @@ void vk_destroy_pipelines( qboolean reset )
     if ( vk.gamma_pipeline ) {
         vkDestroyPipeline( vk.device, vk.gamma_pipeline, NULL );
         vk.gamma_pipeline = VK_NULL_HANDLE;
+    }
+
+    if ( vk.depth_resolve_pipeline ) {
+        vkDestroyPipeline( vk.device, vk.depth_resolve_pipeline, NULL );
+        vk.depth_resolve_pipeline = VK_NULL_HANDLE;
     }
 
     if ( vk.bloom_extract_pipeline != VK_NULL_HANDLE ) {

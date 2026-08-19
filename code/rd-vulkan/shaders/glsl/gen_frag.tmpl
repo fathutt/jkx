@@ -1,6 +1,10 @@
 #version 450
 #extension GL_GOOGLE_include_directive : enable
 
+// Every permutation of this file reads the global block now - soft particles
+// keep their four numbers there - so the struct has to exist even in the
+// permutations that have no per-pixel lighting and no model VBO.
+#define IS_GEN_FRAG_GLSL
 #include "global.h"
 
 #if defined (USE_FOG)
@@ -103,6 +107,25 @@ layout (constant_id = 7) const int tex_mode = 0; // modulate, add (identity), ad
 layout (constant_id = 8) const int discard_mode = 0;
 #ifdef USE_CL0_IDENT
 layout (constant_id = 9) const float identity_color = 1.0;
+#endif
+
+// The scene depth as it stood before the transparent surfaces were drawn, and
+// the four numbers that say what to do with it. Both are declared for every
+// permutation and cost nothing when the fade is off: the distance is zero, the
+// branch below is not taken, and the image is one pixel across.
+//
+// It sits on the uniform set because that is the only descriptor set present in
+// every pipeline layout the renderer builds - see
+// VK_DESC_UNIFORM_SCENE_DEPTH_BINDING in global.h.
+layout(set = VK_DESC_UNIFORM, binding = VK_DESC_UNIFORM_SCENE_DEPTH_BINDING) uniform sampler2D scene_depth_texture;
+
+// The global block carries the four numbers; the lit permutations already
+// declare it for their own reasons, so it is only declared here when they have
+// not. Declaring it twice at one binding is a compile error, not a warning.
+#if !defined(PER_PIXEL_LIGHTING) && !defined(USE_LIGHT_VECTOR)
+layout(set = VK_DESC_UNIFORM, binding = VK_DESC_UNIFORM_GLOBAL_BINDING) uniform Global {
+	vkUniformGlobal_t u_global;
+};
 #endif
 
 #define SHADER_FRAG
@@ -557,5 +580,45 @@ void main() {
 			out_color = mix( out_color, fog * fogColor, fog.a );
 		}
 	#endif
+
+	// Soft particles.
+	//
+	// Where a transparent surface passes close to solid geometry it is cut off
+	// by the depth test, and the cut is a straight line across the middle of a
+	// puff of smoke. Fading it out over the last few units before the cut turns
+	// the line into a gradient, which is the whole effect.
+	//
+	// Last, deliberately: it scales what the surface finally contributes, so
+	// everything above - lighting, blends, fog - has to have happened already.
+	if ( u_global.softParticle.x > 0.0 ) {
+		// dist = c / ( d + b ), the two numbers taken from the projection
+		// matrix on the CPU. Distance from the eye, in the units the map is
+		// modelled in, for both the fragment and whatever is behind it.
+		float b = u_global.softParticle.y;
+		float c = u_global.softParticle.z;
+
+		float sceneD = texelFetch( scene_depth_texture, ivec2( gl_FragCoord.xy ), 0 ).r;
+
+		float sceneZ = c / ( sceneD + b );
+		float fragZ  = c / ( gl_FragCoord.z + b );
+
+		// Two cases that turn up on the first real map and have to be handled
+		// on purpose rather than left to the arithmetic. Behind the surface is
+		// SKY: nothing was drawn there, the depth is the far plane, the
+		// difference is enormous and the fade correctly does nothing. Behind
+		// the surface is NEARER than the surface: the surface is inside
+		// something, the difference is negative, and the clamp turns it off
+		// rather than inverting it.
+		float soft = clamp( ( sceneZ - fragZ ) / u_global.softParticle.x, 0.0, 1.0 );
+
+		// An additive stage is drawn ONE, ONE and never looks at alpha, so on
+		// those the visible quantity is the colour. The renderer works out
+		// which from the blend bits and says so here, because it knows and the
+		// shader does not.
+		if ( u_global.softParticle.w > 0.5 )
+			out_color.rgb *= soft;
+		else
+			out_color.a *= soft;
+	}
 #endif
 }

@@ -399,6 +399,12 @@ typedef enum {
 	SS_FOG,
 
 	SS_UNDERWATER,		// for items that should be drawn in front of the water plane
+						//
+						// Also where the scene depth is resolved for soft
+						// particles: everything above this line either writes
+						// depth or is a decal on something that does, and
+						// everything below it is transparent. See
+						// SOFT_PARTICLE_INSERT_POINT.
 
 	SS_BLEND0,			// regular transparency and filters
 	SS_BLEND1,			// generally only used for additive type effects
@@ -1071,6 +1077,12 @@ typedef struct srfFlare_s {
 
 #define SS_ENT_BITS							11
 #define SS_VBO_BITS							10
+// Where the scene depth is resolved for soft particles - see the note on
+// SS_UNDERWATER. A named constant rather than the number, because the sort
+// order has been renumbered once already and a literal here would have gone on
+// compiling and stopped meaning anything.
+#define SOFT_PARTICLE_INSERT_POINT			((float)SS_UNDERWATER)
+
 #define SS_FOG_BITS							7
 #define SS_ENT_MASK							((1U << SS_ENT_BITS) - 1)
 #define SS_VBO_MASK							((1U << SS_VBO_BITS) - 1)
@@ -1780,6 +1792,12 @@ typedef struct backEndState_s {
 	// stage iterator asked to draw depth and nothing else, which is what makes
 	// it impossible for the two passes to disagree about where a vertex is.
 	qboolean depthPrepass;
+
+	// Set once the scene depth has been resolved into a texture and the frame
+	// resumed. Until it is, there is nothing behind a transparent surface that
+	// can be asked about, and the fade has to stay off - a stale buffer would
+	// fade this frame's smoke against last frame's walls.
+	qboolean softParticlesReady;
 } backEndState_t;
 
 typedef struct drawSurfsCommand_s drawSurfsCommand_t;
@@ -2132,6 +2150,8 @@ extern	cvar_t	*r_showsky;				// forces sky in front of all surfaces
 extern	cvar_t	*r_dissolveType;		// -1 for the game's random pick, else a Dissolve_e
 extern	cvar_t	*r_dissolveFreeze;		// -1 runs the wipe, 0..100 holds it there
 extern	cvar_t	*r_depthPrepass;		// lay down opaque depth before shading
+extern	cvar_t	*r_softParticles;		// fade transparent surfaces near solid geometry
+extern	cvar_t	*r_softParticleScale;	// fade distance, in world units
 extern	cvar_t	*r_weldModelNormals;	// share one normal between coincident model vertexes
 extern	cvar_t	*r_weldModelNormalsAngle;	// how wide a join still counts as smooth
 extern	cvar_t	*r_shownormals;			// draws wireframe normals

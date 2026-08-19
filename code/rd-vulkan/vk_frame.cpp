@@ -291,6 +291,59 @@ void vk_create_render_passes()
 
         VK_CHECK( vkCreateRenderPass( device, &desc, NULL, &vk.render_pass.refraction.extract ) );
         VK_SET_OBJECT_NAME( vk.render_pass.refraction.extract, "render pass - refraction extract", VK_DEBUG_REPORT_OBJECT_TYPE_RENDER_PASS_EXT );        
+
+        // Soft particles resume the frame here after the depth copy. The
+        // description is the one just used - everything loaded, depth stored -
+        // so this pass is compatible with the main one and reuses both its
+        // framebuffer and its pipelines.
+        VK_CHECK( vkCreateRenderPass( device, &desc, NULL, &vk.render_pass.post_depth ) );
+        VK_SET_OBJECT_NAME( vk.render_pass.post_depth, "render pass - post depth extract", VK_DEBUG_REPORT_OBJECT_TYPE_RENDER_PASS_EXT );
+    }
+
+    // Depth resolve: one colour attachment, contents thrown away on entry
+    // because the full-screen draw covers every pixel of it.
+    //
+    // Created unconditionally, like the two above and unlike the bloom and glow
+    // passes below. The target is one pixel across when soft particles are off,
+    // so this costs a handle; making it conditional would mean a framebuffer
+    // referring to a null render pass on every machine with the cvar at zero,
+    // which is exactly the way this was first written and exactly what the
+    // validation layer said about it.
+    {
+        VkAttachmentDescription resolve_attachment;
+        VkAttachmentReference   resolve_ref;
+        VkSubpassDescription    resolve_subpass;
+        VkRenderPassCreateInfo  resolve_desc;
+
+        resolve_attachment.flags = 0;
+        resolve_attachment.format = VK_FORMAT_R32_SFLOAT;
+        resolve_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
+        resolve_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        resolve_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        resolve_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        resolve_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        resolve_attachment.initialLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        resolve_attachment.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+        resolve_ref.attachment = 0;
+        resolve_ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+        Com_Memset( &resolve_subpass, 0, sizeof( resolve_subpass ) );
+        resolve_subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+        resolve_subpass.colorAttachmentCount = 1;
+        resolve_subpass.pColorAttachments = &resolve_ref;
+
+        Com_Memset( &resolve_desc, 0, sizeof( resolve_desc ) );
+        resolve_desc.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+        resolve_desc.attachmentCount = 1;
+        resolve_desc.pAttachments = &resolve_attachment;
+        resolve_desc.subpassCount = 1;
+        resolve_desc.pSubpasses = &resolve_subpass;
+        resolve_desc.dependencyCount = 2;
+        resolve_desc.pDependencies = deps;
+
+        VK_CHECK( vkCreateRenderPass( device, &resolve_desc, NULL, &vk.render_pass.depth_resolve ) );
+        VK_SET_OBJECT_NAME( vk.render_pass.depth_resolve, "render pass - depth resolve", VK_DEBUG_REPORT_OBJECT_TYPE_RENDER_PASS_EXT );
     }
 
     if ( vk.bloomActive || vk.dglowActive )
@@ -685,6 +738,18 @@ void vk_create_framebuffers()
         VK_SET_OBJECT_NAME(vk.framebuffers.refraction.extract, "framebuffer - refraction extract", VK_DEBUG_REPORT_OBJECT_TYPE_FRAMEBUFFER_EXT);
     }
 
+    // depth resolve
+    {
+        desc.renderPass = vk.render_pass.depth_resolve;
+        desc.attachmentCount = 1;
+        desc.width = vk.softParticlesActive ? glConfig.vidWidth : 1;
+        desc.height = vk.softParticlesActive ? glConfig.vidHeight : 1;
+        attachments[0] = vk.scene_depth_image_view;
+
+        VK_CHECK(vkCreateFramebuffer(vk.device, &desc, NULL, &vk.framebuffers.depth_resolve));
+        VK_SET_OBJECT_NAME(vk.framebuffers.depth_resolve, "framebuffer - depth resolve", VK_DEBUG_REPORT_OBJECT_TYPE_FRAMEBUFFER_EXT);
+    }
+
     // screenmap
     desc.renderPass = vk.render_pass.screenmap;
     desc.attachmentCount = 2;
@@ -878,6 +943,16 @@ void vk_destroy_render_passes( void )
         vk.render_pass.refraction.extract = VK_NULL_HANDLE;
     }
 
+    if ( vk.render_pass.post_depth != VK_NULL_HANDLE ) {
+        vkDestroyRenderPass( vk.device, vk.render_pass.post_depth, NULL );
+        vk.render_pass.post_depth = VK_NULL_HANDLE;
+    }
+
+    if ( vk.render_pass.depth_resolve != VK_NULL_HANDLE ) {
+        vkDestroyRenderPass( vk.device, vk.render_pass.depth_resolve, NULL );
+        vk.render_pass.depth_resolve = VK_NULL_HANDLE;
+    }
+
     if ( vk.render_pass.capture != VK_NULL_HANDLE ) {
         vkDestroyRenderPass( vk.device, vk.render_pass.capture, NULL );
         vk.render_pass.capture = VK_NULL_HANDLE;
@@ -941,6 +1016,11 @@ void vk_destroy_framebuffers( void )
     if ( vk.framebuffers.refraction.extract != VK_NULL_HANDLE ) {
         vkDestroyFramebuffer( vk.device, vk.framebuffers.refraction.extract, NULL );
         vk.framebuffers.refraction.extract = VK_NULL_HANDLE;
+    }
+
+    if ( vk.framebuffers.depth_resolve != VK_NULL_HANDLE ) {
+        vkDestroyFramebuffer( vk.device, vk.framebuffers.depth_resolve, NULL );
+        vk.framebuffers.depth_resolve = VK_NULL_HANDLE;
     }
 
     if ( vk.framebuffers.bloom.extract != VK_NULL_HANDLE ) {
@@ -1367,6 +1447,86 @@ void vk_begin_post_refraction_extract_render_pass( void )
     vk.renderScaleX = vk.renderScaleY = 1.0;
 
     vk_begin_render_pass( vk.render_pass.refraction.extract, frameBuffer, qfalse, vk.renderWidth, vk.renderHeight );
+}
+
+// Make the scene depth readable by the transparent surfaces that come after it.
+//
+// The copy exists because a fragment may not read the attachment it is being
+// tested against, and the transparent surfaces still need that test - so the
+// depth buffer cannot simply be handed over as a texture. Soft particles are
+// the first consumer; water attenuation and depth of field are the next two.
+//
+// Ends the main pass, resolves depth into a single-sample R32_SFLOAT image with
+// a full-screen draw, and resumes the frame in a pass that loads both colour
+// and depth back. One break in the frame, and only when there is something
+// transparent to draw - the same price the refraction path already pays.
+void vk_depth_resolve( void )
+{
+	// Both aspects, not just depth. A barrier that names one of the two while
+	// the layout is one of the combined DEPTH_STENCIL ones is invalid unless
+	// separate depth and stencil layouts have been asked for as a device
+	// feature - the validation layer says so 1368 times in one frame, once per
+	// transition, which is how this was found.
+	const VkImageAspectFlags aspect = VK_IMAGE_ASPECT_DEPTH_BIT
+		| ( ( glConfig.stencilBits > 0 ) ? VK_IMAGE_ASPECT_STENCIL_BIT : 0 );
+
+	vk_end_render_pass();
+
+	// The depth attachment becomes a texture for the length of one draw. The
+	// layout it goes to is the depth-specific read-only one rather than the
+	// general shader-read one: the image is still a depth image, and drivers
+	// are entitled to keep it in a depth-specific arrangement.
+	vk_record_image_layout_transition( vk.cmd->command_buffer, vk.depth_image, aspect,
+		VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+		VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
+		0, 0 );
+
+	vk_begin_depth_resolve_render_pass();
+	vkCmdBindPipeline( vk.cmd->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.depth_resolve_pipeline );
+	vkCmdBindDescriptorSets( vk.cmd->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+		vk.pipeline_layout_post_process, 0, 1, &vk.depth_sample_descriptor, 0, NULL );
+	vkCmdDraw( vk.cmd->command_buffer, 4, 1, 0, 0 );
+	vk_end_render_pass();
+
+	vk_record_image_layout_transition( vk.cmd->command_buffer, vk.depth_image, aspect,
+		VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
+		VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+		0, 0 );
+
+	// Whatever pipeline state the full-screen draw left behind is not the state
+	// the surface path expects to find. Same note as vk_bloom.
+	vk.cmd->last_pipeline = VK_NULL_HANDLE;
+
+	vk_begin_post_depth_extract_render_pass();
+}
+
+void vk_begin_depth_resolve_render_pass( void )
+{
+	VkFramebuffer frameBuffer = vk.framebuffers.depth_resolve;
+
+	vk.renderPassIndex = RENDER_PASS_POST_BLEND;
+
+	vk.renderWidth = glConfig.vidWidth;
+	vk.renderHeight = glConfig.vidHeight;
+	vk.renderScaleX = vk.renderScaleY = 1.0f;
+
+	vk_begin_render_pass( vk.render_pass.depth_resolve, frameBuffer, qfalse, vk.renderWidth, vk.renderHeight );
+}
+
+void vk_begin_post_depth_extract_render_pass( void )
+{
+	VkFramebuffer frameBuffer = vk.framebuffers.main[vk.cmd->swapchain_image_index];
+
+	// Deliberately still RENDER_PASS_MAIN: the pass is compatible with the main
+	// one and the surfaces drawn in it are ordinary surfaces, so they want the
+	// ordinary pipelines.
+	vk.renderPassIndex = RENDER_PASS_MAIN;
+
+	vk.renderWidth = glConfig.vidWidth;
+	vk.renderHeight = glConfig.vidHeight;
+	vk.renderScaleX = vk.renderScaleY = 1.0f;
+
+	vk_begin_render_pass( vk.render_pass.post_depth, frameBuffer, qfalse, vk.renderWidth, vk.renderHeight );
 }
 
 void vk_begin_frame( void )

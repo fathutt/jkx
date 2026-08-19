@@ -730,6 +730,10 @@ void vk_initialize( void )
 	// distortion shader is built differently without it.
 	vk.refractionActive = r_refraction->integer ? qtrue : qfalse;
 
+	// Latched for the same reason: it decides whether the depth attachment is
+	// copyable at all, and that is fixed when the attachment is created.
+	vk.softParticlesActive = r_softParticles->integer ? qtrue : qfalse;
+
 	vk.vboWorldActive = qtrue;
 	vk.vboGhoul2Active = qtrue;
 	vk.vboMdvActive = qtrue; 

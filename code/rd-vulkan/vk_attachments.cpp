@@ -230,8 +230,33 @@ static void create_color_attachment( uint32_t width, uint32_t height, VkSampleCo
     vk_add_attachment_desc( *image, image_view, usage, &memory_requirements, format, VK_IMAGE_ASPECT_COLOR_BIT, image_layout, view_type, mip_levels );
 }
 
+// Where the scene depth ends up once it can be sampled: a single-sample
+// R32_SFLOAT colour image, one value per pixel, written by a full-screen pass
+// that reads the real depth attachment.
+//
+// A straight vkCmdCopyImage would have been shorter, and it was the first
+// design. It does not survive multisampling: the copy would have to keep the
+// source's sample count, because that is what vkCmdCopyImage requires and
+// because depth cannot be resolved by any command in the API - and then every
+// shader that reads it needs sampler2DMS, which is a compile-time type, which
+// means a second variant of all six hundred generated shaders. Doing the
+// resolve in one small dedicated shader instead confines multisampling to that
+// one file, and hands every later consumer - water, depth of field, volumetric
+// fog - a plain sampler2D.
+//
+// One pixel across when soft particles are off: the descriptor still has to
+// point at something, and it does not have to be big.
+static void create_scene_depth_image( uint32_t width, uint32_t height,
+    VkImage *image, VkImageView *image_view )
+{
+    const VkImageUsageFlags usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+
+    create_color_attachment( width, height, VK_SAMPLE_COUNT_1_BIT, VK_FORMAT_R32_SFLOAT,
+        usage, image, image_view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, qfalse, 0 );
+}
+
 static void create_depth_attachment( uint32_t width, uint32_t height, VkSampleCountFlagBits samples, 
-    VkImage *image, VkImageView *image_view, qboolean allowTransient )
+    VkImage *image, VkImageView *image_view, qboolean allowTransient, qboolean allowCopy = qfalse )
 {
     VkImageCreateInfo desc;
     VkMemoryRequirements memory_requirements;
@@ -254,6 +279,13 @@ static void create_depth_attachment( uint32_t width, uint32_t height, VkSampleCo
 	desc.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
 	if ( allowTransient ) {
 		desc.usage |= VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT;
+	}
+	// Only the main depth buffer is ever read as a texture, and only when
+	// something wants the scene depth. Adding the flag to all three would ask
+	// the driver to give up whatever it does for an attachment that never
+	// leaves the tile, on two images that are never read at all.
+	if ( allowCopy ) {
+		desc.usage |= VK_IMAGE_USAGE_SAMPLED_BIT;
 	}
     desc.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     desc.queueFamilyIndexCount = 0;
@@ -401,14 +433,61 @@ void vk_create_attachments( void )
 #endif
 
     // depth
-    create_depth_attachment( glConfig.vidWidth, glConfig.vidHeight, (VkSampleCountFlagBits)vkSamples,
-        &vk.depth_image, &vk.depth_image_view, 
-        ( vk.fboActive && ( vk.bloomActive || vk.dglowActive ) ) ? qfalse : qtrue );
+    {
+        // TRANSIENT and SAMPLED cannot both be asked for: transient says the
+        // contents never leave the tile, and sampling is exactly the contents
+        // leaving. Soft particles read it, so they take the flag away.
+        const qboolean copyDepth = vk.softParticlesActive;
+        const qboolean transient = ( copyDepth || ( vk.fboActive && ( vk.bloomActive || vk.dglowActive ) ) ) ? qfalse : qtrue;
+
+        create_depth_attachment( glConfig.vidWidth, glConfig.vidHeight, (VkSampleCountFlagBits)vkSamples,
+            &vk.depth_image, &vk.depth_image_view, transient, copyDepth );
+
+        // One pixel when the feature is off. The descriptor on the uniform set
+        // is written either way, because a descriptor a pipeline declares has
+        // to point at something whether or not the shader ends up reading it.
+        create_scene_depth_image(
+            copyDepth ? glConfig.vidWidth : 1,
+            copyDepth ? glConfig.vidHeight : 1,
+            &vk.scene_depth_image, &vk.scene_depth_image_view );
+    }
 
     vk_alloc_attachment_memory();
 
+    // A second view of the depth image, depth aspect only, so it can be read as
+    // a texture. The attachment view above carries the stencil aspect whenever
+    // the chosen format has one, and a view with two aspects is not a legal
+    // sampled image - which is a validation error rather than a wrong picture,
+    // so it would have been found, but only after the rest was written.
+    if ( vk.softParticlesActive )
+    {
+        VkImageViewCreateInfo view_desc;
+
+        view_desc.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        view_desc.pNext = NULL;
+        view_desc.flags = 0;
+        view_desc.image = vk.depth_image;
+        view_desc.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        view_desc.format = vk.depth_format;
+        view_desc.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+        view_desc.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+        view_desc.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+        view_desc.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+        view_desc.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+        view_desc.subresourceRange.baseMipLevel = 0;
+        view_desc.subresourceRange.levelCount = 1;
+        view_desc.subresourceRange.baseArrayLayer = 0;
+        view_desc.subresourceRange.layerCount = 1;
+
+        VK_CHECK( vkCreateImageView( vk.device, &view_desc, NULL, &vk.depth_sample_view ) );
+        VK_SET_OBJECT_NAME( vk.depth_sample_view, "depth attachment - sampled view", VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT );
+    }
+
     VK_SET_OBJECT_NAME( vk.depth_image, "depth attachment", VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT );
     VK_SET_OBJECT_NAME( vk.depth_image_view, "depth attachment", VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT );
+
+    VK_SET_OBJECT_NAME( vk.scene_depth_image, "scene depth copy", VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT );
+    VK_SET_OBJECT_NAME( vk.scene_depth_image_view, "scene depth copy", VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT );
 
     VK_SET_OBJECT_NAME( vk.color_image, "color image", VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT );
     VK_SET_OBJECT_NAME( vk.color_image_view, "color image view", VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT );
@@ -510,6 +589,18 @@ void vk_destroy_attachments( void )
     uint32_t i;
 
     // depth
+    if (vk.scene_depth_image) {
+        vkDestroyImage(vk.device, vk.scene_depth_image, NULL);
+        vkDestroyImageView(vk.device, vk.scene_depth_image_view, NULL);
+        vk.scene_depth_image = VK_NULL_HANDLE;
+        vk.scene_depth_image_view = VK_NULL_HANDLE;
+    }
+
+    if (vk.depth_sample_view) {
+        vkDestroyImageView(vk.device, vk.depth_sample_view, NULL);
+        vk.depth_sample_view = VK_NULL_HANDLE;
+    }
+
     if (vk.depth_image) {
         vkDestroyImage(vk.device, vk.depth_image, NULL);
         vkDestroyImageView(vk.device, vk.depth_image_view, NULL);

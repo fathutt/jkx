@@ -196,6 +196,10 @@ static void RB_BeginDrawingView( void ) {
 
 	// we will only draw a sun if there was sky rendered in this view
 	backEnd.skyRenderedThisView = qfalse;
+
+	// The depth of this view has not been resolved yet, and the texture still
+	// holds the previous one.
+	backEnd.softParticlesReady = qfalse;
 }
 
 static void RB_PrepareForEntity( int entityNum, float originalTime )
@@ -307,6 +311,27 @@ static void RB_SubmitDrawSurfs( drawSurf_t *drawSurfs, int numDrawSurfs, float o
 			//if ( oldShader != NULL )
 				RB_EndSurface();
 
+			// The scene depth is resolved here, on the way from the surfaces
+			// that write depth to the surfaces that only read it. Everything
+			// above SOFT_PARTICLE_INSERT_POINT is opaque, alpha-tested, or a
+			// decal on something that is; everything from it on is transparent
+			// and wants to know what is behind it.
+			//
+			// Once per view, and only in the main pass: the refraction and glow
+			// sweeps walk the same list again, and resolving depth in the
+			// middle of either would end a render pass they own.
+			if ( vk.softParticlesActive && !backEnd.softParticlesReady
+				&& vk.renderPassIndex == RENDER_PASS_MAIN
+				&& !backEnd.refractionFill && !backEnd.isGlowPass && !backEnd.depthPrepass
+				&& oldShaderSort < SOFT_PARTICLE_INSERT_POINT
+				&& shader->sort >= SOFT_PARTICLE_INSERT_POINT )
+			{
+				vk_depth_resolve();
+
+				backEnd.softParticlesReady = qtrue;
+				oldEntityNum = -1; // force matrix setup
+			}
+
 #ifdef USE_PMLIGHT
 			//#define INSERT_POINT SS_FOG
 
@@ -315,8 +340,8 @@ static void RB_SubmitDrawSurfs( drawSurf_t *drawSurfs, int numDrawSurfs, float o
 
 				oldEntityNum = -1; // force matrix setup
 			}*/
-			oldShaderSort = shader->sort;
 #endif
+			oldShaderSort = shader->sort;
 
 			RB_BeginSurface( shader, fogNum, cubemapIndex );
 			oldShader = shader;

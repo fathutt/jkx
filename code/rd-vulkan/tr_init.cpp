@@ -147,6 +147,8 @@ cvar_t	*r_showsky;
 cvar_t	*r_dissolveType;
 cvar_t	*r_dissolveFreeze;
 cvar_t	*r_depthPrepass;
+cvar_t	*r_softParticles;
+cvar_t	*r_softParticleScale;
 cvar_t	*r_weldModelNormals;
 cvar_t	*r_weldModelNormalsAngle;
 cvar_t	*r_shownormals;
@@ -1080,6 +1082,11 @@ void R_Register( void )
 	// it is a picture of a known thing. -1 runs it normally.
 	r_dissolveFreeze					= Cvar_Get( "r_dissolveFreeze",						"-1",						0, "" );
 	r_depthPrepass						= Cvar_Get( "r_depthPrepass",					"0",						CVAR_ARCHIVE_ND, "fill the depth buffer with opaque geometry before shading it" );
+	// Latched: it decides whether the depth attachment is copyable and how big
+	// the copy is, and both are settled when the attachments are created.
+	r_softParticles						= Cvar_Get( "r_softParticles",					"1",						CVAR_ARCHIVE_ND | CVAR_LATCH, "fade transparent surfaces out where they meet solid geometry" );
+	r_softParticleScale					= Cvar_Get( "r_softParticleScale",				"32",						CVAR_ARCHIVE_ND, "how many units ahead of solid geometry a transparent surface starts fading" );
+	Cvar_CheckRange( r_softParticleScale, 0, 512, qfalse );
 	// The seams on a character, and the reason they are there. A vertex is
 	// duplicated wherever the texture mapping is cut and again wherever the body
 	// is cut into surfaces, and the exporter gave each copy its own normal, so
