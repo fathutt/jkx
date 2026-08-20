@@ -78,14 +78,14 @@ if [ "${1:-}" = "--write-baseline" ]; then
     shift
 fi
 
-ENGINE="$BUILD/jkx_jka.$ARCH"
+ENGINE="$BUILD/jkx.$ARCH"
 GAME="$BUILD/games/jka/game/jkagame$ARCH.so"
 RENDERER="$BUILD/code/rd-vulkan/rdsp-vulkan_$ARCH.so"
 
 [ -f "$ENGINE" ] || { echo "not built: $ENGINE" >&2; exit 2; }
 [ -f "$RENDERER" ] || RENDERER=""
 
-# One game and not both. jkx_jk2 is the same qcommon and the same rd-vulkan -
+# One game and not both. Outcast is the same binary, the same qcommon and the same rd-vulkan -
 # the BSP loaders are shared code with no JK2_MODE branch in them - so running
 # the second engine over the same twenty-two maps would double the time and ask
 # the same question twice.

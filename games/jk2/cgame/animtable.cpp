@@ -25,8 +25,13 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 // This used to be a header that both cg_players.cpp and the engine's menu code
 // included, which meant the engine compiled its own copy - and it always
 // compiled Jedi Academy's, in both engines, because the include was not
-// conditional. As a translation unit there is one table per binary and the
-// linker decides which, so it cannot be the wrong game's any more.
+// conditional.
+//
+// It is a translation unit now, and it carries its game's name rather than a
+// generic one, because there is one engine binary and it links BOTH tables:
+// menus exist before a map does, so the engine resolves animation names with no
+// game module loaded, and which table is right is a runtime question. Each
+// gamecode module still links only its own.
 //
 // The declaration the rest of the tree sees is in code/api/anim_names.h.
 
@@ -37,7 +42,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #include "../game/anims.h"
 #include "api/anim_names.h"
 
-stringID_table_t animTable [MAX_ANIMATIONS+1] =
+stringID_table_t animTableOutcast [MAX_ANIMATIONS+1] =
 {
 	//=================================================
 	//ANIMS IN WHICH UPPER AND LOWER OBJECTS ARE IN MD3
@@ -1400,19 +1405,3 @@ stringID_table_t animTable [MAX_ANIMATIONS+1] =
 	//must be terminated
 	{NULL,-1}
 };
-
-// Counted once and remembered. The table is terminated by a NULL name, so this
-// does not need MAX_ANIMATIONS either.
-int Anim_Count( void )
-{
-	static int iCount = -1;
-
-	if ( iCount < 0 ) {
-		iCount = 0;
-		while ( animTable[iCount].name ) {
-			iCount++;
-		}
-	}
-
-	return iCount;
-}

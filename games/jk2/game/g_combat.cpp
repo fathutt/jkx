@@ -3373,7 +3373,7 @@ void player_die( gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int
 #ifndef FINAL_BUILD
 	if ( d_saberCombat->integer && attacker && attacker->client )
 	{
-		gi.Printf( S_COLOR_YELLOW"combatant %s died, killer anim = %s\n", self->targetname, animTable[attacker->client->ps.torsoAnim].name );
+		gi.Printf( S_COLOR_YELLOW"combatant %s died, killer anim = %s\n", self->targetname, animTableOutcast[attacker->client->ps.torsoAnim].name );
 	}
 #endif//FINAL_BUILD
 

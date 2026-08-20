@@ -24,27 +24,27 @@ GNU General Public License for more details.
 // them again, and the engine's menu code has to resolve both without a game
 // module loaded - menus exist before any map does.
 //
-// What is deliberately *not* here is the animation enum, the animation_t
-// struct, or the per-game limits. The two games disagree about all three:
-// Academy's animation_t packs into eight bytes and carries a glaIndex, Outcast's
-// is five ints with an initialLerp, and the enums share no ordering at all. None
-// of that is shared, because the engine never hands an animation_t to a game or
-// takes one from it - it parses animation.cfg into its own struct and calls
-// G2API_SetBoneAnim with the frame numbers.
+// What is deliberately *not* here is the animation enum, the animation_t struct
+// or the per-game limits - the two games disagree about all three, and none of
+// it is shared, because the engine never hands an animation_t to a game: it
+// parses animation.cfg into its own struct and calls G2API_SetBoneAnim.
 //
-// So the whole of the interface is a table of names and a count. The table is
-// defined once per game in games/<game>/cgame/animtable.cpp, which is linked
-// into that game's engine and its game library both.
+// So the interface is a table of names and a count. Each table is defined once
+// in games/<game>/cgame/animtable.cpp.
 
 #ifndef ANIM_NAMES_H
 #define ANIM_NAMES_H
 
-// Name to id and back. Terminated by an entry with a NULL name, so
-// GetIDForString can walk it without being told how long it is.
-extern stringID_table_t animTable[];
+// Name to id and back, terminated by an entry with a NULL name. Two of them,
+// and the engine links both: it resolves animation names out of .menu files
+// before any game module is loaded, so it cannot wait to be told which game
+// this is. Each gamecode module links only its own and names it directly.
+extern stringID_table_t animTableAcademy[];
+extern stringID_table_t animTableOutcast[];
 
-// How many entries the table has, not counting the terminator. This exists so
-// that nothing outside a game needs that game's MAX_ANIMATIONS at compile time.
+// The running game's table, and how many entries it has - so that nothing
+// outside a game needs that game's MAX_ANIMATIONS at compile time.
+stringID_table_t *Anim_Table( void );
 int Anim_Count( void );
 
 #endif	// ANIM_NAMES_H

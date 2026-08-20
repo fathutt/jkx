@@ -402,10 +402,10 @@ if(WIN32)
 		DESTINATION "${JKAInstallDir}"
 		COMPONENT ${JKAClientComponent})
 else(WIN32)
-	if(MakeApplicationBundles AND BuildJKAEngine)
+	if(MakeApplicationBundles AND BuildEngine)
 		install(TARGETS ${JKAGame}
 			LIBRARY
-			DESTINATION "${JKAInstallDir}/${EngineJKA}.app/Contents/MacOS"
+			DESTINATION "${JKAInstallDir}/${Engine}.app/Contents/MacOS"
 			COMPONENT ${JKAClientComponent})
 	else()
 		install(TARGETS ${JKAGame}

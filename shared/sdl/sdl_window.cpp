@@ -427,12 +427,14 @@ static rserr_t GLimp_SetMode(glconfig_t *glConfig, const windowDesc_t *windowDes
 
 	Com_Printf( "Initializing display\n");
 
+	const clientWindowIcon_t *windowIcon = Sys_ClientWindowIcon();
+
 	icon = SDL_CreateRGBSurfaceFrom(
-		(void *)CLIENT_WINDOW_ICON.pixel_data,
-		CLIENT_WINDOW_ICON.width,
-		CLIENT_WINDOW_ICON.height,
-		CLIENT_WINDOW_ICON.bytes_per_pixel * 8,
-		CLIENT_WINDOW_ICON.bytes_per_pixel * CLIENT_WINDOW_ICON.width,
+		(void *)windowIcon->pixel_data,
+		windowIcon->width,
+		windowIcon->height,
+		windowIcon->bytes_per_pixel * 8,
+		windowIcon->bytes_per_pixel * windowIcon->width,
 #ifdef Q3_LITTLE_ENDIAN
 		0x000000FF, 0x0000FF00, 0x00FF0000, 0xFF000000
 #else

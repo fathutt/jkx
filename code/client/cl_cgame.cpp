@@ -844,58 +844,58 @@ Ghoul2 Insert End
 			(int *)VMA(3), (int *)VMA(4), (int *)VMA(5), (int *)VMA(6),
 			(vec4_t *)VMA(7), (qhandle_t *)VMA(8) );
 
-#ifdef JK2_MODE
+	// Both string systems are compiled in, so both cases exist and the game
+	// decides at the call. Academy's gamecode never asks for the ID form and
+	// never registers a package; Outcast's never asks SE_GetString. A case that
+	// is never reached costs nothing, and it is the switch's SHAPE - the set of
+	// trap numbers the engine answers - that a single binary cannot have depend
+	// on which game is running.
 	case CG_SP_GETSTRINGTEXTSTRING:
 	case CG_SP_GETSTRINGTEXT:
-		const char* text;
+	{
+		const char *text;
 
 		assert(VMA(1));
 //		assert(VMA(2));	// can now pass in NULL to just query the size
 
-		if (args[0] == CG_SP_GETSTRINGTEXT)
+		if ( Com_IsOutcast() )
 		{
-			text = JK2SP_GetStringText( args[1] );
+			if (args[0] == CG_SP_GETSTRINGTEXT)
+			{
+				text = JK2SP_GetStringText( args[1] );
+			}
+			else
+			{
+				text = JK2SP_GetStringTextString( (const char *) VMA(1) );
+			}
+
+			if (VMA(2))	// only if dest buffer supplied...
+			{
+				Q_strncpyz( (char *) VMA(2), text[0] ? text : "??", args[3] );
+			}
 		}
 		else
 		{
-			text = JK2SP_GetStringTextString( (const char *) VMA(1) );
+			text = SE_GetString( (const char *) VMA(1) );
+
+			if (VMA(2))	// only if dest buffer supplied...
+			{
+				if ( text[0] )
+				{
+					Q_strncpyz( (char *) VMA(2), text, args[3] );
+				}
+				else
+				{
+					Com_sprintf( (char *) VMA(2), args[3], "??%s", VMA(1) );
+				}
+			}
 		}
 
-		if (VMA(2))	// only if dest buffer supplied...
-		{
-			if ( text[0] )
-			{
-				Q_strncpyz( (char *) VMA(2), text, args[3] );
-			}
-			else
-			{
-				Q_strncpyz( (char *) VMA(2), "??", args[3] );
-			}
-		}
 		return strlen(text);
+	}
 
 	case CG_SP_REGISTER:
 		return JK2SP_Register((const char *)VMA(1), args[2] ? (SP_REGISTER_MENU | SP_REGISTER_REQUIRED) : SP_REGISTER_CLIENT);
-#else
-	case CG_SP_GETSTRINGTEXTSTRING:
-		const char* text;
-
-		assert(VMA(1));
-		text = SE_GetString( (const char *) VMA(1) );
-
-		if (VMA(2))	// only if dest buffer supplied...
-		{
-			if ( text[0] )
-			{
-				Q_strncpyz( (char *) VMA(2), text, args[3] );
-			}
-			else
-			{
-				Com_sprintf( (char *) VMA(2), args[3], "??%s", VMA(1) );
-			}
-		}
-		return strlen(text);
-#endif
 
 	default:
 		Com_Error( ERR_DROP, "Bad cgame system trap: %ld", (long int) args[0] );

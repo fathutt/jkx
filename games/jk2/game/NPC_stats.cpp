@@ -400,7 +400,7 @@ qboolean G_ParseAnimationFile( const char *af_filename )
 			break;
 		}
 
-		animNum = GetIDForString(animTable, token);
+		animNum = GetIDForString(animTableOutcast, token);
 		if(animNum == -1)
 		{
 //#ifndef FINAL_BUILD
@@ -866,7 +866,7 @@ void NPC_Precache ( gentity_t *spawner )
 			}
 			if ( !(spawner->svFlags&SVF_NO_BASIC_SOUNDS) )
 			{
-				//FIXME: store this in some sound field or parse in the soundTable like the animTable...
+				//FIXME: store this in some sound field or parse in the soundTable like the animTableOutcast...
 				Q_strncpyz( sound, value, sizeof( sound ) );
 				patch = strstr( sound, "/" );
 				if ( patch )
@@ -885,7 +885,7 @@ void NPC_Precache ( gentity_t *spawner )
 			}
 			if ( !(spawner->svFlags&SVF_NO_COMBAT_SOUNDS) )
 			{
-				//FIXME: store this in some sound field or parse in the soundTable like the animTable...
+				//FIXME: store this in some sound field or parse in the soundTable like the animTableOutcast...
 				Q_strncpyz( sound, value, sizeof( sound ) );
 				patch = strstr( sound, "/" );
 				if ( patch )
@@ -904,7 +904,7 @@ void NPC_Precache ( gentity_t *spawner )
 			}
 			if ( !(spawner->svFlags&SVF_NO_EXTRA_SOUNDS) )
 			{
-				//FIXME: store this in some sound field or parse in the soundTable like the animTable...
+				//FIXME: store this in some sound field or parse in the soundTable like the animTableOutcast...
 				Q_strncpyz( sound, value, sizeof( sound ) );
 				patch = strstr( sound, "/" );
 				if ( patch )
@@ -923,7 +923,7 @@ void NPC_Precache ( gentity_t *spawner )
 			}
 			if ( !(spawner->svFlags&SVF_NO_EXTRA_SOUNDS) )
 			{
-				//FIXME: store this in some sound field or parse in the soundTable like the animTable...
+				//FIXME: store this in some sound field or parse in the soundTable like the animTableOutcast...
 				Q_strncpyz( sound, value, sizeof( sound ) );
 				patch = strstr( sound, "/" );
 				if ( patch )
@@ -2122,7 +2122,7 @@ qboolean NPC_ParseParms( const char *NPCName, gentity_t *NPC )
 				}
 				if ( !(NPC->svFlags&SVF_NO_BASIC_SOUNDS) )
 				{
-					//FIXME: store this in some sound field or parse in the soundTable like the animTable...
+					//FIXME: store this in some sound field or parse in the soundTable like the animTableOutcast...
 					Q_strncpyz( sound, value, sizeof( sound ) );
 					patch = strstr( sound, "/" );
 					if ( patch )
@@ -2141,7 +2141,7 @@ qboolean NPC_ParseParms( const char *NPCName, gentity_t *NPC )
 				}
 				if ( !(NPC->svFlags&SVF_NO_COMBAT_SOUNDS) )
 				{
-					//FIXME: store this in some sound field or parse in the soundTable like the animTable...
+					//FIXME: store this in some sound field or parse in the soundTable like the animTableOutcast...
 					Q_strncpyz( sound, value, sizeof( sound ) );
 					patch = strstr( sound, "/" );
 					if ( patch )
@@ -2160,7 +2160,7 @@ qboolean NPC_ParseParms( const char *NPCName, gentity_t *NPC )
 				}
 				if ( !(NPC->svFlags&SVF_NO_EXTRA_SOUNDS) )
 				{
-					//FIXME: store this in some sound field or parse in the soundTable like the animTable...
+					//FIXME: store this in some sound field or parse in the soundTable like the animTableOutcast...
 					Q_strncpyz( sound, value, sizeof( sound ) );
 					patch = strstr( sound, "/" );
 					if ( patch )
@@ -2179,7 +2179,7 @@ qboolean NPC_ParseParms( const char *NPCName, gentity_t *NPC )
 				}
 				if ( !(NPC->svFlags&SVF_NO_EXTRA_SOUNDS) )
 				{
-					//FIXME: store this in some sound field or parse in the soundTable like the animTable...
+					//FIXME: store this in some sound field or parse in the soundTable like the animTableOutcast...
 					Q_strncpyz( sound, value, sizeof( sound ) );
 					patch = strstr( sound, "/" );
 					if ( patch )

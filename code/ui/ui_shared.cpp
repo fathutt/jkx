@@ -3450,9 +3450,9 @@ qboolean ItemParse_model_g2anim_go( itemDef_t *item, const char *animName )
 
 	while (i < Anim_Count())
 	{
-		if (!Q_stricmp(animName, animTable[i].name))
+		if (!Q_stricmp(animName, Anim_Table()[i].name))
 		{ //found it
-			modelPtr->g2anim = animTable[i].id;
+			modelPtr->g2anim = Anim_Table()[i].id;
 			return qtrue;
 		}
 		i++;
@@ -7039,9 +7039,9 @@ void UI_TalkingHead(itemDef_t *item)
 	// the same face animations: Jedi Outcast has FACE_TALK1 through FACE_TALK4
 	// and no FACE_TALK0 at all. A name that a game does not have resolves to
 	// -1, which is the value this function already treats as "play nothing".
-	const int iFaceTalk1 = GetIDForString( animTable, "FACE_TALK1" );
-	const int iFaceTalk4 = GetIDForString( animTable, "FACE_TALK4" );
-	const int iFaceTalk0 = GetIDForString( animTable, "FACE_TALK0" );
+	const int iFaceTalk1 = GetIDForString( Anim_Table(), "FACE_TALK1" );
+	const int iFaceTalk4 = GetIDForString( Anim_Table(), "FACE_TALK4" );
+	const int iFaceTalk0 = GetIDForString( Anim_Table(), "FACE_TALK0" );
 
 	if (s_entityWavVol[0] > 0)	// if we aren't talking, then it will be 0, -1 for talking but paused
 	{
@@ -7235,7 +7235,7 @@ void Item_Model_Paint(itemDef_t *item)
 				};
 
 				const char *psCurrent = ( modelPtr->g2anim >= 0 && modelPtr->g2anim < Anim_Count() )
-									  ? animTable[modelPtr->g2anim].name : NULL;
+									  ? Anim_Table()[modelPtr->g2anim].name : NULL;
 				const char *psNext = NULL;
 				int iSound = -1;
 

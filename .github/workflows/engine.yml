@@ -10,10 +10,12 @@
 # Both games, which needed saying because it was not always true here. The
 # Outcast engine was switched off in the configure step below while it was
 # being brought up, and stayed off after it started working - so the ci
-# workflow, which builds with the defaults, produced a package containing
-# jkx_jk2 while THIS workflow, the one whose output people actually install,
-# did not. Two artifacts of the same commit disagreeing about what the project
-# contains is worse than either answer.
+# workflow, which builds with the defaults, produced a package containing the
+# Outcast build while THIS workflow, the one whose output people actually
+# install, did not. Two artifacts of the same commit disagreeing about what the
+# project contains is worse than either answer. There is one engine binary now
+# and the disagreement can only be about the gamecode, which is why both
+# modules are still named here.
 
 name: engine
 
@@ -164,10 +166,9 @@ jobs:
           -DCMAKE_BUILD_TYPE=${{ matrix.config }}
           -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/package"
           -DBuildPortableVersion=OFF
-          -DBuildJKAEngine=ON
+          -DBuildEngine=ON
           -DBuildJKAGame=ON
           -DBuildRdVulkan=ON
-          -DBuildJK2Engine=ON
           -DBuildJK2Game=ON
           # PINNED ON, TEMPORARILY. The expression this replaces left the trace
           # off for every push build, and a push build is what the one person

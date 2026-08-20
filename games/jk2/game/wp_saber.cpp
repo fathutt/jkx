@@ -1929,7 +1929,7 @@ qboolean WP_SabersCheckLock2( gentity_t *attacker, gentity_t *defender, sabersLo
 #ifndef FINAL_BUILD
 		if ( d_saberCombat->integer )
 		{
-			Com_Printf( "%s starting saber lock, anim = %s, %d frames to go!\n", attacker->NPC_type, animTable[attAnim].name, anim->numFrames-advance );
+			Com_Printf( "%s starting saber lock, anim = %s, %d frames to go!\n", attacker->NPC_type, animTableOutcast[attAnim].name, anim->numFrames-advance );
 		}
 #endif
 	}
@@ -1940,7 +1940,7 @@ qboolean WP_SabersCheckLock2( gentity_t *attacker, gentity_t *defender, sabersLo
 #ifndef FINAL_BUILD
 		if ( d_saberCombat->integer )
 		{
-			Com_Printf( "%s starting saber lock, anim = %s, %d frames to go!\n", defender->NPC_type, animTable[defAnim].name, advance );
+			Com_Printf( "%s starting saber lock, anim = %s, %d frames to go!\n", defender->NPC_type, animTableOutcast[defAnim].name, advance );
 		}
 #endif
 	}
@@ -3131,7 +3131,7 @@ void WP_SaberDamageTrace( gentity_t *ent )
 #ifndef FINAL_BUILD
 							if ( d_saberCombat->integer )
 							{
-								gi.Printf( S_COLOR_RED"%s knockaway %s's attack, new move = %s, anim = %s\n", hitOwner->NPC_type, ent->NPC_type, saberMoveData[ent->client->ps.saberBounceMove].name, animTable[saberMoveData[ent->client->ps.saberBounceMove].animToUse].name );
+								gi.Printf( S_COLOR_RED"%s knockaway %s's attack, new move = %s, anim = %s\n", hitOwner->NPC_type, ent->NPC_type, saberMoveData[ent->client->ps.saberBounceMove].name, animTableOutcast[saberMoveData[ent->client->ps.saberBounceMove].animToUse].name );
 							}
 #endif
 						}

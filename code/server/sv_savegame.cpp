@@ -50,11 +50,11 @@ SavedGameJustLoaded_e eSavedGameJustLoaded = eNO;
 
 char sLastSaveFileLoaded[MAX_QPATH]={0};
 
-#ifdef JK2_MODE
+// The larger of the two, which is Outcast's. This sizes a buffer the map
+// command is copied into and a chunk written to the file; taking the larger one
+// cannot truncate the smaller game's command, and the chunk length is written
+// beside the data rather than assumed.
 #define iSG_MAPCMD_SIZE (MAX_TOKEN_CHARS)
-#else
-#define iSG_MAPCMD_SIZE (MAX_QPATH)
-#endif // JK2_MODE
 
 static char *SG_GetSaveGameMapName(const char *psPathlessBaseName);
 
@@ -97,11 +97,9 @@ static const char *GetString_FailedToOpenSaveGame(const char *psFilename, qboole
 
 	Q_strncpyz(sTemp,S_COLOR_RED);
 
-#ifdef JK2_MODE
-	const char *psReference = bOpen ? "MENUS3_FAILED_TO_OPEN_SAVEGAME" : "MENUS3_FAILED_TO_CREATE_SAVEGAME";
-#else
-	const char *psReference = bOpen ? "MENUS_FAILED_TO_OPEN_SAVEGAME" : "MENUS3_FAILED_TO_CREATE_SAVEGAME";
-#endif
+	const char *psReference = bOpen
+		? ( Com_IsOutcast() ? "MENUS3_FAILED_TO_OPEN_SAVEGAME" : "MENUS_FAILED_TO_OPEN_SAVEGAME" )
+		: "MENUS3_FAILED_TO_CREATE_SAVEGAME";
 	Q_strncpyz(sTemp + strlen(sTemp), va( SE_GetString(psReference), psFilename),sizeof(sTemp));
 	Q_strcat(sTemp,"\n");
 	return sTemp;
@@ -169,11 +167,7 @@ qboolean SV_TryLoadTransition( const char *mapname )
 	{//couldn't load a savegame
 		return qfalse;
 	}
-#ifdef JK2_MODE
-	Com_Printf (S_COLOR_CYAN "Done.\n");
-#else
-	Com_Printf (S_COLOR_CYAN "%s.\n",SE_GetString("MENUS_DONE"));
-#endif
+	Com_Printf (S_COLOR_CYAN "%s.\n", Com_IsOutcast() ? "Done" : SE_GetString("MENUS_DONE"));
 
 	return qtrue;
 }
@@ -261,22 +255,18 @@ void SV_LoadGame_f(void)
 		}
 		//default will continue to load auto
 	}
-#ifdef JK2_MODE
-	Com_Printf (S_COLOR_CYAN "Loading game \"%s\"...\n", psFilename);
-#else
-	Com_Printf (S_COLOR_CYAN "%s\n",va(SE_GetString("MENUS_LOADING_MAPNAME"), psFilename));
-#endif
+	if ( Com_IsOutcast() ) {
+		Com_Printf (S_COLOR_CYAN "Loading game \"%s\"...\n", psFilename);
+	} else {
+		Com_Printf (S_COLOR_CYAN "%s\n",va(SE_GetString("MENUS_LOADING_MAPNAME"), psFilename));
+	}
 
 	gbAlreadyDoingLoad = qtrue;
 	if (!SG_ReadSavegame(psFilename)) {
 		gbAlreadyDoingLoad = qfalse; //	do NOT do this here now, need to wait until client spawn, unless the load failed.
 	} else
 	{
-#ifdef JK2_MODE
-		Com_Printf (S_COLOR_CYAN "Done.\n");
-#else
-		Com_Printf (S_COLOR_CYAN "%s.\n",SE_GetString("MENUS_DONE"));
-#endif
+		Com_Printf (S_COLOR_CYAN "%s.\n", Com_IsOutcast() ? "Done" : SE_GetString("MENUS_DONE"));
 	}
 }
 
@@ -320,11 +310,8 @@ void SV_SaveGame_f(void)
 	// doing the real work.
 	if (svs.clients[0].frames[(svs.clients[0].netchan.outgoingSequence - 1) & PACKET_MASK].ps.stats[STAT_HEALTH] <= 0)
 	{
-#ifdef JK2_MODE
-		Com_Printf (S_COLOR_RED "\nCan't savegame while dead!\n");
-#else
-		Com_Printf (S_COLOR_RED "\n%s\n", SE_GetString("SP_INGAME_CANT_SAVE_DEAD"));
-#endif
+		Com_Printf (S_COLOR_RED "\n%s\n", Com_IsOutcast()
+			? "Can't savegame while dead!" : SE_GetString("SP_INGAME_CANT_SAVE_DEAD"));
 		return;
 	}
 
@@ -333,11 +320,8 @@ void SV_SaveGame_f(void)
 	svent = SV_GentityNum(0);
 	if (svent->client->stats[STAT_HEALTH]<=0)
 	{
-#ifdef JK2_MODE
-		Com_Printf (S_COLOR_RED "\nCan't savegame while dead!\n");
-#else
-		Com_Printf (S_COLOR_RED "\n%s\n", SE_GetString("SP_INGAME_CANT_SAVE_DEAD"));
-#endif
+		Com_Printf (S_COLOR_RED "\n%s\n", Com_IsOutcast()
+			? "Can't savegame while dead!" : SE_GetString("SP_INGAME_CANT_SAVE_DEAD"));
 		return;
 	}
 
@@ -361,42 +345,32 @@ void SV_SaveGame_f(void)
 	if (!SG_GameAllowedToSaveHere(qfalse))	//full check
 		return;	// this prevents people saving via quick-save now during cinematics.
 
-#ifdef JK2_MODE
-	if ( !Q_stricmp (filename, "quik*") || !Q_stricmp (filename, "auto*") )
+	if ( Com_IsOutcast() )
 	{
-		SCR_PrecacheScreenshot();
-		if ( filename[4]=='*' )
-			filename[4]=0;	//remove the *
+		if ( !Q_stricmp (filename, "quik*") || !Q_stricmp (filename, "auto*") )
+		{
+			SCR_PrecacheScreenshot();
+			if ( filename[4]=='*' )
+				filename[4]=0;	//remove the *
+			SG_StoreSaveGameComment("");	// clear previous comment/description, which will force time/date comment.
+		}
+	}
+	else if ( !Q_stricmp (filename, "auto") )
+	{
 		SG_StoreSaveGameComment("");	// clear previous comment/description, which will force time/date comment.
 	}
-#else
-	if ( !Q_stricmp (filename, "auto") )
-	{
-		SG_StoreSaveGameComment("");	// clear previous comment/description, which will force time/date comment.
-	}
-#endif
 
-#ifdef JK2_MODE
-	Com_Printf (S_COLOR_CYAN "Saving game \"%s\"...\n", filename);
-#else
-	Com_Printf (S_COLOR_CYAN "%s \"%s\"...\n", SE_GetString("CON_TEXT_SAVING_GAME"), filename);
-#endif
+	Com_Printf (S_COLOR_CYAN "%s \"%s\"...\n",
+		Com_IsOutcast() ? "Saving game" : SE_GetString("CON_TEXT_SAVING_GAME"), filename);
 
 	if (SG_WriteSavegame(filename, qfalse))
 	{
-#ifdef JK2_MODE
-		Com_Printf (S_COLOR_CYAN "Done.\n");
-#else
-		Com_Printf (S_COLOR_CYAN "%s.\n",SE_GetString("MENUS_DONE"));
-#endif
+		Com_Printf (S_COLOR_CYAN "%s.\n", Com_IsOutcast() ? "Done" : SE_GetString("MENUS_DONE"));
 	}
 	else
 	{
-#ifdef JK2_MODE
-		Com_Printf (S_COLOR_RED "Failed.\n");
-#else
-		Com_Printf (S_COLOR_RED "%s.\n",SE_GetString("MENUS_FAILED_TO_OPEN_SAVEGAME"));
-#endif
+		Com_Printf (S_COLOR_RED "%s.\n",
+			Com_IsOutcast() ? "Failed" : SE_GetString("MENUS_FAILED_TO_OPEN_SAVEGAME"));
 	}
 }
 
@@ -538,11 +512,9 @@ void SG_WriteCvars(void)
 	//
 	for (var = cvar_vars; var; var = var->next)
 	{
-#ifdef JK2_MODE
-		if (!(var->flags & (CVAR_SAVEGAME|CVAR_USERINFO)))
-#else
-		if (!(var->flags & CVAR_SAVEGAME))
-#endif
+		// Outcast saves the userinfo cvars as well; Academy does not, and its
+		// files would gain entries the reader is not looking for.
+		if (!(var->flags & ( Com_IsOutcast() ? (CVAR_SAVEGAME|CVAR_USERINFO) : CVAR_SAVEGAME )))
 		{
 			continue;
 		}
@@ -559,11 +531,9 @@ void SG_WriteCvars(void)
 	//
 	for (var = cvar_vars; var; var = var->next)
 	{
-#ifdef JK2_MODE
-		if (!(var->flags & (CVAR_SAVEGAME|CVAR_USERINFO)))
-#else
-		if (!(var->flags & CVAR_SAVEGAME))
-#endif
+		// Outcast saves the userinfo cvars as well; Academy does not, and its
+		// files would gain entries the reader is not looking for.
+		if (!(var->flags & ( Com_IsOutcast() ? (CVAR_SAVEGAME|CVAR_USERINFO) : CVAR_SAVEGAME )))
 		{
 			continue;
 		}
@@ -814,25 +784,25 @@ int SG_GetSaveGameComment(
 		}
 	}
 
-#ifdef JK2_MODE
-	// Read screenshot
-	//
+	if ( Com_IsOutcast() ) {
+		// Read screenshot
+		//
 
-	if (is_succeed)
-	{
-		size_t iScreenShotLength;
+		if (is_succeed)
+		{
+			size_t iScreenShotLength;
 
-		is_succeed = sgh.try_read_chunk<uint32_t>(
-			INT_ID('S', 'H', 'L', 'N'),
-			iScreenShotLength);
+			is_succeed = sgh.try_read_chunk<uint32_t>(
+				INT_ID('S', 'H', 'L', 'N'),
+				iScreenShotLength);
+		}
+
+		if (is_succeed)
+		{
+			is_succeed = sgh.try_read_chunk(
+				INT_ID('S', 'H', 'O', 'T'));
+		}
 	}
-
-	if (is_succeed)
-	{
-		is_succeed = sgh.try_read_chunk(
-			INT_ID('S', 'H', 'O', 'T'));
-	}
-#endif
 
 	// Read mapname
 	//
@@ -1181,11 +1151,7 @@ qboolean SG_WriteSavegame(const char *psPathlessBaseName, qboolean qbAutosave)
 	const char *psServerInfo = sv.configstrings[CS_SERVERINFO];
 	const char *psMapName    = Info_ValueForKey( psServerInfo, "mapname" );
 //JLF
-#ifdef JK2_MODE
-	if ( !strcmp("quik",psPathlessBaseName))
-#else
-	if ( !strcmp("quick",psPathlessBaseName))
-#endif
+	if ( !strcmp( Com_IsOutcast() ? "quik" : "quick", psPathlessBaseName ) )
 	{
 		SG_StoreSaveGameComment(va("--> %s <--",psMapName));
 	}
@@ -1208,9 +1174,9 @@ qboolean SG_WriteSavegame(const char *psPathlessBaseName, qboolean qbAutosave)
 	Q_strncpyz( sMapCmd,psMapName, sizeof(sMapCmd));	// need as array rather than ptr because const strlen needed for MPCM chunk
 
 	SG_WriteComment(qbAutosave, sMapCmd);
-#ifdef JK2_MODE
-	SG_WriteScreenshot(qbAutosave, sMapCmd);
-#endif
+	if ( Com_IsOutcast() ) {
+		SG_WriteScreenshot(qbAutosave, sMapCmd);
+	}
 
 	sgh.write_chunk(
 		INT_ID('M', 'P', 'C', 'M'),
@@ -1263,11 +1229,11 @@ qboolean SG_ReadSavegame(
 	char sComment[iSG_COMMENT_SIZE];
 	char sMapCmd[iSG_MAPCMD_SIZE];
 
-#ifdef JK2_MODE
-	Cvar_Set(
-		"cg_missionstatusscreen",
-		"0");
-#endif
+	if ( Com_IsOutcast() ) {
+		Cvar_Set(
+			"cg_missionstatusscreen",
+			"0");
+	}
 
 	jkx::SavedGame& saved_game = jkx::SavedGame::get_instance();
 
@@ -1325,11 +1291,11 @@ qboolean SG_ReadSavegame(
 	sgh.read_chunk(
 		INT_ID('C', 'M', 'T', 'M'));
 
-#ifdef JK2_MODE
-	::SG_ReadScreenshot(
-		true,
-		nullptr);
-#endif
+	if ( Com_IsOutcast() ) {
+		::SG_ReadScreenshot(
+			true,
+			nullptr);
+	}
 
 	sgh.read_chunk(
 		INT_ID('M', 'P', 'C', 'M'),

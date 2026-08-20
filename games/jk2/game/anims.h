@@ -1390,11 +1390,11 @@ typedef enum //# animNumber_e
 
 #ifndef CG_PLAYERS_CPP
 
-extern stringID_table_t animTable [MAX_ANIMATIONS+1];
+extern stringID_table_t animTableOutcast [MAX_ANIMATIONS+1];
 
 #else
 
-// <"animTable" moved to cgame/animtable.h for PCH reasons>
+// <"animTableOutcast" moved to cgame/animtable.h for PCH reasons>
 
 #endif// #ifndef CG_PLAYER_CPP
 

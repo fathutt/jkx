@@ -24,7 +24,7 @@
 # BESIDE ITSELF, because a copy of the engine inside a retail folder is what a
 # mod is. Split across two trees it can only ever find one of them.
 #
-# The names do not collide: jkx_jka and jkx_jk2, jkagamex86_64 and
+# The names do not collide: one jkx engine, and jkagamex86_64 beside
 # jk2gamex86_64. What the two games do not share is the retail assets, and those
 # are not in this package - the engine is pointed at them by fs_basepath, which
 # is exactly what the launcher sets.
@@ -84,7 +84,7 @@ if(WIN32)
 		set(CPACK_NSIS_CREATE_ICONS_EXTRA
 			"${CPACK_NSIS_CREATE_ICONS_EXTRA}
 			CreateShortCut '$SMPROGRAMS\\\\$STARTMENU_FOLDER\\\\Jedi Academy SP.lnk' \\\\
-				'$INSTDIR\\\\${EngineJKA}.exe' \\\\
+				'$INSTDIR\\\\${Engine}.exe' \\\\
 				'' \\\\
 				'${ICON}'")
 
@@ -103,26 +103,9 @@ if(WIN32)
 				COMPONENT ${JKAClientComponent})
 	endif()
 
-	# Don't run this for now until we have JK2 SP working
-	if(BuildJK2Engine)
-		string(REPLACE "/" "\\\\" ICON "${JK2Dir}/win32/starwars.ico")
-		set(CPACK_NSIS_CREATE_ICONS_EXTRA
-			"${CPACK_NSIS_CREATE_ICONS_EXTRA}
-			CreateShortCut '$SMPROGRAMS\\\\$STARTMENU_FOLDER\\\\Jedi Outcast SP.lnk' \\\\
-				'$INSTDIR\\\\${EngineJK2}.exe' \\\\
-				'' \\\\
-				'${ICON}'")
-
-		set(CPACK_NSIS_DELETE_ICONS_EXTRA
-			"${CPACK_NSIS_DELETE_ICONS_EXTRA}
-			Delete '$SMPROGRAMS\\\\$MUI_TEMP\\\\Jedi Outcast SP.lnk'")
-
-		# See the note in the Jedi Academy block above.
-
-		install(PROGRAMS ${CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS}
-				DESTINATION ${JK2InstallDir}
-				COMPONENT ${JK2ClientComponent})
-	endif()
+	# There is no second engine block any more. One executable runs both games,
+	# so one shortcut; a second shortcut to the same binary with a different
+	# argument is a thing the launcher already does better.
 endif()
 
 # CPack for installer creation

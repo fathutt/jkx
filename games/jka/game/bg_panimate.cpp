@@ -4227,7 +4227,7 @@ int PM_ValidateAnimRange( const int startFrame, const int endFrame, const float 
 			 {
 				if ( animations[anim].numFrames + animations[anim].firstFrame == startFrame )
 				{
-					//Com_Printf( "valid reverse anim: %s\n", animTable[anim].name );
+					//Com_Printf( "valid reverse anim: %s\n", animTableAcademy[anim].name );
 					return anim;
 				}
 			 }
@@ -4238,7 +4238,7 @@ int PM_ValidateAnimRange( const int startFrame, const int endFrame, const float 
 			{//This anim starts on this frame
 				if ( animations[anim].firstFrame + animations[anim].numFrames == endFrame )
 				{//This anim ends on this frame
-					//Com_Printf( "valid forward anim: %s\n", animTable[anim].name );
+					//Com_Printf( "valid forward anim: %s\n", animTableAcademy[anim].name );
 					return anim;
 				}
 			}
@@ -4679,7 +4679,7 @@ void PM_SetAnimFinal(int *torsoAnim,int *legsAnim,
 				(cg_debugAnim.integer==4 && gent->s.number!=cg_debugAnimTarget.integer) 	// 4 = specific entnum
 				)
 			{
-				gi.Printf(S_COLOR_RED"PM_SetAnimFinal: Anim %s does not exist in this model (%s)!\n", animTable[anim].name, gent->NPC_type );
+				gi.Printf(S_COLOR_RED"PM_SetAnimFinal: Anim %s does not exist in this model (%s)!\n", animTableAcademy[anim].name, gent->NPC_type );
 			}
 		}
 		LastAnimWarningNum = anim;
@@ -4968,7 +4968,7 @@ void PM_SetAnimFinal(int *torsoAnim,int *legsAnim,
 				entName,
 				location,
 				anim,
-				animTable[anim].name );
+				animTableAcademy[anim].name );
 		}
 	}
 #endif

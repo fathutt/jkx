@@ -428,8 +428,8 @@ jobs:
           cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache \
             -DBuildRdVulkan=ON
-          cmake --build build --target jkx_jka.x86_64 jkagamex86_64 \
-            jkx_jk2.x86_64 jk2gamex86_64 rdsp-vulkan_x86_64 --parallel
+          cmake --build build --target jkx.x86_64 jkagamex86_64 \
+            jk2gamex86_64 rdsp-vulkan_x86_64 --parallel
 
       # No GPU and no retail assets, and neither is needed to answer what this
       # asks: does the engine still draw frames on this renderer, and does the
@@ -458,7 +458,7 @@ jobs:
           path: jkx_smoke.tga
           if-no-files-found: ignore
 
-      # The other game: jkx_jk2 is code/ built with -DJK2_MODE against
+      # The other game: the same binary with com_game set, against
       # games/jk2/game. Half the project had nothing looking at it until this
       # step existed, and the first run of it found a new[] paired with delete
       # that corrupted the heap on every JK2 shutdown.
@@ -849,8 +849,8 @@ jobs:
           cmake -B build-san -G Ninja -DCMAKE_BUILD_TYPE=Debug \
             -DJKX_ENABLE_ASAN=ON -DJKX_ENABLE_UBSAN=ON \
             -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache \
-            -DBuildRdVulkan=ON -DBuildJK2Engine=OFF -DBuildJK2Game=OFF
-          cmake --build build-san --target jkx_jka.x86_64 jkagamex86_64 \
+            -DBuildRdVulkan=ON -DBuildJK2Game=OFF
+          cmake --build build-san --target jkx.x86_64 jkagamex86_64 \
             rdsp-vulkan_x86_64 --parallel
 
       # The one step that still switches the validation layer off, and the only

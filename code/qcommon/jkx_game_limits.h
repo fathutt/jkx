@@ -16,39 +16,25 @@ Foundation.
 
 #pragma once
 
-// The numbers that are different in the two games, in one place.
+// The numbers that used to be different in the two games, in one place.
 //
-// One engine built twice - jkx_jk2 is this code with -DJK2_MODE - and every
-// difference between the games that is not data is a preprocessor branch.
-// There are two hundred of them and tools/ci/check_jk2mode.py ratchets the
-// count, but the count is not the point: a difference behind a conditional
-// three hundred lines away from the next one cannot be read as a difference at
-// all. It reads as a definition that happens to have an #ifdef near it.
+// There is one engine now, so these cannot be a preprocessor branch: the
+// configstring layout and the array bounds below are the shape of memory that
+// crosses the engine/gamecode boundary, and a shape that depends on a define
+// is the thing a single binary cannot have.
 //
-// This is the shape that fixes that, and shared/win32/product.h is the
-// precedent: one conditional, both games' values side by side, so the question
-// "what is different about Outcast" has an answer you can point at.
+// So the wider of each pair wins. Both gamecode modules are ours, both are
+// rebuilt against this header, and a limit that is too large costs a few
+// kilobytes of configstring table while a limit that is too small truncates.
+// Outcast never sets a skybox origin and never loads a sub-BSP model, so the
+// two slots Academy needs for those simply stay empty when Outcast is running -
+// an index that is never written is cheaper than an index that moves.
 //
 // Macros expand where they are used rather than where they are written, so the
 // configstring layout below can be stated here even though CS_MODELS and
 // MAX_MODELS are defined after this is included. That is what makes one table
 // possible instead of four.
 
-#ifdef JK2_MODE
-
-// Jedi Outcast.
-#define JKX_MAX_SOUNDS			256
-#define JKX_MAX_WORLD_FX		4
-#define JKX_MAX_CONFIGSTRINGS	1024
-
-// Outcast has no skybox origin and no sub-BSP models, so its configstrings sit
-// two blocks lower than Academy's.
-#define CS_SOUNDS				( CS_MODELS + MAX_MODELS )
-#define CS_EFFECTS				( CS_LIGHT_STYLES + ( MAX_LIGHT_STYLES * 3 ) )
-
-#else
-
-// Jedi Academy.
 #define JKX_MAX_SOUNDS			380
 #define JKX_MAX_WORLD_FX		66		// was 16, then 4
 #define JKX_MAX_CONFIGSTRINGS	1300	// 1024 until terrain needed more
@@ -64,5 +50,3 @@ Foundation.
 // the same.
 #define CS_BSP_MODELS			( CS_LIGHT_STYLES + ( MAX_LIGHT_STYLES * 3 ) )
 #define CS_EFFECTS				( CS_BSP_MODELS + MAX_SUB_BSP )
-
-#endif // JK2_MODE

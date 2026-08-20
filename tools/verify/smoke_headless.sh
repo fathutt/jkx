@@ -51,15 +51,16 @@ fi
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ARCH="$(uname -m)"
 
-# Which of the two games. They are the same engine built twice - jkx_jk2 is
-# code/ with -DJK2_MODE plus games/jk2/game - so the second one is not a copy of
-# this test, it is a second configuration of the same code. Enough of it differs
-# to be worth running: the string packages, the whole of games/jk2/cgame, and
-# every JK2_MODE branch in shared code.
+# Which of the two games. One engine binary runs both and com_game says which -
+# so the Outcast run is not a second build any more, it is the same executable
+# with a different argument and a different gamecode module. It is still not a
+# copy of this test: the string packages, the whole of games/jk2/cgame and every
+# Com_IsOutcast() branch in shared code are only reached there.
 GAME_ID="${JKX_SMOKE_GAME:-jka}"
+ENGINE="$BUILD/jkx.$ARCH"
 case "$GAME_ID" in
-    jka) ENGINE="$BUILD/jkx_jka.$ARCH"; GAME="$BUILD/games/jka/game/jkagame$ARCH.so" ;;
-    jk2) ENGINE="$BUILD/jkx_jk2.$ARCH"; GAME="$BUILD/games/jk2/game/jk2game$ARCH.so" ;;
+    jka) COM_GAME="academy"; GAME="$BUILD/games/jka/game/jkagame$ARCH.so" ;;
+    jk2) COM_GAME="outcast"; GAME="$BUILD/games/jk2/game/jk2game$ARCH.so" ;;
     *)  echo "JKX_SMOKE_GAME must be jka or jk2, not $GAME_ID" >&2; exit 2 ;;
 esac
 
@@ -2190,6 +2191,7 @@ set +e
       +set fs_basepath "$RUN" +set fs_homepath "$RUN/home" \
       "${SOUND_STEP[@]}" +set com_errorDialog 0 +set con_notifytime 0 \
       +set cg_hudFiles ui/jkx_hud.txt "${CHAR_STEP[@]}" \
+      +set com_game "$COM_GAME" \
       +set helpUsObi 1 +set r_drawfog 0 +set com_maxfps "${JKX_SMOKE_MAXFPS:-30}" \
       "${SET_STEP[@]}" \
       +wait 60 +screenshot_tga jkx_smoke +wait 20 \

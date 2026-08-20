@@ -20,7 +20,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 ===========================================================================
 */
 
-// The five strings that differ between the two products, in one place.
+// The strings the Windows resource compiler puts in the binaries.
 //
 // There used to be two copies of each .rc - one under code/win32 for Jedi
 // Academy and one under codeJK2/win32 for Jedi Outcast - differing in exactly
@@ -30,26 +30,28 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 // directory changed how many "../" it takes to reach qcommon and neither copy
 // noticed until the cross build failed.
 //
-// One copy that reads JK2_MODE - the define that already selects everything
-// else about which game is being built - cannot go stale in only one of them.
+// Then there was one copy behind #ifdef JK2_MODE. Now there is no conditional
+// at all, because there is one engine: the same jkx.exe runs both games and
+// picks which one at startup. A resource string is baked by rc.exe and cannot
+// be chosen at runtime, so the engine's description names the engine rather
+// than either game - Com_WindowTitle() is what the player actually sees.
+//
+// The gamecode strings stay a pair because the gamecode stays a pair: two
+// modules, loaded by name, and each .rc is compiled with its own module's
+// defines.
 
-#ifdef JK2_MODE
+#define JKX_ENGINE_DESCRIPTION   "JKX: Jedi Knight"
+#define JKX_ENGINE_INTERNAL      "jkx"
+#define JKX_ENGINE_FILENAME      "jkx.exe"
+#define JKX_ENGINE_ICON          "icons/jkx.ico"
 
-	#define JKX_ENGINE_DESCRIPTION   "JKX: Jedi Outcast"
-	#define JKX_ENGINE_INTERNAL      "jkx_jk2"
-	#define JKX_ENGINE_FILENAME      "jkx_jk2.exe"
-	#define JKX_ENGINE_ICON          "icons/jkx_jk2.ico"
+#ifdef JKX_GAME_OUTCAST
 
 	#define JKX_GAME_DESCRIPTION     "JKX: Jedi Outcast gamecode"
 	#define JKX_GAME_INTERNAL        "jk2game"
 	#define JKX_GAME_FILENAME        "jk2gamex86_64.dll"
 
 #else
-
-	#define JKX_ENGINE_DESCRIPTION   "JKX: Jedi Academy"
-	#define JKX_ENGINE_INTERNAL      "jkx_jka"
-	#define JKX_ENGINE_FILENAME      "jkx_jka.exe"
-	#define JKX_ENGINE_ICON          "icons/jkx_jka.ico"
 
 	#define JKX_GAME_DESCRIPTION     "JKX: Jedi Academy gamecode"
 	#define JKX_GAME_INTERNAL        "jkagame"

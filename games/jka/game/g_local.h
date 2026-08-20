@@ -119,7 +119,7 @@ public:
 	}
 }; // animFileSet_t
 
-extern stringID_table_t animTable [MAX_ANIMATIONS+1];
+extern stringID_table_t animTableAcademy [MAX_ANIMATIONS+1];
 
 //Interest points
 

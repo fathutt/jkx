@@ -6475,7 +6475,7 @@ qboolean PM_GettingUpFromKnockDown( float standheight, float crouchheight )
 						}
 						break;
 					}
-					//Com_Printf( "getupanim = %s\n", animTable[anim].name );
+					//Com_Printf( "getupanim = %s\n", animTableAcademy[anim].name );
 					if ( forceGetUp )
 					{
 						if ( pm->gent && pm->gent->client && pm->gent->client->playerTeam == TEAM_ENEMY
@@ -9904,7 +9904,7 @@ int PM_SaberLockWinAnim( saberLockResult_t result, int breakType )
 /*
 	default:
 #ifndef FINAL_BUILD
-		Com_Printf( S_COLOR_RED"ERROR-PM_SaberLockBreak: %s not in saberlock anim, anim = (%d)%s\n", pm->gent->NPC_type, pm->ps->torsoAnim, animTable[pm->ps->torsoAnim].name );
+		Com_Printf( S_COLOR_RED"ERROR-PM_SaberLockBreak: %s not in saberlock anim, anim = (%d)%s\n", pm->gent->NPC_type, pm->ps->torsoAnim, animTableAcademy[pm->ps->torsoAnim].name );
 #endif
 */
 	case BOTH_BF2LOCK:
@@ -9996,7 +9996,7 @@ int PM_SaberLockLoseAnim( gentity_t *genemy, saberLockResult_t result, int break
 /*
 	default:
 #ifndef FINAL_BUILD
-		Com_Printf( S_COLOR_RED"ERROR-PM_SaberLockBreak: %s not in saberlock anim, anim = (%d)%s\n", genemy->NPC_type, genemy->client->ps.torsoAnim, animTable[genemy->client->ps.torsoAnim].name );
+		Com_Printf( S_COLOR_RED"ERROR-PM_SaberLockBreak: %s not in saberlock anim, anim = (%d)%s\n", genemy->NPC_type, genemy->client->ps.torsoAnim, animTableAcademy[genemy->client->ps.torsoAnim].name );
 #endif
 */
 	case BOTH_BF2LOCK:
@@ -10238,8 +10238,8 @@ void PM_SaberLockBreak( gentity_t *gent, gentity_t *genemy, saberLockResult_t re
 
 	if ( d_saberCombat->integer )
 	{
-		Com_Printf( "%s won saber lock, anim = %s!\n", gent->NPC_type, animTable[winAnim].name );
-		Com_Printf( "%s lost saber lock, anim = %s!\n", genemy->NPC_type, animTable[loseAnim].name );
+		Com_Printf( "%s won saber lock, anim = %s!\n", gent->NPC_type, animTableAcademy[winAnim].name );
+		Com_Printf( "%s lost saber lock, anim = %s!\n", genemy->NPC_type, animTableAcademy[loseAnim].name );
 	}
 
 	pm->ps->saberLockTime = genemy->client->ps.saberLockTime = 0;

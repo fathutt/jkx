@@ -21,16 +21,15 @@ if(NOT InOpenJK)
 	message(FATAL_ERROR "Use the top-level cmake script!")
 endif(NOT InOpenJK)
 
-# The Jedi Academy game project is added from the top-level script now, beside
-# the Jedi Outcast one. add_subdirectory cannot reach outside its own directory
-# without being told where to put the build tree, and games/jka is not under
-# code/ any more.
+# The two gamecode projects are added from the top-level script now.
+# add_subdirectory cannot reach outside its own directory without being told
+# where to put the build tree, and games/ is not under code/ any more.
 
 #    Add Modular Renderer project
 add_subdirectory("${CodeDir}/rd-vulkan")
 
 #    Add Engine Project
-if(BuildJKAEngine OR BuildJK2Engine)
+if(BuildEngine)
 	# Libraries
 	if(WIN32)
 		set(EngineLibraries "winmm")
@@ -279,6 +278,7 @@ if(BuildJKAEngine OR BuildJK2Engine)
 
 	# UI files
 	set(EngineUIFiles
+		"${CodeDir}/ui/anim_names.cpp"
 		"${CodeDir}/ui/ui_atoms.cpp"
 		"${CodeDir}/ui/ui_connect.cpp"
 		"${CodeDir}/ui/ui_main.cpp"
@@ -364,16 +364,19 @@ if(BuildJKAEngine OR BuildJK2Engine)
     list(APPEND EngineIncludeDirectories ${ZLIB_INCLUDE_DIR})
     list(APPEND EngineLibraries          ${ZLIB_LIBRARIES})
 
-	# One macro, invoked twice: once for Jedi Academy and once for Jedi Outcast.
-	# The two engines are the same sources with a different define. The Windows
-	# resources are now the same file too: shared/win32/product.h reads JK2_MODE
-	# and supplies the five strings that used to be a second copy of each .rc.
-	# GameDirName is where the macOS bundle resources live and is code/ for Jedi
-	# Academy for historical reasons; GameSrcDir is that game's own tree. They
-	# are separate parameters because conflating them is how the animation table
-	# ended up being looked for in code/cgame.
-	function(add_engine_project ProjectName Label GameDirName GameSrcDir InstallDir Component)
-		set(EngineCGameFiles "${GameSrcDir}/cgame/animtable.cpp")
+	# One macro, invoked once. It used to be invoked twice - the same sources
+	# with -DJK2_MODE for the second - and that define is gone: which game this
+	# is, is com_game, read at startup. GameDirName is where the macOS bundle
+	# resources live and is code/ for historical reasons.
+	#
+	# Both animation tables are compiled in. The engine resolves animation names
+	# out of .menu files before any game module is loaded, so it cannot be handed
+	# the right table; code/ui/anim_names.cpp picks between them at runtime.
+	function(add_engine_project ProjectName Label GameDirName InstallDir Component)
+		set(EngineCGameFiles
+			"${JKADir}/cgame/animtable.cpp"
+			"${JK2Dir}/cgame/animtable.cpp"
+			)
 		source_group("cgame" FILES ${EngineCGameFiles})
 		set(EngineFiles ${EngineFiles} ${EngineCGameFiles})
 
@@ -447,33 +450,20 @@ if(BuildJKAEngine OR BuildJK2Engine)
 			target_link_libraries(${ProjectName} ${EngineLibraries})
 		endif(EngineLibraries)
 	endfunction(add_engine_project)
-	if(BuildJKAEngine)
-		add_engine_project(${EngineJKA} "SP Client" ${CodeDir} ${JKADir} ${JKAInstallDir} ${JKAClientComponent})
+	if(BuildEngine)
+		add_engine_project(${Engine} "SP Client" ${CodeDir} ${JKAInstallDir} ${JKAClientComponent})
 
 		# The renderer is part of the engine, not a module beside it. GetRefAPI
 		# is then an ordinary function call and the client says so at compile
 		# time rather than looking for a file at runtime.
 		if(BuildRdVulkan)
-			target_link_libraries(${EngineJKA} ${RDVulkanRenderer})
-			target_sources(${EngineJKA} PRIVATE ${EngineGhoul2Sources})
+			target_link_libraries(${Engine} ${RDVulkanRenderer})
+			target_sources(${Engine} PRIVATE ${EngineGhoul2Sources})
 			source_group("ghoul2" FILES ${EngineGhoul2Sources})
 		endif()
-	endif(BuildJKAEngine)
-	if(BuildJK2Engine)
-		set(EngineDefines ${EngineDefines} "JK2_MODE")
-		add_engine_project(${EngineJK2} "JK2 SP Client" ${JK2Dir} ${JK2Dir} ${JK2InstallDir} ${JK2ClientComponent})
+	endif(BuildEngine)
 
-		# The same renderer, linked the same way. It used to be the one place
-		# the two engines diverged: JK2 loaded a renderer module while JKA had
-		# one inside it, which was a stopgap and is now not even possible - the
-		# loader is gone. The renderer does not know which game it is drawing.
-		if(BuildRdVulkan)
-			target_link_libraries(${EngineJK2} ${RDVulkanRenderer})
-			target_sources(${EngineJK2} PRIVATE ${EngineGhoul2Sources})
-		endif()
-	endif(BuildJK2Engine)
-
-endif(BuildJKAEngine OR BuildJK2Engine)
+endif(BuildEngine)
 
 # ---------------------------------------------------------------------------
 # The launcher.
@@ -486,7 +476,7 @@ endif(BuildJKAEngine OR BuildJK2Engine)
 # It links minizip and nothing else from the engine: the question it answers is
 # "which game's assets are these", and the answer is inside the archive.
 # ---------------------------------------------------------------------------
-if(BuildJKAEngine OR BuildJK2Engine)
+if(BuildEngine)
 	set(LauncherName "jkx_launcher")
 	set(LauncherFiles
 		"${CodeDir}/launcher/jkx_launcher.h"
@@ -527,7 +517,7 @@ if(BuildJKAEngine OR BuildJK2Engine)
 	# header to fall back on, which is the useful kind of build to have.
 	target_include_directories(${LauncherName} PRIVATE
 		${MINIZIP_INCLUDE_DIRS} ${ZLIB_INCLUDE_DIR})
-	# The engines carry the architecture in their names - jkx_jka.x86_64 - so
+	# The engine carries the architecture in its name - jkx.x86_64 - so
 	# the launcher has to know what this build calls it. Same string the engine
 	# gets, from the same variable, rather than a second copy of the rule.
 	target_compile_definitions(${LauncherName} PRIVATE "ARCH_STRING=\"${Architecture}\"")

@@ -429,8 +429,7 @@ def resolve_game(args) -> Path:
 # would launch something, everything would appear to work, and the report would
 # describe a renderer this project is not working on.
 ENGINE_NAMES = [
-    "jkx_jka.x86_64.exe", "jkx_jka.x86_64", "jkx_jka.exe",
-    "jkx_jk2.x86_64.exe", "jkx_jk2.x86_64", "jkx_jk2.exe",
+    "jkx.x86_64.exe", "jkx.x86_64", "jkx.exe",
     "eternaljk.x86_64.exe", "eternaljk.x86.exe",
     "eternaljk.x86_64", "eternaljk.x86",
 ]

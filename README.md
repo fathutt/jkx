@@ -23,11 +23,14 @@ You need the original game files. This is an engine, not a game.
 | Under test | both games reach a loaded map, draw a frame with a head-up display and quit, on every commit - with no GPU and no retail assets. See `tools/verify` |
 | Not yet checked on real hardware | the PBR lighting path. The software rasteriser CI runs on reports a Vulkan limit that switches it off, so it has never executed there |
 
-The engine builds twice, once per game. It is the same code both times: `code/` with `-DJK2_MODE`
-selects Jedi Outcast, and the gamecode that comes with it is the only part that differs.
+One engine binary runs both games. Which one it is is `com_game`, a command-line-only
+cvar read once at startup; the gamecode is still two modules, loaded by name.
 
-    jkx_jka.x86_64  +  jkagamex86_64      Jedi Academy
-    jkx_jk2.x86_64  +  jk2gamex86_64      Jedi Outcast
+    jkx.x86_64  +set com_game academy  +  jkagamex86_64      Jedi Academy
+    jkx.x86_64  +set com_game outcast  +  jk2gamex86_64      Jedi Outcast
+
+`jkx_launcher` finds the retail installations, works out which game each one is from
+its assets, and passes the answer through, so nobody has to type it.
 
 ---
 
@@ -61,8 +64,8 @@ Everything is ON by default; these are for building less than all of it.
 
 | Option | Default | What it does |
 |---|---|---|
-| `BuildJKAEngine` / `BuildJKAGame` | `ON` | Jedi Academy: engine, gamecode |
-| `BuildJK2Engine` / `BuildJK2Game` | `ON` | Jedi Outcast: engine, gamecode |
+| `BuildEngine` | `ON` | the engine, which is one binary for both games |
+| `BuildJKAGame` / `BuildJK2Game` | `ON` | the gamecode: Jedi Academy, Jedi Outcast |
 | `BuildRdVulkan` | `ON` | the renderer, which is linked into the engine rather than loaded |
 | `BuildTests` | `OFF` | the unit tests |
 | `JKX_BUILD_SHADERS` | auto | on when `glslc` is found |
@@ -142,10 +145,10 @@ shared/win32      Windows resources      third_party/     vendored dependencies
 tools/ci          the gates              tools/verify     the headless bench
 ```
 
-`shared/win32` is one copy of each resource script for both products.
-`product.h` there reads `JK2_MODE` and supplies the five strings that differ.
-There used to be two copies, and because resource scripts compile only on
-Windows, both went stale twice without anything failing.
+`shared/win32` is one copy of each resource script. `product.h` there holds the
+strings; the engine's no longer differ per game, because the engine no longer
+does. There used to be two copies of each script, and because resource scripts
+compile only on Windows, both went stale twice without anything failing.
 
 `code/api` is three headers and it is the whole of what the engine may see of a game. It was 13,139
 lines through 13 include sites when that was first measured, and `check_interface.py` is what keeps it

@@ -906,11 +906,12 @@ static void ReadGEntities(qboolean qbAutosave)
 		// the scary ghoul2 stuff...  (fingers crossed)
 		//
 		{
-#ifdef JK2_MODE
-			// Skip GL2 data size
-			saved_game.read_chunk(
-				INT_ID('G', 'L', '2', 'S'));
-#endif // JK2_MODE
+			if ( Com_IsOutcast() )
+			{
+				// Skip GL2 data size
+				saved_game.read_chunk(
+					INT_ID('G', 'L', '2', 'S'));
+			}
 
 			saved_game.read_chunk(
 				INT_ID('G', 'H', 'L', '2'));

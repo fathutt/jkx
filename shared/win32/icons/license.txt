@@ -4,9 +4,12 @@ the MIT/X11 license, as quoted here.
 Rework was made by SomaZ, no change of the license. 
 
 shared/sdl/sdl_icon.h is a derived work under the same terms. So are
-jkx_jka.ico and jkx_jk2.ico, which are the "sp" and "jo" renders in PNG/
-under this project's names. The multiplayer set and openjkcmd.ico went
-with the parts of OpenJK this project does not build.
+jkx.ico and jkx_jk2.ico, which are the "sp" and "jo" renders in PNG/
+under this project's names. There is one engine binary now, so jkx.ico
+is the only one the resource script compiles in; jkx_jk2.ico stays as
+the source of the Outcast window icon that sdl_icon.h embeds and picks
+at runtime. The multiplayer set and openjkcmd.ico went with the parts
+of OpenJK this project does not build.
 
 ----
 

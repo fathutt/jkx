@@ -882,32 +882,25 @@ qboolean G2API_SetLodBias(CGhoul2Info *ghlInfo, int lodBias)
 void G2_SetSurfaceOnOffFromSkin (CGhoul2Info *ghlInfo, qhandle_t renderSkin);
 qboolean G2API_SetSkin(CGhoul2Info *ghlInfo, qhandle_t customSkin, qhandle_t renderSkin)
 {
-#ifdef JK2_MODE
+	if (!G2_SetupModelPointers(ghlInfo))
+	{
+		return qfalse;
+	}
+
+	ghlInfo->mCustomSkin = customSkin;
+
 	// Jedi Outcast remembers the skin and leaves the surfaces alone. Its skins
 	// were not authored to say which parts of a model are on, so deriving that
-	// from them turns every skin change into a surface change - and the branch
+	// from them turns every skin change into a surface change - and the call
 	// below starts by clearing the overrides the gamecode had set. Single-player
 	// upstream has this same split; multiplayer has no JK2 build and so has only
 	// the other half, which is what came across.
-	if (G2_SetupModelPointers(ghlInfo))
-	{
-		ghlInfo->mCustomSkin = customSkin;
-		return qtrue;
+	if (renderSkin && !Com_IsOutcast())
+	{//this is going to set the surfs on/off matching the skin file
+		G2_SetSurfaceOnOffFromSkin( ghlInfo, renderSkin );
 	}
-	return qfalse;
-#else
-	if (G2_SetupModelPointers(ghlInfo))
-	{
-		ghlInfo->mCustomSkin = customSkin;
-		if (renderSkin)
-		{//this is going to set the surfs on/off matching the skin file
-			G2_SetSurfaceOnOffFromSkin( ghlInfo, renderSkin );
-		}
 
-		return qtrue;
-	}
-	return qfalse;
-#endif
+	return qtrue;
 }
 
 qboolean G2API_SetShader(CGhoul2Info *ghlInfo, qhandle_t customShader)

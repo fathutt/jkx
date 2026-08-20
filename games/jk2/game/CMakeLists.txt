@@ -21,7 +21,7 @@ if(NOT InOpenJK)
 	message(FATAL_ERROR "Use the top-level cmake script!")
 endif(NOT InOpenJK)
 
-set(JK2GameDefines ${SharedDefines} "JK2_MODE" "JKX_GAME_MODULE")
+set(JK2GameDefines ${SharedDefines} "JKX_GAME_OUTCAST" "JKX_GAME_MODULE")
 
 # ${CodeDir} is on this list so that this tree can name what it includes from the
 # engine instead of counting directory levels back to it. Thirty-seven includes
@@ -298,11 +298,11 @@ endif()
 if(WIN32)
 	install(TARGETS ${JK2Game} RUNTIME DESTINATION "${JK2InstallDir}")
 else(WIN32)
-	if(MakeApplicationBundles AND BuildJK2Engine)
-		install(TARGETS ${JK2Game} LIBRARY DESTINATION "${JK2InstallDir}/${EngineJK2}.app/Contents/MacOS")
-	else(MakeApplicationBundles AND BuildJK2Engine)
+	if(MakeApplicationBundles AND BuildEngine)
+		install(TARGETS ${JK2Game} LIBRARY DESTINATION "${JK2InstallDir}/${Engine}.app/Contents/MacOS")
+	else(MakeApplicationBundles AND BuildEngine)
 		install(TARGETS ${JK2Game} LIBRARY DESTINATION "${JK2InstallDir}")
-	endif(MakeApplicationBundles AND BuildJK2Engine)
+	endif(MakeApplicationBundles AND BuildEngine)
 endif(WIN32)
 
 set_target_properties(${JK2Game} PROPERTIES COMPILE_DEFINITIONS "${JK2GameDefines}")

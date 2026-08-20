@@ -1893,7 +1893,7 @@ int PM_ValidateAnimRange( int startFrame, int endFrame, float animSpeed )
 			 {
 				if ( animations[anim].numFrames + animations[anim].firstFrame == startFrame )
 				{
-					//Com_Printf( "valid reverse anim: %s\n", animTable[anim].name );
+					//Com_Printf( "valid reverse anim: %s\n", animTableOutcast[anim].name );
 					return anim;
 				}
 			 }
@@ -1904,7 +1904,7 @@ int PM_ValidateAnimRange( int startFrame, int endFrame, float animSpeed )
 			{//This anim starts on this frame
 				if ( animations[anim].firstFrame + animations[anim].numFrames == endFrame )
 				{//This anim ends on this frame
-					//Com_Printf( "valid forward anim: %s\n", animTable[anim].name );
+					//Com_Printf( "valid forward anim: %s\n", animTableOutcast[anim].name );
 					return anim;
 				}
 			}
@@ -2259,7 +2259,7 @@ void PM_SetAnimFinal(int *torsoAnim,int *legsAnim,
 		{
 			if ( g_ICARUSDebug->integer >= 3  )
 			{
-				//gi.Printf(S_COLOR_RED"SET_ANIM_UPPER ERROR: anim %s does not exist in this model (%s)!\n", animTable[anim].name, ((gent!=NULL&&gent->client!=NULL) ? gent->client->renderInfo.torsoModelName : "unknown") );
+				//gi.Printf(S_COLOR_RED"SET_ANIM_UPPER ERROR: anim %s does not exist in this model (%s)!\n", animTableOutcast[anim].name, ((gent!=NULL&&gent->client!=NULL) ? gent->client->renderInfo.torsoModelName : "unknown") );
 			}
 			goto setAnimLegs;
 		}
@@ -2297,7 +2297,7 @@ void PM_SetAnimFinal(int *torsoAnim,int *legsAnim,
 
 				if ( cg_debugAnim.integer == 3 || (!gent->s.number && cg_debugAnim.integer == 1) || (gent->s.number && cg_debugAnim.integer == 2) )
 				{
-					Com_Printf("Time=%d: %s TORSO anim %d %s\n", actualTime, gent->targetname, anim, animTable[anim].name );
+					Com_Printf("Time=%d: %s TORSO anim %d %s\n", actualTime, gent->targetname, anim, animTableOutcast[anim].name );
 				}
 
 
@@ -2461,7 +2461,7 @@ void PM_SetAnimFinal(int *torsoAnim,int *legsAnim,
 		}
 /*
 #ifdef _DEBUG
-		gi.Printf(S_COLOR_GREEN"SET_ANIM_UPPER: %s (%s)\n", animTable[anim].name, gent->targetname );
+		gi.Printf(S_COLOR_GREEN"SET_ANIM_UPPER: %s (%s)\n", animTableOutcast[anim].name, gent->targetname );
 #endif
 */
 		if ((gent->client) && (setAnimFlags & SETANIM_FLAG_HOLD))
@@ -2507,7 +2507,7 @@ setAnimLegs:
 		{
 			if ( g_ICARUSDebug->integer >= 3 )
 			{
-				//gi.Printf(S_COLOR_RED"SET_ANIM_LOWER ERROR: anim %s does not exist in this model (%s)!\n", animTable[anim].name, ((gent!=NULL&&gent->client!=NULL) ? gent->client->renderInfo.legsModelName : "unknown") );
+				//gi.Printf(S_COLOR_RED"SET_ANIM_LOWER ERROR: anim %s does not exist in this model (%s)!\n", animTableOutcast[anim].name, ((gent!=NULL&&gent->client!=NULL) ? gent->client->renderInfo.legsModelName : "unknown") );
 			}
 			goto setAnimDone;
 		}
@@ -2543,7 +2543,7 @@ setAnimLegs:
 
 			if ( cg_debugAnim.integer == 3 || (!gent->s.number && cg_debugAnim.integer == 1) || (gent->s.number && cg_debugAnim.integer == 2) )
 			{
-				Com_Printf("Time=%d: %s LEGS anim %d %s\n", actualTime, gent->targetname, anim, animTable[anim].name );
+				Com_Printf("Time=%d: %s LEGS anim %d %s\n", actualTime, gent->targetname, anim, animTableOutcast[anim].name );
 			}
 
 			int	animFlags = BONE_ANIM_OVERRIDE_FREEZE;
@@ -2677,7 +2677,7 @@ setAnimLegs:
 
 /*
 #ifdef _DEBUG
-		gi.Printf(S_COLOR_GREEN"SET_ANIM_LOWER: %s (%s)\n", animTable[anim].name, gent->targetname );
+		gi.Printf(S_COLOR_GREEN"SET_ANIM_LOWER: %s (%s)\n", animTableOutcast[anim].name, gent->targetname );
 #endif
 */
 		if ((gent->client) && (setAnimFlags & SETANIM_FLAG_HOLD))

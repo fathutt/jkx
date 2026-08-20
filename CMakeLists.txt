@@ -170,14 +170,15 @@ endif()
 option(BuildPortableVersion "Build portable version (does not read or write files from your user/home directory" OFF)
 
 
-option(BuildJKAEngine "Build the Jedi Academy engine" ON)
+# One engine for both games. Which one it is at runtime is com_game, set on the
+# command line; the launcher sets it from the assets it found.
+option(BuildEngine "Build the engine" ON)
 option(BuildJKAGame "Build the Jedi Academy gamecode" ON)
 # The one renderer. rd-vanilla was kept through phase 2 as something to compare
 # against; it is gone, and with it the module boundary that existed only so two
 # renderers could be swapped at runtime.
 option(BuildRdVulkan "Build the Vulkan renderer" ON)
 
-option(BuildJK2Engine "Build the Jedi Outcast engine" ON)
 option(BuildJK2Game "Build the Jedi Outcast gamecode" ON)
 
 option(BuildTests "Whether to build automatic unit tests (requires Boost)" OFF)
@@ -299,7 +300,7 @@ endif()
 # Binary names
 #
 #=============================================================================
-set(EngineJKA "jkx_jka.${Architecture}")
+set(Engine "jkx.${Architecture}")
 set(JKAGame "jkagame${Architecture}")
 set(RDVulkanRenderer "rdsp-vulkan_${Architecture}")
 set(MPEngine "openjk.${Architecture}")
@@ -308,7 +309,6 @@ set(MPGame "jampgame${Architecture}")
 set(MPCGame "cgame${Architecture}")
 set(MPUI "ui${Architecture}")
 set(MPRend2 "rd-rend2_${Architecture}")
-set(EngineJK2 "jkx_jk2.${Architecture}")
 set(JK2Game "jk2game${Architecture}")
 set(AssetsPk3 "openjk-${Architecture}.pk3")
 # Library names
@@ -372,7 +372,7 @@ if(MSVC)
 	# every frame in every report came out as "GetRefAPI+0x...", which is a
 	# number, not an answer:
 	#
-	#     0  0x00007ff6bbe0f699  jkx_jka.x86_64+0x9f699  GetRefAPI+0x4fc9
+	#     0  0x00007ff6bbe0f699  jkx.x86_64+0x9f699  GetRefAPI+0x4fc9
 	#
 	# Two halves. The compiler has to emit the information, and the linker has
 	# to write the file.

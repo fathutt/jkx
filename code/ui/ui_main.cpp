@@ -2155,7 +2155,7 @@ qboolean UI_ParseAnimationFile( const char *af_filename )
 			break;
 		}
 
-		animNum = GetIDForString(animTable, token);
+		animNum = GetIDForString(Anim_Table(), token);
 		if (animNum >= UI_MAX_ANIMATIONS)
 		{
 			// A limit that is silently exceeded is the failure mode section 6.6

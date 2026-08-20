@@ -31,11 +31,11 @@
 #   smokewide   the same at 32:9, where the interface's arithmetic is checked
 #               against the picture: at 4:3 the fitted frame is the whole window
 #               and a wrong mapping looks exactly like a right one
-#   smokejk2    the same run as jkx_jk2, which is the same engine built with
-#               -DJK2_MODE against games/jk2/game. Not a duplicate of the run
-#               above: the string packages, the whole of games/jk2/cgame and every
-#               JK2_MODE branch in shared code are only reached here, and the
-#               first time it was run it found a new[]/delete mismatch that
+#   smokejk2    the same run as Jedi Outcast: the same binary with com_game set
+#               and games/jk2/game beside it. Not a duplicate of the run above:
+#               the string packages, the whole of games/jk2/cgame and every
+#               Com_IsOutcast() branch in shared code are only reached here, and
+#               the first time it was run it found a new[]/delete mismatch that
 #               corrupted the heap on every JK2 shutdown. It reaches the map,
 #               which took a generated skeleton: JK2 hard-codes "kyle" as the
 #               player model and errors on a missing animation set
@@ -620,10 +620,11 @@ stage_smokewide() {
         bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
 }
 
-# The other game. jkx_jk2 is code/ built with -DJK2_MODE plus games/jk2/game, so
-# this is a second configuration of the same engine rather than a second copy of
-# the test - and half the project had nothing looking at it until this stage
-# existed.
+# The other game. Same binary, +set com_game outcast, games/jk2/game beside it -
+# so this is a second configuration of one engine rather than a second copy of
+# the test, and it matters more now than when it was two builds: the branches it
+# reaches are runtime branches, and a runtime branch nobody takes is not caught
+# by any compiler.
 stage_smokejk2() {
     JKX_SMOKE_GAME=jk2 \
     JKX_SMOKE_DISPLAY="${JKX_SMOKE_JK2_DISPLAY:-:96}" \

@@ -11,7 +11,7 @@
 #
 # This is not MSVC and does not pretend to be. What it compiles is those
 # branches, against real Windows headers, and it links them into a real
-# jkx_jka.exe. What is left for the remote job is what is genuinely
+# jkx.exe. What is left for the remote job is what is genuinely
 # MSVC-specific: its own dialect quirks and its own linker. That is a much
 # smaller thing to be unable to check.
 #
@@ -87,7 +87,7 @@ cmake --build "$BUILD" --parallel "${JOBS:-$(nproc)}" || exit 1
 # A build that produces no binaries is a build that decided there was nothing to
 # do, and it should not report success.
 missing=0
-for want in jkx_jka.x86_64.exe jkx_jk2.x86_64.exe jkagamex86_64.dll jk2gamex86_64.dll; do
+for want in jkx.x86_64.exe jkagamex86_64.dll jk2gamex86_64.dll; do
     if [ ! -f "$BUILD/$want" ]; then
         echo "  built nothing called $want"
         missing=1

@@ -659,7 +659,7 @@ static char *Q3_GetAnimLower( gentity_t *ent )
 
 	int anim = ent->client->ps.legsAnim;
 
-	return (char *) GetStringForID( animTable, anim );
+	return (char *) GetStringForID( animTableOutcast, anim );
 }
 
 /*
@@ -677,7 +677,7 @@ static char *Q3_GetAnimUpper( gentity_t *ent )
 
 	int anim = ent->client->ps.torsoAnim;
 
-	return (char *) GetStringForID( animTable, anim );
+	return (char *) GetStringForID( animTableOutcast, anim );
 }
 
 /*
@@ -2069,7 +2069,7 @@ static qboolean Q3_SetAnimUpper( int entID, const char *anim_name )
 {
 	int			animID = 0;
 
-	animID = GetIDForString( animTable, anim_name );
+	animID = GetIDForString( animTableOutcast, anim_name );
 
 	if( animID == -1 )
 	{
@@ -2100,7 +2100,7 @@ static qboolean Q3_SetAnimLower( int entID, const char *anim_name )
 
 	//FIXME: Setting duck anim does not actually duck!
 
-	animID = GetIDForString( animTable, anim_name );
+	animID = GetIDForString( animTableOutcast, anim_name );
 
 	if( animID == -1 )
 	{

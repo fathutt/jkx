@@ -12,12 +12,13 @@ Foundation.
 
 // One program that starts the right game.
 //
-// A player should not have to know that jkx_jka is Academy, that jkx_jk2 is
-// Outcast, and that each one needs its own installation with its own assets.
-// Getting it wrong does not even say so: starting the Outcast engine in an
-// Academy directory produces a message about a string package called CON_TEXT,
-// which is a true statement about Outcast's data and tells nobody anything.
-// That is how this was found.
+// A player should not have to know that the engine takes a com_game argument,
+// or that each game needs its own installation with its own assets. Getting it
+// wrong does not even say so: running as Outcast in an Academy directory used
+// to produce a message about a string package called CON_TEXT, which is a true
+// statement about Outcast's data and tells nobody anything. That is how this
+// was found; Com_CheckGameAssets() now says it in words, and this program tries
+// not to let it happen at all.
 //
 // So this looks for the installations - Steam's registry key and its library
 // list, GOG's, and the places installers used before either existed - works out
@@ -419,17 +420,26 @@ Starting it
 ===============================================================================
 */
 
-// The engines carry the architecture in their names, and a packaged build may
+// The engine carries the architecture in its name, and a packaged build may
 // not: both spellings are tried, in the order that prefers the exact one.
-static const char *EngineNames( installKind_t kind, int which )
+//
+// There is one name now. Which game the engine runs as is com_game, passed
+// below - so the thing this program knows, which is what is in that directory,
+// is told to the engine instead of being encoded in which file it starts.
+static const char *EngineNames( int which )
+{
+	return ( which == 0 ) ? "jkx." ARCH_STRING JKX_EXE_SUFFIX
+		: "jkx" JKX_EXE_SUFFIX;
+}
+
+// The value com_game takes for each kind of installation.
+static const char *GameArgument( installKind_t kind )
 {
 	if ( kind == INSTALL_ACADEMY ) {
-		return ( which == 0 ) ? "jkx_jka." ARCH_STRING JKX_EXE_SUFFIX
-			: "jkx_jka" JKX_EXE_SUFFIX;
+		return "academy";
 	}
 	if ( kind == INSTALL_OUTCAST ) {
-		return ( which == 0 ) ? "jkx_jk2." ARCH_STRING JKX_EXE_SUFFIX
-			: "jkx_jk2" JKX_EXE_SUFFIX;
+		return "outcast";
 	}
 	return NULL;
 }
@@ -439,9 +449,10 @@ void Launcher_Start( const char *here, const launcherFound_t *game,
 					 char **pass, int passCount )
 {
 	char		engine[JKX_MAX_PATH];
-	const char	*name = EngineNames( game->kind, 0 );
+	const char	*name = EngineNames( 0 );
+	const char	*which = GameArgument( game->kind );
 
-	if ( !name ) {
+	if ( !which ) {
 		return;
 	}
 
@@ -454,7 +465,7 @@ void Launcher_Start( const char *here, const launcherFound_t *game,
 		struct stat	st;
 
 		if ( stat( engine, &st ) != 0 ) {
-			JoinPath( engine, sizeof( engine ), here, EngineNames( game->kind, 1 ) );
+			JoinPath( engine, sizeof( engine ), here, EngineNames( 1 ) );
 		}
 	}
 
@@ -476,15 +487,19 @@ void Launcher_Start( const char *here, const launcherFound_t *game,
 		// where saves and configs go and the engine picks that itself.
 		char	root[JKX_MAX_PATH];
 		char	own[JKX_MAX_PATH];
-		char	*args[8 + JKX_MAX_PASS];
+		char	game_name[16];
+		char	*args[11 + JKX_MAX_PASS];
 		char	set1[] = "+set";
 		char	set2[] = "+set";
+		char	set3[] = "+set";
 		char	fsbase[] = "fs_basepath";
 		char	fscd[] = "fs_cdpath";
+		char	comgame[] = "com_game";
 		int		n = 0;
 
 		snprintf( root, sizeof( root ), "%s", game->root );
 		snprintf( own, sizeof( own ), "%s", here );
+		snprintf( game_name, sizeof( game_name ), "%s", which );
 
 		args[n++] = engine;
 		args[n++] = set1;
@@ -493,6 +508,12 @@ void Launcher_Start( const char *here, const launcherFound_t *game,
 		args[n++] = set2;
 		args[n++] = fscd;
 		args[n++] = root;
+		// com_game is CVAR_INIT: it can only be set here, and the engine reads
+		// it once. It goes before the pass-through arguments for the same
+		// reason the paths do - somebody who types com_game means it.
+		args[n++] = set3;
+		args[n++] = comgame;
+		args[n++] = game_name;
 
 		// Everything the person put after the directory, passed straight
 		// through.

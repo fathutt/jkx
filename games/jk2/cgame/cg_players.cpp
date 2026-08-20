@@ -32,7 +32,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 #define	LOOK_SWING_SCALE	0.5
 
-// animTable is a translation unit of its own now, linked in rather than
+// animTableOutcast is a translation unit of its own now, linked in rather than
 // included - see code/api/anim_names.h.
 #include "api/anim_names.h"
 
@@ -622,7 +622,7 @@ void ParseAnimationSndBlock(const char *asb_filename, animsounds_t *animSounds, 
 		//	just need offsets.
 		//This way when animation numbers change, this table won't have to be updated,
 		//	at least not much.
-		animNum = GetIDForString(animTable, token);
+		animNum = GetIDForString(animTableOutcast, token);
 		if(animNum == -1)
 		{//Unrecognized ANIM ENUM name, or we're skipping this line, keep going till you get a good one
 			Com_Printf(S_COLOR_YELLOW"WARNING: Unknown token %s in animSound file %s\n", token, asb_filename );

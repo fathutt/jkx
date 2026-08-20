@@ -1225,16 +1225,15 @@ void Com_Init( char *commandLine ) {
 
 		com_homepath = Cvar_Get("com_homepath", "", CVAR_INIT);
 
-		// The default still comes from the define, and this is the last place
-		// it will: while there are two binaries, each has to know which game it
-		// is when nobody says. When there is one, the default becomes a plain
-		// string and this #ifdef is the only one left to delete.
-		com_game = Cvar_Get( "com_game",
-#ifdef JK2_MODE
-			"outcast",
-#else
-			"academy",
-#endif
+		// The one place that decides which game this is. There is no define
+		// left to ask: the same binary runs both, and the answer arrives on the
+		// command line - from the player, or from the launcher, which knows
+		// because it looked at the assets.
+		//
+		// Academy is the default because a bare jkx with retail Academy assets
+		// beside it should just start, and because Com_CheckGameAssets() below
+		// catches the case where the assets say otherwise.
+		com_game = Cvar_Get( "com_game", "academy",
 			CVAR_INIT, "Which game this is: academy or outcast. Command line only." );
 
 		Com_SetOutcast( (qboolean)( Q_stricmp( com_game->string, "outcast" ) == 0 ) );
