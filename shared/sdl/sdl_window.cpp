@@ -809,7 +809,7 @@ static qboolean GLimp_StartDriverAndSetMode(glconfig_t *glConfig, const windowDe
 		fullscreen = qfalse;
 	}
 
-	err = GLimp_SetMode(glConfig, windowDesc, CLIENT_WINDOW_TITLE, mode, fullscreen, noborder);
+	err = GLimp_SetMode(glConfig, windowDesc, Com_WindowTitle(), mode, fullscreen, noborder);
 
 	switch ( err )
 	{

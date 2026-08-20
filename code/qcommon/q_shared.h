@@ -92,27 +92,27 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 // are called. The tree says jka and jk2 everywhere else now: games/jka,
 // games/jk2, JKADir, JK2Dir, BuildJKAGame. It used to say ja and jo here, which
 // is the same two games under two more names.
-#if JK2_MODE
-#define PRODUCT_NAME			"jkx_jk2"
-
-#define CLIENT_WINDOW_TITLE "JKX: Jedi Outcast"
-#define CLIENT_CONSOLE_TITLE "JKX Console (Outcast)"
-#define HOMEPATH_NAME_UNIX "jkx_jk2"
-#define HOMEPATH_NAME_WIN "JKX_JK2"
-#define HOMEPATH_NAME_MACOSX HOMEPATH_NAME_WIN
-#else
-#define PRODUCT_NAME			"jkx_jka"
-
-#define CLIENT_WINDOW_TITLE "JKX: Jedi Academy"
-#define CLIENT_CONSOLE_TITLE "JKX Console (Academy)"
-#define HOMEPATH_NAME_UNIX "jkx_jka"
-#define HOMEPATH_NAME_WIN "JKX_JKA"
-#define HOMEPATH_NAME_MACOSX HOMEPATH_NAME_WIN
-#endif
+// Who this process says it is: the window title, the console title, the name of
+// the configuration file and the directory the settings live in.
+//
+// Functions rather than defines, because one binary can be either game and the
+// answer is not known until com_game has been read. The last of them is why
+// this could not stay a macro: two games must not share a home directory - a
+// config and a saved game written by one would be found by the other - and the
+// path is chosen before the filesystem starts.
+//
+// JO and JA rather than JK2 and JKA, by request. Renaming the directory means
+// an existing installation looks empty; the format inside has not changed, so
+// renaming the folder by hand is the whole migration.
+const char *Com_ProductName( void );	// "jkx_jo" / "jkx_ja"
+const char *Com_WindowTitle( void );
+const char *Com_ConsoleTitle( void );
+const char *Com_HomepathName( void );	// spelled the way the platform likes
+const char *Com_ConfigName( void );		// PRODUCT_NAME ".cfg"
 
 #define	BASEGAME "base"
 
-#define Q3CONFIG_NAME PRODUCT_NAME ".cfg"
+#define Q3CONFIG_NAME Com_ConfigName()
 
 // Further than anything in a map, used as the starting value of a
 // shortest-distance search. It lived in the gamecode's own g_local.h, and the
@@ -189,6 +189,13 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 #include "qcommon/q_platform.h"
 #include "jkx_saved_game_helper_fwd.h"
+
+// Which game this is. Declared here rather than in qcommon.h because the
+// structures that ask are shared with the gamecode - see the note at the
+// definition in q_shared.cpp. It has to come before this file includes
+// ghoul2_shared.h, which is one of them.
+qboolean	Com_IsOutcast( void );
+void		Com_SetOutcast( qboolean isOutcast );
 
 
 // ================================================================
@@ -1980,18 +1987,18 @@ public:
 		saved_game.write<float>(serverViewOrg);
 		saved_game.write<int32_t>(saberInFlight);
 
-#ifdef JK2_MODE
-		saved_game.write<int32_t>(saberActive);
-		saved_game.write<int32_t>(vehicleModel);
-		saved_game.write<int32_t>(viewEntity);
-		saved_game.write<int32_t>(saberColor);
-		saved_game.write<float>(saberLength);
-		saved_game.write<float>(saberLengthMax);
-		saved_game.write<int32_t>(forcePowersActive);
-#else
-		saved_game.write<int32_t>(viewEntity);
-		saved_game.write<int32_t>(forcePowersActive);
-#endif // JK2_MODE
+if ( Com_IsOutcast() ) {
+			saved_game.write<int32_t>(saberActive);
+			saved_game.write<int32_t>(vehicleModel);
+			saved_game.write<int32_t>(viewEntity);
+			saved_game.write<int32_t>(saberColor);
+			saved_game.write<float>(saberLength);
+			saved_game.write<float>(saberLengthMax);
+			saved_game.write<int32_t>(forcePowersActive);
+} else {
+			saved_game.write<int32_t>(viewEntity);
+			saved_game.write<int32_t>(forcePowersActive);
+}
 
 		saved_game.write<int32_t>(useTime);
 		saved_game.write<int32_t>(lastShotTime);
@@ -2000,26 +2007,26 @@ public:
 		saved_game.write<int32_t>(lastStationary);
 		saved_game.write<int32_t>(weaponShotCount);
 
-#ifndef JK2_MODE
-		saved_game.write<>(saber);
-		saved_game.write<int32_t>(dualSabers);
-#endif // !JK2_MODE
+if ( !Com_IsOutcast() ) {
+			saved_game.write<>(saber);
+			saved_game.write<int32_t>(dualSabers);
+}
 
 		saved_game.write<int16_t>(saberMove);
 
-#ifndef JK2_MODE
-		saved_game.write<int16_t>(saberMoveNext);
-#endif // !JK2_MODE
+if ( !Com_IsOutcast() ) {
+			saved_game.write<int16_t>(saberMoveNext);
+}
 
 		saved_game.write<int16_t>(saberBounceMove);
 		saved_game.write<int16_t>(saberBlocking);
 		saved_game.write<int16_t>(saberBlocked);
 		saved_game.write<int16_t>(leanStopDebounceTime);
 
-#ifdef JK2_MODE
-		saved_game.skip(2);
-		saved_game.write<float>(saberLengthOld);
-#endif // JK2_MODE
+if ( Com_IsOutcast() ) {
+			saved_game.skip(2);
+			saved_game.write<float>(saberLengthOld);
+}
 
 		saved_game.write<int32_t>(saberEntityNum);
 		saved_game.write<float>(saberEntityDist);
@@ -2034,13 +2041,13 @@ public:
 		saved_game.write<int32_t>(saberLockTime);
 		saved_game.write<int32_t>(saberLockEnemy);
 
-#ifndef JK2_MODE
-		saved_game.write<int32_t>(saberStylesKnown);
-#endif // !JK2_MODE
+if ( !Com_IsOutcast() ) {
+			saved_game.write<int32_t>(saberStylesKnown);
+}
 
-#ifdef JK2_MODE
-		saved_game.write<int32_t>(saberModel);
-#endif // JK2_MODE
+if ( Com_IsOutcast() ) {
+			saved_game.write<int32_t>(saberModel);
+}
 
 		saved_game.write<int32_t>(forcePowersKnown);
 		saved_game.write<int32_t>(forcePowerDuration);
@@ -2049,10 +2056,10 @@ public:
 		saved_game.write<int32_t>(forcePowerMax);
 		saved_game.write<int32_t>(forcePowerRegenDebounceTime);
 
-#ifndef JK2_MODE
-		saved_game.write<int32_t>(forcePowerRegenRate);
-		saved_game.write<int32_t>(forcePowerRegenAmount);
-#endif // !JK2_MODE
+if ( !Com_IsOutcast() ) {
+			saved_game.write<int32_t>(forcePowerRegenRate);
+			saved_game.write<int32_t>(forcePowerRegenAmount);
+}
 
 		saved_game.write<int32_t>(forcePowerLevel);
 		saved_game.write<float>(forceJumpZStart);
@@ -2060,24 +2067,24 @@ public:
 		saved_game.write<int32_t>(forceGripEntityNum);
 		saved_game.write<float>(forceGripOrg);
 
-#ifndef JK2_MODE
-		saved_game.write<int32_t>(forceDrainEntityNum);
-		saved_game.write<float>(forceDrainOrg);
-#endif // !JK2_MODE
+if ( !Com_IsOutcast() ) {
+			saved_game.write<int32_t>(forceDrainEntityNum);
+			saved_game.write<float>(forceDrainOrg);
+}
 
 		saved_game.write<int32_t>(forceHealCount);
 
-#ifndef JK2_MODE
-		saved_game.write<int32_t>(forceAllowDeactivateTime);
-		saved_game.write<int32_t>(forceRageDrainTime);
-		saved_game.write<int32_t>(forceRageRecoveryTime);
-		saved_game.write<int32_t>(forceDrainEntNum);
-		saved_game.write<float>(forceDrainTime);
-		saved_game.write<int32_t>(forcePowersForced);
-		saved_game.write<int32_t>(pullAttackEntNum);
-		saved_game.write<int32_t>(pullAttackTime);
-		saved_game.write<int32_t>(lastKickedEntNum);
-#endif // !JK2_MODE
+if ( !Com_IsOutcast() ) {
+			saved_game.write<int32_t>(forceAllowDeactivateTime);
+			saved_game.write<int32_t>(forceRageDrainTime);
+			saved_game.write<int32_t>(forceRageRecoveryTime);
+			saved_game.write<int32_t>(forceDrainEntNum);
+			saved_game.write<float>(forceDrainTime);
+			saved_game.write<int32_t>(forcePowersForced);
+			saved_game.write<int32_t>(pullAttackEntNum);
+			saved_game.write<int32_t>(pullAttackTime);
+			saved_game.write<int32_t>(lastKickedEntNum);
+}
 
 		saved_game.write<int32_t>(taunting);
 		saved_game.write<float>(jumpZStart);
@@ -2085,17 +2092,17 @@ public:
 		saved_game.write<float>(waterheight);
 		saved_game.write<int32_t>(waterHeightLevel);
 
-#ifndef JK2_MODE
-		saved_game.write<int32_t>(ikStatus);
-		saved_game.write<int32_t>(heldClient);
-		saved_game.write<int32_t>(heldByClient);
-		saved_game.write<int32_t>(heldByBolt);
-		saved_game.write<int32_t>(heldByBone);
-		saved_game.write<int32_t>(vehTurnaroundIndex);
-		saved_game.write<int32_t>(vehTurnaroundTime);
-		saved_game.write<int32_t>(brokenLimbs);
-		saved_game.write<int32_t>(electrifyTime);
-#endif // !JK2_MODE
+if ( !Com_IsOutcast() ) {
+			saved_game.write<int32_t>(ikStatus);
+			saved_game.write<int32_t>(heldClient);
+			saved_game.write<int32_t>(heldByClient);
+			saved_game.write<int32_t>(heldByBolt);
+			saved_game.write<int32_t>(heldByBone);
+			saved_game.write<int32_t>(vehTurnaroundIndex);
+			saved_game.write<int32_t>(vehTurnaroundTime);
+			saved_game.write<int32_t>(brokenLimbs);
+			saved_game.write<int32_t>(electrifyTime);
+}
 	}
 
 	void sg_import(
@@ -2149,18 +2156,18 @@ public:
 		saved_game.read<float>(serverViewOrg);
 		saved_game.read<int32_t>(saberInFlight);
 
-#ifdef JK2_MODE
-		saved_game.read<int32_t>(saberActive);
-		saved_game.read<int32_t>(vehicleModel);
-		saved_game.read<int32_t>(viewEntity);
-		saved_game.read<int32_t>(saberColor);
-		saved_game.read<float>(saberLength);
-		saved_game.read<float>(saberLengthMax);
-		saved_game.read<int32_t>(forcePowersActive);
-#else
-		saved_game.read<int32_t>(viewEntity);
-		saved_game.read<int32_t>(forcePowersActive);
-#endif // JK2_MODE
+if ( Com_IsOutcast() ) {
+			saved_game.read<int32_t>(saberActive);
+			saved_game.read<int32_t>(vehicleModel);
+			saved_game.read<int32_t>(viewEntity);
+			saved_game.read<int32_t>(saberColor);
+			saved_game.read<float>(saberLength);
+			saved_game.read<float>(saberLengthMax);
+			saved_game.read<int32_t>(forcePowersActive);
+} else {
+			saved_game.read<int32_t>(viewEntity);
+			saved_game.read<int32_t>(forcePowersActive);
+}
 
 		saved_game.read<int32_t>(useTime);
 		saved_game.read<int32_t>(lastShotTime);
@@ -2169,26 +2176,26 @@ public:
 		saved_game.read<int32_t>(lastStationary);
 		saved_game.read<int32_t>(weaponShotCount);
 
-#ifndef JK2_MODE
-		saved_game.read<>(saber);
-		saved_game.read<int32_t>(dualSabers);
-#endif // !JK2_MODE
+if ( !Com_IsOutcast() ) {
+			saved_game.read<>(saber);
+			saved_game.read<int32_t>(dualSabers);
+}
 
 		saved_game.read<int16_t>(saberMove);
 
-#ifndef JK2_MODE
-		saved_game.read<int16_t>(saberMoveNext);
-#endif // !JK2_MODE
+if ( !Com_IsOutcast() ) {
+			saved_game.read<int16_t>(saberMoveNext);
+}
 
 		saved_game.read<int16_t>(saberBounceMove);
 		saved_game.read<int16_t>(saberBlocking);
 		saved_game.read<int16_t>(saberBlocked);
 		saved_game.read<int16_t>(leanStopDebounceTime);
 
-#ifdef JK2_MODE
-		saved_game.skip(2);
-		saved_game.read<float>(saberLengthOld);
-#endif // JK2_MODE
+if ( Com_IsOutcast() ) {
+			saved_game.skip(2);
+			saved_game.read<float>(saberLengthOld);
+}
 
 		saved_game.read<int32_t>(saberEntityNum);
 		saved_game.read<float>(saberEntityDist);
@@ -2203,13 +2210,13 @@ public:
 		saved_game.read<int32_t>(saberLockTime);
 		saved_game.read<int32_t>(saberLockEnemy);
 
-#ifndef JK2_MODE
-		saved_game.read<int32_t>(saberStylesKnown);
-#endif // !JK2_MODE
+if ( !Com_IsOutcast() ) {
+			saved_game.read<int32_t>(saberStylesKnown);
+}
 
-#ifdef JK2_MODE
-		saved_game.read<int32_t>(saberModel);
-#endif // JK2_MODE
+if ( Com_IsOutcast() ) {
+			saved_game.read<int32_t>(saberModel);
+}
 
 		saved_game.read<int32_t>(forcePowersKnown);
 		saved_game.read<int32_t>(forcePowerDuration);
@@ -2218,10 +2225,10 @@ public:
 		saved_game.read<int32_t>(forcePowerMax);
 		saved_game.read<int32_t>(forcePowerRegenDebounceTime);
 
-#ifndef JK2_MODE
-		saved_game.read<int32_t>(forcePowerRegenRate);
-		saved_game.read<int32_t>(forcePowerRegenAmount);
-#endif // !JK2_MODE
+if ( !Com_IsOutcast() ) {
+			saved_game.read<int32_t>(forcePowerRegenRate);
+			saved_game.read<int32_t>(forcePowerRegenAmount);
+}
 
 		saved_game.read<int32_t>(forcePowerLevel);
 		saved_game.read<float>(forceJumpZStart);
@@ -2229,24 +2236,24 @@ public:
 		saved_game.read<int32_t>(forceGripEntityNum);
 		saved_game.read<float>(forceGripOrg);
 
-#ifndef JK2_MODE
-		saved_game.read<int32_t>(forceDrainEntityNum);
-		saved_game.read<float>(forceDrainOrg);
-#endif // !JK2_MODE
+if ( !Com_IsOutcast() ) {
+			saved_game.read<int32_t>(forceDrainEntityNum);
+			saved_game.read<float>(forceDrainOrg);
+}
 
 		saved_game.read<int32_t>(forceHealCount);
 
-#ifndef JK2_MODE
-		saved_game.read<int32_t>(forceAllowDeactivateTime);
-		saved_game.read<int32_t>(forceRageDrainTime);
-		saved_game.read<int32_t>(forceRageRecoveryTime);
-		saved_game.read<int32_t>(forceDrainEntNum);
-		saved_game.read<float>(forceDrainTime);
-		saved_game.read<int32_t>(forcePowersForced);
-		saved_game.read<int32_t>(pullAttackEntNum);
-		saved_game.read<int32_t>(pullAttackTime);
-		saved_game.read<int32_t>(lastKickedEntNum);
-#endif // !JK2_MODE
+if ( !Com_IsOutcast() ) {
+			saved_game.read<int32_t>(forceAllowDeactivateTime);
+			saved_game.read<int32_t>(forceRageDrainTime);
+			saved_game.read<int32_t>(forceRageRecoveryTime);
+			saved_game.read<int32_t>(forceDrainEntNum);
+			saved_game.read<float>(forceDrainTime);
+			saved_game.read<int32_t>(forcePowersForced);
+			saved_game.read<int32_t>(pullAttackEntNum);
+			saved_game.read<int32_t>(pullAttackTime);
+			saved_game.read<int32_t>(lastKickedEntNum);
+}
 
 		saved_game.read<int32_t>(taunting);
 		saved_game.read<float>(jumpZStart);
@@ -2254,17 +2261,17 @@ public:
 		saved_game.read<float>(waterheight);
 		saved_game.read<int32_t>(waterHeightLevel);
 
-#ifndef JK2_MODE
-		saved_game.read<int32_t>(ikStatus);
-		saved_game.read<int32_t>(heldClient);
-		saved_game.read<int32_t>(heldByClient);
-		saved_game.read<int32_t>(heldByBolt);
-		saved_game.read<int32_t>(heldByBone);
-		saved_game.read<int32_t>(vehTurnaroundIndex);
-		saved_game.read<int32_t>(vehTurnaroundTime);
-		saved_game.read<int32_t>(brokenLimbs);
-		saved_game.read<int32_t>(electrifyTime);
-#endif // !JK2_MODE
+if ( !Com_IsOutcast() ) {
+			saved_game.read<int32_t>(ikStatus);
+			saved_game.read<int32_t>(heldClient);
+			saved_game.read<int32_t>(heldByClient);
+			saved_game.read<int32_t>(heldByBolt);
+			saved_game.read<int32_t>(heldByBone);
+			saved_game.read<int32_t>(vehTurnaroundIndex);
+			saved_game.read<int32_t>(vehTurnaroundTime);
+			saved_game.read<int32_t>(brokenLimbs);
+			saved_game.read<int32_t>(electrifyTime);
+}
 	}
 }; // PlayerStateBase
 
@@ -2524,23 +2531,23 @@ Ghoul2 Insert End
 		saved_game.write<int32_t>(saberInFlight);
 		saved_game.write<int32_t>(saberActive);
 
-#ifdef JK2_MODE
-		saved_game.write<int32_t>(vehicleModel);
-#endif // JK2_MODE
+if ( Com_IsOutcast() ) {
+			saved_game.write<int32_t>(vehicleModel);
+}
 
-#ifndef JK2_MODE
-		saved_game.write<float>(vehicleAngles);
-		saved_game.write<int32_t>(vehicleArmor);
-		saved_game.write<int32_t>(m_iVehicleNum);
-#endif // !JK2_MODE
+if ( !Com_IsOutcast() ) {
+			saved_game.write<float>(vehicleAngles);
+			saved_game.write<int32_t>(vehicleArmor);
+			saved_game.write<int32_t>(m_iVehicleNum);
+}
 
 		saved_game.write<float>(modelScale);
 		saved_game.write<int32_t>(radius);
 		saved_game.write<int32_t>(boltInfo);
 
-#ifndef JK2_MODE
-		saved_game.write<int32_t>(isPortalEnt);
-#endif // !JK2_MODE
+if ( !Com_IsOutcast() ) {
+			saved_game.write<int32_t>(isPortalEnt);
+}
 	}
 
 	void sg_import(
@@ -2580,23 +2587,23 @@ Ghoul2 Insert End
 		saved_game.read<int32_t>(saberInFlight);
 		saved_game.read<int32_t>(saberActive);
 
-#ifdef JK2_MODE
-		saved_game.read<int32_t>(vehicleModel);
-#endif // JK2_MODE
+if ( Com_IsOutcast() ) {
+			saved_game.read<int32_t>(vehicleModel);
+}
 
-#ifndef JK2_MODE
-		saved_game.read<float>(vehicleAngles);
-		saved_game.read<int32_t>(vehicleArmor);
-		saved_game.read<int32_t>(m_iVehicleNum);
-#endif // !JK2_MODE
+if ( !Com_IsOutcast() ) {
+			saved_game.read<float>(vehicleAngles);
+			saved_game.read<int32_t>(vehicleArmor);
+			saved_game.read<int32_t>(m_iVehicleNum);
+}
 
 		saved_game.read<float>(modelScale);
 		saved_game.read<int32_t>(radius);
 		saved_game.read<int32_t>(boltInfo);
 
-#ifndef JK2_MODE
-		saved_game.read<int32_t>(isPortalEnt);
-#endif // !JK2_MODE
+if ( !Com_IsOutcast() ) {
+			saved_game.read<int32_t>(isPortalEnt);
+}
 	}
 } entityState_t;
 

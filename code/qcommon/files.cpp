@@ -3108,7 +3108,7 @@ void FS_Restart( qboolean inPlace ) {
 	if ( Q_stricmp(fs_gamedirvar->string, lastValidGame) ) {
 		// skip the jaconfig.cfg if "safe" is on the command line
 		if ( !Com_SafeMode() ) {
-			Cbuf_AddText ("exec " Q3CONFIG_NAME "\n");
+			Cbuf_AddText ( va( "exec %s\n", Q3CONFIG_NAME ) );
 		}
 	}
 

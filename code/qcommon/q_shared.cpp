@@ -1111,3 +1111,87 @@ void *Q_LinearSearch( const void *key, const void *ptr, size_t count,
 	}
 	return NULL;
 }
+
+/*
+============================================================================
+
+WHICH GAME THIS IS
+
+Kept here, in code compiled into the engine AND into both gamecode modules,
+because the structures that need to ask are shared between them: the Ghoul2
+instance and playerState_t serialise themselves through methods in headers both
+sides include, and a method cannot call a function that only one side links.
+
+Each module has its own copy of the flag and each sets it once. The engine sets
+it from com_game at startup; a gamecode module sets it from its own identity,
+which it still knows at compile time because it is still built per game.
+
+Reading it before it is set answers "Academy", which is the default the engine
+also takes - so a module that forgets to set it is wrong about Outcast and right
+about Academy, rather than wrong about both.
+
+============================================================================
+*/
+
+static qboolean q_isOutcast = qfalse;
+
+void Com_SetOutcast( qboolean isOutcast )
+{
+	q_isOutcast = isOutcast;
+}
+
+qboolean Com_IsOutcast( void )
+{
+	return q_isOutcast;
+}
+
+/*
+============================================================================
+
+WHO THIS PROCESS SAYS IT IS
+
+The names are chosen from the flag above rather than from a define, because one
+binary can be either game. The home directory is the one that matters: two games
+must not share it, or a config and a saved game written by one are found by the
+other.
+
+============================================================================
+*/
+
+const char *Com_ProductName( void )
+{
+	return q_isOutcast ? "jkx_jo" : "jkx_ja";
+}
+
+const char *Com_WindowTitle( void )
+{
+	return q_isOutcast ? "JKX: Jedi Outcast" : "JKX: Jedi Academy";
+}
+
+const char *Com_ConsoleTitle( void )
+{
+	return q_isOutcast ? "JKX Console (Outcast)" : "JKX Console (Academy)";
+}
+
+const char *Com_HomepathName( void )
+{
+	// Spelled the way each platform spells such things: a dotted directory in
+	// the user's data path on Unix, a capitalised one beside the documents on
+	// Windows and macOS.
+#ifdef _WIN32
+	return q_isOutcast ? "JKX_JO" : "JKX_JA";
+#elif defined(MACOS_X)
+	return q_isOutcast ? "JKX_JO" : "JKX_JA";
+#else
+	return q_isOutcast ? "jkx_jo" : "jkx_ja";
+#endif
+}
+
+const char *Com_ConfigName( void )
+{
+	static char name[MAX_QPATH];
+
+	Com_sprintf( name, sizeof( name ), "%s.cfg", Com_ProductName() );
+
+	return name;
+}

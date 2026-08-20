@@ -309,7 +309,7 @@ void CON_Init( void )
 	qconsole_attrib = info.wAttributes;
 	qconsole_backgroundAttrib = qconsole_attrib & (BACKGROUND_BLUE|BACKGROUND_GREEN|BACKGROUND_RED|BACKGROUND_INTENSITY);
 
-	SetConsoleTitle(CLIENT_WINDOW_TITLE " Dedicated Server Console");
+	SetConsoleTitle( va( "%s Dedicated Server Console", Com_WindowTitle() ) );
 
 	// initialize history
 	for( i = 0; i < QCONSOLE_HISTORY; i++ )

@@ -192,7 +192,7 @@ char *Sys_DefaultHomePath( void )
 		if ( com_homepath && com_homepath->string[0] )
 			Q_strcat( homePath, sizeof( homePath ), com_homepath->string );
 		else
-			Q_strcat( homePath, sizeof( homePath ), HOMEPATH_NAME_WIN );
+			Q_strcat( homePath, sizeof( homePath ), Com_HomepathName() );
 	}
 
 	return homePath;

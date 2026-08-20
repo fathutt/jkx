@@ -792,6 +792,13 @@ and global variables
 */
 extern int PM_ValidateAnimRange( int startFrame, int endFrame, float animSpeed );
 extern "C" Q_EXPORT game_export_t* QDECL GetGameAPI( game_import_t *import ) {
+	// This module is Outcast, and it says so once. The flag lives in q_shared.cpp,
+	// which every module compiles its own copy of, and the structures shared
+	// with the engine read it when they serialise themselves. The gamecode is
+	// still built per game, so it is the one place that still knows at compile
+	// time - see the note at Com_SetOutcast.
+	Com_SetOutcast( qtrue );
+
 	gi = *import;
 
 	globals.apiversion = GAME_API_VERSION;

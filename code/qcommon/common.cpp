@@ -78,12 +78,11 @@ cvar_t  *com_homepath;
 // call sites reading it directly would each be a chance to disagree with the
 // rest of the process about what game this is.
 cvar_t  *com_game;
-static qboolean com_outcast;
 
-qboolean Com_IsOutcast( void )
-{
-	return com_outcast;
-}
+// The flag itself lives in q_shared.cpp, which the gamecode modules compile
+// too - see the note there. This file decides the value; everyone reads it
+// through Com_IsOutcast().
+#define com_outcast	( Com_IsOutcast() != qfalse )
 
 /*
 =================
@@ -1138,7 +1137,7 @@ void Com_ExecuteCfg(void)
 	if(!Com_SafeMode())
 	{
 		// skip the q3config.cfg and autoexec.cfg if "safe" is on the command line
-		Cbuf_ExecuteText(EXEC_NOW, "exec " Q3CONFIG_NAME "\n");
+		Cbuf_ExecuteText(EXEC_NOW, va( "exec %s\n", Q3CONFIG_NAME ) );
 		Cbuf_Execute();
 		Cbuf_ExecuteText(EXEC_NOW, "exec autoexec_sp.cfg\n");
 		Cbuf_Execute();
@@ -1238,7 +1237,7 @@ void Com_Init( char *commandLine ) {
 #endif
 			CVAR_INIT, "Which game this is: academy or outcast. Command line only." );
 
-		com_outcast = (qboolean)( Q_stricmp( com_game->string, "outcast" ) == 0 );
+		Com_SetOutcast( (qboolean)( Q_stricmp( com_game->string, "outcast" ) == 0 ) );
 
 		if ( !com_outcast && Q_stricmp( com_game->string, "academy" ) != 0 ) {
 			Com_Printf( S_COLOR_YELLOW "com_game is \"%s\", which is neither "

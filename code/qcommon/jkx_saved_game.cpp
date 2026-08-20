@@ -101,6 +101,36 @@ bool SavedGame::open(
 		}
 	}
 
+	if (is_succeed)
+	{
+		SavedGameHelper saved_game(
+			this);
+
+		int sg_game = -1;
+		const int this_game = (::Com_IsOutcast() ? 1 : 0);
+
+		if (!saved_game.try_read_chunk<int32_t>(
+			INT_ID('_', 'G', 'A', 'M'),
+			sg_game))
+		{
+			is_succeed = false;
+
+			::Com_Printf(
+				S_COLOR_RED "Failed to read which game wrote \"%s\".\n",
+				base_file_name.c_str());
+		}
+		else if (sg_game != this_game)
+		{
+			is_succeed = false;
+
+			::Com_Printf(
+				S_COLOR_RED "File \"%s\" was written by %s and this is %s.\n",
+				base_file_name.c_str(),
+				sg_game == 1 ? "Jedi Outcast" : "Jedi Academy",
+				this_game == 1 ? "Jedi Outcast" : "Jedi Academy");
+		}
+	}
+
 	if (!is_succeed)
 	{
 		close();
@@ -147,6 +177,16 @@ bool SavedGame::create(
 	sgsh.write_chunk<int32_t>(
 		INT_ID('_', 'V', 'E', 'R'),
 		sg_version);
+
+	// Which game wrote this file.
+	//
+	// One binary can start as either, and the two write different chunks into
+	// the same format - so a save has to say which it is, or the wrong reader
+	// walks it and reports the failure somewhere far from the cause. The
+	// version above says how OLD the file is; this says what it IS.
+	sgsh.write_chunk<int32_t>(
+		INT_ID('_', 'G', 'A', 'M'),
+		::Com_IsOutcast() ? 1 : 0);
 
 	if (is_failed())
 	{
