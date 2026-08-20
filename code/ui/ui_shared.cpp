@@ -1075,11 +1075,8 @@ static void Item_ApplyHacks( itemDef_t *item ) {
 		}
 		if ( !found && multiPtr->count < MAX_MULTI_CVARS )
 		{
-#ifdef JK2_MODE
-			multiPtr->cvarList[multiPtr->count] = String_Alloc("@MENUS0_VERY_HIGH");
-#else
-			multiPtr->cvarList[multiPtr->count] = String_Alloc("@MENUS_VERY_HIGH");
-#endif
+			multiPtr->cvarList[multiPtr->count] = String_Alloc(
+				Com_IsOutcast() ? "@MENUS0_VERY_HIGH" : "@MENUS_VERY_HIGH");
 			multiPtr->cvarValue[multiPtr->count] = 44;
 			multiPtr->count++;
 			Com_Printf( "Extended sound quality field to contain very high option.\n");
@@ -1100,19 +1097,15 @@ static void Item_ApplyHacks( itemDef_t *item ) {
 		}
 		if ( !found && multiPtr->count < MAX_MULTI_CVARS )
 		{
-#ifdef JK2_MODE
-			multiPtr->cvarList[multiPtr->count] = String_Alloc("@MENUS3_ALL_VOICEOVERS");
-#else
-			multiPtr->cvarList[multiPtr->count] = String_Alloc("@MENUS_ALL_VOICEOVERS");
-#endif
+			multiPtr->cvarList[multiPtr->count] = String_Alloc(
+				Com_IsOutcast() ? "@MENUS3_ALL_VOICEOVERS" : "@MENUS_ALL_VOICEOVERS");
 			multiPtr->cvarValue[multiPtr->count] = 1;
 			multiPtr->count++;
 			Com_Printf( "Extended subtitles field to contain all voiceovers option.\n");
 		}
 	}
 
-#ifdef JK2_MODE
-	if ( item->type == ITEM_TYPE_MULTI && item->window.name && !Q_stricmp( item->window.name, "video_mode") && item->cvar && !Q_stricmp( item->cvar, "r_ext_texture_filter_anisotropic" ) ) {
+	if ( Com_IsOutcast() && item->type == ITEM_TYPE_MULTI && item->window.name && !Q_stricmp( item->window.name, "video_mode") && item->cvar && !Q_stricmp( item->cvar, "r_ext_texture_filter_anisotropic" ) ) {
 		{
 			memset(item->typeData, 0, sizeof(multiDef_t));
 		}
@@ -1129,7 +1122,6 @@ static void Item_ApplyHacks( itemDef_t *item ) {
 		editPtr->defVal = 1.0f;
 		Com_Printf( "Converted anisotropic filter field to slider.\n");
 	}
-#endif
 }
 
 /*
@@ -3046,11 +3038,7 @@ const char *Item_Multi_Setting(itemDef_t *item)
  		}
 	}
 
-#ifdef JK2_MODE
-	return "@MENUS1_CUSTOM";
-#else
-	return "@MENUS_CUSTOM";
-#endif
+	return Com_IsOutcast() ? "@MENUS1_CUSTOM" : "@MENUS_CUSTOM";
 }
 
 //---------------------------------------------------------------------------------------------------------
@@ -4569,9 +4557,11 @@ qboolean ItemParse_cvarStrList( itemDef_t *item)
 			multiPtr->cvarList[multiPtr->count] = "@MENUS_MYLANGUAGE";
 			// The cvar value that goes into se_language
 
-#ifndef JK2_MODE // FIXME
-				multiPtr->cvarStr[multiPtr->count] = SE_GetLanguageName(multiPtr->count);
-#endif
+				// FIXME: Outcast reads its languages through its own string
+				// packages and has no equivalent of this call.
+				if ( !Com_IsOutcast() ) {
+					multiPtr->cvarStr[multiPtr->count] = SE_GetLanguageName(multiPtr->count);
+				}
 		}
 		return qtrue;
 	}
@@ -6103,11 +6093,9 @@ bool HasStringLanguageChanged ( const itemDef_t *item )
 	}
 
 	int modificationCount;
-#ifdef JK2_MODE
-	modificationCount = sp_language->modificationCount;
-#else
-	modificationCount = se_language->modificationCount;
-#endif
+	modificationCount = Com_IsOutcast()
+		? sp_language->modificationCount
+		: se_language->modificationCount;
 
 	return item->asset != modificationCount;
 }
@@ -6166,13 +6154,12 @@ void Item_SetTextExtents(itemDef_t *item, int *width, int *height, const char *t
 		}
 
 		ToWindowCoords(&item->textRect.x, &item->textRect.y, &item->window);
-#ifdef JK2_MODE
-		if(item->text && item->text[0]=='@')
-			item->asset = sp_language->modificationCount;
-#else
-		if (item->text && item->text[0]=='@' )//string package
-			item->asset = se_language->modificationCount; //mark language
-#endif
+		if ( item->text && item->text[0] == '@' )	// string package
+		{	// mark language
+			item->asset = Com_IsOutcast()
+				? sp_language->modificationCount
+				: se_language->modificationCount;
+		}
 	}
 }
 
@@ -6333,17 +6320,12 @@ void Item_Text_Paint(itemDef_t *item)
 	{
 		textPtr = item->text;
 	}
-#ifdef JK2_MODE
-	if (*textPtr == '@')
-	{
-		textPtr = JK2SP_GetStringTextString(&textPtr[1]);
-	}
-#else
 	if (*textPtr == '@')	// string reference
 	{
-		textPtr = SE_GetString( &textPtr[1] );
+		textPtr = Com_IsOutcast()
+			? JK2SP_GetStringTextString( &textPtr[1] )
+			: SE_GetString( &textPtr[1] );
 	}
-#endif
 
 	// this needs to go here as it sets extents for cvar types as well
 	Item_SetTextExtents(item, &width, &height, textPtr);
@@ -6820,11 +6802,9 @@ void BindingFromName( const char *cvar ) {
 				DC->keynumToStringBuf( b2, keyname[1], sizeof( keyname[1] ) );
 // do NOT do this or it corrupts asian text!!!					Q_strupr(keyname[1]);
 
-#ifdef JK2_MODE
-				Q_strncpyz( sOR, ui.SP_GetStringTextString( "MENUS3_KEYBIND_OR" ), sizeof(sOR) );
-#else
-				Q_strncpyz( sOR, SE_GetString( "MENUS_KEYBIND_OR" ), sizeof(sOR) );
-#endif
+				Q_strncpyz( sOR, Com_IsOutcast()
+					? ui.SP_GetStringTextString( "MENUS3_KEYBIND_OR" )
+					: SE_GetString( "MENUS_KEYBIND_OR" ), sizeof(sOR) );
 
 				Com_sprintf( g_nameBind, sizeof( g_nameBind ), "%s %s %s", keyname[0], sOR, keyname[1] );
 			}
@@ -7058,275 +7038,275 @@ void Item_Model_Paint(itemDef_t *item)
 	}
 
 	// Fuck all the logic --eez
-#ifdef JK2_MODE
-	// setup the refdef
-	memset( &refdef, 0, sizeof( refdef ) );
-	refdef.rdflags = RDF_NOWORLDMODEL;
-	AxisClear( refdef.viewaxis );
-	x = item->window.rect.x+1;
-	y = item->window.rect.y+1;
-	w = item->window.rect.w-2;
-	h = item->window.rect.h-2;
+	if ( Com_IsOutcast() ) {
+		// setup the refdef
+		memset( &refdef, 0, sizeof( refdef ) );
+		refdef.rdflags = RDF_NOWORLDMODEL;
+		AxisClear( refdef.viewaxis );
+		x = item->window.rect.x+1;
+		y = item->window.rect.y+1;
+		w = item->window.rect.w-2;
+		h = item->window.rect.h-2;
 
-	// bias/biasY are where the fitted frame starts in the window; without them
-	// the viewport is placed as though the interface covered the whole window,
-	// and on a wide screen the model leaves its own frame.
-	refdef.x = DC->bias + x * DC->xscale;
-	refdef.y = DC->biasY + y * DC->yscale;
-	refdef.width = w * DC->xscale;
-	refdef.height = h * DC->yscale;
+		// bias/biasY are where the fitted frame starts in the window; without them
+		// the viewport is placed as though the interface covered the whole window,
+		// and on a wide screen the model leaves its own frame.
+		refdef.x = DC->bias + x * DC->xscale;
+		refdef.y = DC->biasY + y * DC->yscale;
+		refdef.width = w * DC->xscale;
+		refdef.height = h * DC->yscale;
 
-	DC->modelBounds( item->asset, mins, maxs );
+		DC->modelBounds( item->asset, mins, maxs );
 
-	origin[2] = -0.5 * ( mins[2] + maxs[2] );
-	origin[1] = 0.5 * ( mins[1] + maxs[1] );
+		origin[2] = -0.5 * ( mins[2] + maxs[2] );
+		origin[1] = 0.5 * ( mins[1] + maxs[1] );
 
-	// calculate distance so the model nearly fills the box
-	if (qtrue)
-	{
-		float len = 0.5 * ( maxs[2] - mins[2] );
-		origin[0] = len / 0.268;	// len / tan( fov/2 )
-		//origin[0] = len / tan(w/2);
-	}
-	else
-	{
-		origin[0] = item->textscale;
-	}
-	// WTF..? --eez
-	//refdef.fov_x = (modelPtr->fov_x) ? modelPtr->fov_x : w;
-	//refdef.fov_y = (modelPtr->fov_y) ? modelPtr->fov_y : h;
-
-	refdef.fov_x = 45;
-	refdef.fov_y = 45;
-
-	//refdef.fov_x = (int)((float)refdef.width / 640.0f * 90.0f);
-	//xx = refdef.width / tan( refdef.fov_x / 360 * M_PI );
-	//refdef.fov_y = atan2( refdef.height, xx );
-	//refdef.fov_y *= ( 360 / M_PI );
-
-	DC->clearScene();
-
-	refdef.time = DC->realTime;
-
-	// add the model
-
-	memset( &ent, 0, sizeof(ent) );
-
-	//adjust = 5.0 * sin( (float)uis.realtime / 500 );
-	//adjust = 360 % (int)((float)uis.realtime / 1000);
-	//VectorSet( angles, 0, 0, 1 );
-
-	// use item storage to track
-/*
-	if (modelPtr->rotationSpeed)
-	{
-		if (DC->realTime > item->window.nextTime)
+		// calculate distance so the model nearly fills the box
+		if (qtrue)
 		{
-			item->window.nextTime = DC->realTime + modelPtr->rotationSpeed;
-			modelPtr->angle = (int)(modelPtr->angle + 1) % 360;
+			float len = 0.5 * ( maxs[2] - mins[2] );
+			origin[0] = len / 0.268;	// len / tan( fov/2 )
+			//origin[0] = len / tan(w/2);
 		}
-	}
-	VectorSet( angles, 0, modelPtr->angle, 0 );
-*/
-	VectorSet( angles, 0, (float)(refdef.time/20.0f), 0);
-
-	AnglesToAxis( angles, ent.axis );
-
-	ent.hModel = item->asset;
-	VectorCopy( origin, ent.origin );
-	VectorCopy( ent.origin, ent.oldorigin );
-
-	// Set up lighting
-	VectorCopy( refdef.vieworg, ent.lightingOrigin );
-	ent.renderfx = RF_LIGHTING_ORIGIN | RF_NOSHADOW;
-
-	DC->addRefEntityToScene( &ent );
-	DC->renderScene( &refdef );
-#else
-	// a moves datapad anim is playing
-	if (uiInfo.moveAnimTime && (uiInfo.moveAnimTime < uiInfo.uiDC.realTime))
-	{
-		modelDef_t *modelPtr;
-		modelPtr = (modelDef_t*)item->typeData;
-		if (modelPtr)
+		else
 		{
-			// Which animation follows which, by name.
-			//
-			// This was a switch over enum constants, which meant the engine had
-			// to have a game's animation enum compiled into it. Names are what
-			// the table holds and what the assets use, and a name a game does
-			// not have simply never matches - where a missing enum constant is
-			// a build error and a present-but-different one is a wrong
-			// animation played silently.
-			static const struct {
-				const char *psFrom;
-				const char *psTo;
-				int			iSound;		// index into the sounds below, -1 for none
-			} moveFollowUps[] = {
-				{ "BOTH_FORCEWALLREBOUND_FORWARD",	"BOTH_FORCEINAIR1",			-1 },
-				{ "BOTH_FORCEJUMP1",				"BOTH_FORCEINAIR1",			-1 },
-				{ "BOTH_FORCEINAIR1",				"BOTH_FORCELAND1",			-1 },
-				{ "BOTH_FORCEWALLRUNFLIP_START",	"BOTH_FORCEWALLRUNFLIP_END",-1 },
-				{ "BOTH_FORCELONGLEAP_START",		"BOTH_FORCELONGLEAP_LAND",	-1 },
-				{ "BOTH_KNOCKDOWN3",				"BOTH_FORCE_GETUP_F1",		 0 },
-				{ "BOTH_GETUP_BROLL_F",				NULL,						-1 },
-				{ "BOTH_KNOCKDOWN2",				"BOTH_GETUP_BROLL_F",		 0 },
-				{ "BOTH_KNOCKDOWN1",				"BOTH_GETUP_BROLL_R",		 1 },
-			};
+			origin[0] = item->textscale;
+		}
+		// WTF..? --eez
+		//refdef.fov_x = (modelPtr->fov_x) ? modelPtr->fov_x : w;
+		//refdef.fov_y = (modelPtr->fov_y) ? modelPtr->fov_y : h;
 
-			const char *psCurrent = ( modelPtr->g2anim >= 0 && modelPtr->g2anim < Anim_Count() )
-								  ? animTable[modelPtr->g2anim].name : NULL;
-			const char *psNext = NULL;
-			int iSound = -1;
+		refdef.fov_x = 45;
+		refdef.fov_y = 45;
 
-			if ( psCurrent )
+		//refdef.fov_x = (int)((float)refdef.width / 640.0f * 90.0f);
+		//xx = refdef.width / tan( refdef.fov_x / 360 * M_PI );
+		//refdef.fov_y = atan2( refdef.height, xx );
+		//refdef.fov_y *= ( 360 / M_PI );
+
+		DC->clearScene();
+
+		refdef.time = DC->realTime;
+
+		// add the model
+
+		memset( &ent, 0, sizeof(ent) );
+
+		//adjust = 5.0 * sin( (float)uis.realtime / 500 );
+		//adjust = 360 % (int)((float)uis.realtime / 1000);
+		//VectorSet( angles, 0, 0, 1 );
+
+		// use item storage to track
+	/*
+		if (modelPtr->rotationSpeed)
+		{
+			if (DC->realTime > item->window.nextTime)
 			{
-				for ( size_t f = 0; f < ARRAY_LEN( moveFollowUps ); f++ )
+				item->window.nextTime = DC->realTime + modelPtr->rotationSpeed;
+				modelPtr->angle = (int)(modelPtr->angle + 1) % 360;
+			}
+		}
+		VectorSet( angles, 0, modelPtr->angle, 0 );
+	*/
+		VectorSet( angles, 0, (float)(refdef.time/20.0f), 0);
+
+		AnglesToAxis( angles, ent.axis );
+
+		ent.hModel = item->asset;
+		VectorCopy( origin, ent.origin );
+		VectorCopy( ent.origin, ent.oldorigin );
+
+		// Set up lighting
+		VectorCopy( refdef.vieworg, ent.lightingOrigin );
+		ent.renderfx = RF_LIGHTING_ORIGIN | RF_NOSHADOW;
+
+		DC->addRefEntityToScene( &ent );
+		DC->renderScene( &refdef );
+	} else {
+		// a moves datapad anim is playing
+		if (uiInfo.moveAnimTime && (uiInfo.moveAnimTime < uiInfo.uiDC.realTime))
+		{
+			modelDef_t *modelPtr;
+			modelPtr = (modelDef_t*)item->typeData;
+			if (modelPtr)
+			{
+				// Which animation follows which, by name.
+				//
+				// This was a switch over enum constants, which meant the engine had
+				// to have a game's animation enum compiled into it. Names are what
+				// the table holds and what the assets use, and a name a game does
+				// not have simply never matches - where a missing enum constant is
+				// a build error and a present-but-different one is a wrong
+				// animation played silently.
+				static const struct {
+					const char *psFrom;
+					const char *psTo;
+					int			iSound;		// index into the sounds below, -1 for none
+				} moveFollowUps[] = {
+					{ "BOTH_FORCEWALLREBOUND_FORWARD",	"BOTH_FORCEINAIR1",			-1 },
+					{ "BOTH_FORCEJUMP1",				"BOTH_FORCEINAIR1",			-1 },
+					{ "BOTH_FORCEINAIR1",				"BOTH_FORCELAND1",			-1 },
+					{ "BOTH_FORCEWALLRUNFLIP_START",	"BOTH_FORCEWALLRUNFLIP_END",-1 },
+					{ "BOTH_FORCELONGLEAP_START",		"BOTH_FORCELONGLEAP_LAND",	-1 },
+					{ "BOTH_KNOCKDOWN3",				"BOTH_FORCE_GETUP_F1",		 0 },
+					{ "BOTH_GETUP_BROLL_F",				NULL,						-1 },
+					{ "BOTH_KNOCKDOWN2",				"BOTH_GETUP_BROLL_F",		 0 },
+					{ "BOTH_KNOCKDOWN1",				"BOTH_GETUP_BROLL_R",		 1 },
+				};
+
+				const char *psCurrent = ( modelPtr->g2anim >= 0 && modelPtr->g2anim < Anim_Count() )
+									  ? animTable[modelPtr->g2anim].name : NULL;
+				const char *psNext = NULL;
+				int iSound = -1;
+
+				if ( psCurrent )
 				{
-					if ( !Q_stricmp( psCurrent, moveFollowUps[f].psFrom ) && moveFollowUps[f].psTo )
+					for ( size_t f = 0; f < ARRAY_LEN( moveFollowUps ); f++ )
 					{
-						psNext = moveFollowUps[f].psTo;
-						iSound = moveFollowUps[f].iSound;
-						break;
+						if ( !Q_stricmp( psCurrent, moveFollowUps[f].psFrom ) && moveFollowUps[f].psTo )
+						{
+							psNext = moveFollowUps[f].psTo;
+							iSound = moveFollowUps[f].iSound;
+							break;
+						}
 					}
 				}
-			}
 
-			if ( psNext )
-			{
-				if ( iSound == 0 )
+				if ( psNext )
 				{
-					DC->startLocalSound( uiInfo.uiDC.Assets.datapadmoveJumpSound, CHAN_LOCAL );
-				}
-				else if ( iSound == 1 )
-				{
-					DC->startLocalSound( uiInfo.uiDC.Assets.datapadmoveRollSound, CHAN_LOCAL );
-				}
+					if ( iSound == 0 )
+					{
+						DC->startLocalSound( uiInfo.uiDC.Assets.datapadmoveJumpSound, CHAN_LOCAL );
+					}
+					else if ( iSound == 1 )
+					{
+						DC->startLocalSound( uiInfo.uiDC.Assets.datapadmoveRollSound, CHAN_LOCAL );
+					}
 
-				ItemParse_model_g2anim_go( item, psNext );
-				uiInfo.moveAnimTime = DC->g2hilev_SetAnim(&item->ghoul2[0], "model_root", modelPtr->g2anim, qtrue);
-				if ( !uiInfo.moveAnimTime )
-				{
-					uiInfo.moveAnimTime = 500;
+					ItemParse_model_g2anim_go( item, psNext );
+					uiInfo.moveAnimTime = DC->g2hilev_SetAnim(&item->ghoul2[0], "model_root", modelPtr->g2anim, qtrue);
+					if ( !uiInfo.moveAnimTime )
+					{
+						uiInfo.moveAnimTime = 500;
+					}
+					uiInfo.moveAnimTime += uiInfo.uiDC.realTime;
 				}
-				uiInfo.moveAnimTime += uiInfo.uiDC.realTime;
-			}
-			else
-			{
-				ItemParse_model_g2anim_go( item, uiInfo.movesBaseAnim );
-				DC->g2hilev_SetAnim(&item->ghoul2[0], "model_root", modelPtr->g2anim, qtrue);
+				else
+				{
+					ItemParse_model_g2anim_go( item, uiInfo.movesBaseAnim );
+					DC->g2hilev_SetAnim(&item->ghoul2[0], "model_root", modelPtr->g2anim, qtrue);
+				}
 			}
 		}
-	}
 
-	// setup the refdef
-	memset( &refdef, 0, sizeof( refdef ) );
-	refdef.rdflags = RDF_NOWORLDMODEL;
-	AxisClear( refdef.viewaxis );
-	x = item->window.rect.x+1;
-	y = item->window.rect.y+1;
-	w = item->window.rect.w-2;
-	h = item->window.rect.h-2;
+		// setup the refdef
+		memset( &refdef, 0, sizeof( refdef ) );
+		refdef.rdflags = RDF_NOWORLDMODEL;
+		AxisClear( refdef.viewaxis );
+		x = item->window.rect.x+1;
+		y = item->window.rect.y+1;
+		w = item->window.rect.w-2;
+		h = item->window.rect.h-2;
 
-	// bias/biasY are where the fitted frame starts in the window; without them
-	// the viewport is placed as though the interface covered the whole window,
-	// and on a wide screen the model leaves its own frame.
-	refdef.x = DC->bias + x * DC->xscale;
-	refdef.y = DC->biasY + y * DC->yscale;
-	refdef.width = w * DC->xscale;
-	refdef.height = h * DC->yscale;
+		// bias/biasY are where the fitted frame starts in the window; without them
+		// the viewport is placed as though the interface covered the whole window,
+		// and on a wide screen the model leaves its own frame.
+		refdef.x = DC->bias + x * DC->xscale;
+		refdef.y = DC->biasY + y * DC->yscale;
+		refdef.width = w * DC->xscale;
+		refdef.height = h * DC->yscale;
 
-	if (item->flags&ITF_G2VALID)
-	{ //ghoul2 models don't have bounds, so we have to parse them.
-		VectorCopy(modelPtr->g2mins, mins);
-		VectorCopy(modelPtr->g2maxs, maxs);
+		if (item->flags&ITF_G2VALID)
+		{ //ghoul2 models don't have bounds, so we have to parse them.
+			VectorCopy(modelPtr->g2mins, mins);
+			VectorCopy(modelPtr->g2maxs, maxs);
 
-		if (!mins[0] && !mins[1] && !mins[2] &&
-			!maxs[0] && !maxs[1] && !maxs[2])
-		{ //we'll use defaults then I suppose.
-			VectorSet(mins, -16, -16, -24);
-			VectorSet(maxs, 16, 16, 32);
+			if (!mins[0] && !mins[1] && !mins[2] &&
+				!maxs[0] && !maxs[1] && !maxs[2])
+			{ //we'll use defaults then I suppose.
+				VectorSet(mins, -16, -16, -24);
+				VectorSet(maxs, 16, 16, 32);
+			}
 		}
-	}
-	else
-	{
-		DC->modelBounds( item->asset, mins, maxs );
-	}
-
-	origin[2] = -0.5 * ( mins[2] + maxs[2] );
-	origin[1] = 0.5 * ( mins[1] + maxs[1] );
-
-	refdef.fov_x = (modelPtr->fov_x) ? modelPtr->fov_x : (int)((float)refdef.width / 640.0f * 90.0f);
-	refdef.fov_y = (modelPtr->fov_y) ? modelPtr->fov_y : atan2( refdef.height, refdef.width / tan( refdef.fov_x / 360 * M_PI ) ) * ( 360 / M_PI );
-
-//	refdef.fov_x = (modelPtr->fov_x) ? modelPtr->fov_x : refdef.width;
-//	refdef.fov_y = (modelPtr->fov_y) ? modelPtr->fov_y : refdef.height;
-
-	// calculate distance so the model nearly fills the box
-	float len = 0.5 * ( maxs[2] - mins[2] );
-	origin[0] = len / 0.268;
-
-	DC->clearScene();
-
-	refdef.time = DC->realTime;
-
-	// add the model
-
-	memset( &ent, 0, sizeof(ent) );
-
-	// use item storage to track
-	float curYaw = modelPtr->angle;
-	if (modelPtr->rotationSpeed)
-	{
-		curYaw += (float)refdef.time/modelPtr->rotationSpeed;
-	}
-	if ( item->flags&ITF_ISANYSABER && !(item->flags&ITF_ISCHARACTER) )
-	{//hack to put saber on it's side
-		VectorSet( angles, curYaw, 0, 90 );
-	}
-	else
-	{
-		VectorSet( angles, 0, curYaw, 0 );
-	}
-
-
-	AnglesToAxis( angles, ent.axis );
-
-	if (item->flags&ITF_G2VALID)
-	{
-		ent.ghoul2 = &item->ghoul2;
-		ent.radius = 1000;
-		ent.customSkin = modelPtr->g2skin;
-
-		if ( (item->flags&ITF_ISCHARACTER) )
+		else
 		{
-			ent.shaderRGBA[0] = ui_char_color_red.integer;
-			ent.shaderRGBA[1] = ui_char_color_green.integer;
-			ent.shaderRGBA[2] = ui_char_color_blue.integer;
-			ent.shaderRGBA[3] = 255;
-			UI_TalkingHead(item);
+			DC->modelBounds( item->asset, mins, maxs );
 		}
-		if ( item->flags&ITF_ISANYSABER )
-		{//UGH, draw the saber blade!
-			UI_SaberDrawBlades( item, origin, curYaw );
+
+		origin[2] = -0.5 * ( mins[2] + maxs[2] );
+		origin[1] = 0.5 * ( mins[1] + maxs[1] );
+
+		refdef.fov_x = (modelPtr->fov_x) ? modelPtr->fov_x : (int)((float)refdef.width / 640.0f * 90.0f);
+		refdef.fov_y = (modelPtr->fov_y) ? modelPtr->fov_y : atan2( refdef.height, refdef.width / tan( refdef.fov_x / 360 * M_PI ) ) * ( 360 / M_PI );
+
+	//	refdef.fov_x = (modelPtr->fov_x) ? modelPtr->fov_x : refdef.width;
+	//	refdef.fov_y = (modelPtr->fov_y) ? modelPtr->fov_y : refdef.height;
+
+		// calculate distance so the model nearly fills the box
+		float len = 0.5 * ( maxs[2] - mins[2] );
+		origin[0] = len / 0.268;
+
+		DC->clearScene();
+
+		refdef.time = DC->realTime;
+
+		// add the model
+
+		memset( &ent, 0, sizeof(ent) );
+
+		// use item storage to track
+		float curYaw = modelPtr->angle;
+		if (modelPtr->rotationSpeed)
+		{
+			curYaw += (float)refdef.time/modelPtr->rotationSpeed;
 		}
+		if ( item->flags&ITF_ISANYSABER && !(item->flags&ITF_ISCHARACTER) )
+		{//hack to put saber on it's side
+			VectorSet( angles, curYaw, 0, 90 );
+		}
+		else
+		{
+			VectorSet( angles, 0, curYaw, 0 );
+		}
+
+
+		AnglesToAxis( angles, ent.axis );
+
+		if (item->flags&ITF_G2VALID)
+		{
+			ent.ghoul2 = &item->ghoul2;
+			ent.radius = 1000;
+			ent.customSkin = modelPtr->g2skin;
+
+			if ( (item->flags&ITF_ISCHARACTER) )
+			{
+				ent.shaderRGBA[0] = ui_char_color_red.integer;
+				ent.shaderRGBA[1] = ui_char_color_green.integer;
+				ent.shaderRGBA[2] = ui_char_color_blue.integer;
+				ent.shaderRGBA[3] = 255;
+				UI_TalkingHead(item);
+			}
+			if ( item->flags&ITF_ISANYSABER )
+			{//UGH, draw the saber blade!
+				UI_SaberDrawBlades( item, origin, curYaw );
+			}
+		}
+		else
+		{
+			ent.hModel = item->asset;
+		}
+		VectorCopy( origin, ent.origin );
+		VectorCopy( ent.origin, ent.oldorigin );
+
+		// Set up lighting
+		//VectorCopy( refdef.vieworg, ent.lightingOrigin );
+		ent.renderfx = RF_NOSHADOW;
+
+		ui.R_AddLightToScene(refdef.vieworg, 500, 1, 1, 1);	//fixme: specify in menu file!
+
+		DC->addRefEntityToScene( &ent );
+		DC->renderScene( &refdef );
 	}
-	else
-	{
-		ent.hModel = item->asset;
-	}
-	VectorCopy( origin, ent.origin );
-	VectorCopy( ent.origin, ent.oldorigin );
-
-	// Set up lighting
-	//VectorCopy( refdef.vieworg, ent.lightingOrigin );
-	ent.renderfx = RF_NOSHADOW;
-
-	ui.R_AddLightToScene(refdef.vieworg, 500, 1, 1, 1);	//fixme: specify in menu file!
-
-	DC->addRefEntityToScene( &ent );
-	DC->renderScene( &refdef );
-#endif
 }
 
 /*
@@ -7411,13 +7391,10 @@ void Item_YesNo_Paint(itemDef_t *item)
 
 	value = (item->cvar) ? DC->getCVarValue(item->cvar) : 0;
 
-#ifdef JK2_MODE
-	const char *psYes = ui.SP_GetStringTextString( "MENUS0_YES" );
-	const char *psNo = ui.SP_GetStringTextString( "MENUS0_NO" );
-#else
-	const char *psYes = SE_GetString( "MENUS_YES" );
-	const char *psNo  = SE_GetString( "MENUS_NO" );
-#endif
+	const char *psYes = Com_IsOutcast()
+		? ui.SP_GetStringTextString( "MENUS0_YES" ) : SE_GetString( "MENUS_YES" );
+	const char *psNo  = Com_IsOutcast()
+		? ui.SP_GetStringTextString( "MENUS0_NO" )  : SE_GetString( "MENUS_NO" );
 	const char *yesnovalue;
 
 	if (item->invertYesNo)
@@ -11529,13 +11506,13 @@ qboolean UI_GetMenuInfo( const char *menuName, int *x, int *y, int *w, int *h )
 
 	*x = (int)menu->window.rect.x;
 	*y = (int)menu->window.rect.y;
-#ifndef JK2_MODE
 	// Jedi Outcast's caller asks for the position and not the size, and its
 	// menus are authored so that the two would not agree; this is the shape
 	// the syscall had in cl_cgame.cpp and it keeps it.
-	*w = (int)menu->window.rect.w;
-	*h = (int)menu->window.rect.h;
-#endif
+	if ( !Com_IsOutcast() ) {
+		*w = (int)menu->window.rect.w;
+		*h = (int)menu->window.rect.h;
+	}
 	return qtrue;
 }
 
