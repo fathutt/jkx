@@ -77,9 +77,9 @@ static struct
 #define MAX_SAVELOADFILES	100
 #define MAX_SAVELOADNAME	32
 
-#ifdef JK2_MODE
+// Outcast's savegame screenshot lands here. Present in both builds because the
+// UI import table that fills it is present in both; Academy never writes to it.
 byte screenShotBuf[SG_SCR_WIDTH * SG_SCR_HEIGHT * 4];
-#endif
 
 typedef struct
 {
@@ -138,20 +138,16 @@ static void		UI_UpdateSaberHilt( qboolean secondSaber );
 static void		UI_InitWeaponSelect( void );
 static void		UI_WeaponHelpActive( void );
 
-#ifndef JK2_MODE
 static void		UI_UpdateFightingStyle ( void );
 static void		UI_UpdateFightingStyleChoices ( void );
 static void		UI_CalcForceStatus(void);
-#endif // !JK2_MODE
 
 static void		UI_DecrementForcePowerLevel( void );
 static void		UI_DecrementCurrentForcePower ( void );
 static void		UI_ShutdownForceHelp( void );
 static void		UI_ForceHelpActive( void );
 
-#ifndef JK2_MODE
 static void		UI_DemoSetForceLevels( void );
-#endif // !JK2_MODE
 
 static void		UI_RecordForceLevels( void );
 static void		UI_RecordWeapons( void );
@@ -445,11 +441,10 @@ static void UI_UpdateScreenshot( void )
 static cvarTable_t cvarTable[] =
 {
 	{ &ui_menuFiles,			"ui_menuFiles",			"ui/menus.txt", NULL, CVAR_ARCHIVE },
-#ifdef JK2_MODE
-	{ &ui_hudFiles,				"cg_hudFiles",			"ui/jk2hud.txt", NULL, CVAR_ARCHIVE},
-#else
+	// The default is patched at registration time - see the note there. A table
+	// initialiser cannot ask which game this is, and the answer is not known
+	// when a static initialiser runs.
 	{ &ui_hudFiles,				"cg_hudFiles",			"ui/jahud.txt", NULL, CVAR_ARCHIVE},
-#endif
 
 	{ &ui_char_anim,			"ui_char_anim",			"BOTH_WALK1", NULL, 0},
 
@@ -712,12 +707,9 @@ const char *UI_FeederItemText(float feederID, int index, int column, qhandle_t *
 	}
 	else if (feederID == FEEDER_LANGUAGES)
 	{
-#ifdef JK2_MODE
-		// FIXME
-		return NULL;
-#else
-		return SE_GetLanguageName( index );
-#endif
+		// FIXME: Outcast reads its languages through its own string packages
+		// and has no equivalent of this call.
+		return Com_IsOutcast() ? NULL : SE_GetLanguageName( index );
 	}
 	else if (feederID == FEEDER_PLAYER_SKIN_HEAD)
 	{
@@ -833,11 +825,8 @@ static int CreateNextSaveName(char *fileName)
 	// Loop through all the save games and look for the first open name
 	for (i=0;i<MAX_SAVELOADFILES;i++)
 	{
-#ifdef JK2_MODE
-		Com_sprintf( fileName, MAX_SAVELOADNAME, "jkii%02d", i );
-#else
-		Com_sprintf( fileName, MAX_SAVELOADNAME, "jedi_%02d", i );
-#endif
+		Com_sprintf( fileName, MAX_SAVELOADNAME,
+			Com_IsOutcast() ? "jkii%02d" : "jedi_%02d", i );
 
 		if (!ui.SG_GetSaveGameComment(fileName, NULL, NULL))
 		{
@@ -1065,11 +1054,8 @@ static qboolean UI_RunMenuScript ( const char **args )
 		else if (Q_stricmp(name, "startgame") == 0)
 		{
 			Menus_CloseAll();
-#ifdef JK2_MODE
-			ui.Cmd_ExecuteText( EXEC_APPEND, "map kejim_post\n" );
-#else
-			ui.Cmd_ExecuteText( EXEC_APPEND, "map yavin1\n");
-#endif
+			ui.Cmd_ExecuteText( EXEC_APPEND,
+				Com_IsOutcast() ? "map kejim_post\n" : "map yavin1\n" );
 		}
 		else if (Q_stricmp(name, "startmap") == 0)
 		{
@@ -1280,12 +1266,13 @@ static qboolean UI_RunMenuScript ( const char **args )
 				UI_ResetSaberCvars();
 			}
     	}
-#ifndef JK2_MODE
+		// Academy's menus emit this and Outcast's do not, so in Outcast the
+		// branch is simply never taken. That is cheaper than asking which game
+		// it is on every command, and it is what the define was doing anyway.
 		else if (Q_stricmp(name, "updatefightingstylechoices") == 0)
 		{
 			UI_UpdateFightingStyleChoices();
 		}
-#endif // !JK2_MODE
 		else if (Q_stricmp(name, "initallocforcepower") == 0)
 		{
 			const char *forceName;
@@ -1312,12 +1299,10 @@ static qboolean UI_RunMenuScript ( const char **args )
 		{
 			UI_ForceHelpActive();
 		}
-#ifndef JK2_MODE
 		else if (Q_stricmp(name, "demosetforcelevels") == 0)
 		{
 			UI_DemoSetForceLevels();
 		}
-#endif // !JK2_MODE
 		else if (Q_stricmp(name, "recordforcelevels") == 0)
 		{
 			UI_RecordForceLevels();
@@ -1364,12 +1349,10 @@ static qboolean UI_RunMenuScript ( const char **args )
 				UI_LoadMissionSelectMenu(cvarName);
 			}
 		}
-#ifndef JK2_MODE
 		else if (Q_stricmp(name, "calcforcestatus") == 0)
 		{
 			UI_CalcForceStatus();
 		}
-#endif // !JK2_MODE
 		else if (Q_stricmp(name, "giveweapon") == 0)
 		{
 			const char *weaponIndex;
@@ -1534,12 +1517,10 @@ static qboolean UI_RunMenuScript ( const char **args )
 			String_Parse(args, &amount);
 			UI_GiveInventory(atoi(inventoryIndex),atoi(amount));
 		}
-#ifndef JK2_MODE
 		else if (Q_stricmp(name, "updatefightingstyle") == 0)
 		{
 			UI_UpdateFightingStyle();
 		}
-#endif // !JK2_MODE
 		else if (Q_stricmp(name, "update") == 0)
 		{
 			if (String_Parse(args, &name2))
@@ -1553,11 +1534,8 @@ static qboolean UI_RunMenuScript ( const char **args )
 		}
 		else if (Q_stricmp(name, "load_quick") == 0)
 		{
-#ifdef JK2_MODE
-			ui.Cmd_ExecuteText(EXEC_APPEND,"load quik\n");
-#else
-			ui.Cmd_ExecuteText(EXEC_APPEND,"load quick\n");
-#endif
+			ui.Cmd_ExecuteText( EXEC_APPEND,
+				Com_IsOutcast() ? "load quik\n" : "load quick\n" );
 		}
 		else if (Q_stricmp(name, "load_auto") == 0)
 		{
@@ -1627,7 +1605,10 @@ const char *kyleForceStatusSounds[] =
 };
 
 
-#ifndef JK2_MODE
+// Academy's force-status and fighting-style helpers. Compiled in both games
+// now: their callers in the command chain are unconditional, and a menu that
+// never emits those names never reaches them. The fields they read exist in
+// both structures since playerState_t was given one layout.
 static void UI_CalcForceStatus(void)
 {
 	float		lightSide,darkSide,total;
@@ -1743,7 +1724,7 @@ static void UI_CalcForceStatus(void)
 		DC->startLocalSound(DC->registerSound(kyleForceStatusSounds[index], qfalse), CHAN_VOICE );
 	}
 }
-#endif // !JK2_MODE
+
 
 /*
 =================
@@ -1797,14 +1778,15 @@ static void UI_HandleLoadSelection()
 	Cvar_Set("ui_SelectionOK", va("%d",(s_savegame.currentLine < s_savegame.saveFileCnt)) );
 	if (s_savegame.currentLine >= s_savegame.saveFileCnt)
 		return;
-#ifdef JK2_MODE
-	Cvar_Set("ui_gameDesc", s_savedata[s_savegame.currentLine].currentSaveFileComments );	// set comment
-
-	if (!ui.SG_GetSaveImage(s_savedata[s_savegame.currentLine].currentSaveFileName, &screenShotBuf))
+	if ( Com_IsOutcast() )
 	{
-		memset( screenShotBuf,0,(SG_SCR_WIDTH * SG_SCR_HEIGHT * 4));
+		Cvar_Set("ui_gameDesc", s_savedata[s_savegame.currentLine].currentSaveFileComments );	// set comment
+
+		if (!ui.SG_GetSaveImage(s_savedata[s_savegame.currentLine].currentSaveFileName, &screenShotBuf))
+		{
+			memset( screenShotBuf,0,(SG_SCR_WIDTH * SG_SCR_HEIGHT * 4));
+		}
 	}
-#endif
 }
 
 /*
@@ -1820,9 +1802,9 @@ static int UI_FeederCount(float feederID)
 		{
 			ReadSaveDirectory();	//refresh
 			UI_HandleLoadSelection();
-#ifndef JK2_MODE
-			UI_AdjustSaveGameListBox(s_savegame.currentLine);
-#endif
+			if ( !Com_IsOutcast() ) {
+				UI_AdjustSaveGameListBox(s_savegame.currentLine);
+			}
 		}
 		return s_savegame.saveFileCnt;
 	}
@@ -2662,17 +2644,20 @@ UI_Init
 void _UI_Init( qboolean inGameLoad )
 {
 	// Get the list of possible languages
-#ifndef JK2_MODE
-	uiInfo.languageCount = SE_GetNumLanguages();	// this does a dir scan, so use carefully
-#else
-	// sod it, parse every menu strip file until we find a gap in the sequence...
-	//
-	for (int i=0; i<10; i++)
+	if ( !Com_IsOutcast() )
 	{
-		if (!ui.SP_Register(va("menus%d",i), /*SP_REGISTER_REQUIRED|*/SP_REGISTER_MENU))
-			break;
+		uiInfo.languageCount = SE_GetNumLanguages();	// this does a dir scan, so use carefully
 	}
-#endif
+	else
+	{
+		// sod it, parse every menu strip file until we find a gap in the sequence...
+		//
+		for (int i=0; i<10; i++)
+		{
+			if (!ui.SP_Register(va("menus%d",i), /*SP_REGISTER_REQUIRED|*/SP_REGISTER_MENU))
+				break;
+		}
+	}
 
 	uiInfo.inGameLoad = inGameLoad;
 
@@ -2784,13 +2769,11 @@ void _UI_Init( qboolean inGameLoad )
 		menuSet = "ui/menus.txt";
 	}
 
-#ifndef JK2_MODE
-	if (inGameLoad)
+	if (inGameLoad && !Com_IsOutcast())
 	{
 		UI_LoadMenus("ui/ingame.txt", qtrue);
 	}
 	else
-#endif
 	{
 		UI_LoadMenus(menuSet, qtrue);
 	}
@@ -2823,10 +2806,10 @@ void _UI_Init( qboolean inGameLoad )
 
 	uiInfo.uiDC.Assets.nullSound = trap_S_RegisterSound("sound/null", qfalse);
 
-#ifndef JK2_MODE
-	//FIXME hack to prevent error in jk2 by disabling
-	trap_S_RegisterSound("sound/interface/weapon_deselect", qfalse);
-#endif
+	// Academy only: Outcast has no such sound and asking for it is an error.
+	if ( !Com_IsOutcast() ) {
+		trap_S_RegisterSound("sound/interface/weapon_deselect", qfalse);
+	}
 
 }
 
@@ -2841,7 +2824,17 @@ static void UI_RegisterCvars( void )
 	const cvarTable_t *cv = NULL;
 
 	for ( i=0, cv=cvarTable; i<cvarTableSize; i++, cv++ ) {
-		Cvar_Register( cv->vmCvar, cv->cvarName, cv->defaultString, cv->cvarFlags );
+		const char *defaultString = cv->defaultString;
+
+		// The one default that depends on which game this is. A static table
+		// initialiser cannot ask, because the answer is not known when a static
+		// initialiser runs - so the table holds Academy's and the exception is
+		// made here, where the question can be asked.
+		if ( cv->vmCvar == &ui_hudFiles && Com_IsOutcast() ) {
+			defaultString = "ui/jk2hud.txt";
+		}
+
+		Cvar_Register( cv->vmCvar, cv->cvarName, defaultString, cv->cvarFlags );
 		if ( cv->update )
 			cv->update();
 	}
@@ -3064,13 +3057,11 @@ void UI_Load(void)
 		lastName[0] = 0;
 	}
 
-#ifndef JK2_MODE
-	if (uiInfo.inGameLoad)
+	if (uiInfo.inGameLoad && !Com_IsOutcast())
 	{
 		menuSet= "ui/ingame.txt";
 	}
 	else
-#endif
 	{
 		menuSet= UI_Cvar_VariableString("ui_menuFiles");
 	}
@@ -3180,8 +3171,9 @@ qboolean Asset_Parse(char **buffer)
 			continue;
 		}
 
-#ifdef JK2_MODE
-		if (Q_stricmp(token, "stripedFile") == 0)
+		// Outcast's menus name a string package here; Academy's do not use
+		// the keyword at all, so in Academy this branch never matches.
+		if (Com_IsOutcast() && Q_stricmp(token, "stripedFile") == 0)
 		{
 			if (!PC_ParseStringMem((const char **) &tempStr))
 			{
@@ -3204,7 +3196,7 @@ qboolean Asset_Parse(char **buffer)
 
 			continue;
 		}
-#endif
+
 
 		// gradientbar
 		if (Q_stricmp(token, "gradientbar") == 0)
@@ -3754,11 +3746,9 @@ static void UI_DrawKeyBindStatus(rectDef_t *rect, float scale, vec4_t color, int
 {
 	if (Display_KeyBindPending())
 	{
-#ifdef JK2_MODE
-		Text_Paint(rect->x, rect->y, scale, color, ui.SP_GetStringTextString("MENUS_WAITINGFORKEY"), 0, textStyle, iFontIndex);
-#else
-		Text_Paint(rect->x, rect->y, scale, color, SE_GetString("MENUS_WAITINGFORKEY"), 0, textStyle, iFontIndex);
-#endif
+		Text_Paint(rect->x, rect->y, scale, color, Com_IsOutcast()
+			? ui.SP_GetStringTextString("MENUS_WAITINGFORKEY")
+			: SE_GetString("MENUS_WAITINGFORKEY"), 0, textStyle, iFontIndex);
 	}
 	else
 	{
@@ -3924,13 +3914,11 @@ static void UI_OwnerDraw(float x, float y, float w, float h, float text_x, float
 
 			int levelshot;
 			levelshot = ui.R_RegisterShaderNoMip( va( "levelshots/%s", s_savedata[s_savegame.currentLine].currentSaveFileMap ) );
-#ifdef JK2_MODE
-			if (screenShotBuf[0])
+			if (Com_IsOutcast() && screenShotBuf[0])
 			{
 				ui.DrawStretchRaw( x, y, w, h, SG_SCR_WIDTH, SG_SCR_HEIGHT, screenShotBuf, 0, qtrue );
 			}
 			else
-#endif
 			if (levelshot)
 			{
 				ui.R_DrawStretchPic( x, y, w, h, 0, 0, 1, 1, levelshot );
@@ -4028,11 +4016,9 @@ int UI_OwnerDrawWidth(int ownerDraw, float scale)
 	case UI_KEYBINDSTATUS:
 		if (Display_KeyBindPending())
 		{
-#ifdef JK2_MODE
-			s = ui.SP_GetStringTextString("MENUS_WAITINGFORKEY");
-#else
-			s = SE_GetString("MENUS_WAITINGFORKEY");
-#endif
+			s = Com_IsOutcast()
+				? ui.SP_GetStringTextString("MENUS_WAITINGFORKEY")
+				: SE_GetString("MENUS_WAITINGFORKEY");
 		}
 		else
 		{
@@ -4196,9 +4182,9 @@ UI_InGameMenu
 */
 void UI_InGameMenu(const char*menuID)
 {
-#ifdef JK2_MODE
-	ui.PrecacheScreenshot();
-#endif
+	if ( Com_IsOutcast() ) {
+		ui.PrecacheScreenshot();
+	}
 	Menus_CloseByName("mainhud");
 
 	if (menuID)
@@ -4439,7 +4425,7 @@ static void UI_UpdateSaberCvars ( void )
 	Cvar_Set ( "g_saber2_color", Cvar_VariableString ( "ui_saber2_color" ) );
 }
 
-#ifndef JK2_MODE
+
 static void UI_UpdateFightingStyleChoices ( void )
 {
 	//
@@ -4538,7 +4524,7 @@ static void UI_UpdateFightingStyleChoices ( void )
 		}
 	}
 }
-#endif // !JK2_MODE
+
 
 typedef struct {
 	const char	*title;
@@ -4575,18 +4561,25 @@ static powerEnum_t powerEnums[] =
 	{ "grip",			FP_GRIP },
 	{ "lightning",		FP_LIGHTNING },
 
-#ifndef JK2_MODE
 				// Jedi Academy added these five, and Outcast has no menu
-				// entries, no icons and no strings for them.
+				// entries, no icons and no strings for them. They are LAST in
+				// the table for that reason: the count below stops short of
+				// them in Outcast, so the entries exist and are never walked.
+				//
+				// That is the cheap half of the pattern the bind tables needed
+				// two arrays for - it works here because the difference is a
+				// suffix rather than a scattering.
 	{ "absorb",			FP_ABSORB },
 	{ "protect",		FP_PROTECT },
 	{ "sense",			FP_SEE },
 	{ "drain",			FP_DRAIN },
 	{ "rage",			FP_RAGE },
-#endif // !JK2_MODE
 };
 
-#define NUM_POWER_ENUMS		( (int)ARRAY_LEN( powerEnums ) )
+#define NUM_ACADEMY_ONLY_POWERS	5
+
+#define NUM_POWER_ENUMS		( (int)ARRAY_LEN( powerEnums ) - \
+	( Com_IsOutcast() ? NUM_ACADEMY_ONLY_POWERS : 0 ) )
 
 
 // Find the index to the Force Power in powerEnum array
@@ -4717,7 +4710,8 @@ static void UI_SetPowerTitleText ( qboolean showAllocated )
 	}
 }
 
-#ifndef JK2_MODE
+// Academy only by its caller, and compiled in both since the force-power
+// enumerators are the same in both.
 static int UI_CountForcePowers( void ) {
 	const client_t *cl = &svs.clients[0];
 
@@ -4743,7 +4737,7 @@ static int UI_CountForcePowers( void ) {
 					uiInfo.forcePowerLevel[FP_DRAIN];
 	}
 }
-#endif
+
 
 //. Find weapons button and make active/inactive  (Used by Force Power Allocation screen)
 static void UI_ForcePowerWeaponsButton(qboolean activeFlag)
@@ -4756,13 +4750,11 @@ static void UI_ForcePowerWeaponsButton(qboolean activeFlag)
 		return;
 	}
 
-#ifndef JK2_MODE
-	if (!activeFlag) {
+	if (!activeFlag && !Com_IsOutcast()) {
 		// total light and dark powers are at maximum level 3    ( 3 levels * ( 4ls + 4ds ) = 24 )
 		if ( UI_CountForcePowers() >= 24 )
 			activeFlag = qtrue;
 	}
-#endif
 
 	// Find weaponsbutton
 	itemDef_t	*item;
@@ -4840,7 +4832,7 @@ static void	UI_ForceHelpActive( void )
 	}
 }
 
-#ifndef JK2_MODE
+
 // Set the force levels depending on the level chosen
 static void	UI_DemoSetForceLevels( void )
 {
@@ -4925,7 +4917,7 @@ static void	UI_DemoSetForceLevels( void )
 		uiInfo.forcePowerLevel[FP_RAGE]=Q_max(pState->forcePowerLevel[FP_RAGE], uiInfo.forcePowerLevel[FP_RAGE]);
 	}
 }
-#endif // !JK2_MODE
+
 
 // record the force levels into a cvar so when restoring player from map transition
 // the force levels are set up correctly
@@ -5408,7 +5400,7 @@ static void UI_ResetForceLevels ( void )
 }
 
 
-#ifndef JK2_MODE
+
 // Set the Players known saber style
 static void UI_UpdateFightingStyle ( void )
 {
@@ -5453,7 +5445,7 @@ static void UI_UpdateFightingStyle ( void )
 		Cvar_Set ( "g_fighting_style", va("%d",saberStyle) );
 	}
 }
-#endif // !JK2_MODE
+
 
 static void UI_ResetCharacterListBoxes( void )
 {
@@ -5979,10 +5971,10 @@ static void UI_RemoveWeaponSelection ( const int weaponSelectionIndex )
 		uiInfo.selectedWeapon2AmmoIndex = 0;
 	}
 
-#ifndef JK2_MODE
-	//FIXME hack to prevent error in jk2 by disabling
-	DC->startLocalSound(DC->registerSound("sound/interface/weapon_deselect.mp3", qfalse), CHAN_LOCAL );
-#endif
+	// Academy only: Outcast has no such sound and asking for it is an error.
+	if ( !Com_IsOutcast() ) {
+		DC->startLocalSound(DC->registerSound("sound/interface/weapon_deselect.mp3", qfalse), CHAN_LOCAL );
+	}
 
 	UI_WeaponsSelectionsComplete();	// Test to see if the mission begin button should turn on or off
 
@@ -6238,10 +6230,10 @@ static void UI_RemoveThrowWeaponSelection ( void )
 		uiInfo.weaponThrowButton = NULL;
 	}
 
-#ifndef JK2_MODE
-	//FIXME hack to prevent error in jk2 by disabling
-	DC->startLocalSound(DC->registerSound("sound/interface/weapon_deselect.mp3", qfalse), CHAN_LOCAL );
-#endif
+	// Academy only: Outcast has no such sound and asking for it is an error.
+	if ( !Com_IsOutcast() ) {
+		DC->startLocalSound(DC->registerSound("sound/interface/weapon_deselect.mp3", qfalse), CHAN_LOCAL );
+	}
 
 	UI_WeaponsSelectionsComplete();	// Test to see if the mission begin button should turn on or off
 
@@ -6582,9 +6574,9 @@ void ReadSaveDirectory (void)
 	s_savegame.saveFileCnt = 0;
 	Cvar_Set("ui_gameDesc", "" );	// Blank out comment
 	Cvar_Set("ui_SelectionOK", "0" );
-#ifdef JK2_MODE
-	memset( screenShotBuf,0,(SG_SCR_WIDTH * SG_SCR_HEIGHT * 4)); //blank out sshot
-#endif
+	if ( Com_IsOutcast() ) {
+		memset( screenShotBuf,0,(SG_SCR_WIDTH * SG_SCR_HEIGHT * 4)); //blank out sshot
+	}
 
 
 	// Get everything in saves directory

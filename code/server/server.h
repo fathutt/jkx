@@ -316,7 +316,12 @@ void SG_TestSave(void);
 // What it's used for is for things like mission pack etc if we need to distinguish "street-copy" savegames from
 //	any new enhanced ones that need to ask for new chunks during loading.
 //
-#define iSAVEGAME_VERSION 1
+// 2: the force-power arrays in playerState_t are the same length in both games.
+// Outcast's grew by five entries when forcePowers_t stopped depending on a
+// compile-time define, and it writes them, so a save written by an older build
+// is a different file. It is refused by name and version rather than misread -
+// see the check in jkx_saved_game.cpp.
+#define iSAVEGAME_VERSION 2
 int SG_Version(void);	// call this to know what version number a successfully-opened savegame file was
 //
 extern SavedGameJustLoaded_e eSavedGameJustLoaded;

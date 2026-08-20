@@ -776,14 +776,22 @@ typedef enum
 	FP_SABER_DEFENSE,
 	FP_SABER_OFFENSE,
 
-#ifndef JK2_MODE
+	// Academy's five, present in both games, and this one is not cosmetic.
+	//
+	// NUM_FORCE_POWERS below sizes three arrays inside playerState_t, so an
+	// enumerator that exists in one build of two is a LAYOUT difference wearing
+	// a hat - which is what the survey's note about constants warns about and
+	// what the survey itself missed: an enum body is code at file scope, so it
+	// was counted as behaviour.
+	//
+	// Outcast never sets these five. It now carries sixty bytes it does not use
+	// and writes them to its saved games, which is why the save version moves.
 	//new Jedi Academy powers
 	FP_RAGE,//duration - speed, invincibility and extra damage for short period, drains your health and leaves you weak and slow afterwards.
 	FP_PROTECT,//duration - protect against physical/energy (level 1 stops blaster/energy bolts, level 2 stops projectiles, level 3 protects against explosions)
 	FP_ABSORB,//duration - protect against dark force powers (grip, lightning, drain - maybe push/pull, too?)
 	FP_DRAIN,//hold/duration - drain force power for health
 	FP_SEE,//duration - detect/see hidden enemies
-#endif // !JK2_MODE
 
 	NUM_FORCE_POWERS
 } forcePowers_t;

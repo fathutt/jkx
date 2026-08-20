@@ -5472,13 +5472,21 @@ void  Menus_Activate(menuDef_t *menu)
 
 }
 
-static const char *g_bindCommands[] = {
+// The commands the controls menu can bind a key to - one list per game, and a
+// pointer chosen at startup.
+//
+// Not a branch, and that is the point of writing it down: the two lists differ
+// in their CONTENTS, not in one entry. Academy has force powers Outcast never
+// had, and the two spell the quicksave commands differently. A #ifdef inside an
+// array initialiser is the shape that cannot survive one binary - the array is
+// built at compile time and its length sizes another array at compile time too.
+//
+// Kept alphabetical, because the menu shows them in this order.
+static const char *g_bindCommandsAcademy[] = {
 	"+altattack",
 	"+attack",
 	"+back",
-#ifndef JK2_MODE
 	"+force_drain",
-#endif
 	"+force_grip",
 	"+force_lightning",
 	"+forward",
@@ -5499,19 +5507,13 @@ static const char *g_bindCommands[] = {
 	"cg_thirdperson !",
 	"datapad",
 	"exitview",
-#ifndef JK2_MODE
 	"force_absorb",
-#endif
 	"force_distract",
 	"force_heal",
-#ifndef JK2_MODE
 	"force_protect",
-#endif
 	"force_pull",
-#ifndef JK2_MODE
 	"force_rage",
 	"force_sight",
-#endif
 	"force_speed",
 	"force_throw",
 	"forcenext",
@@ -5520,17 +5522,9 @@ static const char *g_bindCommands[] = {
 	"invprev",
 	"invuse",
 	"load auto",
-#ifdef JK2_MODE
-	"load quik",
-#else
 	"load quick",
-#endif
 	"saberAttackCycle",
-#ifdef JK2_MODE
-	"save quik*",
-#else
 	"save quick",
-#endif
 	"taunt",
 	"uimenu ingameloadmenu",
 	"uimenu ingamesavemenu",
@@ -5558,9 +5552,92 @@ static const char *g_bindCommands[] = {
 	"zoom"
 };
 
-#define g_bindCount ARRAY_LEN(g_bindCommands)
+static const char *g_bindCommandsOutcast[] = {
+	"+altattack",
+	"+attack",
+	"+back",
+	"+force_grip",
+	"+force_lightning",
+	"+forward",
+	"+left",
+	"+lookdown",
+	"+lookup",
+	"+mlook",
+	"+movedown",
+	"+moveleft",
+	"+moveright",
+	"+moveup",
+	"+right",
+	"+speed",
+	"+strafe",
+	"+use",
+	"+useforce",
+	"centerview",
+	"cg_thirdperson !",
+	"datapad",
+	"exitview",
+	"force_distract",
+	"force_heal",
+	"force_pull",
+	"force_speed",
+	"force_throw",
+	"forcenext",
+	"forceprev",
+	"invnext",
+	"invprev",
+	"invuse",
+	"load auto",
+	"load quik",
+	"saberAttackCycle",
+	"save quik*",
+	"taunt",
+	"uimenu ingameloadmenu",
+	"uimenu ingamesavemenu",
+	"use_bacta",
+	"use_electrobinoculars",
+	"use_lightamp_goggles",
+	"use_seeker",
+	"use_sentry",
+	"weapnext",
+	"weapon 0",
+	"weapon 1",
+	"weapon 10",
+	"weapon 11",
+	"weapon 12",
+	"weapon 13",
+	"weapon 2",
+	"weapon 3",
+	"weapon 4",
+	"weapon 5",
+	"weapon 6",
+	"weapon 7",
+	"weapon 8",
+	"weapon 9",
+	"weapprev",
+	"zoom"
+};
 
-static int g_bindKeys[g_bindCount][2];
+// Sized by the longer of the two, which is Academy's. Indexing it is safe
+// before the pointer below is chosen; reading a command name is not.
+static int g_bindKeys[ARRAY_LEN(g_bindCommandsAcademy)][2];
+
+static const char **g_bindCommands;
+static size_t g_bindCount;
+
+static void Controls_InitBinds( void )
+{
+	if ( g_bindCommands != NULL ) {
+		return;
+	}
+
+	if ( Com_IsOutcast() ) {
+		g_bindCommands = g_bindCommandsOutcast;
+		g_bindCount = ARRAY_LEN( g_bindCommandsOutcast );
+	} else {
+		g_bindCommands = g_bindCommandsAcademy;
+		g_bindCount = ARRAY_LEN( g_bindCommandsAcademy );
+	}
+}
 
 /*
 =================
@@ -5597,6 +5674,7 @@ void Controls_GetConfig( void )
 	size_t	i;
 
 	// iterate each command, get its numeric binding
+	Controls_InitBinds();
 	for ( i = 0; i < g_bindCount; i++ )
 		Controls_GetKeyAssignment( g_bindCommands[i], g_bindKeys[i] );
 }
@@ -6767,6 +6845,7 @@ int BindingIDFromName( const char *name ) {
 	size_t i;
 
 	// iterate each command, set its default binding
+	Controls_InitBinds();
 	for ( i = 0; i < g_bindCount; i++ ) {
 		if ( !Q_stricmp( name, g_bindCommands[i] ) )
 			return i;
@@ -6787,6 +6866,7 @@ void BindingFromName( const char *cvar ) {
 	char	sOR[32];
 
 	// iterate each command, set its default binding
+	Controls_InitBinds();
 	for ( i=0; i < g_bindCount; i++ ) {
 		if ( !Q_stricmp(cvar, g_bindCommands[i] ) ) {
 			b2 = g_bindKeys[i][1];
@@ -9408,6 +9488,7 @@ void Controls_SetConfig( void )
 	size_t	i;
 
 	// iterate each command, get its numeric binding
+	Controls_InitBinds();
 	for ( i=0; i<g_bindCount; i++ ) {
 		if ( g_bindKeys[i][0] != -1 ) {
 			DC->setBinding( g_bindKeys[i][0], g_bindCommands[i] );
@@ -9422,6 +9503,7 @@ void Controls_SetDefaults( void )
 {
 	size_t	i;
 
+	Controls_InitBinds();
 	for ( i=0; i<g_bindCount; i++ ) {
 		g_bindKeys[i][0] = -1;
 		g_bindKeys[i][1] = -1;
@@ -9545,6 +9627,7 @@ qboolean Item_Bind_HandleKey(itemDef_t *item, int key, qboolean down)
 	if ( key != -1 ) {
 		size_t	b;
 
+		Controls_InitBinds();
 		for ( b=0; b<g_bindCount; b++ )
 		{
 			if ( g_bindKeys[b][1] == key )
