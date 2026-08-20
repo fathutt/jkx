@@ -432,6 +432,7 @@ private:
 	// The Outside Cache
 	////////////////////////////////////////////////////////////////////////////////////
 	bool			mCacheInit;			// Has It Been Cached?
+	bool			mMixedReported;		// Has the indoor/outdoor disagreement been named?
 
 	struct SWeatherZone
 	{
@@ -525,6 +526,7 @@ public:
 		mFogColorInt = 0;
 		mFogColorTempActive = false;
 		mCacheInit = false;
+		mMixedReported = false;
 		SWeatherZone::mMarkedOutside = false;
 		for (int wz=0; wz<mWeatherZones.size(); wz++)
 		{
@@ -649,9 +651,22 @@ public:
 								}
 								else if (SWeatherZone::mMarkedOutside!=curPosOutside)
 								{
-									assert(0);
-									Com_Error (ERR_DROP, "Weather Effect: Both Indoor and Outdoor brushs encountered in map.\n" );
-									return;
+									// Both kinds of brush in one map. This used
+									// to drop the level, and that is the wrong
+									// price: the cache is one bit per cell and
+									// can answer with the kind it saw first, so
+									// the disagreement costs weather being wrong
+									// in one region. Dropping to the menu costs
+									// the map. Said once - the loop around this
+									// is per cell.
+									if (!mMixedReported)
+									{
+										mMixedReported = true;
+										CL_RefPrintf( PRINT_WARNING,
+											"weather: the map has both indoor and outdoor brushes; going with %s, so weather may be wrong where they disagree\n",
+											SWeatherZone::mMarkedOutside ? "outdoor" : "indoor" );
+									}
+									continue;
 								}
 
 								// Mark The Point
@@ -866,7 +881,14 @@ public:
 		mImage = R_FindImageFile(texturePath, flags, 0);
 		if (!mImage)
 		{
-			vk_debug("CWeatherParticleCloud: Could not texture %s", texturePath);
+			// Said out loud, and then substituted. This used to go through
+			// vk_debug, which compiles to nothing without a trace build - so a
+			// weather effect whose texture is missing looked exactly like a
+			// weather effect that works, right up to vk_bind being handed a
+			// null image further down. The default image is a grid nobody will
+			// mistake for rain, which is the point.
+			CL_RefPrintf( PRINT_WARNING, "weather: no texture %s, using the default image\n", texturePath );
+			mImage = tr.defaultImage;
 		}
 
 		//GL_Bind(mImage);
@@ -1395,6 +1417,15 @@ void R_ShutdownWorldEffects(void)
 ////////////////////////////////////////////////////////////////////////////////////////
 void RB_RenderWorldEffects(void)
 {
+	// Nothing to draw means nothing was drawn, and the count has to say so. It
+	// is read after the fact by "r_we stats", so a number left over from before
+	// "r_we clear" reads as rain that would not stop - a defect worth having a
+	// report for, not one worth inventing.
+	if (!mParticleClouds.size())
+	{
+		mParticlesRendered = 0;
+	}
+
 	if (!tr.world ||
 		(tr.refdef.rdflags & RDF_NOWORLDMODEL) ||
 		(backEnd.refdef.rdflags & RDF_SKYBOXPORTAL) ||
@@ -1467,10 +1498,11 @@ void RB_RenderWorldEffects(void)
 		Com_Memcpy(vk_world.modelview_transform, tmp, 64);
 		vk_update_mvp(NULL);
 
-		if (false)
-		{
-			CL_RefPrintf( PRINT_ALL, "Weather: %d Particles Rendered\n", mParticlesRendered);
-		}
+		// The count is kept, not printed. Printing it every frame was what the
+		// if(false) around this line was avoiding, and deleting the line
+		// altogether would leave the one number that says whether the weather
+		// system does anything at all with nowhere to be read. "r_we stats"
+		// asks for it; see RE_WorldEffectCommand_Actual.
 	}
 }
 
@@ -1532,6 +1564,28 @@ static void RE_WorldEffectCommand_Actual(const char *command)
 	if (Q_stricmp(token, "die") == 0)
 	{
 		R_ShutdownWorldEffects();
+		return;
+	}
+
+	// Stats - what the weather system did on the last frame it drew.
+	//
+	// Every other answer about this subsystem is a picture, and a picture
+	// cannot tell "no particles" from "particles drawn with no texture" from
+	// "particles behind the camera". These three numbers can, and they are the
+	// only thing the renderer knows that the outside cannot be guessed from.
+	else if (Q_stricmp(token, "stats") == 0)
+	{
+		int alive = 0;
+
+		for (int p = 0; p < mParticleClouds.size(); p++)
+		{
+			alive += mParticleClouds[p].mParticleCount;
+		}
+
+		CL_RefPrintf( PRINT_ALL, "weather: %d cloud(s), %d particle(s) alive, "
+			"%d drawn on the last frame, wind %.1f\n",
+			(int)mParticleClouds.size(), alive, mParticlesRendered,
+			mGlobalWindSpeed );
 		return;
 	}
 

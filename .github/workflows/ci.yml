@@ -61,6 +61,9 @@ jobs:
       - name: Diagnostics the user can actually see
         run: python3 tools/ci/check_diagnostics.py .
 
+      - name: Every local lane runs in CI too
+        run: python3 tools/ci/check_lanes.py
+
       - name: Per-game branches (ratchet, and banned in the renderer)
         run: python3 tools/ci/check_jk2mode.py .
 
@@ -707,12 +710,113 @@ jobs:
           JKX_SMOKE_DISPLAY: ':77'
         run: bash tools/verify/smoke_headless.sh build
 
+      # The same six squares, shaded rather than read off a debug view. A
+      # physically-based world surface came out black for months; the check is
+      # written against arithmetic - ambient times albedo, which is what the sum
+      # has to be when NL is zero - rather than against a shade someone liked.
+      - name: Physical maps, shaded
+        env:
+          JKX_SMOKE_PHYS: '1'
+          JKX_SMOKE_PHYS_VIEW: '0'
+          JKX_SMOKE_DISPLAY: ':76'
+        run: bash tools/verify/smoke_headless.sh build
+
+      # A translucent surface fading out where it approaches solid geometry, and
+      # again where it approaches the camera. Three squares at three distances
+      # from one backdrop, with the fade off and on, so the lane measures the
+      # effect and not just the picture.
+      - name: Soft particles
+        env:
+          JKX_SMOKE_SOFTPARTICLES: '1'
+          JKX_SMOKE_DISPLAY: ':75'
+        run: bash tools/verify/smoke_headless.sh build
+
+      # One pool photographed six times, each pair differing by one cvar:
+      # absorption, waves, foam, refraction, caustics. The bottom is striped
+      # because a flat bottom cannot show a bent sample - a fixture that shares
+      # the defect it is meant to measure, which this lane paid for twice.
+      - name: Water
+        env:
+          JKX_SMOKE_WATER: '1'
+          JKX_SMOKE_DISPLAY: ':74'
+        run: bash tools/verify/smoke_headless.sh build
+
+      # Rain. Two thousand lines of retail weather that nothing had ever run:
+      # a count from r_we stats says the system ran, a difference between two
+      # frames says it reached the screen, and a third shot after r_we clear
+      # says it can be turned off again.
+      - name: Rain
+        env:
+          JKX_SMOKE_WEATHER: '1'
+          JKX_SMOKE_DISPLAY: ':73'
+        run: bash tools/verify/smoke_headless.sh build
+
       # The same fixture out of a pk3. Every run before this one read loose
       # files, so FS_LoadZipFile, the per-pack hash table, the pak branch of
       # FS_FOpenFileRead and unzReadCurrentFile in FS_Read had never executed in
       # a test - and that is how retail assets and every downloaded mod arrive.
       # make_pk3.py deletes what it packs, so nothing can fall back to the
       # directory and pass by accident.
+      # The same run at 32:9, which is where the interface's arithmetic is
+      # checked against the picture. At 4:3 the fitted frame is the whole window
+      # and a wrong mapping looks exactly like a right one - the crosshair sat a
+      # fifth of the way in from the left for thirty years for that reason.
+      - name: The same frames, at 32:9
+        env:
+          JKX_SMOKE_SCREEN: '2560x720'
+          JKX_SMOKE_DISPLAY: ':72'
+        run: bash tools/verify/smoke_headless.sh build
+
+      # Saved and loaded. The save path writes gentity_t as a raw dump, so it is
+      # the one place where a struct layout change is a data format change.
+      - name: A game saved and loaded
+        env:
+          JKX_SMOKE_SAVELOAD: '1'
+          JKX_SMOKE_DISPLAY: ':71'
+        run: bash tools/verify/smoke_headless.sh build
+
+      # Skin handles against configstring indices - two numbering spaces the
+      # gamecode and the renderer use for the same thing.
+      - name: Skin handles that do not shift
+        env:
+          JKX_SMOKE_SKINSHIFT: '1'
+          JKX_SMOKE_DISPLAY: ':70'
+        run: bash tools/verify/smoke_headless.sh build
+
+      # Fog, in its own lane because a global fog repaints the clear colour and
+      # would move every colour check in the shared fixture. RB_FogPass had
+      # never run in a headless test at all.
+      - name: Fog
+        env:
+          JKX_SMOKE_FOG: '1'
+          JKX_SMOKE_DISPLAY: ':69'
+        run: bash tools/verify/smoke_headless.sh build
+
+      # The engine with no material definitions at all, which is what an
+      # installation with its game data in the wrong place looks like. It was a
+      # three-word fatal error until this lane existed.
+      - name: No assets at all
+        env:
+          JKX_SMOKE_NO_SHADERS: '1'
+          JKX_SMOKE_SOUND: '1'
+          JKX_SMOKE_DISPLAY: ':68'
+        run: bash tools/verify/smoke_headless.sh build
+
+      # The depth prepass must not change the picture. Two runs from one
+      # standing position differing by r_depthPrepass alone, compared frame by
+      # frame. The sky is out of the comparison and multisampling is off: both
+      # resolve the silhouette their own way, and that is a separate open item.
+      - name: The depth prepass changes nothing
+        run: |
+          a=$(mktemp -d); b=$(mktemp -d)
+          JKX_SMOKE_SET="r_depthPrepass=0 r_ext_multisample=0" \
+          JKX_SMOKE_PLAIN=1 JKX_SMOKE_DISPLAY=':67' JKX_SMOKE_SHOT_DIR="$a" \
+            bash tools/verify/smoke_headless.sh build >/dev/null
+          JKX_SMOKE_SET="r_depthPrepass=1 r_ext_multisample=0" \
+          JKX_SMOKE_PLAIN=1 JKX_SMOKE_DISPLAY=':66' JKX_SMOKE_SHOT_DIR="$b" \
+            bash tools/verify/smoke_headless.sh build >/dev/null
+          python3 tools/verify/ab_frames.py "$a" "$b" --max-pixels 16 --skip jkx_sky.tga
+
       - name: The same frames, out of an archive
         env:
           JKX_SMOKE_PK3: '1'
@@ -748,6 +852,7 @@ jobs:
         env:
           JKX_SMOKE_DISPLAY: ':98'
           JKX_SMOKE_NO_VALIDATION: '1'
+          JKX_SMOKE_SOUND: '1'
           ASAN_OPTIONS: detect_leaks=0
           UBSAN_OPTIONS: print_stacktrace=1
         run: bash tools/verify/smoke_headless.sh build-san

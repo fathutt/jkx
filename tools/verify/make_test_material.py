@@ -296,6 +296,24 @@ def build_pool(directory):
     return [path]
 
 
+def build_rain(directory):
+    """The one texture the retail rain preset asks for, gfx/world/rain.jpg.
+
+    Written as a .tga: R_LoadImage tries the named extension first and then
+    every other loader on the extensionless name, so the file the engine asks
+    for by one name is found under another. That is worth knowing here and not
+    only here - it is why a fixture never has to produce a JPEG.
+
+    Solid white, no alpha ramp. The particle carries its own colour and fade;
+    a texture with structure in it would put that structure into a measurement
+    that is about whether anything was drawn at all.
+    """
+    os.makedirs(directory, exist_ok=True)
+    path = os.path.join(directory, "rain.tga")
+    write_tga(path, (255, 255, 255))
+    return [path]
+
+
 def build_tc(directory):
     os.makedirs(directory, exist_ok=True)
     written = []
@@ -381,6 +399,15 @@ def main(argv):
         written = build_phys(args[0])
         print("%d physical texture(s) in %s, %dx%d, 32-bit"
               % (len(written), args[0], SIZE, SIZE))
+        return 0
+
+    if "--rain" in args:
+        args = [a for a in args if a != "--rain"]
+        if len(args) != 1:
+            print("usage: %s --rain <directory>" % argv[0], file=sys.stderr)
+            return 2
+        written = build_rain(args[0])
+        print("%d rain texture(s) in %s" % (len(written), args[0]))
         return 0
 
     if "--pool" in args:

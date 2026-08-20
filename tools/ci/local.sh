@@ -27,6 +27,7 @@
 #               was built from
 #   smoke       the engine drawing frames on the Vulkan renderer, headless,
 #               under the validation layer
+#   smokeweather the retail weather system, which nothing had ever run
 #   smokewide   the same at 32:9, where the interface's arithmetic is checked
 #               against the picture: at 4:3 the fitted frame is the whole window
 #               and a wrong mapping looks exactly like a right one
@@ -79,7 +80,7 @@ JOBS="${JOBS:-$(nproc)}"
 
 STAGES=( "$@" )
 if [ "${#STAGES[@]}" -eq 0 ]; then
-    STAGES=( policy release debug variants windows sanitizers tests smoke smokewide smokejk2 smokesave smokeskin smokeskinshift smokelightmap smokehdrlightmap smokegamecmd smokeshadow smokecloud smokemapent smokemenumodel smokemenulight smokepbrchar smokevidrestart smokevsync smokeresize smokemsaa smokedglow smokepicmip smokecubemap smoketransparency smokesoftparticles smokewater smoketcmod smokedeform smokephys smokephysshaded smokepak move smokesan prepass fog noassets badbsp )
+    STAGES=( policy release debug variants windows sanitizers tests smoke smokewide smokejk2 smokesave smokeskin smokeskinshift smokelightmap smokehdrlightmap smokegamecmd smokeshadow smokecloud smokemapent smokemenumodel smokemenulight smokepbrchar smokevidrestart smokevsync smokeresize smokemsaa smokedglow smokepicmip smokecubemap smoketransparency smokesoftparticles smokewater smokeweather smoketcmod smokedeform smokephys smokephysshaded smokepak move smokesan prepass fog noassets badbsp )
 fi
 
 failed=()
@@ -144,6 +145,7 @@ stage_policy() {
     python3 "$ROOT/tools/ci/check_strings.py" "$ROOT" &&
     python3 "$ROOT/tools/ci/check_cvars.py" "$ROOT" &&
     python3 "$ROOT/tools/ci/check_diagnostics.py" "$ROOT" &&
+    python3 "$ROOT/tools/ci/check_lanes.py" &&
 
     # Every Vulkan object the renderer creates, against something that destroys
     # it. An object alive at vkDestroyDevice is a defect no compiler sees and a
@@ -1287,6 +1289,19 @@ stage_smokesoftparticles() {
 stage_smokewater() {
     JKX_SMOKE_WATER=1 \
     JKX_SMOKE_DISPLAY="${JKX_SMOKE_WATER_DISPLAY:-:91}" \
+        bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
+}
+
+# Rain, and the first question about it is not "is it good" but "does it draw".
+# tr_WorldEffects.cpp is two thousand lines of retail weather that nothing in
+# this project had ever executed. A count from "r_we stats", a difference
+# between two frames, and a third shot after "r_we clear".
+#
+# Mutation tested: skip the cloud's Render() and the lane reports both halves -
+# nought particles drawn, and two identical pictures.
+stage_smokeweather() {
+    JKX_SMOKE_WEATHER=1 \
+    JKX_SMOKE_DISPLAY="${JKX_SMOKE_WEATHER_DISPLAY:-:92}" \
         bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
 }
 

@@ -660,6 +660,46 @@ if [ "${JKX_SMOKE_WATER:-0}" = "1" ]; then
     INMAP_STEP+=( +exec jkx_liquid.cfg +wait 230 )
 fi
 
+# Rain, which is a subsystem nobody here has ever run.
+#
+# tr_WorldEffects.cpp is 2080 lines of retail weather - particle clouds, wind
+# zones, an outside/inside cache built from CM_PointContents - and not one line
+# of it has been executed by this bench or, as far as anything shows, by anyone
+# since 2003. That is the reason this lane exists before any work on weather:
+# the first question is not "is it good", it is "does it draw".
+#
+# Three shots and a number. The number is r_we stats, which reports clouds,
+# particles alive and particles drawn on the last frame - because a picture
+# cannot tell "nothing spawned" from "spawned and drawn with no texture" from
+# "spawned behind the camera", and those are three different defects.
+if [ "${JKX_SMOKE_WEATHER:-0}" = "1" ]; then
+    python3 "$HERE/make_test_material.py" --rain "$RUN/base/gfx/world" >/dev/null
+
+    {
+        echo "wait 5"
+        echo "r_we clear"
+        echo "wait 20"
+        echo "screenshot_tga jkx_weather_dry"
+        echo "wait 10"
+        echo "r_we rain"
+        # Rain falls from above the camera and needs a moment to reach it: the
+        # cloud is spawned empty and fills as particles are placed. A shot taken
+        # on the frame after the command is a shot of no rain, and would have
+        # been read as "rain does not draw".
+        echo "wait 60"
+        echo "screenshot_tga jkx_weather_rain"
+        echo "r_we stats"
+        echo "wait 10"
+        echo "r_we clear"
+        echo "wait 30"
+        echo "screenshot_tga jkx_weather_stopped"
+        echo "r_we stats"
+        echo "wait 10"
+    } > "$RUN/base/jkx_weather.cfg"
+
+    INMAP_STEP+=( +exec jkx_weather.cfg +wait 160 )
+fi
+
 if [ "${JKX_SMOKE_MSAA:-0}" = "1" ]; then
     {
         echo "wait 5"
@@ -2962,6 +3002,67 @@ fi
 #   straight -> foam   refraction           4k
 #   dark -> foam       the caustic web
 #
+# Rain: a number and a picture, and neither on its own would do.
+#
+# The number comes from r_we stats and answers "did the system run": how many
+# clouds exist, how many particles are alive, how many were drawn on the last
+# frame. The picture answers "did any of it reach the screen", which is a
+# different question - particles can be drawn behind the camera, at zero alpha,
+# or with a pipeline that never binds.
+#
+# And the third shot, after r_we clear, is the control. Without it the pair says
+# only that the frame changed between two moments of an animated scene; with it,
+# the frame has to come BACK to something close to the dry one.
+if [ "${JKX_SMOKE_WEATHER:-0}" = "1" ]; then
+    dry="$RUN/home/base/screenshots/jkx_weather_dry.tga"
+    rain="$RUN/home/base/screenshots/jkx_weather_rain.tga"
+    stopped="$RUN/home/base/screenshots/jkx_weather_stopped.tga"
+
+    missing=""
+    for f in "$dry" "$rain" "$stopped"; do
+        [ -f "$f" ] || missing="$missing $(basename "$f")"
+    done
+
+    if [ -n "$missing" ]; then
+        report "the weather was not photographed three times -$missing - so nothing here was checked"
+    else
+        # Two stats lines, and the one that matters is the first: a cloud with
+        # particles alive and none drawn is the exact shape of "it runs and you
+        # cannot see it".
+        alive=$( grep -c 'weather: 1 cloud(s)' "$RUN/run.log" || true )
+        if [ "$alive" -lt 1 ]; then
+            report "r_we rain did not leave a cloud behind - r_we stats never reported one. Either the command did not reach the renderer or the cloud vector was full"
+        fi
+
+        drawn=$( sed -n 's/.*alive, \([0-9]*\) drawn on the last frame.*/\1/p'                  "$RUN/run.log" | head -1 )
+        if [ -z "$drawn" ] || [ "$drawn" -lt 1 ]; then
+            report "the rain cloud exists but drew ${drawn:-no} particle(s). Particles are only placed where the outside cache says outside, so a fixture the cache calls indoors gives exactly this - and so does a spawn box that never intersects the camera"
+        fi
+
+        # Rain covers the view rather than sitting in one part of it, so the box
+        # is nearly the whole frame. The lower bound is deliberately small: an
+        # additive grey streak over a white floor changes nothing, and most of
+        # the bottom of this frame is white floor.
+        if ! python3 "$HERE/tga_diff_where.py" "$dry" "$rain" "0.0,0.0,1.0,1.0" 400 400000; then
+            report "the frame with rain in it is the same picture as the one without. The count above says particles were drawn, so this is the half between the draw call and the screen: the pipeline, the blend mode, or the texture"
+        fi
+
+        # And the control: after r_we clear the second stats line has to report
+        # nothing left. Rain that cannot be turned off is a leak in the particle
+        # vector, and it would make every measurement above meaningless - the
+        # difference between two frames of a scene that never stops raining says
+        # nothing about the command given between them.
+        gone=$( grep -c "weather: 0 cloud(s), 0 particle(s) alive, 0 drawn" "$RUN/run.log" || true )
+        if [ "$gone" -lt 1 ]; then
+            report "r_we clear left clouds or particles behind"
+        fi
+
+        if ! python3 "$HERE/tga_is_a_picture.py" "$stopped" 2; then
+            report "the frame after the rain stopped is not a picture"
+        fi
+    fi
+fi
+
 # Counting colours was what this measured before and it stopped working the
 # moment the bottom got a pattern: stripes seen through water are local steps of
 # their own, and no single number over the whole surface can separate them from

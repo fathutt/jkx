@@ -1304,8 +1304,14 @@ void R_Register( void )
 	r_dlightMethod						= Cvar_Get("r_dlightMethod",						"1",						CVAR_ARCHIVE, "Dynamic light method:\n 0: CPU-based (fallback)\n 1: GPU-based (requires r_normalMapping and r_specularMapping enabled) ");
 #endif
 #ifdef USE_PMLIGHT
-	r_dlightMode						= Cvar_Get("r_dlightMode",						"2",						CVAR_ARCHIVE, "");
-	Cvar_CheckRange(r_dlightMode, 0, 2, qtrue);
+	// One below two, not zero. Quake3e's zero selects the vq3 vertex-dlight path,
+	// which is compiled behind USE_LEGACY_DLIGHTS and was never transplanted here -
+	// there is no dlightBits anywhere in this renderer. So zero named a mode that
+	// does not exist, and it behaved as one, silently: world surfaces went through
+	// the per-pixel path either way, only models fell back to vertex lighting.
+	// Clamping to one keeps that exact behaviour and stops advertising the third.
+	r_dlightMode						= Cvar_Get("r_dlightMode",						"2",						CVAR_ARCHIVE, "Dynamic lights:\n 1: per-pixel on world surfaces, vertex on models\n 2: per-pixel everywhere");
+	Cvar_CheckRange(r_dlightMode, 1, 2, qtrue);
 	r_dlightScale						= Cvar_Get("r_dlightScale",						"0.8",						CVAR_ARCHIVE_ND, "");
 	Cvar_CheckRange(r_dlightScale, 0.1f, 1, qfalse);
 	r_dlightIntensity					= Cvar_Get("r_dlightIntensity",					"1.0",						CVAR_ARCHIVE_ND, "");
