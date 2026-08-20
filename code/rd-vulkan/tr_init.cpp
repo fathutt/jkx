@@ -65,6 +65,9 @@ cvar_t	*r_norefresh;
 cvar_t	*r_drawentities;
 cvar_t	*r_drawworld;
 cvar_t	*r_drawfog;
+cvar_t	*r_volumetricFog;
+cvar_t	*r_volumetricFogSamples;
+cvar_t	*r_volumetricFogScale;
 cvar_t	*r_speeds;
 cvar_t	*r_fullbright;
 cvar_t	*r_novis;
@@ -1119,6 +1122,17 @@ void R_Register( void )
 		" 0 - disabled\n"
 		" 1 - legacy fog\n"
 		" 2 - fog collapse\n");
+	// Fog coloured by the map's own lighting instead of by one constant.
+	//
+	// Live rather than latched, and that is what makes it measurable: both
+	// pipelines are built, the choice is made per draw, so two frames of one
+	// scene can differ by this cvar alone. It changes the fog's COLOUR and never
+	// its amount - see CalcVolumetricFog.
+	r_volumetricFog						= Cvar_Get( "r_volumetricFog",					"1",						CVAR_ARCHIVE_ND, "Colour fog by the map's light grid instead of one flat colour" );
+	r_volumetricFogSamples				= Cvar_Get( "r_volumetricFogSamples",			"32",						CVAR_ARCHIVE_ND, "Steps taken along the ray through a fog volume" );
+	Cvar_CheckRange( r_volumetricFogSamples, 4, 128, qtrue );
+	r_volumetricFogScale				= Cvar_Get( "r_volumetricFogScale",				"1.4",						CVAR_ARCHIVE_ND, "Brightness of the light the fog picks up; 1 means a fully lit cell reproduces the old colour" );
+	Cvar_CheckRange( r_volumetricFogScale, 0.1f, 8, qfalse );
 	r_lightmap							= Cvar_Get( "r_lightmap",						"0",						CVAR_ARCHIVE_ND, "" );
 	r_distanceCull						= Cvar_Get( "r_distanceCull",					"0",						CVAR_ARCHIVE_ND, "" );
 	r_portalOnly						= Cvar_Get( "r_portalOnly",						"0",						CVAR_CHEAT, "" );

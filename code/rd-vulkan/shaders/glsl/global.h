@@ -177,6 +177,12 @@ STRUCT (
 STRUCT (  
 	INT		        ( num_fogs )
     PAD3	        ( pad0 )
+    // Where the map's light grid volume sits in the world, so a fog fragment
+    // can turn a position into a texture coordinate. w of the second one is the
+    // number of steps the march takes; zero there means no volume on this map
+    // and the march is skipped.
+    VEC4            ( lightGridOrigin )
+    VEC4            ( lightGridScale )
     FOG_ENTRY_T     ( fogs[16] )
 , vkUniformFog_t )
 

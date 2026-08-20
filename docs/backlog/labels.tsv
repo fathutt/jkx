@@ -1,0 +1,13 @@
+key	text
+book.title	JKX — реестр задач
+book.subtitle	Листы: «Задачи» — весь реестр с фильтрами · «Пачка мелочи №1» — что закрыть одним заходом · «Находки разбора» — 34 находки и куда легли
+sheet.summary	Сводка
+sheet.tasks	Задачи
+sheet.batch	Пачка мелочи №1
+sheet.findings	Находки разбора
+head.by_state	По состоянию
+head.by_size	По размеру
+head.open_by_size	Открытых по размеру
+total	Всего строк в реестре
+state.open	открыто
+state.reference	справка

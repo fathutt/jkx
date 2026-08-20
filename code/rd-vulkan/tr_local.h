@@ -317,6 +317,13 @@ typedef struct image_s {
 
 	uint32_t				type;
 	uint32_t				layers;
+	// Zero or one for the ordinary two-dimensional case, which is every image
+	// this renderer had until the light grid. Anything above one makes the
+	// image a VK_IMAGE_TYPE_3D with a matching view, and the sampler reads it
+	// with three coordinates and filters between slices - which is the whole
+	// reason for it: a volume marched with point sampling looks like a stack of
+	// cards.
+	uint32_t				depth;
 	VkImage					handle;
 	VmaAllocation			allocation;
 	VkImageView				view;
@@ -1894,6 +1901,11 @@ typedef struct trGlobals_s {
 	image_t					*defaultImage;
 	image_t					*scratchImage[NUM_SCRATCH_IMAGES];
 	image_t					*fogImage;
+	// The map's light grid as a 3D texture, or NULL when the map has none.
+	// Built by R_CreateLightGridImage at load and thrown away with the world.
+	image_t					*lightGridImage;
+	vec3_t					lightGridImageOrigin;	// world position of texel (0,0,0)
+	vec3_t					lightGridImageScale;	// world units -> [0,1] along each axis
 	image_t					*dlightImage;	// inverse-square highlight for dlights
 	image_t					*crosshairImage;	// a filled disc, generated; see R_CreateCrosshairImage
 	image_t					*flareImage;
@@ -2093,6 +2105,9 @@ extern	cvar_t	*r_norefresh;			// bypasses the ref rendering
 extern	cvar_t	*r_drawentities;		// disable/enable entity rendering
 extern	cvar_t	*r_drawworld;			// disable/enable world rendering
 extern	cvar_t	*r_drawfog;				// disable/enable fog rendering
+extern	cvar_t	*r_volumetricFog;		// colour fog by the map's light grid
+extern	cvar_t	*r_volumetricFogSamples;
+extern	cvar_t	*r_volumetricFogScale;
 extern	cvar_t	*r_speeds;				// various levels of information display
 extern  cvar_t	*r_detailTextures;		// enables/disables detail texturing stages
 extern	cvar_t	*r_novis;				// disable/enable usage of PVS
@@ -2359,6 +2374,7 @@ void    	R_Init( void );
 
 image_t		*R_FindImageFile( const char *name, imgFlags_t flags, uint32_t type );
 image_t		*R_CreateImage( const char *name, byte *pic, int width, int height, imgFlags_t flags, int format, uint32_t type );
+image_t		*R_CreateImage3D( const char *name, byte *pic, int width, int height, int depth );
 #ifdef USE_VK_PBR
 qboolean	vk_create_phyisical_texture( shaderStage_t *stage, const char *name, imgFlags_t flags );
 qboolean	vk_create_normal_texture( shaderStage_t *stage, const char *name, imgFlags_t flags );

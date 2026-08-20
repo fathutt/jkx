@@ -591,7 +591,21 @@ static void vk_update_fog_constants(const trRefdef_t* refdef)
 
 	uniform.num_fogs = tr.world ? ( tr.world->numfogs - 1 ) : 0;
 
-	size = sizeof(vec4_t);
+	// Where the light volume is, for the fog march. Step count zero is how the
+	// shader is told there is nothing to march through - a map with no light
+	// grid, or the cvar turned off - and it takes the ordinary path then.
+	if ( tr.lightGridImage != NULL && r_volumetricFog->integer ) {
+		VectorCopy( tr.lightGridImageOrigin, uniform.lightGridOrigin );
+		VectorCopy( tr.lightGridImageScale, uniform.lightGridScale );
+		uniform.lightGridOrigin[3] = r_volumetricFogScale->value;
+		uniform.lightGridScale[3] = (float)r_volumetricFogSamples->integer;
+	}
+
+	// Three vec4s of header now, not one: the count and the two rows that place
+	// the light volume. Only this many bytes are uploaded, so a field added
+	// above the fog array and not counted here arrives as whatever the last
+	// caller left behind.
+	size = sizeof(vec4_t) * 3;
 
 	for ( i = 0; i < MIN(uniform.num_fogs, 16); ++i )
 	{

@@ -1400,6 +1400,11 @@ void vk_upload_image_data( image_t *image, int x, int y, int width,
 	int num_regions = 0;
 	int buffer_size = 0;
 
+	// One for every image this renderer had before the light grid; the grid is
+	// the only three-dimensional one, it has no mip levels, and the loop below
+	// therefore runs once for it.
+	const int depth = ( image->depth > 1 ) ? (int)image->depth : 1;
+
 	if ( image->internalFormat == VK_FORMAT_BC3_UNORM_BLOCK ) {
 		compressed = qtrue;
 		buf = pixels;
@@ -1428,7 +1433,7 @@ void vk_upload_image_data( image_t *image, int x, int y, int width,
 		region.imageOffset.z = 0;
 		region.imageExtent.width = width;
 		region.imageExtent.height = height;
-		region.imageExtent.depth = 1;
+		region.imageExtent.depth = depth;
 
 		regions[num_regions] = region;
 		num_regions++;
@@ -1436,7 +1441,7 @@ void vk_upload_image_data( image_t *image, int x, int y, int width,
 		if ( compressed )
 			mip_level_size = rygCompressedSize(width, height);
 		else
-			mip_level_size = width * height * n;
+			mip_level_size = width * height * depth * n;
 
 		buffer_size += mip_level_size;
 
@@ -1732,6 +1737,10 @@ void vk_create_image( image_t *image, int width, int height, int mip_levels ) {
 		view_type = VK_IMAGE_VIEW_TYPE_CUBE;
 	}
 
+	if ( image->depth > 1 ) {
+		view_type = VK_IMAGE_VIEW_TYPE_3D;
+	}
+
 	// create image
 	{
 		// TRANSFER_SRC is not speculative: vk_render_splash blits the splash
@@ -1748,11 +1757,11 @@ void vk_create_image( image_t *image, int width, int height, int mip_levels ) {
 		desc.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
 		desc.pNext = NULL;
 		desc.flags = image_flags;
-		desc.imageType = VK_IMAGE_TYPE_2D;
+		desc.imageType = ( image->depth > 1 ) ? VK_IMAGE_TYPE_3D : VK_IMAGE_TYPE_2D;
 		desc.format = format;
 		desc.extent.width = width;
 		desc.extent.height = height;
-		desc.extent.depth = 1;
+		desc.extent.depth = ( image->depth > 1 ) ? image->depth : 1;
 		desc.mipLevels = mip_levels;
 		desc.arrayLayers = image->layers;
 		desc.samples = VK_SAMPLE_COUNT_1_BIT;
@@ -2079,6 +2088,58 @@ image_t *R_CreateImage( const char *name, byte *pic, int width, int height, imgF
 #endif 
 
     return image;
+}
+
+// A volume, which for now means one thing: the map's light grid, so that a
+// fragment inside a fog brush can ask what the light is where it stands.
+//
+// Deliberately NOT routed through R_CreateImage. That path scales to a power of
+// two, applies picmip, builds mip levels and picks a compressed format - every
+// one of which is wrong here. The grid is data, not a picture: its dimensions
+// come from the map, its texels are addressed by world position, and a smaller
+// copy of it is not a smaller version of the same thing.
+//
+// Clamped on all three axes because the volume ends where the map does, and a
+// sample beyond the edge should read the edge rather than wrap round to the far
+// side of the level.
+image_t *R_CreateImage3D( const char *name, byte *pic, int width, int height, int depth )
+{
+	image_t	*image;
+	int		namelen;
+	long	hash;
+
+	namelen = (int)strlen( name ) + 1;
+	if ( namelen > MAX_QPATH ) {
+		Com_Error( ERR_DROP, "R_CreateImage3D: \"%s\" is too long", name );
+	}
+
+	image = (image_t*)R_Z_Malloc( sizeof( *image ) + namelen, TAG_IMAGE_T );
+	Com_Memset( image, 0, sizeof( *image ) + namelen );
+
+	image->imgName = (char*)( image + 1 );
+	strcpy( image->imgName, name );
+
+	hash = generateHashValue( name );
+	image->next = hashTable[hash];
+	hashTable[hash] = image;
+
+	R_AddImageToPool( image );
+
+	image->flags = IMGFLAG_CLAMPTOEDGE | IMGFLAG_NOSCALE | IMGFLAG_NO_COMPRESSION;
+	image->width = image->uploadWidth = width;
+	image->height = image->uploadHeight = height;
+	image->depth = depth;
+	image->layers = 1;
+	image->mipLevels = 1;
+	image->type = vk_find_texture_type( 0 );
+	image->wrapClampMode = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+	image->internalFormat = VK_FORMAT_R8G8B8A8_UNORM;
+
+	vk_create_image( image, width, height, 1 );
+	vk_upload_image_data( image, 0, 0, width, height, 1, pic,
+		width * height * depth * 4, qfalse, 0 );
+
+	return image;
 }
 
 image_t *R_FindImageFile( const char *name, imgFlags_t flags, uint32_t type ){

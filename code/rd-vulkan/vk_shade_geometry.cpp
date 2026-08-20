@@ -1886,7 +1886,13 @@ static void RB_FogPass( void )
 {
 	const int sh = ( tess.vbo_model ) ? ( tess.surfType == SF_MDX ? 1 : 2 ) : 0;
 
-	uint32_t pipeline = vk.std_pipeline.fog_pipelines[sh][tess.shader->fogPass - 1][tess.shader->cullType][tess.shader->polygonOffset];
+	// The volumetric variant only exists when the exponential fog path is the
+	// one built, and only when the map handed us a light volume to march. Both
+	// are decided here rather than at pipeline creation so the cvar is live.
+	const int fogShader = ( vk.hw_fog == 1 && r_volumetricFog->integer
+		&& tr.lightGridImage != NULL ) ? 1 : 0;
+
+	uint32_t pipeline = vk.std_pipeline.fog_pipelines[sh][fogShader][tess.shader->fogPass - 1][tess.shader->cullType][tess.shader->polygonOffset];
 
 #ifdef USE_FOG_ONLY
 	int fog_stage;
@@ -1895,6 +1901,15 @@ static void RB_FogPass( void )
 	vk_set_fog_params( &uniform, &fog_stage );
 	vk_push_uniform( &uniform );
 	vk_update_descriptor( VK_DESC_FOG_ONLY, tr.fogImage->descriptor_set );
+
+	// The light volume, on the texture set the fog pass leaves empty. Bound
+	// whenever it exists rather than only when the volumetric pipeline is
+	// chosen: leaving a set unwritten does not leave it empty, it leaves
+	// whatever the last draw put there, and that is a two-dimensional image in
+	// a slot the shader may declare as a volume.
+	if ( fogShader ) {
+		vk_update_descriptor( VK_DESC_TEXTURE0, tr.lightGridImage->descriptor_set );
+	}
 	//vk_draw_geometry( DEPTH_RANGE_NORMAL, qtrue );
 
 	// create draw item
@@ -3356,7 +3371,24 @@ void RB_StageIteratorGeneric( void )
 			// wave field's amplitude is nominal, so this is a scale and not a
 			// measurement; it is here rather than in the shader because the day it
 			// becomes a material property it will be read from the material.
-			uniform_global.liquidCaustic[1] = 0.02f;
+			//
+			// It was 0.02, and at 0.02 the effect did not exist: the brightest
+			// part of the web moved a pixel by less than one level in two
+			// hundred and fifty-five. Nobody could have noticed by looking,
+			// which is the point - and the lane that was supposed to notice
+			// measured the waves travelling between its two screenshots
+			// instead, and passed with the web switched off in both of them.
+			//
+			// This number was chosen by measuring, not by deriving: with the
+			// waves frozen so that the two frames differ by the web alone,
+			// 0.02 gives nought pixels changed, 0.5 gives twenty-three
+			// thousand, 2.0 gives forty-one thousand and starts to look like
+			// tinfoil. The derivation is available and is the real fix - the
+			// focusing factor of a thin lens is 1 - d*k with no free scale at
+			// all - but it needs the wave amplitudes to be in world units
+			// rather than nominal, which is the same change that would let a
+			// mapper author them.
+			uniform_global.liquidCaustic[1] = 0.5f;
 			uniform_global.liquidCaustic[2] =
 			uniform_global.liquidCaustic[3] = 0.0f;
 

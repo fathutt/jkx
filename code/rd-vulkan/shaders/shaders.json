@@ -50,7 +50,8 @@
     ],
     "fogmode": [
       { "id": "linear", "defines": ["USE_FOG_LINEAR"] },
-      { "id": "exp",    "defines": ["USE_FOG_EXP"] }
+      { "id": "exp",    "defines": ["USE_FOG_EXP"] },
+      { "id": "vol",    "defines": ["USE_FOG_EXP", "USE_VOLUMETRIC_FOG"] }
     ],
     "depthms": [
       { "id": "1s", "defines": [] },

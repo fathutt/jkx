@@ -2815,6 +2815,131 @@ static void R_LoadLightGrid( const lump_t *l, world_t &worldData ) {
 
 /*
 ================
+R_CreateLightGridImage
+
+The map's light grid, uploaded as a 3D texture so that a fragment can ask what
+the light is at a world position instead of only an entity being able to.
+
+The grid is already the right shape for this: q3map2 samples it on a regular
+lattice, lightGridBounds gives the dimensions, and lightGridArray indexes it as
+x + y * w + z * w * h - the same order a 3D image expects. So the whole cost is
+resolving the indirection and packing bytes.
+
+WHY A TEXTURE AND NOT A BUFFER: the fog march reads it at points that fall
+between cells, and the hardware sampler interpolates in three dimensions for
+nothing. A buffer would mean either eight loads and a lerp per step, or point
+sampling - and a point-sampled volume looks like a stack of cards.
+
+Ambient and direct are merged rather than kept apart, and that is somebody
+else's measurement rather than our guess: SomaZ tried using the grid's
+directionality with a phase function and wrote down the result - "it looked bad.
+Created like visable noodles in the air." Fog is lit from every direction by
+definition; the direction of the brightest source is not what a participating
+medium responds to.
+
+Light styles are baked as they stand at load. JKA drives them at runtime -
+flickering lamps, consoles, a strobe in a hangar - so fog under a styled light
+will not flicker with it. Making it flicker means re-uploading the volume every
+time a style moves, which is a lot of bytes per frame to animate something fog
+barely shows. Named here rather than hidden: if a map makes it matter, the fix
+is a pass that touches only the cells whose style changed.
+================
+*/
+static void R_CreateLightGridImage( world_t &worldData )
+{
+	world_t	*w = &worldData;
+	byte	*pic;
+	int		gw, gh, gd, n, j, c;
+	size_t	bytes;
+
+	tr.lightGridImage = NULL;
+	VectorClear( tr.lightGridImageOrigin );
+	VectorClear( tr.lightGridImageScale );
+
+	if ( !w->lightGridData || !w->lightGridArray || !w->numGridArrayElements ) {
+		return;
+	}
+
+	gw = w->lightGridBounds[0];
+	gh = w->lightGridBounds[1];
+	gd = w->lightGridBounds[2];
+
+	if ( gw < 1 || gh < 1 || gd < 1 ) {
+		return;
+	}
+
+	// The two ways of counting the same lattice have to agree before anything
+	// indexes it. R_LoadLightGridArray already refuses a lump whose length
+	// disagrees; this is the second lock on the same door, and it is here
+	// because THIS function is the one that would read past the end.
+	if ( (size_t)gw * gh * gd != (size_t)w->numGridArrayElements ) {
+		CL_RefPrintf( PRINT_WARNING, "light grid is %ix%ix%i but the array has %i cell(s); no light volume on this map\n",
+			gw, gh, gd, w->numGridArrayElements );
+		return;
+	}
+
+	bytes = (size_t)gw * gh * gd * 4;
+	pic = (byte *)R_Z_Malloc( (int)bytes, TAG_BSP, qfalse );
+
+	for ( n = 0; n < w->numGridArrayElements; n++ ) {
+		const mgrid_t	*data = w->lightGridData + w->lightGridArray[n];
+		byte			*out = pic + (size_t)n * 4;
+		float			rgb[3] = { 0.0f, 0.0f, 0.0f };
+
+		out[3] = 255;
+
+		// A cell inside solid geometry. The entity path calls these "samples in
+		// walls" and skips them; here they become black, which is the same
+		// answer - fog inside a wall is not looked at, and a bright cell there
+		// would bleed into its neighbours through the filter.
+		if ( data->styles[0] == LS_NONE ) {
+			out[0] = out[1] = out[2] = 0;
+			continue;
+		}
+
+		for ( j = 0; j < MAXLIGHTMAPS; j++ ) {
+			const byte style = data->styles[j];
+
+			if ( style == LS_NONE ) {
+				break;
+			}
+
+			for ( c = 0; c < 3; c++ ) {
+				const float scale = styleColors[style][c] / 255.0f;
+
+				// The larger of the two rather than their sum. Ambient plus
+				// direct is what a SURFACE receives; a point in the air is not
+				// a surface, and adding them doubles the light in every lit
+				// cell of every map.
+				rgb[c] += scale * (float)Q_max( data->ambientLight[j][c],
+					data->directLight[j][c] );
+			}
+		}
+
+		for ( c = 0; c < 3; c++ ) {
+			out[c] = (byte)Com_Clamp( 0.0f, 255.0f, rgb[c] );
+		}
+	}
+
+	tr.lightGridImage = R_CreateImage3D( "*lightgrid", pic, gw, gh, gd );
+
+	R_Z_Free( pic );
+
+	// Texel centres, not texel corners. The value in cell zero belongs at the
+	// world position of cell zero, and a sampler addresses that half a texel
+	// in - so the transform carries the half-texel offset and the shader does
+	// no arithmetic of its own.
+	for ( j = 0; j < 3; j++ ) {
+		tr.lightGridImageOrigin[j] = w->lightGridOrigin[j] - w->lightGridSize[j] * 0.5f;
+		tr.lightGridImageScale[j] = 1.0f / ( w->lightGridSize[j] * (float)w->lightGridBounds[j] );
+	}
+
+	CL_RefPrintf( PRINT_DEVELOPER, "light grid volume: %ix%ix%i cell(s), %i KiB\n",
+		gw, gh, gd, (int)( bytes / 1024 ) );
+}
+
+/*
+================
 R_LoadLightGridArray
 
 ================
@@ -3499,6 +3624,7 @@ void RE_LoadWorldMap_Actual( const char *name, world_t &worldData, int index )
 		R_LoadEntities( &header->lumps[LUMP_ENTITIES], worldData );
 		R_LoadLightGrid( &header->lumps[LUMP_LIGHTGRID], worldData );
 		R_LoadLightGridArray( &header->lumps[LUMP_LIGHTARRAY], worldData );
+		R_CreateLightGridImage( worldData );
 
 #ifdef USE_VK_PBR
 		vk_generate_light_directions( worldData );

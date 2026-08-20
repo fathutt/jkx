@@ -949,8 +949,8 @@ VkPipeline vk_create_pipeline( const Vk_Pipeline_Def *def, renderPass_t renderPa
             break;
 
         case TYPE_FOG_ONLY:
-            vs_module = &vk.shaders.vert.fog[vbo][vk.hw_fog];
-            fs_module = &vk.shaders.frag.fog[vk.hw_fog];
+            vs_module = &vk.shaders.vert.fog[vbo][def->fog_mode];
+            fs_module = &vk.shaders.frag.fog[def->fog_mode];
             break;
 
         case TYPE_DOT:
@@ -2200,7 +2200,7 @@ void vk_alloc_persistent_pipelines( void )
         //    GLS_SRCBLEND_ONE | GLS_DSTBLEND_ONE | GLS_DEPTHFUNC_EQUAL			// additive
         //};
         qboolean polygon_offset[2] = { qfalse, qtrue };
-        int i, j, k;
+        int i, j, k, m;
 #ifdef USE_PMLIGHT
 		int l;
 #endif
@@ -2227,22 +2227,37 @@ void vk_alloc_persistent_pipelines( void )
                     def.shader_type = TYPE_SINGLE_TEXTURE;
 #endif
                     def.state_bits = fog_state;
-                    def.vbo_ghoul2 = qfalse;
-                    def.vbo_mdv = qfalse;
-                    vk.std_pipeline.fog_pipelines[0][i][j][k] = vk_find_pipeline_ext(0, &def, qtrue);
-#ifdef USE_VBO                 
-                    if ( vk.vboGhoul2Active ) {
-                        def.vbo_ghoul2 = qtrue;
-                        vk.std_pipeline.fog_pipelines[1][i][j][k] = vk_find_pipeline_ext(0, &def, qtrue);
+
+                    // Both fog shaders, every time, so the choice can be made
+                    // at draw. The volumetric one is only ever built for the
+                    // exponential mode: the linear path has no world position
+                    // in the fragment shader to march from.
+                    for ( m = 0; m < 2; m++ )
+                    {
+                        def.fog_mode = ( m == 0 ) ? (int)vk.hw_fog : 2;
+
+                        if ( m == 1 && vk.hw_fog != 1 )
+                            continue;
+
                         def.vbo_ghoul2 = qfalse;
+                        def.vbo_mdv = qfalse;
+                        vk.std_pipeline.fog_pipelines[0][m][i][j][k] = vk_find_pipeline_ext(0, &def, qtrue);
+#ifdef USE_VBO                 
+                        if ( vk.vboGhoul2Active ) {
+                            def.vbo_ghoul2 = qtrue;
+                            vk.std_pipeline.fog_pipelines[1][m][i][j][k] = vk_find_pipeline_ext(0, &def, qtrue);
+                            def.vbo_ghoul2 = qfalse;
+                        }
+
+                        if ( vk.vboMdvActive ) {
+                            def.vbo_mdv = qtrue;
+                            vk.std_pipeline.fog_pipelines[2][m][i][j][k] = vk_find_pipeline_ext(0, &def, qtrue);
+                            def.vbo_mdv = qfalse;
+                        }
+#endif
                     }
 
-                    if ( vk.vboMdvActive ) {
-                        def.vbo_mdv = qtrue;
-                        vk.std_pipeline.fog_pipelines[2][i][j][k] = vk_find_pipeline_ext(0, &def, qtrue);
-                        def.vbo_mdv = qfalse;
-                    }
-#endif
+                    def.fog_mode = 0;
                    // def.shader_type = TYPE_SINGLE_TEXTURE;
                    // def.state_bits = dlight_state;
                 }

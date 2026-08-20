@@ -30,6 +30,15 @@ layout(set = VK_DESC_UNIFORM, binding = VK_DESC_UNIFORM_MAIN_BINDING) uniform UB
 
 layout(set = VK_DESC_FOG_ONLY, binding = 0) uniform sampler2D fog_texture;
 
+#ifdef USE_VOLUMETRIC_FOG
+	// The map's light grid as a volume. It rides on the texture set the fog
+	// pass otherwise leaves alone - VK_DESC_FOG_ONLY is the SECOND texture set,
+	// and the first has nothing in it here - rather than on a set of its own,
+	// because a descriptor set is the scarce thing: the guaranteed Vulkan
+	// minimum is four and this renderer already builds six.
+	layout(set = VK_DESC_TEXTURE0, binding = 0) uniform sampler3D u_lightVolume;
+#endif
+
 #ifdef USE_FOG_LINEAR
 	layout(location = 4) in vec2 fog_tex_coord;
 #endif
@@ -52,6 +61,10 @@ void main() {
 
 	#ifdef USE_FOG_EXP
 		int u_fogIndex = int(fogDistanceVector[1]);
-		out_color = CalcFog( u_camera.viewOrigin.rgb, ws_position, u_fogs.fogs[u_fogIndex] );
+		#ifdef USE_VOLUMETRIC_FOG
+			out_color = CalcVolumetricFog( u_camera.viewOrigin.rgb, ws_position, u_fogs.fogs[u_fogIndex] );
+		#else
+			out_color = CalcFog( u_camera.viewOrigin.rgb, ws_position, u_fogs.fogs[u_fogIndex] );
+		#endif
 	#endif
 }

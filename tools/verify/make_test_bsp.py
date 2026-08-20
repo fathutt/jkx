@@ -669,8 +669,15 @@ GRID_DIRECT = (255, 64, 64)
 GRID_LATLONG = (32, 64)
 
 
-def lightgrid():
-    """A single mgrid_t: ambient, directed, styles, and a direction.
+# The dim record of a split grid. Not black: a black cell and a cell that was
+# never read are the same picture, and telling those two apart is most of what
+# the split is for.
+GRID_DIM_AMBIENT = (24, 24, 24)
+GRID_DIM_DIRECT = (32, 32, 32)
+
+
+def _grid_record(ambient, direct):
+    """One mgrid_t: ambient, directed, styles, and a direction.
 
     Thirty bytes, and the layout is four lightmap styles deep like everything
     else in RBSP: byte ambient[4][3], byte direct[4][3], byte styles[4],
@@ -678,23 +685,61 @@ def lightgrid():
     """
     out = bytearray()
     for _ in range(MAXLIGHTMAPS):
-        out += bytes(GRID_AMBIENT)
+        out += bytes(ambient)
     for _ in range(MAXLIGHTMAPS):
-        out += bytes(GRID_DIRECT)
+        out += bytes(direct)
     out += bytes([LS_NORMAL] + [LS_NONE] * 3)
     out += bytes(GRID_LATLONG)
     return bytes(out)
 
 
-def lightarray():
-    """One unsigned short per cell, all naming the single grid record.
+def lightgrid(split=False):
+    """One record, or two when the grid has to vary from place to place.
+
+    A grid whose cells all name the same record is enough to prove the grid was
+    read, and that is what it was written for. It is NOT enough for anything
+    that samples the grid as a VOLUME - volumetric fog, for one: a constant
+    volume gives a constant answer, and a constant answer is indistinguishable
+    from an answer that ignored the volume entirely. That is this bench's
+    oldest failure mode, and it has cost two runs on water alone.
+    """
+    out = _grid_record(GRID_AMBIENT, GRID_DIRECT)
+    if split:
+        out += _grid_record(GRID_DIM_AMBIENT, GRID_DIM_DIRECT)
+    return out
+
+
+def lightarray(split=False):
+    """One unsigned short per cell, naming a record in LUMP_LIGHTGRID.
 
     R_LoadLightGridArray checks this length against the bounds it derived
     itself, and on a mismatch it throws the grid away rather than failing - so
     the length is the whole contract.
+
+    Split along X, with the low half dim, and the axis was chosen the hard way.
+
+    Height was the first choice, on the reasoning that the lower half of the
+    world is the lower part of the frame whichever way the camera looks. It does
+    not discriminate: fog thickens with distance, the floor runs away to the
+    horizon, so ANY change to the fog colour - including one that reads the same
+    cell everywhere - lands low in the frame. Mutation-tested and it passed,
+    which is what a check that cannot fail looks like.
+
+    Along X the two halves sit at the same distance from a camera looking down
+    +Y, so a difference that is off-centre horizontally can only come from the
+    volume varying. A constant volume, or one that is never sampled, puts the
+    difference at the middle. The lane pins the heading for this reason.
     """
     x, y, z = light_grid_bounds()
-    return struct.pack("<%dH" % (x * y * z), *([0] * (x * y * z)))
+    if not split:
+        return struct.pack("<%dH" % (x * y * z), *([0] * (x * y * z)))
+
+    cells = []
+    for _cz in range(z):
+        for _cy in range(y):
+            for cx in range(x):
+                cells.append(1 if cx < x // 2 else 0)
+    return struct.pack("<%dH" % len(cells), *cells)
 
 
 # A fog volume, in the form that needs no brush: brushNum -1 means the fog is the
@@ -881,7 +926,7 @@ def entities(props=(), npcs=(), cloud=False):
 
 
 def build(visible_shader, sky_shader=None, fog_shader=None, lightmap=None,
-          props=(), npcs=(), cloud=False, water_shader=None):
+          props=(), npcs=(), cloud=False, water_shader=None, grid_split=False):
     """lightmap is None, "internal" or "hdr".
 
     "internal" puts a page in LUMP_LIGHTMAPS, which is how every retail map is
@@ -918,9 +963,9 @@ def build(visible_shader, sky_shader=None, fog_shader=None, lightmap=None,
         LUMP_SURFACES: surfaces(sky, bool(fog_shader), lightmap is not None,
                                 water, water_shader_num),
         LUMP_LIGHTMAPS: lightmaps(lightmap == "internal"),
-        LUMP_LIGHTGRID: lightgrid(),
+        LUMP_LIGHTGRID: lightgrid(grid_split),
         LUMP_VISIBILITY: visibility(),
-        LUMP_LIGHTARRAY: lightarray(),
+        LUMP_LIGHTARRAY: lightarray(grid_split),
     }
 
     header_size = 8 + HEADER_LUMPS * 8
@@ -1703,6 +1748,7 @@ def main(argv):
     prop_specs = []
     npc_specs = []
     cloud = False
+    grid_split = False
     water = None
     damage = None
     path = None
@@ -1725,6 +1771,9 @@ def main(argv):
             i += 1
         elif args[i] == "--cloud":
             cloud = True
+            i += 1
+        elif args[i] == "--gridsplit":
+            grid_split = True
             i += 1
         elif args[i] == "--water" and i + 1 < len(args):
             water = args[i + 1]
@@ -1753,7 +1802,7 @@ def main(argv):
 
     if path is None:
         print("usage: %s <out.bsp> [--shader NAME] [--sky NAME] [--fog NAME] "
-              "[--lightmap] [--lightmap-hdr] [--cloud] [--water NAME] "
+              "[--lightmap] [--lightmap-hdr] [--cloud] [--gridsplit] [--water NAME] "
               "[--prop MODEL[:Y[:Z]] ...] [--npc NAME[:Y[:Z]] ...] "
               "[--corrupt KIND]\n"
               "       %s --corrupt-list"
@@ -1763,7 +1812,7 @@ def main(argv):
 
     props = parse_props(prop_specs)
     npcs = parse_npcs(npc_specs)
-    data = build(visible, sky, fog, lightmap, props, npcs, cloud, water)
+    data = build(visible, sky, fog, lightmap, props, npcs, cloud, water, grid_split)
     if damage:
         data = corrupt(data, damage)
     with open(path, "wb") as f:

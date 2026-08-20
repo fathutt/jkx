@@ -626,6 +626,18 @@ fi
 if [ "${JKX_SMOKE_WATER:-0}" = "1" ]; then
     {
         echo "wait 5"
+        # The waves stand still for the whole sequence, and this was not here
+        # until a mutation said it had to be.
+        #
+        # Every pair below is meant to differ by ONE cvar. The waves move on the
+        # clock, so two shots thirty frames apart differ by the waves as well -
+        # which is invisible while the effect being measured is large, and fatal
+        # once it is not. The caustic web was being read against a moving
+        # surface: turning the web off in both frames still left thousands of
+        # pixels changed, and the check passed. Frozen, the field is still a
+        # field - it varies across the pool, it just does not travel - and a
+        # difference between two frames is the cvar that changed.
+        echo "set r_liquidWaveSpeed 0"
         echo "set r_liquids 0"
         echo "wait 20"
         echo "screenshot_tga jkx_liquid_off"
@@ -654,6 +666,7 @@ if [ "${JKX_SMOKE_WATER:-0}" = "1" ]; then
         echo "screenshot_tga jkx_liquid_dark"
         echo "wait 10"
         echo "set r_liquidCaustic 0.5"
+        echo "set r_liquidWaveSpeed 1"
         echo "wait 10"
     } > "$RUN/base/jkx_liquid.cfg"
 
@@ -1438,14 +1451,24 @@ else
             echo "screenshot_tga jkx_nofog"
             echo "wait 15"
             echo "r_drawfog 1"
+            echo "r_volumetricFog 0"
             echo "wait 20"
             echo "screenshot_tga jkx_fog"
             echo "wait 15"
+            # The same fog again, coloured by the light grid instead of by one
+            # constant. One cvar apart from the frame above, from the same
+            # pinned viewpoint, so the difference between them is the effect and
+            # nothing else.
+            echo "r_volumetricFog 1"
+            echo "wait 20"
+            echo "screenshot_tga jkx_fogvol"
+            echo "wait 15"
+            echo "r_volumetricFog 0"
             echo "r_drawfog 0"
             echo "wait 10"
         } > "$RUN/base/jkx_fog.cfg"
 
-        INMAP_STEP+=( +exec jkx_fog.cfg +wait $(( SETTLE + 70 )) )
+        INMAP_STEP+=( +exec jkx_fog.cfg +wait $(( SETTLE + 110 )) )
     fi
 
     # LAST, and after the second room is loaded, because the texture this lane
@@ -1780,7 +1803,13 @@ fi
 # tools/ci/local.sh.
 FOG_ARGS=()
 if [ "${JKX_SMOKE_FOG:-0}" = "1" ]; then
-    FOG_ARGS=( --fog textures/jkx/fog )
+    # --gridsplit and not just --fog. The light grid this fixture normally ships
+    # has every cell naming one record, which proves the grid is READ and proves
+    # nothing at all about anything that samples it as a volume: a constant
+    # volume and an ignored volume give the same picture. Split, the lower half
+    # of the world is dim and the upper half is bright, so volumetric fog has
+    # something to be volumetric about.
+    FOG_ARGS=( --fog textures/jkx/fog --gridsplit )
 fi
 python3 "$HERE/make_test_bsp.py" "$RUN/base/maps/jkx_room2.bsp" \
     --shader textures/jkx/wide --sky textures/jkx/sky \
@@ -2161,7 +2190,7 @@ set +e
       +set fs_basepath "$RUN" +set fs_homepath "$RUN/home" \
       "${SOUND_STEP[@]}" +set com_errorDialog 0 +set con_notifytime 0 \
       +set cg_hudFiles ui/jkx_hud.txt "${CHAR_STEP[@]}" \
-      +set helpUsObi 1 +set r_drawfog 0 \
+      +set helpUsObi 1 +set r_drawfog 0 +set com_maxfps "${JKX_SMOKE_MAXFPS:-30}" \
       "${SET_STEP[@]}" \
       +wait 60 +screenshot_tga jkx_smoke +wait 20 \
       "${MENU_RESTART_STEP[@]}" \
@@ -3137,7 +3166,14 @@ with no pattern on it would give it too, which is why this one has stripes"
         # it. A difference sitting on the SHALLOW end would mean the depth is
         # being read the wrong way round, which is the same mistake the foam
         # check guards from the other side.
-        if ! python3 "$HERE/tga_diff_where.py" "$dark" "$foam" "$pool_box" 2000 90000; then
+        # At sixteen rather than the default forty, and that is the effect
+        # rather than its tail. The web is a MULTIPLIER on what comes through
+        # the surface: most of the pixels it touches move by ten to thirty, so
+        # counting at forty counts the brightest fringe of it - and the same
+        # code on two machines then reported four thousand pixels and eight
+        # hundred. The box is what keeps a lower threshold honest: noise is
+        # nowhere in particular, and this has to be in the pool.
+        if ! python3 "$HERE/tga_diff_where.py" "$dark" "$foam" "$pool_box" 8000 120000 --threshold 16; then
             report "the caustic web changed nothing, or landed outside the pool. \
 It is computed at the point on the BOTTOM that each piece of surface sends its \
 light to, so a projection that lands on the surface instead puts the web on the \
@@ -3372,6 +3408,56 @@ if [ "${JKX_SMOKE_FOG:-0}" = "1" ] && [ -f "$RUN/home/base/screenshots/jkx_fog.t
     if python3 "$HERE/tga_has_colour.py" \
         "$RUN/home/base/screenshots/jkx_fog.tga" 255,255,255:2000 >/dev/null 2>&1; then
         report "the floor is still unfogged white in jkx_fog.tga - the fog pass did nothing"
+    fi
+
+    # Volumetric fog: the same fog, coloured by the map's light grid.
+    #
+    # Three assertions, and the shape of them is the whole lesson of this lane.
+    #
+    # The first is the obvious one - the frame changed. It is also the weakest,
+    # and on its own it is worthless: a march that reads ONE cell of the volume
+    # everywhere changes every fogged pixel too. That version was written, and
+    # mutation-tested, and passed. Counting differing pixels cannot tell a
+    # volume from a constant.
+    #
+    # The other two can. The volume under this fixture is split along X, bright
+    # on one side and dim on the other, and the two boxes sit at the left and
+    # right edges of the frame at the same distance from the camera - so fog
+    # thickness is not what separates them, light is. With the effect on they
+    # have to be far apart; with it off they have to agree, and that last one is
+    # the control: it is the same measurement on a frame where the answer is
+    # known.
+    #
+    # Blue, because this fog is magenta: red saturates the moment the modulation
+    # goes above one and stops carrying information, green is small, blue has
+    # the range. Measured on this fixture: 7 apart with the effect off, 45 with
+    # it on.
+    vol="$RUN/home/base/screenshots/jkx_fogvol.tga"
+    left="0.02,0.60,0.16,0.98"
+    right="0.84,0.60,0.98,0.98"
+
+    if [ ! -f "$vol" ]; then
+        report "the fog was not photographed with the light volume on"
+    else
+        if ! python3 "$HERE/tga_diff_where.py" \
+                "$RUN/home/base/screenshots/jkx_fog.tga" "$vol" \
+                "0.0,0.0,1.0,1.0" 20000 600000; then
+            report "volumetric fog changed nothing at all"
+        fi
+
+        if ! python3 "$HERE/tga_box_delta.py" "$vol" "$left" "$right" b --min 25; then
+            report "the fog is the same colour on both sides of a volume that is \
+bright on one side and dim on the other. That is what a march reading one cell \
+everywhere looks like: the transform from world position to texture coordinate, \
+or the sampler bound to something that is not the volume"
+        fi
+
+        if ! python3 "$HERE/tga_box_delta.py" \
+                "$RUN/home/base/screenshots/jkx_fog.tga" "$left" "$right" b --max 15; then
+            report "the two sides of the frame already disagree with the light \
+volume switched OFF, so the check above is measuring the fixture rather than \
+the effect"
+        fi
     fi
 fi
 

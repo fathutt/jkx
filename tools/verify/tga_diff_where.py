@@ -15,6 +15,16 @@ fixture. What identifies it is that it is the only thing that changed between a
 frame drawn with it and a frame drawn without.
 
     tga_diff_where.py <without.tga> <with.tga> x0,y0,x1,y1 [min pixels] [max]
+                      [--threshold N]
+
+--threshold is how far apart a channel has to be before a pixel counts as
+changed, and the default of forty is right for anything that REPLACES what was
+there. It is wrong for a small multiplier: the caustic web under a liquid
+surface shifts most of its pixels by ten to thirty, so counting at forty counts
+its tail rather than the effect, and the same code on two machines then reports
+four thousand pixels and eight hundred. Lower it for effects like that, and keep
+the box: what stops a loose threshold from passing on noise is that the noise is
+nowhere in particular.
 
 The box is in fractions of the image, 0,0 top left. The count and the centre of
 mass both have to be right: too few pixels means it was not drawn at all, too
@@ -56,9 +66,16 @@ def main():
     if len(sys.argv) < 4:
         raise SystemExit(__doc__)
 
-    without, with_it, box = sys.argv[1], sys.argv[2], sys.argv[3]
-    want = int(sys.argv[4]) if len(sys.argv) > 4 else 100
-    limit = int(sys.argv[5]) if len(sys.argv) > 5 else 0
+    args = sys.argv[1:]
+    threshold = THRESHOLD
+    if "--threshold" in args:
+        at = args.index("--threshold")
+        threshold = int(args[at + 1])
+        del args[at:at + 2]
+
+    without, with_it, box = args[0], args[1], args[2]
+    want = int(args[3]) if len(args) > 3 else 100
+    limit = int(args[4]) if len(args) > 4 else 0
 
     x0, y0, x1, y1 = (float(v) for v in box.split(","))
 
@@ -80,9 +97,9 @@ def main():
         for col in range(aw):
             ai = abase + col * astride
             bi = bbase + col * bstride
-            if (abs(apix[ai] - bpix[bi]) > THRESHOLD
-                    or abs(apix[ai + 1] - bpix[bi + 1]) > THRESHOLD
-                    or abs(apix[ai + 2] - bpix[bi + 2]) > THRESHOLD):
+            if (abs(apix[ai] - bpix[bi]) > threshold
+                    or abs(apix[ai + 1] - bpix[bi + 1]) > threshold
+                    or abs(apix[ai + 2] - bpix[bi + 2]) > threshold):
                 count += 1
                 sx += col
                 sy += row

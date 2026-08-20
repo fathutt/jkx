@@ -1,0 +1,35 @@
+#	Находка	Источник	Куда легла	Разм.	Вердикт
+1	Диагностика материалов невидима в релизе (vk_debug, 120 сообщений)	Quake3e	§39 / STR-02	M	взять + гейт
+2	r_neatsky: снять мип с неба	Quake3e	§5 / FIX-05	S	взять
+3	r_mergeLightmaps — атласы лайтмапов	Quake3e	§48 / WLD-03	L	взять позже
+4	Условный разбор .shader (if/elif/else)	Quake3e	§10 / FIX-12	M	взять, низкий приоритет
+5	r_vbo/r_fbo прибиты гвоздями	Quake3e	§5 / FIX-06	S	взять
+6	r_printShaders	Quake3e	§10 / FIX-09	S	взять
+7	Имена cvar-ов разъехались с миром	Quake3e	§6 / FIX-08	S	взять
+8	R_CullPointAndRadius: r_nocull == 1	Quake3e	§5 / FIX-07	S	разобраться
+9	R_InitFogTable: powf -> pow	Quake3e	§40 / MTH-03	S	разобраться
+10	Ослабленные типы (const, qboolean->int)	Quake3e	TypeAudit / MTH-04	S	взять
+11	Где МЫ впереди: retire_image, R_ClusterPVS, vid_restart	-	-	-	справка
+12	MAX_DLIGHTS заменён литералом 32	Quake3e	§4.1 / LIM-01	S	МИНА под §4
+13	Потеряна отбраковка dlight по узлам дерева	Quake3e	§4.1 / LIM-02	M	ОШИБКА: отбраковка есть
+14	r_nocull == 1 систематически, в двух функциях	Quake3e	§5 / FIX-07	S	разобраться
+15	ParseSurfaceParm clearSolid: мы правы	Quake3e	§43.2	-	справка
+16	atof без проверки на конечность (212 вызовов)	Quake3e	§45.5 / LDR-06	M	взять
+17	R_ColorShiftLightingBytes: отрицательный сдвиг	Quake3e	§28 / PBR-04	S	разобраться
+18	Проверок целостности BSP нет вовсе (10 мест)	Quake3e	§45.3 / LDR-01	L	взять
+19	Заголовок MD3 не проверяется (fileSize не передан)	Quake3e	§45.4 / LDR-04	M	взять
+20	Регистрация LOD-ов MD3 сломана, в двух копиях	Quake3e	§45.4 / LDR-05	S	взять
+21	R_inPVS читает до начала буфера	Quake3e	§45.3 / LDR-02	S	взять
+22	novis выделяется в 8 раз больше нужного	Quake3e	§45.3 / LDR-03	S	взять
+23	Апстрим выключил USE_UPLOAD_QUEUE как ненадёжный	Quake3e	краши / HW-02	S	рычаг под вылет
+24	Окно драйверов Intel — код У НАС УЖЕ ЕСТЬ	Quake3e	краши / HW-03	-	смотреть в лог
+25	FindLightingStage: запасной лайтмап + перенос dlight	Quake3e	§28 / PBR-06	S	взять, глазами
+26	MAX_GRID_SIZE 65 против 129	Quake3e	§44.3 / GEO-04	S	отложить
+27	Объёмный туман по светосетке	somaz	§24.1 / VOL-09	M	ВЗЯТЬ
+28	Тонмаппинга нет вообще; ACES у somaz НЕ подключён	somaz	§28 / PBR-01	L	взять цепочку
+29	Тени от солнца (CSM)	somaz	тени / SHD-07	L	в очередь
+30	SSAO, SMAA, буфер скоростей, боке-DOF	somaz	§25 / FX-02..07	L	полка
+31	Погода целиком на GPU	somaz	§43.3 / VOL-07	M	ВЗЯТЬ, дождь нужен
+32	Параллакс, cubemap bounces, float-лайтмап, merge-*, r_externalGLSL	somaz	§44,§28,§48	M	выборочно
+33	Внешние сущности карты .eent	JAEnhanced	§8.1 / FIX-11	S	взять
+34	r_debugStyle	JAEnhanced	§8.1 / FIX-10	S	взять

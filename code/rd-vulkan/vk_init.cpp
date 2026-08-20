@@ -831,8 +831,18 @@ void vk_initialize( void )
 	// Dynamic glow
 	vk_set_dynamic_glow();
 
-	// "Hardware" fog mode
-	vk.hw_fog = r_drawfog->integer == 2 ? 1 : 0;
+	// Which fog fragment shaders get built: the exponential ones unless the user
+	// asked for the legacy path outright.
+	//
+	// This read r_drawfog == 2, and that made a runtime setting decide a build
+	// one. r_drawfog 0 at startup - which is what a bench run and any config
+	// with fog off does - left the renderer holding only the linear shaders, so
+	// turning fog ON later gave the legacy path, permanently, for reasons the
+	// person who typed r_drawfog 1 could not see. Same family as the cvars whose
+	// startup value silently decided something else, and the same fix: the
+	// capability is built unless it was refused, and the runtime value chooses
+	// the behaviour.
+	vk.hw_fog = ( r_drawfog->integer == 1 ) ? 0 : 1;
 
 	// Screenmap
 	vk.screenMapSamples = MIN(vkMaxSamples, VK_SAMPLE_COUNT_4_BIT);

@@ -481,6 +481,17 @@ typedef struct {
 	Vk_Primitive_Topology	primitives;
 	uint32_t				surface_sprite_flags;
 
+	// Which fog fragment shader a TYPE_FOG_ONLY pipeline gets: 0 linear,
+	// 1 exponential, 2 exponential coloured by the light volume. Zero for every
+	// other pipeline type, which is what memset leaves and what the fog-mode
+	// default is, so nothing else in the table moves.
+	//
+	// In the def rather than read from vk.hw_fog at creation time for the same
+	// reason depth_only is: vk_find_pipeline_ext keys on a memcmp of the whole
+	// struct, so two pipelines that differ only in a global would collapse into
+	// one - and the point of building both is to switch between them at draw.
+	int fog_mode;
+
 	int fog_stage; // off, fog-in / fog-out
 	int line_width;
 	int abs_light;
@@ -983,7 +994,7 @@ typedef struct {
 		// dim 0 is based on fogPass_t: 0 - corresponds to FP_EQUAL, 1 - corresponds to FP_LE.
 		// dim 1 is directly a cullType_t enum value.
 		// dim 2 is a polygon offset value (0 - off, 1 - on).
-		uint32_t fog_pipelines[3][2][3][2];
+		uint32_t fog_pipelines[3][3][2][3][2];	// vbo, fog mode, fog pass, cull, offset
 
 #ifdef USE_PMLIGHT
 		// cullType[3], polygonOffset[2], fogStage[2], absLight[2]
@@ -1025,7 +1036,7 @@ typedef struct {
 			VkShaderModule gen[3][2][4][3][2][2][2]; // vbo[0,1], pbr[0,1], tx[0,1,2], cl[0,1] env0[0,1] fog[0,1]
 			VkShaderModule light[2]; // fog[0,1]
 			VkShaderModule gen0_ident;
-			VkShaderModule fog[3][2];	// vbo[0,1,2], fog mode[0,1]
+			VkShaderModule fog[3][3];	// vbo[0,1,2], fog mode[linear, exp, volumetric]
 		}	vert;
 
 		struct {
@@ -1033,7 +1044,7 @@ typedef struct {
 			VkShaderModule gen0_df;
 			VkShaderModule gen[2][4][3][2][2]; // pbr[0,1], tx[0,1,2] cl[0,1] fog[0,1]
 			VkShaderModule light[2][2]; // linear[0,1] fog[0,1]
-			VkShaderModule fog[2];	// vbo[0,1,2], fog mode[0,1]
+			VkShaderModule fog[3];	// fog mode[linear, exp, volumetric]
 		}	frag;
 
 		VkShaderModule surface_sprite_fs[2];

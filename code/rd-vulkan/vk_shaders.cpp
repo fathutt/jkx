@@ -291,7 +291,7 @@ void vk_destroy_shader_modules( void )
         }
     }
 
-    for (i = 0; i < 2; i++) {
+    for (i = 0; i < 3; i++) {
         if (vk.shaders.frag.fog[i] != VK_NULL_HANDLE) {
             vkDestroyShaderModule(vk.device, vk.shaders.frag.fog[i], NULL);
             vk.shaders.frag.fog[i] = VK_NULL_HANDLE;

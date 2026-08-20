@@ -1,0 +1,21 @@
+#	ID	Что сделать	Где	Источник	Заметка
+1	LIM-01	MAX_DLIGHTS вместо литерала 32	tr_world.cpp:1519	находка 12	Мина под §4
+2	LDR-03	novis: добавить >>3	tr_bsp.cpp:863	находка 22	Один сдвиг
+3	LDR-02	R_inPVS: проверка cluster<0 на обе точки	tr_world.cpp	находка 21	Строка на точку
+4	LDR-05	LOD-ы MD3: снизу вверх + COM_StripExtension	tr_model.cpp:67 и :641	находка 20	ДВА экземпляра
+5	FIX-08	r_ext_compressed_textures, r_offsetFactor	tr_init.cpp	находка 7	+ прочитать старое имя при старте
+6	FIX-09	r_printShaders	tr_shader.cpp	находка 6	Инструмент мод-мейкера и наш
+7	FIX-10	r_debugStyle	tr_init.cpp, tr_main.cpp	находка 34	Посмотреть на один стиль лайтмапа
+8	ANI-04	r_ghoul2timebase	tr_init.cpp	JAEnhanced §8.1	Последняя из пяти ручек
+9	FIX-06	r_vbo / r_fbo как cvar-ы	vk_init.cpp	находка 5	Рычаг для диагностики на чужом железе
+10	FIX-05	r_neatsky: снять мип со скайбокса	tr_sky.cpp, tr_shader.cpp	находка 2	Возможно закрывает шов в JK2
+11	MTH-03	R_InitFogTable: pow -> powf	tr_shade_calc.cpp	находка 9	Со сверкой стрипнутого бинарника
+12	MTH-04	const у RB_AddQuadStamp, qboolean у R_Merged*Points	tr_surface.cpp, tr_curve.cpp	находка 10	Phase2-TypeAudit
+13	FIX-13	JKX_VK_TRACE обратно в OFF	CMakeLists.txt, engine.yml	долг	Висит с разбора вылета
+Условие пачки:		ни одна не требует железа и ретейловых ассетов; всё проверяется существующим CI			
+		один заход -> один бандл -> один полный прогон CI			
+Рядом, но НЕ в пачке:					
+	FIX-07	r_nocull: сначала выяснить, чем в JK занято значение 2			
+	PBR-06	FindLightingStage: смотреть глазами на ретейле			
+	GEO-04	MAX_GRID_SIZE: сначала измерить			
+	FIX-11	.eent: не однострочник, но полезнее многого крупного			
