@@ -61,6 +61,70 @@ cvar_t	*sv_paused;
 cvar_t	*com_skippingcin;
 cvar_t	*com_speedslog;		// 1 = buffer log, 2 = flush after each print
 cvar_t  *com_homepath;
+
+// WHICH GAME THIS IS, and the one place that decides it.
+//
+// It used to be decided by JK2_MODE at compile time, which is what made two
+// binaries out of one engine. The cvar is CVAR_INIT - "don't allow change from
+// console at all, but can be set from the command line", which is exactly the
+// property wanted: the identity of the game has to be settled before anything
+// loads and must not move afterwards. Changing it mid-run would mean reading
+// the same structures a different way while the other game's module is already
+// in memory.
+//
+// The cvar is read ONCE, here, into the boolean below, and every caller goes
+// through Com_IsOutcast(). That is not ceremony: a cvar can be reset by
+// cvar_restart or by a config nobody expected, and a hundred and twenty-eight
+// call sites reading it directly would each be a chance to disagree with the
+// rest of the process about what game this is.
+cvar_t  *com_game;
+static qboolean com_outcast;
+
+qboolean Com_IsOutcast( void )
+{
+	return com_outcast;
+}
+
+/*
+=================
+Com_CheckGameAssets
+
+Started as one game on the other's assets, said so, and stopped.
+
+The test is for a CONTRADICTION and not for absence, and the difference is the
+whole design. Each game's assets carry a file the other's do not - the launcher
+already names them for the same reason - so "the other game's marker is here and
+ours is not" is a definite statement. "Neither is here" is not: it is what a
+fixture map looks like, and what a fresh checkout looks like, and there is a
+bench lane whose whole point is that the engine starts in that state and
+explains itself rather than dying.
+
+Erring on absence would have killed that lane and every headless run with it,
+which is how a check written to be strict ends up being deleted.
+=================
+*/
+static void Com_CheckGameAssets( void )
+{
+	const char	*ours = com_outcast ? "ui/jk2hud.txt" : "ui/jahud.txt";
+	const char	*theirs = com_outcast ? "ui/jahud.txt" : "ui/jk2hud.txt";
+
+	if ( FS_ReadFile( ours, NULL ) > 0 ) {
+		return;		// our own assets are here; nothing to say
+	}
+
+	if ( FS_ReadFile( theirs, NULL ) <= 0 ) {
+		return;		// neither is here - see the note above
+	}
+
+	Com_Error( ERR_FATAL,
+		"com_game says %s, and the assets found are %s.\n\n"
+		"%s is present and %s is not, so this is the other game's "
+		"installation. Set com_game on the command line, or point the engine "
+		"at the right directory.",
+		com_outcast ? "outcast" : "academy",
+		com_outcast ? "Jedi Academy's" : "Jedi Outcast's",
+		theirs, ours );
+}
 #ifndef _WIN32
 cvar_t	*com_ansiColor = NULL;
 #endif
@@ -1164,11 +1228,38 @@ void Com_Init( char *commandLine ) {
 
 		com_homepath = Cvar_Get("com_homepath", "", CVAR_INIT);
 
+		// The default still comes from the define, and this is the last place
+		// it will: while there are two binaries, each has to know which game it
+		// is when nobody says. When there is one, the default becomes a plain
+		// string and this #ifdef is the only one left to delete.
+		com_game = Cvar_Get( "com_game",
+#ifdef JK2_MODE
+			"outcast",
+#else
+			"academy",
+#endif
+			CVAR_INIT, "Which game this is: academy or outcast. Command line only." );
+
+		com_outcast = (qboolean)( Q_stricmp( com_game->string, "outcast" ) == 0 );
+
+		if ( !com_outcast && Q_stricmp( com_game->string, "academy" ) != 0 ) {
+			Com_Printf( S_COLOR_YELLOW "com_game is \"%s\", which is neither "
+				"academy nor outcast; going with academy\n", com_game->string );
+			Cvar_Set( "com_game", "academy" );
+		}
+
+		// Said out loud, every run. A report from a machine that cannot be
+		// asked questions has to name the game it was: this is the line that
+		// makes "it does not do that in the other one" answerable from a log.
+		Com_Printf( "game: %s\n", com_outcast ? "Jedi Outcast" : "Jedi Academy" );
+
 		// Init network before filesystem
 		NET_Init();
 
 		FS_InitFilesystem ();	//uses z_malloc
 		//re.R_InitWorldEffects();   // this doesn't do much but I want to be sure certain variables are intialized.
+
+		Com_CheckGameAssets();
 
 		Com_ExecuteCfg();
 

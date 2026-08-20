@@ -796,6 +796,10 @@ qboolean SV_GameCommand( void );
 //
 qboolean UI_GameCommand( void );
 
+// Which game this is, settled once at startup from com_game. See the note at
+// the definition in common.cpp before reading the cvar directly instead.
+qboolean Com_IsOutcast( void );
+
 
 byte*	SCR_GetScreenshot(qboolean *qValid);
 // Declared in both games: cl_scrn.cpp defines them in both, and the savegame

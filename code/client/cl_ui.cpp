@@ -211,9 +211,9 @@ CL_InitUI
 ====================
 */
 void CL_InitUI( void ) {
-#ifdef JK2_MODE
-	JK2SP_Register("keynames", 0	/*SP_REGISTER_REQUIRED*/);		// reference is KEYNAMES
-#endif
+	if ( Com_IsOutcast() ) {
+		JK2SP_Register("keynames", 0	/*SP_REGISTER_REQUIRED*/);		// reference is KEYNAMES
+	}
 
 	uiimport_t	uii;
 

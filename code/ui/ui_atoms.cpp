@@ -102,15 +102,13 @@ void UI_SetActiveMenu( const char* menuname,const char *menuID )
 		UI_DataPadMenu();
 		return;
 	}
-#ifndef JK2_MODE
-	if ( Q_stricmp (menuname, "missionfailed_menu") == 0 )
+	if ( !Com_IsOutcast() && Q_stricmp (menuname, "missionfailed_menu") == 0 )
 	{
 		Menus_CloseAll();
 		Menus_ActivateByName("missionfailed_menu");
 		ui.Key_SetCatcher( KEYCATCH_UI );
 		return;
 	}
-#endif
 }
 
 
@@ -151,9 +149,16 @@ UI_Cache
 static void UI_Cache_f( void )
 {
 	Menu_Cache();
-#ifndef JK2_MODE
-extern const char *lukeForceStatusSounds[];
-extern const char *kyleForceStatusSounds[];
+
+	// Academy's own sounds. The extern declarations moved above the branch
+	// because a declaration inside an if is a declaration nobody else can see.
+	extern const char *lukeForceStatusSounds[];
+	extern const char *kyleForceStatusSounds[];
+
+	if ( Com_IsOutcast() ) {
+		return;
+	}
+
 	for (int index = 0; index < 5; index++)
 	{
 		DC->registerSound(lukeForceStatusSounds[index], qfalse);
@@ -184,7 +189,6 @@ extern const char *kyleForceStatusSounds[];
 	Menus_ActivateByName("ingameMissionSelect1");
 	Menus_ActivateByName("ingameMissionSelect2");
 	Menus_ActivateByName("ingameMissionSelect3");
-#endif
 }
 
 
@@ -193,9 +197,7 @@ extern const char *kyleForceStatusSounds[];
 UI_ConsoleCommand
 =================
 */
-#ifndef JK2_MODE
 void UI_Load(void);	//in UI_main.cpp
-#endif
 
 qboolean UI_ConsoleCommand( void )
 {
@@ -235,13 +237,11 @@ qboolean UI_ConsoleCommand( void )
 		return qtrue;
 	}
 
-#ifndef JK2_MODE
-	if ( Q_stricmp (cmd, "ui_load") == 0 )
+	if ( !Com_IsOutcast() && Q_stricmp (cmd, "ui_load") == 0 )
 	{
 		UI_Load();
 		return qtrue;
 	}
-#endif
 
 	return qfalse;
 }
@@ -271,42 +271,44 @@ void UI_Init( int apiVersion, uiimport_t *uiimport, qboolean inGameLoad )
 	ui.Cvar_Create( "cg_drawCrosshair", "1", CVAR_ARCHIVE );
 	ui.Cvar_Create( "cg_marks", "1", CVAR_ARCHIVE );
 	ui.Cvar_Create ("s_language",			"english",	CVAR_ARCHIVE | CVAR_NORESTART);
-#ifndef JK2_MODE
-	ui.Cvar_Create( "g_char_model",			"jedi_tf",	CVAR_ARCHIVE|CVAR_SAVEGAME|CVAR_NORESTART );
-	ui.Cvar_Create( "g_char_skin_head",		"head_a1",	CVAR_ARCHIVE|CVAR_SAVEGAME|CVAR_NORESTART );
-	ui.Cvar_Create( "g_char_skin_torso",	"torso_a1",	CVAR_ARCHIVE|CVAR_SAVEGAME|CVAR_NORESTART );
-	ui.Cvar_Create( "g_char_skin_legs",		"lower_a1",	CVAR_ARCHIVE|CVAR_SAVEGAME|CVAR_NORESTART );
-	ui.Cvar_Create( "g_char_color_red",		"255",		CVAR_ARCHIVE|CVAR_SAVEGAME|CVAR_NORESTART );
-	ui.Cvar_Create( "g_char_color_green",	"255",		CVAR_ARCHIVE|CVAR_SAVEGAME|CVAR_NORESTART );
-	ui.Cvar_Create( "g_char_color_blue",	"255",		CVAR_ARCHIVE|CVAR_SAVEGAME|CVAR_NORESTART );
-	ui.Cvar_Create( "g_saber_type",			"single",	CVAR_ARCHIVE|CVAR_SAVEGAME|CVAR_NORESTART );
-	ui.Cvar_Create( "g_saber",				"single_1",	CVAR_ARCHIVE|CVAR_SAVEGAME|CVAR_NORESTART );
-	ui.Cvar_Create( "g_saber2",				"",			CVAR_ARCHIVE|CVAR_SAVEGAME|CVAR_NORESTART );
-	ui.Cvar_Create( "g_saber_color",		"yellow",	CVAR_ARCHIVE|CVAR_SAVEGAME|CVAR_NORESTART );
-	ui.Cvar_Create( "g_saber2_color",		"yellow",	CVAR_ARCHIVE|CVAR_SAVEGAME|CVAR_NORESTART );
+	// Academy's own settings. Outcast creates none of them, and creating them
+	// there would put a dozen names in its config that nothing reads.
+	if ( !Com_IsOutcast() ) {
+		ui.Cvar_Create( "g_char_model",			"jedi_tf",	CVAR_ARCHIVE|CVAR_SAVEGAME|CVAR_NORESTART );
+		ui.Cvar_Create( "g_char_skin_head",		"head_a1",	CVAR_ARCHIVE|CVAR_SAVEGAME|CVAR_NORESTART );
+		ui.Cvar_Create( "g_char_skin_torso",	"torso_a1",	CVAR_ARCHIVE|CVAR_SAVEGAME|CVAR_NORESTART );
+		ui.Cvar_Create( "g_char_skin_legs",		"lower_a1",	CVAR_ARCHIVE|CVAR_SAVEGAME|CVAR_NORESTART );
+		ui.Cvar_Create( "g_char_color_red",		"255",		CVAR_ARCHIVE|CVAR_SAVEGAME|CVAR_NORESTART );
+		ui.Cvar_Create( "g_char_color_green",	"255",		CVAR_ARCHIVE|CVAR_SAVEGAME|CVAR_NORESTART );
+		ui.Cvar_Create( "g_char_color_blue",	"255",		CVAR_ARCHIVE|CVAR_SAVEGAME|CVAR_NORESTART );
+		ui.Cvar_Create( "g_saber_type",			"single",	CVAR_ARCHIVE|CVAR_SAVEGAME|CVAR_NORESTART );
+		ui.Cvar_Create( "g_saber",				"single_1",	CVAR_ARCHIVE|CVAR_SAVEGAME|CVAR_NORESTART );
+		ui.Cvar_Create( "g_saber2",				"",			CVAR_ARCHIVE|CVAR_SAVEGAME|CVAR_NORESTART );
+		ui.Cvar_Create( "g_saber_color",		"yellow",	CVAR_ARCHIVE|CVAR_SAVEGAME|CVAR_NORESTART );
+		ui.Cvar_Create( "g_saber2_color",		"yellow",	CVAR_ARCHIVE|CVAR_SAVEGAME|CVAR_NORESTART );
 
-	ui.Cvar_Create( "ui_forcepower_inc",	"0",		CVAR_ROM|CVAR_SAVEGAME|CVAR_NORESTART);
-	ui.Cvar_Create( "tier_storyinfo",		"0",		CVAR_ROM|CVAR_SAVEGAME|CVAR_NORESTART);
-	ui.Cvar_Create( "tiers_complete",		"",			CVAR_ROM|CVAR_SAVEGAME|CVAR_NORESTART);
-	ui.Cvar_Create( "ui_prisonerobj_currtotal", "0",	CVAR_ROM|CVAR_SAVEGAME|CVAR_NORESTART);
-	ui.Cvar_Create( "ui_prisonerobj_mintotal",  "0",	CVAR_ROM|CVAR_SAVEGAME|CVAR_NORESTART);
+		ui.Cvar_Create( "ui_forcepower_inc",	"0",		CVAR_ROM|CVAR_SAVEGAME|CVAR_NORESTART);
+		ui.Cvar_Create( "tier_storyinfo",		"0",		CVAR_ROM|CVAR_SAVEGAME|CVAR_NORESTART);
+		ui.Cvar_Create( "tiers_complete",		"",			CVAR_ROM|CVAR_SAVEGAME|CVAR_NORESTART);
+		ui.Cvar_Create( "ui_prisonerobj_currtotal", "0",	CVAR_ROM|CVAR_SAVEGAME|CVAR_NORESTART);
+		ui.Cvar_Create( "ui_prisonerobj_mintotal",  "0",	CVAR_ROM|CVAR_SAVEGAME|CVAR_NORESTART);
 
-	ui.Cvar_Create( "g_dismemberment", "3", CVAR_ARCHIVE );//0 = none, 1 = arms and hands, 2 = legs, 3 = waist and head
-	ui.Cvar_Create( "cg_gunAutoFirst", "1", CVAR_ARCHIVE );
-	ui.Cvar_Create( "cg_crosshairIdentifyTarget", "1", CVAR_ARCHIVE );
-	ui.Cvar_Create( "g_subtitles", "0", CVAR_ARCHIVE );
-	ui.Cvar_Create( "cg_marks", "1", CVAR_ARCHIVE );
-	ui.Cvar_Create( "d_slowmodeath", "3", CVAR_ARCHIVE );
-	ui.Cvar_Create( "cg_shadows", "1", CVAR_ARCHIVE );
+		ui.Cvar_Create( "g_dismemberment", "3", CVAR_ARCHIVE );//0 = none, 1 = arms and hands, 2 = legs, 3 = waist and head
+		ui.Cvar_Create( "cg_gunAutoFirst", "1", CVAR_ARCHIVE );
+		ui.Cvar_Create( "cg_crosshairIdentifyTarget", "1", CVAR_ARCHIVE );
+		ui.Cvar_Create( "g_subtitles", "0", CVAR_ARCHIVE );
+		ui.Cvar_Create( "cg_marks", "1", CVAR_ARCHIVE );
+		ui.Cvar_Create( "d_slowmodeath", "3", CVAR_ARCHIVE );
+		ui.Cvar_Create( "cg_shadows", "1", CVAR_ARCHIVE );
 
-	ui.Cvar_Create( "cg_runpitch", "0.002", CVAR_ARCHIVE );
-	ui.Cvar_Create( "cg_runroll", "0.005", CVAR_ARCHIVE );
-	ui.Cvar_Create( "cg_bobup", "0.005", CVAR_ARCHIVE );
-	ui.Cvar_Create( "cg_bobpitch", "0.002", CVAR_ARCHIVE );
-	ui.Cvar_Create( "cg_bobroll", "0.002", CVAR_ARCHIVE );
+		ui.Cvar_Create( "cg_runpitch", "0.002", CVAR_ARCHIVE );
+		ui.Cvar_Create( "cg_runroll", "0.005", CVAR_ARCHIVE );
+		ui.Cvar_Create( "cg_bobup", "0.005", CVAR_ARCHIVE );
+		ui.Cvar_Create( "cg_bobpitch", "0.002", CVAR_ARCHIVE );
+		ui.Cvar_Create( "cg_bobroll", "0.002", CVAR_ARCHIVE );
 
-	ui.Cvar_Create( "ui_disableWeaponSway", "0", CVAR_ARCHIVE );
-#endif
+		ui.Cvar_Create( "ui_disableWeaponSway", "0", CVAR_ARCHIVE );
+	}
 
 
 
@@ -407,9 +409,9 @@ UI_SaveMenu_f
 */
 static void UI_SaveMenu_f( void )
 {
-#ifdef JK2_MODE
-	ui.PrecacheScreenshot();
-#endif
+	if ( Com_IsOutcast() ) {
+		ui.PrecacheScreenshot();
+	}
 
 	trap_Key_SetCatcher( KEYCATCH_UI );
 	Menus_ActivateByName("ingamesaveMenu");
