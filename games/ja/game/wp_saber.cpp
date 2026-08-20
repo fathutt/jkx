@@ -30,7 +30,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #include "qcommon/tri_coll_test.h"
 #include "../cgame/cg_local.h"
 
-#define JK2_RAGDOLL_GRIPNOHEALTH
+#define JO_RAGDOLL_GRIPNOHEALTH
 
 #define MAX_SABER_VICTIMS 16
 static int		victimEntityNum[MAX_SABER_VICTIMS];
@@ -10524,7 +10524,7 @@ void ForceTelepathy( gentity_t *self )
 }
 
 //rww - RAGDOLL_BEGIN
-//#define JK2_RAGDOLL_GRIPNOHEALTH
+//#define JO_RAGDOLL_GRIPNOHEALTH
 //rww - RAGDOLL_END
 
 void ForceGrip( gentity_t *self )
@@ -10631,7 +10631,7 @@ void ForceGrip( gentity_t *self )
 		traceEnt = &g_entities[tr.entityNum];
 	}
 //rww - RAGDOLL_BEGIN
-#ifdef JK2_RAGDOLL_GRIPNOHEALTH
+#ifdef JO_RAGDOLL_GRIPNOHEALTH
 	if ( !traceEnt || traceEnt == self/*???*/ || traceEnt->bmodel || (traceEnt->NPC && traceEnt->NPC->scriptFlags & SCF_NO_FORCE) )
 	{
 		return;
@@ -13063,7 +13063,7 @@ void WP_ForcePowerStop( gentity_t *self, forcePowers_t forcePower )
 
 					//FIXME: they probably dropped their weapon, should we make them flee?  Or should AI handle no-weapon behavior?
 //rww - RAGDOLL_BEGIN
-#ifndef JK2_RAGDOLL_GRIPNOHEALTH
+#ifndef JO_RAGDOLL_GRIPNOHEALTH
 //rww - RAGDOLL_END
 					if ( gripEnt->health > 0 )
 //rww - RAGDOLL_BEGIN
@@ -13519,7 +13519,7 @@ static void WP_ForcePowerRun( gentity_t *self, forcePowers_t forcePower, usercmd
 			}
 			else
 //rww - RAGDOLL_BEGIN
-#ifndef JK2_RAGDOLL_GRIPNOHEALTH
+#ifndef JO_RAGDOLL_GRIPNOHEALTH
 //rww - RAGDOLL_END
 			if ( gripEnt->health <= 0 && gripEnt->takedamage )//FIXME: what about things that never had health or lose takedamage when they die?
 			{//either invalid ent, or dead ent

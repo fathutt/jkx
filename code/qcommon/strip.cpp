@@ -21,7 +21,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 */
 
 // Compiled in both games, and it did not used to be: the whole file sat behind
-// #ifdef JK2_MODE, so JK2SP_Register and its two readers existed in one build
+// #ifdef JK2_MODE, so JOSP_Register and its two readers existed in one build
 // of two. That is what forced three function pointers in the UI import table to
 // be conditional, and a table whose SHAPE depends on a define is the thing a
 // single binary cannot have.
@@ -959,13 +959,13 @@ bool cStringPackageSingle::UnderstandToken(char *&Data, int &Size, int token, ch
 
 
 // A map of loaded string packages
-std::map<std::string, cStringPackageSingle *>		JK2SP_ListByName;
-std::map<byte, cStringPackageSingle *>		JK2SP_ListByID;
+std::map<std::string, cStringPackageSingle *>		JOSP_ListByName;
+std::map<byte, cStringPackageSingle *>		JOSP_ListByID;
 
 
 // Registration
 /************************************************************************************************
- * JK2SP_Register : Load given string package file. Register it.
+ * JOSP_Register : Load given string package file. Register it.
  *
  * Inputs:
  *	Package File name
@@ -975,7 +975,7 @@ std::map<byte, cStringPackageSingle *>		JK2SP_ListByID;
  *	success/fail
  *
  ************************************************************************************************/
-qboolean JK2SP_Register(const char *inPackage, unsigned char Registration)
+qboolean JOSP_Register(const char *inPackage, unsigned char Registration)
 {
 	char											*buffer;
 	char											Package[MAX_QPATH];
@@ -984,13 +984,13 @@ qboolean JK2SP_Register(const char *inPackage, unsigned char Registration)
 	std::map<std::string, cStringPackageSingle *>::iterator	i;
 
 
-	assert(JK2SP_ListByName.size() == JK2SP_ListByID.size());
+	assert(JOSP_ListByName.size() == JOSP_ListByID.size());
 
 	Q_strncpyz(Package, inPackage, MAX_QPATH);
 	Q_strupr(Package);
 
-	i = JK2SP_ListByName.find(Package);
-	if (i != JK2SP_ListByName.end())
+	i = JOSP_ListByName.find(Package);
+	if (i != JOSP_ListByName.end())
 	{
 		new_sp = (*i).second;
 	}
@@ -1014,17 +1014,17 @@ qboolean JK2SP_Register(const char *inPackage, unsigned char Registration)
 
 		if (Registration & SP_REGISTER_CLIENT)
 		{
-			Com_DPrintf(S_COLOR_YELLOW "JK2SP_Register: Registered client string package '%s' with ID %02x\n", Package, (int)new_sp->GetID());
+			Com_DPrintf(S_COLOR_YELLOW "JOSP_Register: Registered client string package '%s' with ID %02x\n", Package, (int)new_sp->GetID());
 		}
 		else
 		{
-			Com_DPrintf(S_COLOR_YELLOW "JK2SP_Register: Registered string package '%s' with ID %02x\n", Package, (int)new_sp->GetID());
+			Com_DPrintf(S_COLOR_YELLOW "JOSP_Register: Registered string package '%s' with ID %02x\n", Package, (int)new_sp->GetID());
 		}
 
 		// Insert into the name vs package map
-		JK2SP_ListByName[Package] = new_sp;
+		JOSP_ListByName[Package] = new_sp;
 		// Insert into the id vs package map
-		JK2SP_ListByID[new_sp->GetID()] = new_sp;
+		JOSP_ListByID[new_sp->GetID()] = new_sp;
 	}
 	// Or in the new registration data
 	new_sp->Register(Registration);
@@ -1035,26 +1035,26 @@ qboolean JK2SP_Register(const char *inPackage, unsigned char Registration)
 
 
 // Unload all packages with the relevant registration bits
-void JK2SP_Unload(unsigned char Registration)
+void JOSP_Unload(unsigned char Registration)
 {
 	std::map<std::string, cStringPackageSingle *>::iterator	i, next;
 	std::map<byte, cStringPackageSingle *>::iterator		id;
 
-	assert(JK2SP_ListByName.size() == JK2SP_ListByID.size());
+	assert(JOSP_ListByName.size() == JOSP_ListByID.size());
 
-	for(i = JK2SP_ListByName.begin(); i != JK2SP_ListByName.end(); i = next)
+	for(i = JOSP_ListByName.begin(); i != JOSP_ListByName.end(); i = next)
 	{
 		next = i;
 		++next;
 
 		if ((*i).second->UnRegister(Registration))
 		{
-			Com_DPrintf(S_COLOR_YELLOW "JK2SP_UnRegister: Package '%s' with ID %02x\n", (*i).first.c_str(), (int)(*i).second->GetID());
+			Com_DPrintf(S_COLOR_YELLOW "JOSP_UnRegister: Package '%s' with ID %02x\n", (*i).first.c_str(), (int)(*i).second->GetID());
 
-			id = JK2SP_ListByID.find((*i).second->GetID());
-			JK2SP_ListByID.erase(id);
+			id = JOSP_ListByID.find((*i).second->GetID());
+			JOSP_ListByID.erase(id);
 			delete i->second;
-			JK2SP_ListByName.erase(i);
+			JOSP_ListByName.erase(i);
 		}
 	}
 
@@ -1062,7 +1062,7 @@ void JK2SP_Unload(unsigned char Registration)
 
 // Direct string functions
 
-int JK2SP_GetStringID(const char *inReference)
+int JOSP_GetStringID(const char *inReference)
 {
 	std::map<unsigned char,cStringPackageSingle *>::iterator	i;
 	int													ID;
@@ -1070,7 +1070,7 @@ int JK2SP_GetStringID(const char *inReference)
 	Q_strncpyz(Reference, inReference, MAX_QPATH);
 	Q_strupr(Reference);
 
-	for(i = JK2SP_ListByID.begin(); i != JK2SP_ListByID.end(); ++i)
+	for(i = JOSP_ListByID.begin(); i != JOSP_ListByID.end(); ++i)
 	{
 		ID = (*i).second->FindStringID(Reference);
 		if (ID >= 0)
@@ -1083,7 +1083,7 @@ int JK2SP_GetStringID(const char *inReference)
 }
 
 /************************************************************************************************
- * JK2SP_GetString
+ * JOSP_GetString
  *
  * inputs:
  *	ID of the string package
@@ -1092,14 +1092,14 @@ int JK2SP_GetStringID(const char *inReference)
  *	pointer to desired String Package
  *
  ************************************************************************************************/
-cStringsSingle *JK2SP_GetString(unsigned short ID)
+cStringsSingle *JOSP_GetString(unsigned short ID)
 {
 	cStringPackageSingle								*sp;
 	cStringsSingle										*string;
 	std::map<unsigned char,cStringPackageSingle *>::iterator	i;
 
-	i = JK2SP_ListByID.find(SP_GET_PACKAGE(ID));
-	if (i == JK2SP_ListByID.end())
+	i = JOSP_ListByID.find(SP_GET_PACKAGE(ID));
+	if (i == JOSP_ListByID.end())
 	{
 		Com_Error(ERR_DROP, "String package not registered for ID %04x", ID);
 		return NULL;
@@ -1115,29 +1115,29 @@ cStringsSingle *JK2SP_GetString(unsigned short ID)
 	return string;
 }
 
-cStringsSingle *JK2SP_GetString(const char *Reference)
+cStringsSingle *JOSP_GetString(const char *Reference)
 {
 	int	index;
 
-	index = JK2SP_GetStringID(Reference);
+	index = JOSP_GetStringID(Reference);
 	if (index == -1)
 	{
 		return NULL;
 	}
 
-	return JK2SP_GetString(index);
+	return JOSP_GetString(index);
 }
 
 #ifdef _DEBUG
 // needed to add this to query which SP references the menus used	-Ste.
 //
-const char *JK2SP_GetReferenceText(unsigned short ID, const char *&psPackageName, const char *&psPackageReference, const char *&psText)
+const char *JOSP_GetReferenceText(unsigned short ID, const char *&psPackageName, const char *&psPackageReference, const char *&psText)
 {
 	cStringPackageSingle *sp;
 	std::map<unsigned char,cStringPackageSingle *>::iterator	i;
 
-	i = JK2SP_ListByID.find(SP_GET_PACKAGE(ID));
-	if (i == JK2SP_ListByID.end())
+	i = JOSP_ListByID.find(SP_GET_PACKAGE(ID));
+	if (i == JOSP_ListByID.end())
 	{
 		assert(0);
 		return NULL;
@@ -1163,12 +1163,12 @@ const char *JK2SP_GetReferenceText(unsigned short ID, const char *&psPackageName
 }
 #endif
 
-const char *JK2SP_GetStringText(unsigned short ID)
+const char *JOSP_GetStringText(unsigned short ID)
 {
 	cStringsSingle			*string;
 	const char					*value;
 
-	string = JK2SP_GetString(ID);
+	string = JOSP_GetString(ID);
 
 	value = string->GetText();
 	if (!value)
@@ -1179,43 +1179,43 @@ const char *JK2SP_GetStringText(unsigned short ID)
 	return value;
 }
 
-const char *JK2SP_GetStringTextString(const char *Reference)
+const char *JOSP_GetStringTextString(const char *Reference)
 {
 	int	index;
 
-	index = JK2SP_GetStringID(Reference);
+	index = JOSP_GetStringID(Reference);
 	if (index == -1)
 	{
 		return "";
 	}
 
-	return JK2SP_GetStringText(index);
+	return JOSP_GetStringText(index);
 }
 
 
-static void JK2SP_UpdateLanguage(void)
+static void JOSP_UpdateLanguage(void)
 {
 	std::map<unsigned char, cStringPackageSingle *>::iterator	it;
 	std::list<cStringPackageID>									sps;
 	std::list<cStringPackageID>::iterator						spit;
 
 	// Grab all SP ids
-	for(it = JK2SP_ListByID.begin(); it != JK2SP_ListByID.end(); ++it)
+	for(it = JOSP_ListByID.begin(); it != JOSP_ListByID.end(); ++it)
 	{
 		sps.push_back(cStringPackageID((*it).second->GetName(), (*it).second->GetRegistration()));
 	}
 	// Clear out all pointers
-	JK2SP_Unload(SP_REGISTER_CLIENT | SP_REGISTER_SERVER | SP_REGISTER_MENU | SP_REGISTER_REQUIRED);
+	JOSP_Unload(SP_REGISTER_CLIENT | SP_REGISTER_SERVER | SP_REGISTER_MENU | SP_REGISTER_REQUIRED);
 
 	// Reinitialise with new language
 	for(spit = sps.begin(); spit != sps.end(); ++spit)
 	{
-		JK2SP_Register((*spit).GetName(), (*spit).GetReg());
+		JOSP_Register((*spit).GetName(), (*spit).GetReg());
 	}
 	sps.clear();
 }
 
-void JK2SP_Init(void)
+void JOSP_Init(void)
 {
 	sp_language = Cvar_Get("sp_language", va("%d", SP_LANGUAGE_ENGLISH), CVAR_ARCHIVE | CVAR_NORESTART);
 	sp_show_strip = Cvar_Get ("sp_show_strip", "0", 0);		// don't switch this on!!!!!!, test only (apparently)
@@ -1223,19 +1223,19 @@ void JK2SP_Init(void)
 
 //	Cvar_Set("sp_language", va("%d", SP_LANGUAGE_JAPANESE));	// stetest, do NOT leave in
 
-	JK2SP_UpdateLanguage();
+	JOSP_UpdateLanguage();
 	sp_language->modified = qfalse;
 
-	JK2SP_Register("con_text", SP_REGISTER_REQUIRED);	//reference is CON_TEXT
+	JOSP_Register("con_text", SP_REGISTER_REQUIRED);	//reference is CON_TEXT
 }
 
 // called in Com_Frame, so don't take up any time! (can also be called during dedicated)
 //
-void JK2SP_CheckForLanguageUpdates(void)
+void JOSP_CheckForLanguageUpdates(void)
 {
 	if (sp_language && sp_language->modified)
 	{
-		JK2SP_UpdateLanguage();	// force language package to reload
+		JOSP_UpdateLanguage();	// force language package to reload
 		sp_language->modified = qfalse;
 	}
 }

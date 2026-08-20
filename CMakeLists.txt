@@ -173,13 +173,13 @@ option(BuildPortableVersion "Build portable version (does not read or write file
 # One engine for both games. Which one it is at runtime is com_game, set on the
 # command line; the launcher sets it from the assets it found.
 option(BuildEngine "Build the engine" ON)
-option(BuildJKAGame "Build the Jedi Academy gamecode" ON)
+option(BuildJAGame "Build the Jedi Academy gamecode" ON)
 # The one renderer. rd-vanilla was kept through phase 2 as something to compare
 # against; it is gone, and with it the module boundary that existed only so two
 # renderers could be swapped at runtime.
 option(BuildRdVulkan "Build the Vulkan renderer" ON)
 
-option(BuildJK2Game "Build the Jedi Outcast gamecode" ON)
+option(BuildJOGame "Build the Jedi Outcast gamecode" ON)
 
 option(BuildTests "Whether to build automatic unit tests (requires Boost)" OFF)
 option(UseAddressSanitizer "Whether to enable runtime address sanitizer" OFF)
@@ -252,7 +252,7 @@ endif()
 #
 #=============================================================================
 # ${Architecture} must match ARCH_STRING in q_platform.h,
-# and is used in DLL names (jkagamex86.dll, jkagamex86.dylib, jkagamei386.so).
+# and is used in DLL names (jagamex86.dll, jagamex86.dylib, jagamei386.so).
 if(WIN32)
 	set(X86 ON)
 	if(CMAKE_SIZEOF_VOID_P MATCHES "8")
@@ -301,7 +301,7 @@ endif()
 #
 #=============================================================================
 set(Engine "jkx.${Architecture}")
-set(JKAGame "jkagame${Architecture}")
+set(JAGame "jagame${Architecture}")
 set(RDVulkanRenderer "rdsp-vulkan_${Architecture}")
 set(MPEngine "openjk.${Architecture}")
 set(MPDed "openjkded.${Architecture}")
@@ -309,7 +309,7 @@ set(MPGame "jampgame${Architecture}")
 set(MPCGame "cgame${Architecture}")
 set(MPUI "ui${Architecture}")
 set(MPRend2 "rd-rend2_${Architecture}")
-set(JK2Game "jk2game${Architecture}")
+set(JOGame "jogame${Architecture}")
 set(AssetsPk3 "openjk-${Architecture}.pk3")
 # Library names
 set(MPBotLib "botlib")
@@ -321,8 +321,8 @@ set(SharedLib "shared")
 #
 #=============================================================================
 set(CodeDir "${CMAKE_SOURCE_DIR}/code")
-set(JKADir "${CMAKE_SOURCE_DIR}/games/jka")
-set(JK2Dir "${CMAKE_SOURCE_DIR}/games/jk2")
+set(JADir "${CMAKE_SOURCE_DIR}/games/ja")
+set(JODir "${CMAKE_SOURCE_DIR}/games/jo")
 set(SharedDir ${CMAKE_SOURCE_DIR}/shared)
 set(ThirdPartyDir "${CMAKE_SOURCE_DIR}/third_party")
 set(GSLIncludeDirectory "${ThirdPartyDir}/gsl-lite/include")
@@ -678,11 +678,11 @@ add_subdirectory(third_party/minizip)
 
 # Add projects
 add_subdirectory(${CodeDir})
-if(BuildJKAGame)
-	add_subdirectory("${JKADir}/game")
+if(BuildJAGame)
+	add_subdirectory("${JADir}/game")
 endif()
-if(BuildJK2Game)
-	add_subdirectory("${JK2Dir}/game")
+if(BuildJOGame)
+	add_subdirectory("${JODir}/game")
 endif()
 
 

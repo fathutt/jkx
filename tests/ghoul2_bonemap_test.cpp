@@ -50,7 +50,7 @@ void check( bool condition, const char *what )
 // a number this code gets to choose: it is however many bones the table's
 // outputs need, which the last case below states as an invariant rather than
 // taking on trust.
-const int iJKA_HUMANOID_BONES = 53;
+const int iJA_HUMANOID_BONES = 53;
 
 
 void testTheDecision()
@@ -59,24 +59,24 @@ void testTheDecision()
 	// wrong: both are 72, the indices already mean what the skeleton says, and
 	// remapping them onto themselves is how every humanoid in Jedi Outcast came
 	// out folded up.
-	check( !R_NeedsJK2BoneRemap( iJK2_HUMANOID_BONES, iJK2_HUMANOID_BONES ),
+	check( !R_NeedsJOBoneRemap( iJO_HUMANOID_BONES, iJO_HUMANOID_BONES ),
 		"an Outcast mesh on the Outcast skeleton must be left alone" );
 
 	// Outcast mesh on the Academy skeleton. The case the table is for.
-	check( R_NeedsJK2BoneRemap( iJK2_HUMANOID_BONES, iJKA_HUMANOID_BONES ),
+	check( R_NeedsJOBoneRemap( iJO_HUMANOID_BONES, iJA_HUMANOID_BONES ),
 		"an Outcast mesh on the Academy skeleton must be remapped" );
 
 	// Academy mesh on the Academy skeleton, which is the ordinary case and by
 	// far the most common one.
-	check( !R_NeedsJK2BoneRemap( iJKA_HUMANOID_BONES, iJKA_HUMANOID_BONES ),
+	check( !R_NeedsJOBoneRemap( iJA_HUMANOID_BONES, iJA_HUMANOID_BONES ),
 		"an Academy mesh on the Academy skeleton must be left alone" );
 
 	// Anything else. A mesh built for a 40-bone skeleton has indices this table
 	// knows nothing about, whatever it is bound to - the table's domain is the
 	// Outcast humanoid and only that.
-	check( !R_NeedsJK2BoneRemap( 40, iJKA_HUMANOID_BONES ),
+	check( !R_NeedsJOBoneRemap( 40, iJA_HUMANOID_BONES ),
 		"a mesh built for some other skeleton is not the table's business" );
-	check( !R_NeedsJK2BoneRemap( 40, 40 ),
+	check( !R_NeedsJOBoneRemap( 40, 40 ),
 		"nor is one that matches some other skeleton" );
 
 	// A 72-bone skeleton that is not the Outcast humanoid cannot be told from
@@ -84,7 +84,7 @@ void testTheDecision()
 	// it is bound to, so nothing is translated. The old test would have
 	// remapped this one whenever the folder name happened to contain the
 	// string, which is the other direction the asset name got it wrong in.
-	check( !R_NeedsJK2BoneRemap( 72, 72 ),
+	check( !R_NeedsJOBoneRemap( 72, 72 ),
 		"a custom 72-bone skeleton and its own mesh agree" );
 }
 
@@ -93,15 +93,15 @@ void testTheTable()
 {
 	int	i;
 	int	collapsed = 0;
-	int	seen[iJKA_HUMANOID_BONES] = { 0 };
+	int	seen[iJA_HUMANOID_BONES] = { 0 };
 
 	// Every entry has to land inside the Academy skeleton. This is what makes
 	// the remapped index safe to hand to the skinning path, which reads it
 	// every frame and does not check it.
-	for ( i = 0; i < iJK2_HUMANOID_BONES; i++ ) {
-		const int mapped = R_RemapJK2Bone( i, iJKA_HUMANOID_BONES );
+	for ( i = 0; i < iJO_HUMANOID_BONES; i++ ) {
+		const int mapped = R_RemapJOBone( i, iJA_HUMANOID_BONES );
 
-		if ( mapped < 0 || mapped >= iJKA_HUMANOID_BONES ) {
+		if ( mapped < 0 || mapped >= iJA_HUMANOID_BONES ) {
 			check( false, "every Outcast bone maps into the Academy skeleton" );
 			printf( "  bone %i maps to %i\n", i, mapped );
 			break;
@@ -113,13 +113,13 @@ void testTheTable()
 	// 52 the constant above would be wrong, and nothing else in this file would
 	// notice - every case would still pass, against a skeleton declared bigger
 	// than the table can reach.
-	check( seen[iJKA_HUMANOID_BONES - 1] > 0,
+	check( seen[iJA_HUMANOID_BONES - 1] > 0,
 		"the table reaches the last bone of the Academy skeleton" );
 
 	// The compression is real: Outcast had separate bones for things Academy
 	// merged - the toes into the ankles, the finger joints into one bone per
 	// finger - so 72 indices arrive at 50 distinct ones.
-	for ( i = 0; i < iJKA_HUMANOID_BONES; i++ ) {
+	for ( i = 0; i < iJA_HUMANOID_BONES; i++ ) {
 		if ( seen[i] > 1 ) {
 			collapsed += seen[i] - 1;
 		}
@@ -139,17 +139,17 @@ void testTheRefusals()
 {
 	// An index out of the table's domain comes from a file, and the answer is
 	// "no", not a read past the end of the table.
-	check( R_RemapJK2Bone( -1, iJKA_HUMANOID_BONES ) < 0,
+	check( R_RemapJOBone( -1, iJA_HUMANOID_BONES ) < 0,
 		"a negative bone reference is refused" );
-	check( R_RemapJK2Bone( iJK2_HUMANOID_BONES, iJKA_HUMANOID_BONES ) < 0,
+	check( R_RemapJOBone( iJO_HUMANOID_BONES, iJA_HUMANOID_BONES ) < 0,
 		"a bone reference past the end of the Outcast skeleton is refused" );
 
 	// And a skeleton too small to hold the result is refused rather than
 	// indexed into. The table was written against one particular skeleton; a
 	// custom one of the wrong size is not that skeleton.
-	check( R_RemapJK2Bone( 71, iJKA_HUMANOID_BONES - 1 ) < 0,
+	check( R_RemapJOBone( 71, iJA_HUMANOID_BONES - 1 ) < 0,
 		"a skeleton too small for the table's last output is refused" );
-	check( R_RemapJK2Bone( 0, 1 ) == 0,
+	check( R_RemapJOBone( 0, 1 ) == 0,
 		"...but a reference the small skeleton can hold still works" );
 }
 

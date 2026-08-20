@@ -28,7 +28,7 @@ writes the block's type and tag into it, so an unknown entry does not get
 ignored - it turns the null item into a weapon.
 
 Usage:
-    make_item_tables.py --game jka --out RUNDIR/base/ext_data [--repo PATH]
+    make_item_tables.py --game ja --out RUNDIR/base/ext_data [--repo PATH]
 """
 
 import argparse
@@ -98,7 +98,7 @@ def classname_for(weapon):
 def main():
     here = os.path.dirname(os.path.abspath(__file__))
     ap = argparse.ArgumentParser()
-    ap.add_argument("--game", required=True, choices=("jka", "jk2"))
+    ap.add_argument("--game", required=True, choices=("ja", "jo"))
     ap.add_argument("--out", required=True, help="directory to write into")
     ap.add_argument("--repo", default=os.path.abspath(os.path.join(here, "..", "..")))
     args = ap.parse_args()

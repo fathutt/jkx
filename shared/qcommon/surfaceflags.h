@@ -26,7 +26,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 //
 // It is now in one place instead of three. q_shared.h is the only thing that
 // includes it, the engine reads thirty-eight of its hundred-odd names to decide
-// what a surface is made of and whether to trace through it, and games/jk2's copy
+// what a surface is made of and whether to trace through it, and games/jo's copy
 // - identical but for the capitalisation of "id Software" - was included by
 // nothing at all.
 

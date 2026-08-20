@@ -428,8 +428,8 @@ jobs:
           cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache \
             -DBuildRdVulkan=ON
-          cmake --build build --target jkx.x86_64 jkagamex86_64 \
-            jk2gamex86_64 rdsp-vulkan_x86_64 --parallel
+          cmake --build build --target jkx.x86_64 jagamex86_64 \
+            jogamex86_64 rdsp-vulkan_x86_64 --parallel
 
       # No GPU and no retail assets, and neither is needed to answer what this
       # asks: does the engine still draw frames on this renderer, and does the
@@ -459,12 +459,12 @@ jobs:
           if-no-files-found: ignore
 
       # The other game: the same binary with com_game set, against
-      # games/jk2/game. Half the project had nothing looking at it until this
+      # games/jo/game. Half the project had nothing looking at it until this
       # step existed, and the first run of it found a new[] paired with delete
       # that corrupted the heap on every JK2 shutdown.
       - name: The same frames, as Jedi Outcast
         env:
-          JKX_SMOKE_GAME: jk2
+          JKX_SMOKE_GAME: jo
           JKX_SMOKE_DISPLAY: ':96'
         run: bash tools/verify/smoke_headless.sh build
 
@@ -782,7 +782,7 @@ jobs:
       - name: A game saved and loaded, as Jedi Outcast
         env:
           JKX_SMOKE_SAVELOAD: '1'
-          JKX_SMOKE_GAME: jk2
+          JKX_SMOKE_GAME: jo
           JKX_SMOKE_DISPLAY: ':65'
         run: bash tools/verify/smoke_headless.sh build
 
@@ -849,8 +849,8 @@ jobs:
           cmake -B build-san -G Ninja -DCMAKE_BUILD_TYPE=Debug \
             -DJKX_ENABLE_ASAN=ON -DJKX_ENABLE_UBSAN=ON \
             -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache \
-            -DBuildRdVulkan=ON -DBuildJK2Game=OFF
-          cmake --build build-san --target jkx.x86_64 jkagamex86_64 \
+            -DBuildRdVulkan=ON -DBuildJOGame=OFF
+          cmake --build build-san --target jkx.x86_64 jagamex86_64 \
             rdsp-vulkan_x86_64 --parallel
 
       # The one step that still switches the validation layer off, and the only

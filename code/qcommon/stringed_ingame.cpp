@@ -1010,9 +1010,9 @@ const char *SE_GetString( const char *psPackageReference, const char *psStringRe
 const char *SE_GetString( const char *psPackageAndStringReference )
 {
 	// Hacky but saves me from fixing 1000000 references --eez
-	extern const char *JK2SP_GetStringTextString(const char *Reference);
+	extern const char *JOSP_GetStringTextString(const char *Reference);
 	if ( Com_IsOutcast() ) {
-		return JK2SP_GetStringTextString((const char *)psPackageAndStringReference);
+		return JOSP_GetStringTextString((const char *)psPackageAndStringReference);
 	}
 	{
 	char sReference[256];	// will always be enough, I've never seen one more than about 30 chars long

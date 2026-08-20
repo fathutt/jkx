@@ -6401,7 +6401,7 @@ void Item_Text_Paint(itemDef_t *item)
 	if (*textPtr == '@')	// string reference
 	{
 		textPtr = Com_IsOutcast()
-			? JK2SP_GetStringTextString( &textPtr[1] )
+			? JOSP_GetStringTextString( &textPtr[1] )
 			: SE_GetString( &textPtr[1] );
 	}
 

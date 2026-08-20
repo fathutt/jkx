@@ -11,7 +11,7 @@ volk.
 The renderer was checked from the start. The gamecode was not, and it had
 drifted the same way: code/game/g_vehicleLoad.cpp - a 435-line predecessor of
 the 1715-line bg_vehicleLoad.cpp that is actually built - plus three files in
-games/jk2/icarus, all four in no source list and included by nothing. Deleting a
+games/jo/icarus, all four in no source list and included by nothing. Deleting a
 file that nothing compiles cannot change a binary, which is exactly why nobody
 noticed them for years.
 
@@ -81,7 +81,7 @@ SOURCE_SUFFIXES = {".cpp", ".c"}
 
 # Project files for a build system this tree does not use.
 #
-# One of these was found by reading, not by any check: games/jka/game/game.vcproj,
+# One of these was found by reading, not by any check: games/ja/game/game.vcproj,
 # 3906 lines of a Visual Studio 2008 project, referenced by nothing, still naming
 # an output called jagamex86.dll. It survived every rename in this project
 # because a rename sweeps sources and it is not one, and it survived the source
@@ -99,14 +99,14 @@ SKIP_DIRS = {"third_party", ".git"}
 WATCHED = [
     Watched("code/rd-vulkan/CMakeLists.txt", "code/rd-vulkan", "${CodeDir}",
             skip={"shaders"}),
-    Watched("games/jka/game/CMakeLists.txt", "games/jka/game", "${JKADir}"),
-    Watched("games/jka/game/CMakeLists.txt", "games/jka/cgame", "${JKADir}"),
-    Watched("games/jka/game/CMakeLists.txt", "games/jka/icarus", "${JKADir}"),
-    Watched("games/jk2/game/CMakeLists.txt", "games/jk2/game", "${JK2Dir}"),
-    Watched("games/jk2/game/CMakeLists.txt", "games/jk2/cgame", "${JK2Dir}"),
-    Watched("games/jk2/game/CMakeLists.txt", "games/jk2/icarus", "${JK2Dir}"),
+    Watched("games/ja/game/CMakeLists.txt", "games/ja/game", "${JADir}"),
+    Watched("games/ja/game/CMakeLists.txt", "games/ja/cgame", "${JADir}"),
+    Watched("games/ja/game/CMakeLists.txt", "games/ja/icarus", "${JADir}"),
+    Watched("games/jo/game/CMakeLists.txt", "games/jo/game", "${JODir}"),
+    Watched("games/jo/game/CMakeLists.txt", "games/jo/cgame", "${JODir}"),
+    Watched("games/jo/game/CMakeLists.txt", "games/jo/icarus", "${JODir}"),
     Watched(["code/CMakeLists.txt", "code/rd-vulkan/CMakeLists.txt",
-             "games/jka/game/CMakeLists.txt", "games/jk2/game/CMakeLists.txt"],
+             "games/ja/game/CMakeLists.txt", "games/jo/game/CMakeLists.txt"],
             "code/qcommon", "${CodeDir}"),
 ]
 
@@ -120,8 +120,8 @@ NOT_BUILT_BY_CMAKE = ("tools/", "tests/", "assets/", "code/rd-vulkan/shaders/")
 # can be turned back into a directory on disk.
 DIR_VARS = {
     "CodeDir": "code",
-    "JKADir": "games/jka",
-    "JK2Dir": "games/jk2",
+    "JADir": "games/ja",
+    "JODir": "games/jo",
     "SharedDir": "shared",
     "ThirdPartyDir": "third_party",
 }

@@ -79,7 +79,7 @@ if [ "${1:-}" = "--write-baseline" ]; then
 fi
 
 ENGINE="$BUILD/jkx.$ARCH"
-GAME="$BUILD/games/jka/game/jkagame$ARCH.so"
+GAME="$BUILD/games/ja/game/jagame$ARCH.so"
 RENDERER="$BUILD/code/rd-vulkan/rdsp-vulkan_$ARCH.so"
 
 [ -f "$ENGINE" ] || { echo "not built: $ENGINE" >&2; exit 2; }
@@ -121,7 +121,7 @@ trap cleanup EXIT
 
 mkdir -p "$RUN/home" "$RUN/xdg"
 cp -r "$HERE/fixtures/base" "$RUN/base"
-python3 "$HERE/make_item_tables.py" --game jka --out "$RUN/base/ext_data" >/dev/null
+python3 "$HERE/make_item_tables.py" --game ja --out "$RUN/base/ext_data" >/dev/null
 cp "$ENGINE" "$RUN/"
 [ -n "$RENDERER" ] && cp "$RENDERER" "$RUN/"
 [ -f "$GAME" ] && cp "$GAME" "$RUN/"

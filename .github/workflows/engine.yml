@@ -167,9 +167,9 @@ jobs:
           -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/package"
           -DBuildPortableVersion=OFF
           -DBuildEngine=ON
-          -DBuildJKAGame=ON
+          -DBuildJAGame=ON
           -DBuildRdVulkan=ON
-          -DBuildJK2Game=ON
+          -DBuildJOGame=ON
           # PINNED ON, TEMPORARILY. The expression this replaces left the trace
           # off for every push build, and a push build is what the one person
           # who can reproduce the vid_restart crash actually installs - he does
@@ -239,7 +239,7 @@ jobs:
           cp pak/shaders.pak "$tree/base/shaders.pak"
           while IFS= read -r gamedir; do
               cp pak/shaders.pak "$gamedir/shaders.pak"
-          done < <(find "$tree" -mindepth 2 -maxdepth 2 \( -name 'jkagame*' -o -name 'jk2game*' \) -printf '%h\n' | sort -u)
+          done < <(find "$tree" -mindepth 2 -maxdepth 2 \( -name 'jagame*' -o -name 'jogame*' \) -printf '%h\n' | sort -u)
 
           # The renderer already ships under a name of our own - rdsp-vulkan_
           # rather than upstream's rd-vulkan_ - so a package unpacked over an

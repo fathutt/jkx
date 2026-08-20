@@ -1080,7 +1080,7 @@ void SV_InitGameProgs (void) {
 
 	// Which gamecode module to load, and the last thing the define decided
 	// about what this process IS rather than how it behaves.
-	const char *gamename = Com_IsOutcast() ? "jk2game" : "jkagame";
+	const char *gamename = Com_IsOutcast() ? "jogame" : "jagame";
 
 	GetGameAPIProc *GetGameAPI;
 	gameLibrary = Sys_LoadSPGameDll( gamename, &GetGameAPI );

@@ -348,7 +348,7 @@ bool SavedGame::read_chunk(
 			static_cast<int>(sizeof(loaded_magic_value)),
 			file_handle_);
 
-		if (loaded_magic_value != get_jk2_magic_value())
+		if (loaded_magic_value != get_outcast_magic_value())
 		{
 			is_failed_ = true;
 
@@ -488,7 +488,7 @@ bool SavedGame::write_chunk(
 		}
 	}
 
-	const uint32_t magic_value = get_jk2_magic_value();
+	const uint32_t magic_value = get_outcast_magic_value();
 
 	if (compressed_size > 0)
 	{
@@ -955,7 +955,7 @@ void SavedGame::reset_buffer_offset()
 	io_buffer_offset_ = 0;
 }
 
-const uint32_t SavedGame::get_jk2_magic_value()
+const uint32_t SavedGame::get_outcast_magic_value()
 {
 	return 0x1234ABCD;
 }

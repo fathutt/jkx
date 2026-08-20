@@ -185,7 +185,7 @@ private:
 	static std::string get_chunk_id_string(
 		uint32_t chunk_id);
 
-	static const uint32_t get_jk2_magic_value();
+	static const uint32_t get_outcast_magic_value();
 }; // SavedGame
 
 

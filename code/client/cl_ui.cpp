@@ -212,7 +212,7 @@ CL_InitUI
 */
 void CL_InitUI( void ) {
 	if ( Com_IsOutcast() ) {
-		JK2SP_Register("keynames", 0	/*SP_REGISTER_REQUIRED*/);		// reference is KEYNAMES
+		JOSP_Register("keynames", 0	/*SP_REGISTER_REQUIRED*/);		// reference is KEYNAMES
 	}
 
 	uiimport_t	uii;
@@ -299,9 +299,9 @@ void CL_InitUI( void ) {
 	uii.Key_ClearStates			= Key_ClearStates;
 	uii.Key_GetCatcher			= Key_GetCatcher;
 	uii.Key_SetCatcher			= Key_SetCatcher;
-	uii.SP_Register				= JK2SP_Register;
-	uii.SP_GetStringText		= JK2SP_GetStringText;
-	uii.SP_GetStringTextString  = JK2SP_GetStringTextString;
+	uii.SP_Register				= JOSP_Register;
+	uii.SP_GetStringText		= JOSP_GetStringText;
+	uii.SP_GetStringTextString  = JOSP_GetStringTextString;
 
 	uii.GetClipboardData		= GetClipboardData;
 

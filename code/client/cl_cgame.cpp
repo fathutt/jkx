@@ -70,7 +70,7 @@ qboolean CL_InitCGameVM( void *gameLibrary )
 	cgvm.entryPoint = (intptr_t (*)(int,intptr_t,intptr_t,intptr_t,intptr_t,intptr_t,intptr_t,intptr_t,intptr_t))Sys_LoadFunction( gameLibrary, "vmMain" );
 
 	if ( !cgvm.entryPoint || !dllEntry ) {
-		const char *gamename = Com_IsOutcast() ? "jk2game" : "jkagame";
+		const char *gamename = Com_IsOutcast() ? "jogame" : "jagame";
 
 		Com_Printf( "CL_InitCGameVM: client game entry point not found in %s" ARCH_STRING DLL_EXT ": %s\n",
 					gamename, Sys_LibraryError() );
@@ -862,11 +862,11 @@ Ghoul2 Insert End
 		{
 			if (args[0] == CG_SP_GETSTRINGTEXT)
 			{
-				text = JK2SP_GetStringText( args[1] );
+				text = JOSP_GetStringText( args[1] );
 			}
 			else
 			{
-				text = JK2SP_GetStringTextString( (const char *) VMA(1) );
+				text = JOSP_GetStringTextString( (const char *) VMA(1) );
 			}
 
 			if (VMA(2))	// only if dest buffer supplied...
@@ -895,7 +895,7 @@ Ghoul2 Insert End
 	}
 
 	case CG_SP_REGISTER:
-		return JK2SP_Register((const char *)VMA(1), args[2] ? (SP_REGISTER_MENU | SP_REGISTER_REQUIRED) : SP_REGISTER_CLIENT);
+		return JOSP_Register((const char *)VMA(1), args[2] ? (SP_REGISTER_MENU | SP_REGISTER_REQUIRED) : SP_REGISTER_CLIENT);
 
 	default:
 		Com_Error( ERR_DROP, "Bad cgame system trap: %ld", (long int) args[0] );

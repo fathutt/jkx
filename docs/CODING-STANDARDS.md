@@ -208,7 +208,7 @@ The layers, as `tools/ci/check_layering.py` defines them:
 | `engine` | `code/qcommon`, `code/server`, `code/client`, `shared/qcommon` |
 | `api` | `code/api` |
 | `render` | `code/rd-vulkan`, `code/rd-common` |
-| `game` | `games/jka`, `games/jk2`, `code/ui` |
+| `game` | `games/ja`, `games/jo`, `code/ui` |
 
 - `render` **does not include** a header from `game`. Not one.
 - `engine` does not know about `render` or `game`.

@@ -44,7 +44,7 @@ LAYERS: dict[str, tuple[str, ...]] = {
                "code/ui"),
     "api": ("code/api",),
     "render": ("code/rd-vulkan", "code/rd-common"),
-    "game": ("games/jka", "games/jk2"),
+    "game": ("games/ja", "games/jo"),
 }
 
 # What each layer is allowed to include from (itself always allowed).
@@ -88,14 +88,14 @@ def resolve(include: str, source: Path, root: Path) -> Path | None:
     candidate = (source.parent / include).resolve()
     if candidate.is_file():
         return candidate
-    # games/jka and games/jk2 are on this list because a file compiled into both
+    # games/ja and games/jo are on this list because a file compiled into both
     # game libraries writes "game/g_shared.h" and means a different file each
     # time. Without them that include resolves to nothing and the edge stops
     # being counted - which is not the same as it going away, and pocketing it
     # silently when the gamecode moved out of code/ would have been exactly the
     # sort of quiet gate this check exists to prevent.
     for base in (root, root / "code", root / "shared",
-                 root / "games/jka", root / "games/jk2"):
+                 root / "games/ja", root / "games/jo"):
         candidate = (base / include).resolve()
         if candidate.is_file():
             return candidate

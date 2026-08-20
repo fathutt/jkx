@@ -104,9 +104,9 @@ if(BuildEngine)
 			# - the worst possible place to find out.
 			if (WIN32 AND NOT CMAKE_VERSION VERSION_LESS 3.21)
 				install(IMPORTED_RUNTIME_ARTIFACTS SDL2::SDL2
-					RUNTIME DESTINATION ${JKAInstallDir} COMPONENT ${JKAClientComponent})
+					RUNTIME DESTINATION ${JAInstallDir} COMPONENT ${JAClientComponent})
 				install(IMPORTED_RUNTIME_ARTIFACTS SDL2::SDL2
-					RUNTIME DESTINATION ${JK2InstallDir} COMPONENT ${JK2ClientComponent})
+					RUNTIME DESTINATION ${JOInstallDir} COMPONENT ${JOClientComponent})
 			endif()
 		else()
 			# Some SDL2Config.cmake versions hand back a path with whitespace
@@ -374,8 +374,8 @@ if(BuildEngine)
 	# the right table; code/ui/anim_names.cpp picks between them at runtime.
 	function(add_engine_project ProjectName Label GameDirName InstallDir Component)
 		set(EngineCGameFiles
-			"${JKADir}/cgame/animtable.cpp"
-			"${JK2Dir}/cgame/animtable.cpp"
+			"${JADir}/cgame/animtable.cpp"
+			"${JODir}/cgame/animtable.cpp"
 			)
 		source_group("cgame" FILES ${EngineCGameFiles})
 		set(EngineFiles ${EngineFiles} ${EngineCGameFiles})
@@ -451,7 +451,7 @@ if(BuildEngine)
 		endif(EngineLibraries)
 	endfunction(add_engine_project)
 	if(BuildEngine)
-		add_engine_project(${Engine} "SP Client" ${CodeDir} ${JKAInstallDir} ${JKAClientComponent})
+		add_engine_project(${Engine} "SP Client" ${CodeDir} ${JAInstallDir} ${JAClientComponent})
 
 		# The renderer is part of the engine, not a module beside it. GetRefAPI
 		# is then an ordinary function call and the client says so at compile
@@ -525,6 +525,6 @@ if(BuildEngine)
 	set_target_properties(${LauncherName} PROPERTIES
 		RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
 	install(TARGETS ${LauncherName}
-		DESTINATION ${JKAInstallDir}
-		COMPONENT ${JKAClientComponent})
+		DESTINATION ${JAInstallDir}
+		COMPONENT ${JAClientComponent})
 endif()

@@ -423,7 +423,7 @@ enum SearchPathFlag
 // This printed a line per miss, at ordinary log level, in the operating system's
 // own words. A normal start on Windows produced five of these in a row -
 //
-//   Sys_LoadSPGameDll(...\base\jkagamex86_64.dll) failed: "The specified
+//   Sys_LoadSPGameDll(...\base\jagamex86_64.dll) failed: "The specified
 //   module was not found."
 //
 // - before finding the library beside the executable, where it lives, and

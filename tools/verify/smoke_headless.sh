@@ -54,14 +54,14 @@ ARCH="$(uname -m)"
 # Which of the two games. One engine binary runs both and com_game says which -
 # so the Outcast run is not a second build any more, it is the same executable
 # with a different argument and a different gamecode module. It is still not a
-# copy of this test: the string packages, the whole of games/jk2/cgame and every
+# copy of this test: the string packages, the whole of games/jo/cgame and every
 # Com_IsOutcast() branch in shared code are only reached there.
-GAME_ID="${JKX_SMOKE_GAME:-jka}"
+GAME_ID="${JKX_SMOKE_GAME:-ja}"
 ENGINE="$BUILD/jkx.$ARCH"
 case "$GAME_ID" in
-    jka) COM_GAME="academy"; GAME="$BUILD/games/jka/game/jkagame$ARCH.so" ;;
-    jk2) COM_GAME="outcast"; GAME="$BUILD/games/jk2/game/jk2game$ARCH.so" ;;
-    *)  echo "JKX_SMOKE_GAME must be jka or jk2, not $GAME_ID" >&2; exit 2 ;;
+    ja) COM_GAME="academy"; GAME="$BUILD/games/ja/game/jagame$ARCH.so" ;;
+    jo) COM_GAME="outcast"; GAME="$BUILD/games/jo/game/jogame$ARCH.so" ;;
+    *)  echo "JKX_SMOKE_GAME must be ja or jo, not $GAME_ID" >&2; exit 2 ;;
 esac
 
 RENDERER="$BUILD/code/rd-vulkan/rdsp-vulkan_$ARCH.so"
@@ -3548,7 +3548,7 @@ SHOTS+=( "jkx_inmap 20" )
 # itself out of gfx/hud/* rather than through the two menus this fixture
 # provides, so those two fills are not in its frame and their absence says
 # nothing.
-if [ "$GAME_ID" = "jka" ]; then
+if [ "$GAME_ID" = "ja" ]; then
     HUD_SHOTS=( jkx_inmap )
 fi
 if [ "${JKX_SMOKE_SAVELOAD:-0}" = "1" ]; then
@@ -3559,7 +3559,7 @@ if [ "${JKX_SMOKE_SAVELOAD:-0}" = "1" ]; then
     # Backlog section 21. Raise this to 100 when that is fixed; it sits here so
     # that a blank frame or a crash still fails.
     SHOTS+=( "jkx_loaded 20" )
-    if [ "$GAME_ID" = "jka" ]; then
+    if [ "$GAME_ID" = "ja" ]; then
         HUD_SHOTS+=( jkx_loaded )
     fi
 fi

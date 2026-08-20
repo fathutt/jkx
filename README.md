@@ -26,8 +26,8 @@ You need the original game files. This is an engine, not a game.
 One engine binary runs both games. Which one it is is `com_game`, a command-line-only
 cvar read once at startup; the gamecode is still two modules, loaded by name.
 
-    jkx.x86_64  +set com_game academy  +  jkagamex86_64      Jedi Academy
-    jkx.x86_64  +set com_game outcast  +  jk2gamex86_64      Jedi Outcast
+    jkx.x86_64  +set com_game academy  +  jagamex86_64      Jedi Academy
+    jkx.x86_64  +set com_game outcast  +  jogamex86_64      Jedi Outcast
 
 `jkx_launcher` finds the retail installations, works out which game each one is from
 its assets, and passes the answer through, so nobody has to type it.
@@ -65,7 +65,7 @@ Everything is ON by default; these are for building less than all of it.
 | Option | Default | What it does |
 |---|---|---|
 | `BuildEngine` | `ON` | the engine, which is one binary for both games |
-| `BuildJKAGame` / `BuildJK2Game` | `ON` | the gamecode: Jedi Academy, Jedi Outcast |
+| `BuildJAGame` / `BuildJOGame` | `ON` | the gamecode: Jedi Academy, Jedi Outcast |
 | `BuildRdVulkan` | `ON` | the renderer, which is linked into the engine rather than loaded |
 | `BuildTests` | `OFF` | the unit tests |
 | `JKX_BUILD_SHADERS` | auto | on when `glslc` is found |
@@ -139,8 +139,8 @@ code/server       server                 code/ghoul2      skeletal animation
 code/api          what the engine and    code/ui          menus, compiled into the engine
                   the games promise      shared/          platform, SDL, safe utilities
                   each other
-games/jka/        Jedi Academy: game, cgame, icarus
-games/jk2/        Jedi Outcast: game, cgame, icarus
+games/ja/        Jedi Academy: game, cgame, icarus
+games/jo/        Jedi Outcast: game, cgame, icarus
 shared/win32      Windows resources      third_party/     vendored dependencies
 tools/ci          the gates              tools/verify     the headless bench
 ```

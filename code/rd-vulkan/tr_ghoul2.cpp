@@ -3951,7 +3951,7 @@ qboolean R_LoadMDXM( model_t *mod, void *buffer, const char *mod_name, qboolean 
 	}
 
 	const bool bRemapBones = skeletonBones > 0
-		&& R_NeedsJK2BoneRemap( mdxm->numBones, skeletonBones );
+		&& R_NeedsJOBoneRemap( mdxm->numBones, skeletonBones );
 	int			remapFailures = 0;
 
 	surfInfo = (mdxmSurfHierarchy_t *)( (byte *)mdxm + mdxm->ofsSurfHierarchy);
@@ -4115,7 +4115,7 @@ qboolean R_LoadMDXM( model_t *mod, void *buffer, const char *mod_name, qboolean 
 					// and belongs in the log rather than in a debug build's
 					// dialog box - and a release build carried on regardless
 					// anyway, which made the assert a claim nobody had tested.
-					const int newRef = R_RemapJK2Bone( boneRef[j], skeletonBones );
+					const int newRef = R_RemapJOBone( boneRef[j], skeletonBones );
 
 					if ( newRef < 0 ) {
 						remapFailures++;

@@ -31,9 +31,9 @@
 #   smokewide   the same at 32:9, where the interface's arithmetic is checked
 #               against the picture: at 4:3 the fitted frame is the whole window
 #               and a wrong mapping looks exactly like a right one
-#   smokejk2    the same run as Jedi Outcast: the same binary with com_game set
-#               and games/jk2/game beside it. Not a duplicate of the run above:
-#               the string packages, the whole of games/jk2/cgame and every
+#   smokejo    the same run as Jedi Outcast: the same binary with com_game set
+#               and games/jo/game beside it. Not a duplicate of the run above:
+#               the string packages, the whole of games/jo/cgame and every
 #               Com_IsOutcast() branch in shared code are only reached here, and
 #               the first time it was run it found a new[]/delete mismatch that
 #               corrupted the heap on every JK2 shutdown. It reaches the map,
@@ -80,7 +80,7 @@ JOBS="${JOBS:-$(nproc)}"
 
 STAGES=( "$@" )
 if [ "${#STAGES[@]}" -eq 0 ]; then
-    STAGES=( policy release debug variants windows sanitizers tests smoke smokewide smokejk2 smokesave smokejk2save smokeskin smokeskinshift smokelightmap smokehdrlightmap smokegamecmd smokeshadow smokecloud smokemapent smokemenumodel smokemenulight smokepbrchar smokevidrestart smokevsync smokeresize smokemsaa smokedglow smokepicmip smokecubemap smoketransparency smokesoftparticles smokewater smokeweather smoketcmod smokedeform smokephys smokephysshaded smokepak move smokesan prepass fog noassets badbsp )
+    STAGES=( policy release debug variants windows sanitizers tests smoke smokewide smokejo smokesave smokejosave smokeskin smokeskinshift smokelightmap smokehdrlightmap smokegamecmd smokeshadow smokecloud smokemapent smokemenumodel smokemenulight smokepbrchar smokevidrestart smokevsync smokeresize smokemsaa smokedglow smokepicmip smokecubemap smoketransparency smokesoftparticles smokewater smokeweather smoketcmod smokedeform smokephys smokephysshaded smokepak move smokesan prepass fog noassets badbsp )
 fi
 
 failed=()
@@ -620,14 +620,14 @@ stage_smokewide() {
         bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
 }
 
-# The other game. Same binary, +set com_game outcast, games/jk2/game beside it -
+# The other game. Same binary, +set com_game outcast, games/jo/game beside it -
 # so this is a second configuration of one engine rather than a second copy of
 # the test, and it matters more now than when it was two builds: the branches it
 # reaches are runtime branches, and a runtime branch nobody takes is not caught
 # by any compiler.
-stage_smokejk2() {
-    JKX_SMOKE_GAME=jk2 \
-    JKX_SMOKE_DISPLAY="${JKX_SMOKE_JK2_DISPLAY:-:96}" \
+stage_smokejo() {
+    JKX_SMOKE_GAME=jo \
+    JKX_SMOKE_DISPLAY="${JKX_SMOKE_JO_DISPLAY:-:96}" \
         bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
 }
 
@@ -753,10 +753,10 @@ stage_smokepak() {
 # and playerState_t is the structure a saved game is most sensitive to. The
 # round trip was covered in one game of two, which is the same shape of hole as
 # a lane that lives on one machine.
-stage_smokejk2save() {
+stage_smokejosave() {
     JKX_SMOKE_SAVELOAD=1 \
-    JKX_SMOKE_GAME=jk2 \
-    JKX_SMOKE_DISPLAY="${JKX_SMOKE_JK2SAVE_DISPLAY:-:96}" \
+    JKX_SMOKE_GAME=jo \
+    JKX_SMOKE_DISPLAY="${JKX_SMOKE_JOSAVE_DISPLAY:-:96}" \
         bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
 }
 

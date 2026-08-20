@@ -89,8 +89,8 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 //
 // The second pass over these took the SP out - there is one of each game here,
 // not a single-player half of one - and made the two games agree on what they
-// are called. The tree says jka and jk2 everywhere else now: games/jka,
-// games/jk2, JKADir, JK2Dir, BuildJKAGame. It used to say ja and jo here, which
+// are called. The tree says ja and jo everywhere now: games/ja, games/jo,
+// JADir, JODir, BuildJAGame. It used to say jka and jk2 everywhere else, which
 // is the same two games under two more names.
 // Who this process says it is: the window title, the console title, the name of
 // the configuration file and the directory the settings live in.

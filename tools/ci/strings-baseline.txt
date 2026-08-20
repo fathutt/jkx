@@ -7,12 +7,12 @@
    3 code/qcommon/stringed_ingame.cpp
    1 code/ui/ui_main.cpp
    1 code/ui/ui_shared.cpp
-   1 games/jk2/game/NPC_stats.cpp
-   4 games/jk2/game/Q3_Interface.cpp
-   2 games/jk2/game/g_ICARUS.cpp
-   3 games/jk2/game/g_breakable.cpp
-   2 games/jk2/game/g_misc_model.cpp
-   7 games/jka/game/Q3_Interface.cpp
-   3 games/jka/game/g_breakable.cpp
-   2 games/jka/game/g_misc_model.cpp
+   1 games/jo/game/NPC_stats.cpp
+   4 games/jo/game/Q3_Interface.cpp
+   2 games/jo/game/g_ICARUS.cpp
+   3 games/jo/game/g_breakable.cpp
+   2 games/jo/game/g_misc_model.cpp
+   7 games/ja/game/Q3_Interface.cpp
+   3 games/ja/game/g_breakable.cpp
+   2 games/ja/game/g_misc_model.cpp
    1 shared/qcommon/q_string.cpp

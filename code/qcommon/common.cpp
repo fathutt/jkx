@@ -1331,7 +1331,7 @@ void Com_Init( char *commandLine ) {
 		// Each game has its own string system and only its own is started.
 		// The other one exists in the binary and is never asked anything.
 		if ( Com_IsOutcast() ) {
-			JK2SP_Init();
+			JOSP_Init();
 		} else {
 			SE_Init();	// Initialize StringEd
 		}
@@ -1781,7 +1781,7 @@ void Com_Shutdown (void) {
 	}
 
 	if ( Com_IsOutcast() ) {
-		JK2SP_Shutdown();
+		JOSP_Shutdown();
 	} else {
 		SE_ShutDown();//close the string packages
 	}

@@ -136,10 +136,10 @@ def main() -> int:
             continue
 
         game = None
-        if rel.startswith("games/jka"):
-            game = "jka"
-        elif rel.startswith("games/jk2"):
-            game = "jk2"
+        if rel.startswith("games/ja"):
+            game = "ja"
+        elif rel.startswith("games/jo"):
+            game = "jo"
 
         found = list(REGISTER.finditer(text)) + list(REGISTER_TABLE.finditer(text))
 
@@ -176,19 +176,19 @@ def main() -> int:
         print()
 
     # 2. one variable, a different name in each game
-    jka = {var: names for (game, var), names in by_variable.items() if game == "jka"}
-    jk2 = {var: names for (game, var), names in by_variable.items() if game == "jk2"}
+    ja = {var: names for (game, var), names in by_variable.items() if game == "ja"}
+    jo = {var: names for (game, var), names in by_variable.items() if game == "jo"}
 
     split = []
-    for var in sorted(set(jka) & set(jk2)):
-        if not (jka[var] & jk2[var]):
-            split.append((var, sorted(jka[var]), sorted(jk2[var])))
+    for var in sorted(set(ja) & set(jo)):
+        if not (ja[var] & jo[var]):
+            split.append((var, sorted(ja[var]), sorted(jo[var])))
 
     if split:
         failed = True
         print("error: the same variable registered under different names per game:")
         for var, a, b in split:
-            print(f"  {var}: jka {a}, jk2 {b}")
+            print(f"  {var}: ja {a}, jo {b}")
         print()
         print("A config written for one game then does nothing in the other, and")
         print("says nothing about it. If the games really do need different")
@@ -201,9 +201,9 @@ def main() -> int:
     # differently often enough and the name is what a player types and what a
     # config carries.
     disagree = []
-    for name in sorted(set(defaults.get("jka", {})) & set(defaults.get("jk2", {}))):
-        a = defaults["jka"][name]
-        b = defaults["jk2"][name]
+    for name in sorted(set(defaults.get("ja", {})) & set(defaults.get("jo", {}))):
+        a = defaults["ja"][name]
+        b = defaults["jo"][name]
         if a == b or name in DIFFERENT_ON_PURPOSE:
             continue
         disagree.append((name, sorted(a), sorted(b)))
@@ -212,7 +212,7 @@ def main() -> int:
         failed = True
         print("error: the same cvar registered with a different default per game:")
         for name, a, b in disagree:
-            print(f"  {name}: jka {a}, jk2 {b}")
+            print(f"  {name}: ja {a}, jo {b}")
             for where in sorted(where_registered.get(name, [])):
                 print(f"      {where}")
         print()

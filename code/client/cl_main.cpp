@@ -1019,7 +1019,7 @@ DLL glue, but highly reusuable DLL glue at that
 const char *String_GetStringValue( const char *reference )
 {
 	return Com_IsOutcast()
-		? JK2SP_GetStringTextString(reference)
+		? JOSP_GetStringTextString(reference)
 		: SE_GetString(reference);
 }
 
@@ -1122,8 +1122,8 @@ void CL_Init( void ) {
 	Com_Printf( "----- Client Initialization -----\n" );
 
 	if ( Com_IsOutcast() ) {
-		JK2SP_Register("con_text", SP_REGISTER_REQUIRED);	//reference is CON_TEXT
-		JK2SP_Register("keynames", SP_REGISTER_REQUIRED);	// reference is KEYNAMES
+		JOSP_Register("con_text", SP_REGISTER_REQUIRED);	//reference is CON_TEXT
+		JOSP_Register("keynames", SP_REGISTER_REQUIRED);	// reference is KEYNAMES
 	}
 
 	Con_Init ();

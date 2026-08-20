@@ -48,8 +48,8 @@ MP = [os.path.join(UPSTREAM, "codemp/rd-vanilla", f) for f in
        "G2_misc.cpp", "tr_ghoul2.cpp")]
 
 # Where the single-player gamecode asks for things.
-CALLERS = ["games/jka/game", "games/jka/cgame", "code/ui", "code/server",
-           "games/jk2/game", "games/jk2/cgame"]
+CALLERS = ["games/ja/game", "games/ja/cgame", "code/ui", "code/server",
+           "games/jo/game", "games/jo/cgame"]
 
 CALL = re.compile(r"\b(?:gi|cgi|ui|re)\.(G2API_[A-Za-z_0-9]+)")
 

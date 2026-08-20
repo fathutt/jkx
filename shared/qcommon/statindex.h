@@ -25,7 +25,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 //
 // accessed from both server and game modules - which is why it is here and not
 // in the gamecode. The original comment said as much and the file sat in
-// code/game anyway; games/jk2 had a second copy of it, identical but for a
+// code/game anyway; games/jo had a second copy of it, identical but for a
 // copyright line, and that one is gone.
 
 #ifndef STATINDEX_H

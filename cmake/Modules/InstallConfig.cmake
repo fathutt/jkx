@@ -24,12 +24,12 @@
 # BESIDE ITSELF, because a copy of the engine inside a retail folder is what a
 # mod is. Split across two trees it can only ever find one of them.
 #
-# The names do not collide: one jkx engine, and jkagamex86_64 beside
-# jk2gamex86_64. What the two games do not share is the retail assets, and those
+# The names do not collide: one jkx engine, and jagamex86_64 beside
+# jogamex86_64. What the two games do not share is the retail assets, and those
 # are not in this package - the engine is pointed at them by fs_basepath, which
 # is exactly what the launcher sets.
-set(JKAInstallDir "JKX")
-set(JK2InstallDir "JKX")
+set(JAInstallDir "JKX")
+set(JOInstallDir "JKX")
 
 # Install components.
 #
@@ -37,28 +37,28 @@ set(JK2InstallDir "JKX")
 # the multiplayer client, server and shared core, and no target has installed
 # into any of them since the multiplayer tree left this repository - CPACK
 # listed them anyway, so a package built here offered the user three empty
-# components. The same list left JK2ClientComponent out, so the Outcast engine
+# components. The same list left JOClientComponent out, so the Outcast engine
 # was built, installed by its own rule, and then not packaged. Both halves of
 # that were invisible: nobody runs cpack.
-set(JKAClientComponent "JKASPClient")
-set(JK2ClientComponent "JK2SPClient")
+set(JAClientComponent "JASPClient")
+set(JOClientComponent "JOSPClient")
 
 # Component display names
 include(CPackComponent)
 
-set(CPACK_COMPONENT_JKASPCLIENT_DISPLAY_NAME "Core")
-set(CPACK_COMPONENT_JKASPCLIENT_DESCRIPTION "Files required to play the Jedi Academy single player game.")
-set(CPACK_COMPONENT_JK2SPCLIENT_DISPLAY_NAME "Core")
-set(CPACK_COMPONENT_JK2SPCLIENT_DESCRIPTION "Files required to play the Jedi Outcast single player game.")
+set(CPACK_COMPONENT_JASPCLIENT_DISPLAY_NAME "Core")
+set(CPACK_COMPONENT_JASPCLIENT_DESCRIPTION "Files required to play the Jedi Academy single player game.")
+set(CPACK_COMPONENT_JOSPCLIENT_DISPLAY_NAME "Core")
+set(CPACK_COMPONENT_JOSPCLIENT_DESCRIPTION "Files required to play the Jedi Outcast single player game.")
 set(CPACK_COMPONENTS_ALL
-	${JKAClientComponent}
-	${JK2ClientComponent})
+	${JAClientComponent}
+	${JOClientComponent})
 
 set(CPACK_ARCHIVE_COMPONENT_INSTALL ON)
 
 # Component groups
-set(CPACK_COMPONENT_JKASPCLIENT_GROUP "JKASP")
-set(CPACK_COMPONENT_JK2SPCLIENT_GROUP "JK2SP")
+set(CPACK_COMPONENT_JASPCLIENT_GROUP "JASP")
+set(CPACK_COMPONENT_JOSPCLIENT_GROUP "JOSP")
 
 cpack_add_component_group(JKASP
 	DISPLAY_NAME "Jedi Academy Single Player"
@@ -99,8 +99,8 @@ if(WIN32)
 		# no loss: the package unpacks over a retail install, which ships both.
 
 		install(PROGRAMS ${CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS}
-				DESTINATION ${JKAInstallDir}
-				COMPONENT ${JKAClientComponent})
+				DESTINATION ${JAInstallDir}
+				COMPONENT ${JAClientComponent})
 	endif()
 
 	# There is no second engine block any more. One executable runs both games,

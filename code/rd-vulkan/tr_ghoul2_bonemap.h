@@ -57,22 +57,22 @@ Foundation.
 
 // The size of the Outcast humanoid skeleton, and therefore the domain of the
 // table: an index from a mesh built against it is 0..71 and nothing else.
-#define iJK2_HUMANOID_BONES		72
+#define iJO_HUMANOID_BONES		72
 
 
 // Does a mesh built for a skeleton of meshSkeletonBones bones, bound to a
 // skeleton of skeletonBones bones, need its bone references remapped?
-inline bool R_NeedsJK2BoneRemap( int meshSkeletonBones, int skeletonBones )
+inline bool R_NeedsJOBoneRemap( int meshSkeletonBones, int skeletonBones )
 {
-	return meshSkeletonBones == iJK2_HUMANOID_BONES
-		&& skeletonBones != iJK2_HUMANOID_BONES;
+	return meshSkeletonBones == iJO_HUMANOID_BONES
+		&& skeletonBones != iJO_HUMANOID_BONES;
 }
 
 
 // One bone reference, translated. Answers -1 when the index is not one this
 // table can translate, which is a statement about the file rather than about
 // the engine: the index came out of a .glm and nothing has checked it.
-inline int R_RemapJK2Bone( int oldIndex, int skeletonBones );
+inline int R_RemapJOBone( int oldIndex, int skeletonBones );
 
 
 /*
@@ -84,7 +84,7 @@ Complete list of all 72 bones:
 
 */
 
-static const int OldToNewRemapTable[iJK2_HUMANOID_BONES] = {
+static const int OldToNewRemapTable[iJO_HUMANOID_BONES] = {
 0,// Bone 0:   "model_root":           Parent: ""  (index -1)
 1,// Bone 1:   "pelvis":               Parent: "model_root"  (index 0)
 2,// Bone 2:   "Motion":               Parent: "pelvis"  (index 1)
@@ -431,11 +431,11 @@ Bone  52:   "face_always_":
 */
 
 
-inline int R_RemapJK2Bone( int oldIndex, int skeletonBones )
+inline int R_RemapJOBone( int oldIndex, int skeletonBones )
 {
 	int newIndex;
 
-	if ( oldIndex < 0 || oldIndex >= iJK2_HUMANOID_BONES ) {
+	if ( oldIndex < 0 || oldIndex >= iJO_HUMANOID_BONES ) {
 		return -1;
 	}
 

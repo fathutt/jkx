@@ -87,7 +87,7 @@ cmake --build "$BUILD" --parallel "${JOBS:-$(nproc)}" || exit 1
 # A build that produces no binaries is a build that decided there was nothing to
 # do, and it should not report success.
 missing=0
-for want in jkx.x86_64.exe jkagamex86_64.dll jk2gamex86_64.dll; do
+for want in jkx.x86_64.exe jagamex86_64.dll jogamex86_64.dll; do
     if [ ! -f "$BUILD/$want" ]; then
         echo "  built nothing called $want"
         missing=1

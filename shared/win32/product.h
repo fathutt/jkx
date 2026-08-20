@@ -48,13 +48,13 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #ifdef JKX_GAME_OUTCAST
 
 	#define JKX_GAME_DESCRIPTION     "JKX: Jedi Outcast gamecode"
-	#define JKX_GAME_INTERNAL        "jk2game"
-	#define JKX_GAME_FILENAME        "jk2gamex86_64.dll"
+	#define JKX_GAME_INTERNAL        "jogame"
+	#define JKX_GAME_FILENAME        "jogamex86_64.dll"
 
 #else
 
 	#define JKX_GAME_DESCRIPTION     "JKX: Jedi Academy gamecode"
-	#define JKX_GAME_INTERNAL        "jkagame"
-	#define JKX_GAME_FILENAME        "jkagamex86_64.dll"
+	#define JKX_GAME_INTERNAL        "jagame"
+	#define JKX_GAME_FILENAME        "jagamex86_64.dll"
 
 #endif

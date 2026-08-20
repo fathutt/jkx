@@ -72,23 +72,23 @@ enum
 
 
 // Registration
-qboolean				JK2SP_Register(const char *Package, unsigned char Registration);
-void					JK2SP_Unload(unsigned char Registration);
+qboolean				JOSP_Register(const char *Package, unsigned char Registration);
+void					JOSP_Unload(unsigned char Registration);
 
 // Direct string functions
-int						JK2SP_GetStringID(const char *Reference);
+int						JOSP_GetStringID(const char *Reference);
 #ifdef _DEBUG
 const char *SP_GetReferenceText(unsigned short ID, const char *&psPackageName, const char *&psPackageReference, const char *&psText);
 #endif
-const char				*JK2SP_GetStringText(unsigned short ID);
-const char				*JK2SP_GetStringTextString(const char *Reference);
+const char				*JOSP_GetStringText(unsigned short ID);
+const char				*JOSP_GetStringTextString(const char *Reference);
 
 // Initialization
-void					JK2SP_Init(void);
-void					JK2SP_CheckForLanguageUpdates(void);
-inline void				JK2SP_Shutdown(void)
+void					JOSP_Init(void);
+void					JOSP_CheckForLanguageUpdates(void);
+inline void				JOSP_Shutdown(void)
 {
-	JK2SP_Unload(SP_REGISTER_CLIENT | SP_REGISTER_SERVER | SP_REGISTER_MENU | SP_REGISTER_REQUIRED );
+	JOSP_Unload(SP_REGISTER_CLIENT | SP_REGISTER_SERVER | SP_REGISTER_MENU | SP_REGISTER_REQUIRED );
 }
 
 extern cvar_t	*sp_language;
