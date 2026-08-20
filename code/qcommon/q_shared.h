@@ -2455,17 +2455,24 @@ typedef struct entityState_s {// !!!!!!!!!!! LOADSAVE-affecting struct !!!!!!!!!
 	qboolean	saberInFlight;
 	qboolean	saberActive;
 
-#ifdef JK2_MODE
-	int		vehicleModel;	// For overriding your playermodel with a drivable vehicle
-#endif
+	// Both games' vehicle fields, in one layout. Outcast has the first and
+	// Academy the rest; each build leaves the other's alone.
+	//
+	// This costs Outcast sixteen bytes an entity and Academy four, and it buys
+	// the thing a single binary needs: one entityState_t, the same size in both,
+	// so the engine and the gamecode agree about where a field is without a
+	// define having to be set the same way on both sides.
+	//
+	// It does NOT change the saved game. Both games write this structure field
+	// by field through sg_export rather than dumping it, so a field nobody
+	// serialises is a field the file never hears about.
+	int		vehicleModel;		// Outcast: overrides the player model with a drivable vehicle
 
-#ifndef JK2_MODE
 	//int		vehicleIndex;		// What kind of vehicle you're driving
 	vec3_t	vehicleAngles;		//
 	int		vehicleArmor;		// current armor of your vehicle (explodes if drops to 0)
 	// 0 if not in a vehicle, otherwise the client number.
 	int m_iVehicleNum;
-#endif // !JK2_MODE
 
 /*
 Ghoul2 Insert Start
@@ -2477,9 +2484,7 @@ Ghoul2 Insert Start
 Ghoul2 Insert End
 */
 
-#ifndef JK2_MODE
-	qboolean	isPortalEnt;
-#endif // !JK2_MODE
+	qboolean	isPortalEnt;	// Academy only, and present in both layouts
 
 
 	void sg_export(
