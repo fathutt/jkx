@@ -42,6 +42,7 @@ PAIRS = {
     "smokewide":            "The same frames, at 32:9",
     "smokejk2":             "The same frames, as Jedi Outcast",
     "smokesave":            "A game saved and loaded",
+    "smokejk2save":         "A game saved and loaded, as Jedi Outcast",
     "smokeskin":            "A skin that will not register",
     "smokeskinshift":       "Skin handles that do not shift",
     "smokelightmap":        "A map lit by its lightmap",

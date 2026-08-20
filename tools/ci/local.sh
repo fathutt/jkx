@@ -80,7 +80,7 @@ JOBS="${JOBS:-$(nproc)}"
 
 STAGES=( "$@" )
 if [ "${#STAGES[@]}" -eq 0 ]; then
-    STAGES=( policy release debug variants windows sanitizers tests smoke smokewide smokejk2 smokesave smokeskin smokeskinshift smokelightmap smokehdrlightmap smokegamecmd smokeshadow smokecloud smokemapent smokemenumodel smokemenulight smokepbrchar smokevidrestart smokevsync smokeresize smokemsaa smokedglow smokepicmip smokecubemap smoketransparency smokesoftparticles smokewater smokeweather smoketcmod smokedeform smokephys smokephysshaded smokepak move smokesan prepass fog noassets badbsp )
+    STAGES=( policy release debug variants windows sanitizers tests smoke smokewide smokejk2 smokesave smokejk2save smokeskin smokeskinshift smokelightmap smokehdrlightmap smokegamecmd smokeshadow smokecloud smokemapent smokemenumodel smokemenulight smokepbrchar smokevidrestart smokevsync smokeresize smokemsaa smokedglow smokepicmip smokecubemap smoketransparency smokesoftparticles smokewater smokeweather smoketcmod smokedeform smokephys smokephysshaded smokepak move smokesan prepass fog noassets badbsp )
 fi
 
 failed=()
@@ -745,6 +745,20 @@ stage_smokepak() {
 # desynchronises them, so it measures both. Mutation tested twice: against the
 # build before the fallback the colour is absent, and against the build before
 # the handle was released it is absent again, for the second reason.
+# The same save-and-load round trip, as Jedi Outcast.
+#
+# It exists because of what was being changed the day it was written: Outcast's
+# playerState_t grew Academy's fields so that one binary could hold one layout,
+# and playerState_t is the structure a saved game is most sensitive to. The
+# round trip was covered in one game of two, which is the same shape of hole as
+# a lane that lives on one machine.
+stage_smokejk2save() {
+    JKX_SMOKE_SAVELOAD=1 \
+    JKX_SMOKE_GAME=jk2 \
+    JKX_SMOKE_DISPLAY="${JKX_SMOKE_JK2SAVE_DISPLAY:-:96}" \
+        bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
+}
+
 stage_smokeskin() {
     JKX_SMOKE_SKINFALL=1 \
     JKX_SMOKE_DISPLAY="${JKX_SMOKE_SKIN_DISPLAY:-:88}" \

@@ -1669,20 +1669,21 @@ public:
 	vec3_t		serverViewOrg;
 
 	qboolean	saberInFlight;
-#ifdef JK2_MODE
-	qboolean	saberActive;	// -- JK2 --
-
-	int			vehicleModel;	// -- JK2 --
-	int			viewEntity;		// For overriding player movement controls and vieworg
-	saber_colors_t	saberColor; // -- JK2 --
-	float		saberLength;	// -- JK2 --
-	float		saberLengthMax;	// -- JK2 --
-	int			forcePowersActive;	//prediction needs to know this
-#else
+	// Both games' saber state, in one layout.
+	//
+	// Outcast keeps the sabre as a handful of scalars on the player; Academy
+	// keeps an array of TSaberInfo further down and reaches it through methods.
+	// Neither is a subset of the other, and neither game reads the other's
+	// fields - so the union of the two is a structure both can be compiled
+	// against, which is what one binary needs. See the note there.
 	int			viewEntity;		// For overriding player movement controls and vieworg
 	int			forcePowersActive;	//prediction needs to know this
 
-#endif
+	qboolean	saberActive;	// -- Outcast --
+	int			vehicleModel;	// -- Outcast --
+	saber_colors_t	saberColor; // -- Outcast --
+	float		saberLength;	// -- Outcast --
+	float		saberLengthMax;	// -- Outcast --
 
 	//NEW vehicle stuff
 	// This has been localized to the vehicle stuff (NOTE: We can still use it later, I'm just commenting it to
@@ -1704,7 +1705,14 @@ public:
 	int			lastStationary;	//last time you were on the ground
 	int			weaponShotCount;
 
-#ifndef JK2_MODE
+	// Academy's sabre state, present in both games now.
+	//
+	// The array and its methods are the other half of the union above: Outcast
+	// never touches them, Academy never touches Outcast's scalars, and one
+	// binary needs a structure both can be compiled against. saberInfo_t itself
+	// is identical in the two builds - the template that parameterises this
+	// class over it was already instantiated with the same type in both.
+	//
 	//FIXME: maybe allocate all these structures (saber, force powers, vehicles)
 	//			or descend them as classes - so not every client has all this info
 	TSaberInfo	saber[MAX_SABERS];
@@ -1828,22 +1836,18 @@ public:
 					}
 					return parryBonus;
 				};
-#endif // !JK2_MODE
+
 
 	short		saberMove;
 
-#ifndef JK2_MODE
-	short		saberMoveNext;
-#endif // !JK2_MODE
+	short		saberMoveNext;		// -- Academy --
 
 	short		saberBounceMove;
 	short		saberBlocking;
 	short		saberBlocked;
 	short		leanStopDebounceTime;
 
-#ifdef JK2_MODE
-	float		saberLengthOld;
-#endif
+	float		saberLengthOld;		// -- Outcast --
 	int			saberEntityNum;
 	float		saberEntityDist;
 	int			saberThrowTime;
@@ -1857,13 +1861,9 @@ public:
 	int			saberLockTime;
 	int			saberLockEnemy;
 
-#ifndef JK2_MODE
-	int			saberStylesKnown;
-#endif // !JK2_MODE
+	int			saberStylesKnown;	// -- Academy --
 
-#ifdef JK2_MODE
-	char		*saberModel;
-#endif
+	char		*saberModel;		// -- Outcast --
 
 	int			forcePowersKnown;
 	int			forcePowerDuration[NUM_FORCE_POWERS];	//for effects that have a duration
@@ -1872,10 +1872,8 @@ public:
 	int			forcePowerMax;
 	int			forcePowerRegenDebounceTime;
 
-#ifndef JK2_MODE
-	int			forcePowerRegenRate;				//default is 100ms
-	int			forcePowerRegenAmount;				//default is 1
-#endif // !JK2_MODE
+	int			forcePowerRegenRate;				//default is 100ms -- Academy --
+	int			forcePowerRegenAmount;				//default is 1 -- Academy --
 
 	int			forcePowerLevel[NUM_FORCE_POWERS];		//so we know the max forceJump power you have
 	float		forceJumpZStart;					//So when you land, you don't get hurt as much
@@ -1883,14 +1881,11 @@ public:
 	int			forceGripEntityNum;					//what entity I'm gripping
 	vec3_t		forceGripOrg;						//where the gripped ent should be lifted to
 
-#ifndef JK2_MODE
-	int			forceDrainEntityNum;				//what entity I'm draining
+	int			forceDrainEntityNum;				//what entity I'm draining -- Academy --
 	vec3_t		forceDrainOrg;						//where the drained ent should be lifted to
-#endif // !JK2_MODE
 
 	int			forceHealCount;						//how many points of force heal have been applied so far
 
-#ifndef JK2_MODE
 	//new Jedi Academy force powers
 	int			forceAllowDeactivateTime;
 	int			forceRageDrainTime;
@@ -1901,7 +1896,6 @@ public:
 	int			pullAttackEntNum;
 	int			pullAttackTime;
 	int			lastKickedEntNum;
-#endif // !JK2_MODE
 
 	int			taunting;							//replaced BUTTON_GESTURE
 
@@ -1911,7 +1905,6 @@ public:
 	float		waterheight;						//exactly what the z org of the water is (will be +4 above if under water, -4 below if not in water)
 	waterHeightLevel_t	waterHeightLevel;					//how high it really is
 
-#ifndef JK2_MODE
 	//testing IK grabbing
 	qboolean	ikStatus;		//for IK
 	int			heldClient;		//for IK, who I'm grabbing, if anyone
@@ -1926,7 +1919,6 @@ public:
 	//NOTE: not really used in SP, just for Fighter Vehicle damage stuff
 	int			brokenLimbs;
 	int			electrifyTime;
-#endif // !JK2_MODE
 
 
 	void sg_export(

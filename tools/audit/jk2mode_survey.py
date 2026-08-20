@@ -108,7 +108,12 @@ def body_kind(body):
     return "code"
 
 
-SAVED_GAME_RE = re.compile(r"\bsaved_game\.(read|write)\b")
+# skip() as well as read() and write(): a serialiser advances past a field it no
+# longer writes, and a block of them is still the save format rather than the
+# layout of memory. Leaving skip out put four blocks in the layout bucket that
+# do not belong there - which mattered, because the layout bucket is the one
+# that decides whether the work is possible at all.
+SAVED_GAME_RE = re.compile(r"\bsaved_game\.(read|write|skip)\b")
 
 
 def classify(path, lines, start, body):

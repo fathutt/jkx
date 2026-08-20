@@ -777,6 +777,15 @@ jobs:
 
       # Skin handles against configstring indices - two numbering spaces the
       # gamecode and the renderer use for the same thing.
+      # The same round trip as Jedi Outcast. playerState_t is the structure a
+      # saved game is most sensitive to, and it was covered in one game of two.
+      - name: A game saved and loaded, as Jedi Outcast
+        env:
+          JKX_SMOKE_SAVELOAD: '1'
+          JKX_SMOKE_GAME: jk2
+          JKX_SMOKE_DISPLAY: ':65'
+        run: bash tools/verify/smoke_headless.sh build
+
       - name: Skin handles that do not shift
         env:
           JKX_SMOKE_SKINSHIFT: '1'
