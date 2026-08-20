@@ -44,7 +44,12 @@ from pathlib import Path
 # The count also went from three include sites to six in the same commit,
 # because code/ui joined ENGINE below. It was always compiled into both engines;
 # the gate had simply been told it was gamecode.
-CEILING = 983
+#
+# Down to 980 with the three Outcast-only entries in ui_public.h made
+# unconditional: three #ifdef/#endif pairs left the file and the entries stayed.
+# The interface got SMALLER by having one shape instead of two, which is the
+# argument for the whole single-binary exercise in miniature.
+CEILING = 980
 
 ENGINE = ("code/qcommon", "code/server", "code/client", "shared", "code/ui")
 # code/api is counted on the game side on purpose. It is the contract - the

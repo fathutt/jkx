@@ -887,7 +887,13 @@ static char *SG_GetSaveGameMapName(const char *psPathlessBaseName)
 
 // pass in qtrue to set as loading screen, else pass in pvDest to read it into there...
 //
-#ifdef JK2_MODE
+// Compiled in both games, and not because Jedi Academy uses it.
+//
+// The savegame screenshot is an Outcast feature: its menu shows a picture of
+// the save you are about to load, Academy's does not. But SG_GetSaveImage is
+// named by the UI import table, and a table whose shape depends on a define is
+// what a single binary cannot have - so the entry exists in both and the
+// function behind it exists in both. In Academy nothing calls it.
 static bool SG_ReadScreenshot(
 	bool set_as_loading_screen,
 	void* screenshot_ptr)
@@ -1116,7 +1122,7 @@ static void SG_WriteScreenshot(qboolean qbAutosave, const char *psMapName)
 	Z_Free(pJPGData);
 	SCR_TempRawImage_CleanUp();
 }
-#endif
+
 
 
 qboolean SG_GameAllowedToSaveHere(qboolean inCamera)

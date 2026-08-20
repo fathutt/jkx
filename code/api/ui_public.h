@@ -139,10 +139,11 @@ typedef struct {
 	// force a screen update, only used during gamestate load
 	void		(*UpdateScreen)( void );
 
-#ifdef JK2_MODE
-	// stuff for savegame screenshots...
-	void		(*PrecacheScreenshot)( void );
-#endif
+	// A table whose SHAPE depended on a define, until now: the entries below
+	// were Outcast-only. One binary for both games cannot have that - the two
+	// sides have to agree where every entry is, and a define decided it before
+	// either was compiled. Academy leaves these unused, which is free.
+	void		(*PrecacheScreenshot)( void );	// savegame screenshots
 
 	//========= model collision ===============
 
@@ -160,9 +161,7 @@ typedef struct {
 
 	// =========== getting save game picture ===============
 	void	(*DrawStretchRaw) (int x, int y, int w, int h, int cols, int rows, const byte *data, int client, qboolean dirty);
-#ifdef JK2_MODE
 	qboolean(*SG_GetSaveImage)( const char *psPathlessBaseName, void *pvAddress );
-#endif
 	int		(*SG_GetSaveGameComment)(const char *psPathlessBaseName, char *sComment, char *sMapName);
 	qboolean (*SG_GameAllowedToSaveHere)(qboolean inCamera);
 	void (*SG_StoreSaveGameComment)(const char *sComment);
@@ -181,11 +180,9 @@ typedef struct {
 	int			(*Key_GetCatcher)( void );
 	void		(*Key_SetCatcher)( int catcher );
 
-#ifdef JK2_MODE
 	qboolean	(*SP_Register)( const char *Package, unsigned char Registration );
 	const char *(*SP_GetStringText)(unsigned short ID);
 	const char *(*SP_GetStringTextString)(const char *Reference);
-#endif
 	void		(*GetClipboardData)( char *buf, int bufsize );
 
 	void		(*GetGlconfig)( glconfig_t *config );

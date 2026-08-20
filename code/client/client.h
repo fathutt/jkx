@@ -420,9 +420,9 @@ void	SCR_DrawBigString( int x, int y, const char *s, float alpha, qboolean noCol
 void	SCR_DrawBigStringColor( int x, int y, const char *s, vec4_t color, qboolean noColorEscape );	// ignores embedded color control characters
 void	SCR_DrawBigChar( int x, int y, int ch );
 
-#ifdef JK2_MODE
+// Declared in both games: cl_scrn.cpp defines it in both, and the UI import
+// table names it in both.
 void	SCR_PrecacheScreenshot();
-#endif
 
 //
 // cl_cin.c

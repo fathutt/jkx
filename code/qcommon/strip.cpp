@@ -20,7 +20,16 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 ===========================================================================
 */
 
-#ifdef JK2_MODE
+// Compiled in both games, and it did not used to be: the whole file sat behind
+// #ifdef JK2_MODE, so JK2SP_Register and its two readers existed in one build
+// of two. That is what forced three function pointers in the UI import table to
+// be conditional, and a table whose SHAPE depends on a define is the thing a
+// single binary cannot have.
+//
+// Nothing here runs unless something calls it, and in Jedi Academy nothing
+// does - the string packages it reads are Outcast's. It costs the binary a few
+// kilobytes and buys the interface one shape.
+
 // this include must remain at the top of every CPP file
 #include "../server/server.h"
 #include "q_shared.h"
@@ -1230,5 +1239,3 @@ void JK2SP_CheckForLanguageUpdates(void)
 		sp_language->modified = qfalse;
 	}
 }
-
-#endif

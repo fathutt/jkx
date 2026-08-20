@@ -585,7 +585,11 @@ void SCR_SetScreenshot(const byte *pbData, int w, int h)
 }
 
 
-#ifdef JK2_MODE
+// Two client-side wrappers around renderer entry points that are present in
+// both games. They used to be Outcast-only, which made the savegame screenshot
+// they serve Outcast-only, which made the UI import table a different shape in
+// the two builds - and that is the one thing a single binary cannot have.
+//
 // This is just a client-side wrapper for the function RE_TempRawImage_ReadFromFile() in the renderer code...
 //
 
@@ -600,6 +604,5 @@ void  SCR_TempRawImage_CleanUp()
 {
 	re.TempRawImage_CleanUp();
 }
-#endif
 
 

@@ -30,9 +30,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #include "vmachine.h"
 
 //prototypes
-#ifdef JK2_MODE
 extern qboolean SG_GetSaveImage( const char *psPathlessBaseName, void *pvAddress );
-#endif
 extern int SG_GetSaveGameComment(const char *psPathlessBaseName, char *sComment, char *sMapName);
 extern qboolean SG_GameAllowedToSaveHere(qboolean inCamera);
 extern void SG_StoreSaveGameComment(const char *sComment);
@@ -261,18 +259,17 @@ void CL_InitUI( void ) {
 	uii.Language_UsesSpaces		= re.Language_UsesSpaces;
 	uii.AnyLanguage_ReadCharFromString = re.AnyLanguage_ReadCharFromString;
 
-#ifdef JK2_MODE
 	uii.SG_GetSaveImage			= SG_GetSaveImage;
-#endif
 	uii.SG_GetSaveGameComment	= SG_GetSaveGameComment;
 	uii.SG_StoreSaveGameComment = SG_StoreSaveGameComment;
 	uii.SG_GameAllowedToSaveHere= SG_GameAllowedToSaveHere;
 
 	//uii.SCR_GetScreenshot		= SCR_GetScreenshot;
 
-#ifdef JK2_MODE
+	// Filled in both games. The field was declared unconditionally and assigned
+	// under the define, which is a null pointer waiting for its first caller
+	// rather than a saving.
 	uii.DrawStretchRaw			= re.DrawStretchRaw;
-#endif
 	uii.R_ClearScene			= re.ClearScene;
 	uii.R_AddRefEntityToScene	= re.AddRefEntityToScene;
 	uii.R_AddPolyToScene		=  re.AddPolyToScene;
@@ -285,9 +282,7 @@ void CL_InitUI( void ) {
 	uii.R_DrawStretchPic		= re.DrawStretchPic;
 	uii.UpdateScreen			= SCR_UpdateScreen;
 
-#ifdef JK2_MODE
 	uii.PrecacheScreenshot		= SCR_PrecacheScreenshot;
-#endif
 
 	uii.R_LerpTag				= re.LerpTag;
 
@@ -304,11 +299,9 @@ void CL_InitUI( void ) {
 	uii.Key_ClearStates			= Key_ClearStates;
 	uii.Key_GetCatcher			= Key_GetCatcher;
 	uii.Key_SetCatcher			= Key_SetCatcher;
-#ifdef JK2_MODE
 	uii.SP_Register				= JK2SP_Register;
 	uii.SP_GetStringText		= JK2SP_GetStringText;
 	uii.SP_GetStringTextString  = JK2SP_GetStringTextString;
-#endif
 
 	uii.GetClipboardData		= GetClipboardData;
 

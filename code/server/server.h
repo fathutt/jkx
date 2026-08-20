@@ -324,7 +324,11 @@ extern qboolean qbLoadTransition;
 //
 ///////////////////////////////////////////////
 
-#ifdef JK2_MODE
+// The string-package classes strip.cpp is built from. Declared in both games
+// for the same reason strip.cpp is compiled in both: a type that exists in one
+// build of two forces everything that names it to be conditional as well, and
+// the conditional reaches all the way out to the shape of the UI import table.
+//
 // glue
 class cStrings
 {
@@ -365,6 +369,5 @@ public:
 
 	virtual bool	UnderstandToken(int token, char *data );
 };
-#endif
 
 #endif	// #ifndef SERVER_H
