@@ -109,87 +109,87 @@ void SV_Player_EndOfLevelSave(void)
 		playerState_t*		pState = cl->gentity->client;
 		const char	*s2;
 		const char *s;
-#ifdef JK2_MODE
-		s = va("%i %i %i %i %i %i %i %f %f %f %i %i %i %i %i %i",
-						pState->stats[STAT_HEALTH],
-						pState->stats[STAT_ARMOR],
-						pState->stats[STAT_WEAPONS],
-						pState->stats[STAT_ITEMS],
-						pState->weapon,
-						pState->weaponstate,
-						pState->batteryCharge,
-						pState->viewangles[0],
-						pState->viewangles[1],
-						pState->viewangles[2],
-						pState->forcePowersKnown,
-						pState->forcePower,
-						pState->saberActive,
-						pState->saberAnimLevel,
-						pState->saberLockEnemy,
-						pState->saberLockTime
-						);
-#else
-				//				|general info				  |-force powers |-saber 1		|-saber 2										  |-general saber
-				s = va("%i %i %i %i %i %i %i %f %f %f %i %i %i %i %i %s %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %s %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i",
-						pState->stats[STAT_HEALTH],
-						pState->stats[STAT_ARMOR],
-						pState->stats[STAT_WEAPONS],
-						pState->stats[STAT_ITEMS],
-						pState->weapon,
-						pState->weaponstate,
-						pState->batteryCharge,
-						pState->viewangles[0],
-						pState->viewangles[1],
-						pState->viewangles[2],
-						//force power data
-						pState->forcePowersKnown,
-						pState->forcePower,
-						pState->forcePowerMax,
-						pState->forcePowerRegenRate,
-						pState->forcePowerRegenAmount,
-						//saber 1 data
-						pState->saber[0].name,
-						pState->saber[0].blade[0].active,
-						pState->saber[0].blade[1].active,
-						pState->saber[0].blade[2].active,
-						pState->saber[0].blade[3].active,
-						pState->saber[0].blade[4].active,
-						pState->saber[0].blade[5].active,
-						pState->saber[0].blade[6].active,
-						pState->saber[0].blade[7].active,
-						pState->saber[0].blade[0].color,
-						pState->saber[0].blade[1].color,
-						pState->saber[0].blade[2].color,
-						pState->saber[0].blade[3].color,
-						pState->saber[0].blade[4].color,
-						pState->saber[0].blade[5].color,
-						pState->saber[0].blade[6].color,
-						pState->saber[0].blade[7].color,
-						//saber 2 data
-						pState->saber[1].name,
-						pState->saber[1].blade[0].active,
-						pState->saber[1].blade[1].active,
-						pState->saber[1].blade[2].active,
-						pState->saber[1].blade[3].active,
-						pState->saber[1].blade[4].active,
-						pState->saber[1].blade[5].active,
-						pState->saber[1].blade[6].active,
-						pState->saber[1].blade[7].active,
-						pState->saber[1].blade[0].color,
-						pState->saber[1].blade[1].color,
-						pState->saber[1].blade[2].color,
-						pState->saber[1].blade[3].color,
-						pState->saber[1].blade[4].color,
-						pState->saber[1].blade[5].color,
-						pState->saber[1].blade[6].color,
-						pState->saber[1].blade[7].color,
-						//general saber data
-						pState->saberStylesKnown,
-						pState->saberAnimLevel,
-						pState->saberLockEnemy,
-						pState->saberLockTime
-						);
-#endif
+		if ( Com_IsOutcast() ) {
+			s = va("%i %i %i %i %i %i %i %f %f %f %i %i %i %i %i %i",
+							pState->stats[STAT_HEALTH],
+							pState->stats[STAT_ARMOR],
+							pState->stats[STAT_WEAPONS],
+							pState->stats[STAT_ITEMS],
+							pState->weapon,
+							pState->weaponstate,
+							pState->batteryCharge,
+							pState->viewangles[0],
+							pState->viewangles[1],
+							pState->viewangles[2],
+							pState->forcePowersKnown,
+							pState->forcePower,
+							pState->saberActive,
+							pState->saberAnimLevel,
+							pState->saberLockEnemy,
+							pState->saberLockTime
+							);
+		} else {
+					//				|general info				  |-force powers |-saber 1		|-saber 2										  |-general saber
+					s = va("%i %i %i %i %i %i %i %f %f %f %i %i %i %i %i %s %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %s %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i",
+							pState->stats[STAT_HEALTH],
+							pState->stats[STAT_ARMOR],
+							pState->stats[STAT_WEAPONS],
+							pState->stats[STAT_ITEMS],
+							pState->weapon,
+							pState->weaponstate,
+							pState->batteryCharge,
+							pState->viewangles[0],
+							pState->viewangles[1],
+							pState->viewangles[2],
+							//force power data
+							pState->forcePowersKnown,
+							pState->forcePower,
+							pState->forcePowerMax,
+							pState->forcePowerRegenRate,
+							pState->forcePowerRegenAmount,
+							//saber 1 data
+							pState->saber[0].name,
+							pState->saber[0].blade[0].active,
+							pState->saber[0].blade[1].active,
+							pState->saber[0].blade[2].active,
+							pState->saber[0].blade[3].active,
+							pState->saber[0].blade[4].active,
+							pState->saber[0].blade[5].active,
+							pState->saber[0].blade[6].active,
+							pState->saber[0].blade[7].active,
+							pState->saber[0].blade[0].color,
+							pState->saber[0].blade[1].color,
+							pState->saber[0].blade[2].color,
+							pState->saber[0].blade[3].color,
+							pState->saber[0].blade[4].color,
+							pState->saber[0].blade[5].color,
+							pState->saber[0].blade[6].color,
+							pState->saber[0].blade[7].color,
+							//saber 2 data
+							pState->saber[1].name,
+							pState->saber[1].blade[0].active,
+							pState->saber[1].blade[1].active,
+							pState->saber[1].blade[2].active,
+							pState->saber[1].blade[3].active,
+							pState->saber[1].blade[4].active,
+							pState->saber[1].blade[5].active,
+							pState->saber[1].blade[6].active,
+							pState->saber[1].blade[7].active,
+							pState->saber[1].blade[0].color,
+							pState->saber[1].blade[1].color,
+							pState->saber[1].blade[2].color,
+							pState->saber[1].blade[3].color,
+							pState->saber[1].blade[4].color,
+							pState->saber[1].blade[5].color,
+							pState->saber[1].blade[6].color,
+							pState->saber[1].blade[7].color,
+							//general saber data
+							pState->saberStylesKnown,
+							pState->saberAnimLevel,
+							pState->saberLockEnemy,
+							pState->saberLockTime
+							);
+		}
 		Cvar_Set( sCVARNAME_PLAYERSAVE, s );
 
 		//ammo
@@ -226,9 +226,9 @@ static void SV_MapTransition_f(void)
 {
 	const char	*spawntarget;
 
-#ifdef JK2_MODE
-	SCR_PrecacheScreenshot();
-#endif
+	if ( Com_IsOutcast() ) {
+		SCR_PrecacheScreenshot();
+	}
 	SV_Player_EndOfLevelSave();
 
 	spawntarget = Cmd_Argv(2);
@@ -252,18 +252,16 @@ Restart the server on a different map, but clears a cvar so that typing "map bla
 player weapons/ammo/etc from the previous level that you haven't really exited (ie ignores KEEP_PREV on spawn points)
 ==================
 */
-#ifdef JK2_MODE
 extern void SCR_UnprecacheScreenshot();
-#endif
 static void SV_Map_f( void )
 {
 	Cvar_Set( sCVARNAME_PLAYERSAVE, "");
 	Cvar_Set( "spawntarget", "" );
 	Cvar_Set("tier_storyinfo", "0");
 	Cvar_Set("tiers_complete", "");
-#ifdef JK2_MODE
-	SCR_UnprecacheScreenshot();
-#endif
+	if ( Com_IsOutcast() ) {
+		SCR_UnprecacheScreenshot();
+	}
 
 	ForceReload_e eForceReload = eForceReload_NOTHING;	// default for normal load
 
@@ -289,9 +287,9 @@ static void SV_Map_f( void )
 		// then cheats will be allowed
 		Cvar_Set( "helpUsObi", cheat ? "1" : "0" );
 	}
-#ifdef JK2_MODE
-	Cvar_Set( "cg_missionstatusscreen", "0" );
-#endif
+	if ( Com_IsOutcast() ) {
+		Cvar_Set( "cg_missionstatusscreen", "0" );
+	}
 }
 
 /*
@@ -311,9 +309,9 @@ void SV_LoadTransition_f(void)
 
 	qbLoadTransition = qtrue;
 
-#ifdef JK2_MODE
-	SCR_PrecacheScreenshot();
-#endif
+	if ( Com_IsOutcast() ) {
+		SCR_PrecacheScreenshot();
+	}
 	SV_Player_EndOfLevelSave();
 
 	//Save the full current state of the current map so we can return to it later
@@ -386,11 +384,8 @@ static void SV_Status_f( void ) {
 	Com_Printf( "name    : %s^7\n", cl->name );
 	Com_Printf( "score   : %i\n", cl->gentity->client->persistant[PERS_SCORE] );
 	Com_Printf( "version : %s %s %i\n", STATUS_OS, JK_VERSION, PROTOCOL_VERSION );
-#ifdef JK2_MODE
-	Com_Printf( "game    : Jedi Outcast %s\n", FS_GetCurrentGameDir() );
-#else
-	Com_Printf( "game    : Jedi Academy %s\n", FS_GetCurrentGameDir() );
-#endif
+	Com_Printf( "game    : %s %s\n",
+		Com_IsOutcast() ? "Jedi Outcast" : "Jedi Academy", FS_GetCurrentGameDir() );
 	Com_Printf( "map     : %s at %s\n", sv_mapname->string, ivtos( cl->gentity->client->origin ) );
 }
 

@@ -36,7 +36,6 @@ CONNECTION SCREEN
 char		connectionDialogString[1024];
 char		connectionMessageString[1024];
 
-#ifdef JK2_MODE
 /*
  =================
  UI_DrawThumbNail
@@ -46,7 +45,6 @@ void UI_DrawThumbNail( float x, float y, float w, float h, byte *pic )
 {
 	ui.DrawStretchRaw( x, y, w, h, SG_SCR_WIDTH, SG_SCR_HEIGHT, pic, 0, qtrue );
 }
-#endif
 
 /*
 ========================
@@ -56,20 +54,25 @@ UI_DrawConnect
 */
 
 void UI_DrawConnect( const char *servername, const char *updateInfoString ) {
-#ifdef JK2_MODE
-	qboolean qValid;
-	byte *levelPic = SCR_GetScreenshot(&qValid);
-	// draw the dialog background
-	if (!qValid)
+	// Outcast shows the last frame of the level being left behind the loading
+	// dialog; Academy shows the menu background.
+	if ( Com_IsOutcast() )
 	{
-		UI_DrawHandlePic(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, uis.menuBackShader );
+		qboolean qValid;
+		byte *levelPic = SCR_GetScreenshot(&qValid);
+		// draw the dialog background
+		if (!qValid)
+		{
+			UI_DrawHandlePic(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, uis.menuBackShader );
+		}
+		else {
+			UI_DrawThumbNail(0,0, SCREEN_WIDTH, SCREEN_HEIGHT, levelPic );
+		}
 	}
-	else {
-		UI_DrawThumbNail(0,0, SCREEN_WIDTH, SCREEN_HEIGHT, levelPic );
+	else
+	{
+		UI_DrawHandlePic( 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, uis.menuBackShader );
 	}
-#else
-	UI_DrawHandlePic( 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, uis.menuBackShader );
-#endif
 }
 
 

@@ -316,9 +316,11 @@ void SV_SpawnServer( const char *server, ForceReload_e eForceReload, qboolean bA
 		sv.time += 100;
 		re.G2API_SetTime(sv.time,G2T_SV_TIME);
 	}
-#ifndef JK2_MODE
-	ge->ConnectNavs(sv_mapname->string, sv_mapChecksum->integer);
-#endif
+	// Academy's gamecode has a navigation mesh to connect; Outcast's export
+	// table has no such entry, so the pointer is null there.
+	if ( !Com_IsOutcast() ) {
+		ge->ConnectNavs(sv_mapname->string, sv_mapChecksum->integer);
+	}
 
 	// create a baseline for more efficient communications
 	SV_CreateBaseline ();

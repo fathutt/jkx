@@ -304,14 +304,11 @@ SV_AdjustAreaPortalState
 ========================
 */
 void SV_AdjustAreaPortalState( gentity_t *ent, qboolean open ) {
-#ifndef JK2_MODE
-	if ( !(ent->contents & CONTENTS_OPAQUE) ) {
-#ifndef FINAL_BUILD
-//		Com_Printf( "INFO: entity number %d not opaque: not affecting area portal!\n", ent->s.number );
-#endif
+	// Academy refuses to move an area portal for an entity that is not opaque;
+	// Outcast has no such test and its maps were built without it.
+	if ( !Com_IsOutcast() && !(ent->contents & CONTENTS_OPAQUE) ) {
 		return;
 	}
-#endif
 
 	svEntity_t	*svEnt;
 
@@ -697,14 +694,14 @@ static void  SV_G2API_SaveGhoul2Models( CGhoul2Info_v &ghoul2 )
 
 	re.G2API_SaveGhoul2Models( ghoul2 );
 
-#ifdef JK2_MODE
-	saved_game.write_chunk_and_size<int32_t>(
-		INT_ID( 'G', 'L', '2', 'S' ),
-		INT_ID( 'G', 'H', 'L', '2' ) );
-#else
-	saved_game.write_chunk(
-		INT_ID( 'G', 'H', 'L', '2' ) );
-#endif
+	if ( Com_IsOutcast() ) {
+		saved_game.write_chunk_and_size<int32_t>(
+			INT_ID( 'G', 'L', '2', 'S' ),
+			INT_ID( 'G', 'H', 'L', '2' ) );
+	} else {
+		saved_game.write_chunk(
+			INT_ID( 'G', 'H', 'L', '2' ) );
+	}
 }
 
 static qboolean SV_G2API_SetAnimIndex( CGhoul2Info *ghlInfo, const int index )
@@ -1081,11 +1078,9 @@ void SV_InitGameProgs (void) {
 	import.WE_AddWeatherZone = SV_WE_AddWeatherZone;
 	import.WE_SetTempGlobalFogColor = SV_WE_SetTempGlobalFogColor;
 
-#ifdef JK2_MODE
-	const char *gamename = "jk2game";
-#else
-	const char *gamename = "jkagame";
-#endif
+	// Which gamecode module to load, and the last thing the define decided
+	// about what this process IS rather than how it behaves.
+	const char *gamename = Com_IsOutcast() ? "jk2game" : "jkagame";
 
 	GetGameAPIProc *GetGameAPI;
 	gameLibrary = Sys_LoadSPGameDll( gamename, &GetGameAPI );

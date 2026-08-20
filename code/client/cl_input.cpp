@@ -83,11 +83,9 @@ static void IN_UseGivenForce(void)
 	}
 
 	switch(forceNum) {
-#ifndef JK2_MODE
 	case FP_DRAIN:
 		genCmdNum = GENCMD_FORCE_DRAIN;
 		break;
-#endif // !JK2_MODE
 
 	case FP_PUSH:
 		genCmdNum = GENCMD_FORCE_THROW;
@@ -108,7 +106,8 @@ static void IN_UseGivenForce(void)
 		genCmdNum = GENCMD_FORCE_LIGHTNING;
 		break;
 
-#ifndef JK2_MODE
+	// Academy's powers. Outcast never reaches these cases: it cannot have the
+	// power, so nothing asks to use it.
 	case FP_RAGE:
 		genCmdNum = GENCMD_FORCE_RAGE;
 		break;
@@ -121,7 +120,7 @@ static void IN_UseGivenForce(void)
 	case FP_SEE:
 		genCmdNum = GENCMD_FORCE_SEEING;
 		break;
-#endif // !JK2_MODE
+
 
 	case FP_HEAL:
 		genCmdNum = GENCMD_FORCE_HEAL;
@@ -967,13 +966,16 @@ void CL_InitInput( void ) {
 	Cmd_AddCommand ("-force_lightning", IN_Button1Up);
 	Cmd_AddCommand ("+useforce", IN_Button2Down);	//use current force power
 	Cmd_AddCommand ("-useforce", IN_Button2Up);
-#ifdef JK2_MODE
-	Cmd_AddCommand ("+block", IN_Button3Down);//manual blocking
-	Cmd_AddCommand ("-block", IN_Button3Up);
-#else
-	Cmd_AddCommand ("+force_drain", IN_Button3Down);//force drain
-	Cmd_AddCommand ("-force_drain", IN_Button3Up);
-#endif
+	// Button three is manual blocking in Outcast and Force Drain in Academy.
+	// The same button, two commands, so the names have to be registered by the
+	// game that uses them and not both.
+	if ( Com_IsOutcast() ) {
+		Cmd_AddCommand ("+block", IN_Button3Down);//manual blocking
+		Cmd_AddCommand ("-block", IN_Button3Up);
+	} else {
+		Cmd_AddCommand ("+force_drain", IN_Button3Down);//force drain
+		Cmd_AddCommand ("-force_drain", IN_Button3Up);
+	}
 	Cmd_AddCommand ("+walk", IN_Button4Down);//walking
 	Cmd_AddCommand ("-walk", IN_Button4Up);
 	Cmd_AddCommand ("+use", IN_Button5Down);//use object
@@ -982,12 +984,12 @@ void CL_InitInput( void ) {
 	Cmd_AddCommand ("-force_grip", IN_Button6Up);
 	Cmd_AddCommand ("+altattack", IN_Button7Down);//altattack
 	Cmd_AddCommand ("-altattack", IN_Button7Up);
-#ifndef JK2_MODE
-	Cmd_AddCommand ("+forcefocus", IN_Button8Down);//special saber attacks
-	Cmd_AddCommand ("-forcefocus", IN_Button8Up);
-	Cmd_AddCommand ("+block", IN_Button8Down);//manual blocking
-	Cmd_AddCommand ("-block", IN_Button8Up);
-#endif
+	if ( !Com_IsOutcast() ) {
+		Cmd_AddCommand ("+forcefocus", IN_Button8Down);//special saber attacks
+		Cmd_AddCommand ("-forcefocus", IN_Button8Up);
+		Cmd_AddCommand ("+block", IN_Button8Down);//manual blocking
+		Cmd_AddCommand ("-block", IN_Button8Up);
+	}
 
 	Cmd_AddCommand ("+button0", IN_Button0Down);
 	Cmd_AddCommand ("-button0", IN_Button0Up);

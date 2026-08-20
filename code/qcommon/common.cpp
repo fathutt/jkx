@@ -382,9 +382,7 @@ do the apropriate things.
 =============
 */
 void SG_Shutdown();
-#ifdef JK2_MODE
 extern void SCR_UnprecacheScreenshot();
-#endif
 void NORETURN QDECL Com_Error( int code, const char *fmt, ... ) {
 	va_list		argptr;
 	static int	lastErrorTime;
@@ -413,9 +411,9 @@ void NORETURN QDECL Com_Error( int code, const char *fmt, ... ) {
 	}
 	lastErrorTime = currentTime;
 
-#ifdef JK2_MODE
-	SCR_UnprecacheScreenshot();
-#endif
+	if ( Com_IsOutcast() ) {
+		SCR_UnprecacheScreenshot();
+	}
 
 	va_start (argptr,fmt);
 	Q_vsnprintf (com_errorMessage, sizeof(com_errorMessage), fmt, argptr);
@@ -1332,13 +1330,13 @@ void Com_Init( char *commandLine ) {
 
 		com_version = Cvar_Get ("version", JK_VERSION " " PLATFORM_STRING " " SOURCE_DATE, CVAR_ROM | CVAR_SERVERINFO );
 
-#ifdef JK2_MODE
-		JK2SP_Init();
-		Com_Printf("Running Jedi Outcast Mode\n");
-#else
-		SE_Init();	// Initialize StringEd
-		Com_Printf("Running Jedi Academy Mode\n");
-#endif
+		// Each game has its own string system and only its own is started.
+		// The other one exists in the binary and is never asked anything.
+		if ( Com_IsOutcast() ) {
+			JK2SP_Init();
+		} else {
+			SE_Init();	// Initialize StringEd
+		}
 
 		Sys_Init();	// this also detects CPU type, so I can now do this CPU check below...
 
@@ -1784,11 +1782,11 @@ void Com_Shutdown (void) {
 		com_journalFile = 0;
 	}
 
-#ifdef JK2_MODE
-	JK2SP_Shutdown();
-#else
-	SE_ShutDown();//close the string packages
-#endif
+	if ( Com_IsOutcast() ) {
+		JK2SP_Shutdown();
+	} else {
+		SE_ShutDown();//close the string packages
+	}
 
 	extern void Netchan_Shutdown();
 	Netchan_Shutdown();

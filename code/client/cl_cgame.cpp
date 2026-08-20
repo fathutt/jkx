@@ -70,11 +70,7 @@ qboolean CL_InitCGameVM( void *gameLibrary )
 	cgvm.entryPoint = (intptr_t (*)(int,intptr_t,intptr_t,intptr_t,intptr_t,intptr_t,intptr_t,intptr_t,intptr_t))Sys_LoadFunction( gameLibrary, "vmMain" );
 
 	if ( !cgvm.entryPoint || !dllEntry ) {
-#ifdef JK2_MODE
-		const char *gamename = "jk2game";
-#else
-		const char *gamename = "jkagame";
-#endif
+		const char *gamename = Com_IsOutcast() ? "jk2game" : "jkagame";
 
 		Com_Printf( "CL_InitCGameVM: client game entry point not found in %s" ARCH_STRING DLL_EXT ": %s\n",
 					gamename, Sys_LibraryError() );

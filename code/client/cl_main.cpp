@@ -1018,11 +1018,9 @@ DLL glue, but highly reusuable DLL glue at that
 
 const char *String_GetStringValue( const char *reference )
 {
-#ifndef JK2_MODE
-	return SE_GetString(reference);
-#else
-	return JK2SP_GetStringTextString(reference);
-#endif
+	return Com_IsOutcast()
+		? JK2SP_GetStringTextString(reference)
+		: SE_GetString(reference);
 }
 
 extern qboolean gbAlreadyDoingLoad;
@@ -1123,10 +1121,10 @@ CL_Init
 void CL_Init( void ) {
 	Com_Printf( "----- Client Initialization -----\n" );
 
-#ifdef JK2_MODE
-	JK2SP_Register("con_text", SP_REGISTER_REQUIRED);	//reference is CON_TEXT
-	JK2SP_Register("keynames", SP_REGISTER_REQUIRED);	// reference is KEYNAMES
-#endif
+	if ( Com_IsOutcast() ) {
+		JK2SP_Register("con_text", SP_REGISTER_REQUIRED);	//reference is CON_TEXT
+		JK2SP_Register("keynames", SP_REGISTER_REQUIRED);	// reference is KEYNAMES
+	}
 
 	Con_Init ();
 
@@ -1191,22 +1189,18 @@ void CL_Init( void ) {
 	cl_consoleShiftRequirement = Cvar_Get( "cl_consoleShiftRequirement", "0", CVAR_ARCHIVE );
 
 	// userinfo
-#ifdef JK2_MODE
-	Cvar_Get ("name", "Kyle", CVAR_USERINFO | CVAR_ARCHIVE_ND );
-#else
-	Cvar_Get ("name", "Jaden", CVAR_USERINFO | CVAR_ARCHIVE_ND );
-#endif
+	Cvar_Get ("name", Com_IsOutcast() ? "Kyle" : "Jaden", CVAR_USERINFO | CVAR_ARCHIVE_ND );
 
-#ifdef JK2_MODE
-	// this is required for savegame compatibility - not ever actually used
-	Cvar_Get ("snaps", "20", CVAR_USERINFO );
-	Cvar_Get ("sex", "male", CVAR_USERINFO | CVAR_ARCHIVE );
-	Cvar_Get ("handicap", "100", CVAR_USERINFO | CVAR_SAVEGAME );
-#else
-	Cvar_Get ("sex", "f", CVAR_USERINFO | CVAR_ARCHIVE | CVAR_SAVEGAME | CVAR_NORESTART );
-	Cvar_Get ("snd", "jaden_fmle", CVAR_USERINFO | CVAR_ARCHIVE | CVAR_SAVEGAME | CVAR_NORESTART );//UI_SetSexandSoundForModel changes to match sounds.cfg for model
-	Cvar_Get ("handicap", "100", CVAR_USERINFO | CVAR_SAVEGAME | CVAR_NORESTART);
-#endif
+	if ( Com_IsOutcast() ) {
+		// this is required for savegame compatibility - not ever actually used
+		Cvar_Get ("snaps", "20", CVAR_USERINFO );
+		Cvar_Get ("sex", "male", CVAR_USERINFO | CVAR_ARCHIVE );
+		Cvar_Get ("handicap", "100", CVAR_USERINFO | CVAR_SAVEGAME );
+	} else {
+		Cvar_Get ("sex", "f", CVAR_USERINFO | CVAR_ARCHIVE | CVAR_SAVEGAME | CVAR_NORESTART );
+		Cvar_Get ("snd", "jaden_fmle", CVAR_USERINFO | CVAR_ARCHIVE | CVAR_SAVEGAME | CVAR_NORESTART );//UI_SetSexandSoundForModel changes to match sounds.cfg for model
+		Cvar_Get ("handicap", "100", CVAR_USERINFO | CVAR_SAVEGAME | CVAR_NORESTART);
+	}
 
 	//
 	// register our commands

@@ -701,11 +701,12 @@ static const netField_t	playerStateFields[] =
 { PSF(pm_type), 8 },
 { PSF(bobCycle), 8 },
 
-#ifdef JK2_MODE
-{ PSF(pm_flags), 17 },
-#else
+// Thirty-two, which is Academy's and the wider of the two. The table describes
+// how many bits of a field go into a delta, so taking the wider one cannot
+// truncate the narrower game's flags; taking the narrower one could. In single
+// player the writer and the reader are the same process reading this same
+// table, so the only thing at stake is whether a bit fits.
 { PSF(pm_flags), 32 },
-#endif // JK2_MODE
 
 { PSF(pm_time), -16 },
 { PSF(origin[0]), 0 },
@@ -748,17 +749,16 @@ static const netField_t	playerStateFields[] =
 { PSF(damageYaw), 8 },
 { PSF(damagePitch), -8 },
 { PSF(damageCount), 8 },
-#ifdef JK2_MODE
+// Outcast's sabre scalars and Academy's recovery timer are all in the table
+// now. A field the running game never changes costs one bit in the delta and
+// says nothing, which is cheaper than a table whose shape depends on a define.
 { PSF(saberColor), 8 },
 { PSF(saberActive), 8 },
 { PSF(saberLength), 32 },
 { PSF(saberLengthMax), 32 },
-#endif
 { PSF(forcePowersActive), 32},
 { PSF(saberInFlight), 8 },
-#ifdef JK2_MODE
 { PSF(vehicleModel), 32 },
-#endif
 
 /*{ PSF(vehicleIndex), 32 },			// WOAH, what do we do with this stuff???
 { PSF(vehicleArmor), 32 },
@@ -771,9 +771,7 @@ static const netField_t	playerStateFields[] =
 { PSF(serverViewOrg[1]), 0 },
 { PSF(serverViewOrg[2]), 0 },
 
-#ifndef JK2_MODE
 { PSF(forceRageRecoveryTime), 32 },
-#endif // !JK2_MODE
 };
 
 /*
