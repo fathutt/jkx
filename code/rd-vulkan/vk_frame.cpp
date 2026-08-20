@@ -1868,13 +1868,14 @@ void vk_release_resources( void ) {
 
 void vk_end_frame( void )
 {
- #ifdef USE_UPLOAD_QUEUE
+	// The submit below counts its semaphores at runtime either way: without the
+	// upload queue the counts simply never reach two. Declaring these once,
+	// unconditionally, is what keeps the JKX_NO_UPLOAD_QUEUE build compiling -
+	// the variant used to be written twice and only one of the two was ever
+	// built, so the other rotted. Quake3e repaired the same rot in 512a2f4c.
 	VkSemaphore waits[2], signals[2];
-    uint32_t wait_count, signal_count; 
-	const VkPipelineStageFlags wait_dst_stage_mask[2] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
-#else
-	const VkPipelineStageFlags wait_dst_stage_mask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-#endif
+	uint32_t wait_count, signal_count;
+	const VkPipelineStageFlags wait_dst_stage_mask[2] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
     VkSubmitInfo submit_info;
 
 
@@ -1945,11 +1946,13 @@ void vk_end_frame( void )
 #ifdef VK_CUBEMAP
     if ( backEnd.viewParms.targetCube != NULL )
     {
+#ifdef USE_UPLOAD_QUEUE
         if ( vk.image_uploaded != VK_NULL_HANDLE )
         {
             waits[wait_count++] = vk.image_uploaded;
             vk.image_uploaded = VK_NULL_HANDLE;
         }
+#endif
     } else 
 #endif
     if ( !WIN_VK_IsMinimized() ) 

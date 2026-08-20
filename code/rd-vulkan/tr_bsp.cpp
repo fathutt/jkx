@@ -956,6 +956,31 @@ static shader_t *ShaderForShaderNum( int shaderNum, const int *lightmapNum, cons
 
 	shader = R_FindShader( dsh->shader, lightmapNum, styles, qtrue );
 
+	// The map's own answer to "is this a liquid", which is a different field
+	// from the material's and often the only one that is filled in.
+	//
+	// Measured on retail: the river on yavin1b draws through the ordinary path
+	// because textures/yavin/water carries no surfaceparm water - the contents
+	// live here, on the BSP shader entry, put there by the compiler from the
+	// brush. The renderer was reading only the material's own flags, on the
+	// reasoning that a map may set either without the other. True, and it turns
+	// out the one retail sets is this one.
+	//
+	// So the BSP may promote a material to a liquid, never demote it. The cost
+	// of doing it here is that shader_t is cached by name, so a material used
+	// for water on one brush and for something else on another would shade both
+	// as liquid - within one map, and only for a material the compiler already
+	// called water. Cheap to undo with r_liquids 0 if a map is ever found where
+	// it matters.
+	if ( r_liquids->integer && shader->liquidType == LIQUID_NONE ) {
+		if ( dsh->contentFlags & CONTENTS_LAVA )
+			shader->liquidType = LIQUID_LAVA;
+		else if ( dsh->contentFlags & CONTENTS_SLIME )
+			shader->liquidType = LIQUID_SLIME;
+		else if ( dsh->contentFlags & CONTENTS_WATER )
+			shader->liquidType = LIQUID_WATER;
+	}
+
 	// if the shader had errors, just use default shader
 	if ( shader->defaultShader ) {
 		return tr.defaultShader;

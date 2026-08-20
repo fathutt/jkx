@@ -1127,7 +1127,6 @@ void vk_clean_staging_buffer( void )
 #endif
 }
 
-#ifdef USE_UPLOAD_QUEUE
 // WHAT THE GPU WAS DOING WHEN IT DIED
 //
 // A device loss is reported at the next fence wait, which is nowhere near
@@ -1162,7 +1161,7 @@ void vk_staging_report( void )
 	uint32_t i, n;
 
 	if ( vk_staging_note_head == 0 ) {
-		CL_RefPrintf( PRINT_ALL, "the upload queue had done nothing yet\n" );
+		CL_RefPrintf( PRINT_ALL, "no uploads recorded yet\n" );
 		return;
 	}
 
@@ -1179,6 +1178,7 @@ void vk_staging_report( void )
 	}
 }
 
+#ifdef USE_UPLOAD_QUEUE
 static qboolean vk_wait_staging_buffer( void )
 {
 	if ( vk.aux_fence_wait ) {
@@ -1258,6 +1258,15 @@ void vk_flush_staging_buffer( qboolean final )
 		vkResetFences( vk.device, 1, &vk.aux_fence );
 		VK_CHECK( vkResetCommandBuffer( vk.staging_command_buffer, 0 ) );
 	}
+}
+#else // USE_UPLOAD_QUEUE
+// Without the queue every upload was already submitted and waited on where it
+// was made, so there is nothing outstanding to flush. The call sites stay
+// unconditional on purpose: they read as "make sure the uploads are visible",
+// which is true in both builds, and one of the two builds is not exercised
+// often enough to be trusted with its own copy of the control flow.
+void vk_flush_staging_buffer( qboolean final )
+{
 }
 #endif // USE_UPLOAD_QUEUE
 
@@ -1496,22 +1505,26 @@ void vk_upload_image_data( image_t *image, int x, int y, int width,
 	// final transition after upload comleted
 	vk_record_image_layout_transition( command_buffer, image->handle, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 0, 0 );
 #else
-	if ( vk_world.staging_buffer_size < buffer_size ) {
+	// One upload, one command buffer, submitted and waited on right here. The
+	// names below are the current ones: this branch used to say
+	// vk_world.staging_buffer_size / vk_world.staging_buffer_ptr and to call
+	// begin_command_buffer / record_image_layout_transition / end_command_buffer,
+	// none of which have existed for a long time, because nothing built it.
+	if ( vk.staging_buffer.size < buffer_size ) {
 		vk_alloc_staging_buffer( buffer_size );
 	}
 
-	Com_Memcpy( vk_world.staging_buffer_ptr, buf, buffer_size );
+	Com_Memcpy( vk.staging_buffer.ptr, buf, buffer_size );
 
-	command_buffer = begin_command_buffer();
-	// record_buffer_memory_barrier( command_buffer, vk_world.staging_buffer, VK_WHOLE_SIZE, 0, VK_PIPELINE_STAGE_HOST_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_ACCESS_HOST_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT );
+	command_buffer = vk_begin_command_buffer();
 	if ( update ) {
-		record_image_layout_transition( command_buffer, image->handle, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 0, 0 );
+		vk_record_image_layout_transition( command_buffer, image->handle, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 0, 0 );
 	} else {
-		record_image_layout_transition( command_buffer, image->handle, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_HOST_BIT, 0 );
+		vk_record_image_layout_transition( command_buffer, image->handle, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_HOST_BIT, 0 );
 	}
 	vkCmdCopyBufferToImage( command_buffer, vk.staging_buffer.handle, image->handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, num_regions, regions );
-	record_image_layout_transition( command_buffer, image->handle, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 0, 0 );
-	end_command_buffer( command_buffer, __func__ );
+	vk_record_image_layout_transition( command_buffer, image->handle, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 0, 0 );
+	vk_end_command_buffer( command_buffer, __func__ );
 #endif
 
 	// The frame that is being recorded right now may already sample this image.

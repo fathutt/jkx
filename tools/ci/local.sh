@@ -13,6 +13,10 @@
 #   release     the whole tree, Release
 #   debug       the whole tree, Debug: different code is compiled, and it is
 #               the configuration nobody looks at until it fails
+#   variants    the build options that REMOVE code, compiled. An option nobody
+#               switches on selects a branch nobody compiles, and that branch
+#               rots: JKX_NO_UPLOAD_QUEUE named struct members renamed years ago
+#               and functions that no longer existed
 #   windows     a MinGW-w64 cross-build. Not MSVC, but it compiles every
 #               #ifdef _WIN32 branch in the tree against real Windows headers -
 #               a whole platform's worth of code whose first compiler used to be
@@ -75,7 +79,7 @@ JOBS="${JOBS:-$(nproc)}"
 
 STAGES=( "$@" )
 if [ "${#STAGES[@]}" -eq 0 ]; then
-    STAGES=( policy release debug windows sanitizers tests smoke smokewide smokejk2 smokesave smokeskin smokeskinshift smokelightmap smokehdrlightmap smokegamecmd smokeshadow smokecloud smokemapent smokemenumodel smokemenulight smokepbrchar smokevidrestart smokevsync smokeresize smokemsaa smokedglow smokepicmip smokecubemap smoketransparency smokesoftparticles smokewater smoketcmod smokedeform smokephys smokephysshaded smokepak move smokesan prepass fog noassets badbsp )
+    STAGES=( policy release debug variants windows sanitizers tests smoke smokewide smokejk2 smokesave smokeskin smokeskinshift smokelightmap smokehdrlightmap smokegamecmd smokeshadow smokecloud smokemapent smokemenumodel smokemenulight smokepbrchar smokevidrestart smokevsync smokeresize smokemsaa smokedglow smokepicmip smokecubemap smoketransparency smokesoftparticles smokewater smoketcmod smokedeform smokephys smokephysshaded smokepak move smokesan prepass fog noassets badbsp )
 fi
 
 failed=()
@@ -209,6 +213,14 @@ stage_debug() {
     configure "$BUILD_ROOT/debug" -DCMAKE_BUILD_TYPE=Debug \
         -DJKX_BUILD_SHADERS=OFF &&
     cmake --build "$BUILD_ROOT/debug" --parallel "$JOBS"
+}
+
+# Every option that compiles code OUT has to be compiled by somebody. Release,
+# because the point is that the branch exists and builds, not that it is fast.
+stage_variants() {
+    configure "$BUILD_ROOT/noqueue" -DCMAKE_BUILD_TYPE=Release \
+        -DJKX_BUILD_SHADERS=OFF -DJKX_NO_UPLOAD_QUEUE=ON &&
+    cmake --build "$BUILD_ROOT/noqueue" --parallel "$JOBS"
 }
 
 stage_windows() {

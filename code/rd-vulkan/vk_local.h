@@ -109,7 +109,27 @@ typedef unsigned int uvec4_t[4];
 #endif
 
 //#define USE_REVERSED_DEPTH
+
+// Texture and geometry uploads go through a second queue and a second pair of
+// semaphores rather than blocking the frame. Quake3e turned this off by default
+// in 512a2f4c, with the message "causes VK_UNKNOWN_ERROR when dealing with
+// stage buffer on some systems", and their non-queue path had rotted to the
+// point of not compiling while it was unreachable - which is what happens to a
+// branch nobody builds.
+//
+// Ours is on, and there is an open fault that reproduces only on one machine:
+// a crash inside vkDestroyDevice, in NVIDIA's presentation code, with our own
+// object census reporting nothing left alive and the validation layer silent.
+// Whether the upload queue is part of that is not known. JKX_NO_UPLOAD_QUEUE
+// exists so that finding out costs one build rather than one patch:
+//
+//     cmake -B build-noqueue ... -DJKX_NO_UPLOAD_QUEUE=ON
+//
+// If it turns out to be the cause, this becomes the default and the switch
+// stays for the other direction.
+#ifndef JKX_NO_UPLOAD_QUEUE
 #define USE_UPLOAD_QUEUE
+#endif
 
 //#define USE_VANILLA_SHADOWFINISH
 #define USE_VK_STATS
@@ -1251,9 +1271,7 @@ void		vk_destroy_sync_primitives( void );
 void		vk_release_geometry_buffers( void );
 void		vk_release_indirect_buffers( void );
 void		vk_wait_idle( void );
-#ifdef USE_UPLOAD_QUEUE
 void		vk_flush_staging_buffer( qboolean final );
-#endif
 void		vk_queue_wait_idle( void );
 void		vk_release_resources( void );
 void		vk_read_pixels( byte *buffer, uint32_t width, uint32_t height );
