@@ -1967,6 +1967,9 @@ if [ "${JKX_SMOKE_VIDRESTART:-0}" = "menu" ]; then
 fi
 
 SET_STEP=()
+if [ "${JKX_SMOKE_NO_UPLOAD_QUEUE:-0}" = "1" ]; then
+    SET_STEP+=( +set r_uploadQueue 0 )
+fi
 for pair in ${JKX_SMOKE_SET:-}; do
     SET_STEP+=( +set "${pair%%=*}" "${pair#*=}" )
 done
@@ -2474,6 +2477,14 @@ fi
 
 require 'selected physical device'
 require 'VK_RENDERER:'
+# Which upload path this run took, and the lane that turns it off says so here.
+# Without this the no-queue lane would pass with the queue still on - a check
+# that cannot fail, which this bench has already paid for once.
+if [ "${JKX_SMOKE_NO_UPLOAD_QUEUE:-0}" = "1" ]; then
+    require 'Vulkan: texture upload queue is off'
+else
+    require 'Vulkan: texture upload queue is on'
+fi
 require 'selected presentation mode'
 require 'Common Initialization Complete'
 if [ "${JKX_SMOKE_NO_SHADERS:-0}" = "1" ]; then

@@ -545,9 +545,7 @@ static qboolean R_DissolveCaptureScreen( void )
 			// to run: "vkEndCommandBuffer() was called in VkCommandBuffer which
 			// is invalid because bound VkImage was destroyed". A software
 			// rasteriser survives that. A driver does not have to.
-#ifdef USE_UPLOAD_QUEUE
 			vk_flush_staging_buffer( qfalse );
-#endif
 			vk_wait_idle();
 
 			dissolve.screen->width = dissolve.screen->uploadWidth = width;

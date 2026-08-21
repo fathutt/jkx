@@ -54,7 +54,7 @@ void vk_create_command_buffer( void )
         vk_debug( va("Create command buffer: vk.cmd->command_buffer[%d] \n", i ) );
     }
 
-#ifdef USE_UPLOAD_QUEUE
+	if ( vk.useUploadQueue )
 	{
 		VkCommandBufferAllocateInfo alloc_info;
 
@@ -66,7 +66,10 @@ void vk_create_command_buffer( void )
 
 		VK_CHECK( vkAllocateCommandBuffers( vk.device, &alloc_info, &vk.staging_command_buffer ) );
 	}
-#endif
+	else
+	{
+		vk.staging_command_buffer = VK_NULL_HANDLE;
+	}
 }
 
 VkCommandBuffer vk_begin_command_buffer( void )
@@ -93,10 +96,8 @@ VkCommandBuffer vk_begin_command_buffer( void )
 
 void vk_end_command_buffer( VkCommandBuffer command_buffer, const char *location )
 {
-#ifdef USE_UPLOAD_QUEUE
 	const VkPipelineStageFlags wait_dst_stage_mask = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
 	VkSemaphore waits;
-#endif
     VkSubmitInfo submit_info;
     VkCommandBuffer cmdbuf[1];
     VkResult res;
@@ -107,7 +108,6 @@ void vk_end_command_buffer( VkCommandBuffer command_buffer, const char *location
 
     submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     submit_info.pNext = NULL;
-#ifdef USE_UPLOAD_QUEUE
 	if ( vk.rendering_finished != VK_NULL_HANDLE ) {
 		waits = vk.rendering_finished;
 		vk.rendering_finished = VK_NULL_HANDLE;
@@ -115,7 +115,6 @@ void vk_end_command_buffer( VkCommandBuffer command_buffer, const char *location
 		submit_info.pWaitSemaphores = &waits;
 		submit_info.pWaitDstStageMask = &wait_dst_stage_mask;
 	} else 
-#endif
 	{
 		submit_info.waitSemaphoreCount = 0;
 		submit_info.pWaitSemaphores = NULL;

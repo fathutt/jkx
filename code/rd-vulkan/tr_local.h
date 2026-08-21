@@ -2282,6 +2282,7 @@ extern cvar_t	*r_dlightMethod;		// 0 - CPU, 1 - GPU
 #endif
 #ifdef USE_PMLIGHT
 extern cvar_t	*r_dlightMode;			// 0 - vq3, 1 - pmlight
+extern cvar_t	*r_uploadQueue;			// latched; read into vk.useUploadQueue
 extern cvar_t	*r_dlightScale;			// 0.1 - 1.0
 extern cvar_t	*r_dlightIntensity;		// 0.1 - 1.0
 #endif

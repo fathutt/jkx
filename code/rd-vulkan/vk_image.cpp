@@ -1122,9 +1122,7 @@ void vk_clean_staging_buffer( void )
 
 	vk.staging_buffer.ptr = NULL;
 	vk.staging_buffer.size = 0;
-#ifdef USE_UPLOAD_QUEUE
 	vk.staging_buffer.offset = 0;
-#endif
 }
 
 // WHAT THE GPU WAS DOING WHEN IT DIED
@@ -1178,7 +1176,6 @@ void vk_staging_report( void )
 	}
 }
 
-#ifdef USE_UPLOAD_QUEUE
 static qboolean vk_wait_staging_buffer( void )
 {
 	if ( vk.aux_fence_wait ) {
@@ -1199,6 +1196,11 @@ static qboolean vk_wait_staging_buffer( void )
 }
 
 
+// Without the queue every upload was already submitted and waited on where it
+// was made, so there is nothing outstanding and the offset never leaves zero -
+// which is what the first test below reads. The call sites stay unconditional on
+// purpose: they mean "make sure the uploads are visible", which is true either
+// way, and a control flow written twice is a control flow where one copy rots.
 void vk_flush_staging_buffer( qboolean final )
 {
 	const VkPipelineStageFlags wait_dst_stage_mask = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
@@ -1259,16 +1261,6 @@ void vk_flush_staging_buffer( qboolean final )
 		VK_CHECK( vkResetCommandBuffer( vk.staging_command_buffer, 0 ) );
 	}
 }
-#else // USE_UPLOAD_QUEUE
-// Without the queue every upload was already submitted and waited on where it
-// was made, so there is nothing outstanding to flush. The call sites stay
-// unconditional on purpose: they read as "make sure the uploads are visible",
-// which is true in both builds, and one of the two builds is not exercised
-// often enough to be trusted with its own copy of the control flow.
-void vk_flush_staging_buffer( qboolean final )
-{
-}
-#endif // USE_UPLOAD_QUEUE
 
 void vk_alloc_staging_buffer( VkDeviceSize size )
 {
@@ -1298,9 +1290,7 @@ void vk_alloc_staging_buffer( VkDeviceSize size )
 	}
 
 	vk.staging_buffer.ptr = (byte*)data;
-#ifdef USE_UPLOAD_QUEUE
 	vk.staging_buffer.offset = 0;
-#endif
 }
 
 byte *vk_resample_image_data( const int target_format, byte *data, const int data_size, int *bytes_per_pixel )
@@ -1458,79 +1448,82 @@ void vk_upload_image_data( image_t *image, int x, int y, int width,
 		if (height < 1) height = 1;
 	}
 
-#ifdef USE_UPLOAD_QUEUE
-	if ( vk_wait_staging_buffer() ) {
-		// wait for vkQueueSubmit() completion before new upload
+	if ( vk.useUploadQueue )
+	{
+		if ( vk_wait_staging_buffer() ) {
+			// wait for vkQueueSubmit() completion before new upload
+		}
+
+		if ( compressed ) {
+			vk.staging_buffer.offset = PAD(vk.staging_buffer.offset, 16);
+		}
+
+		if ( vk.staging_buffer.size - vk.staging_buffer.offset < buffer_size ) {
+			// try to flush staging buffer and reset offset
+			vk_flush_staging_buffer( qfalse );
+		}
+
+		if ( vk.staging_buffer.size /* - vk_world.staging_buffer_offset */ < buffer_size ) {
+			// if still not enough - reallocate staging buffer
+			vk_alloc_staging_buffer( buffer_size );
+		}
+
+		for ( n = 0; n < num_regions; n++ ) {
+			regions[n].bufferOffset += vk.staging_buffer.offset;
+		}
+
+		Com_Memcpy( vk.staging_buffer.ptr + vk.staging_buffer.offset, buf, buffer_size );
+
+		if ( vk.staging_buffer.offset == 0 ) {
+			VkCommandBufferBeginInfo begin_info;
+			begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+			begin_info.pNext = NULL;
+			begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+			begin_info.pInheritanceInfo = NULL;
+			VK_CHECK( vkBeginCommandBuffer( vk.staging_command_buffer, &begin_info ) );
+		}
+
+		//CL_RefPrintf( PRINT_WARNING, "batch @%6i + %i %s \n", (int)vk.staging_buffer.offset, (int)buffer_size, image->imgName );
+		vk.staging_buffer.offset += buffer_size;
+
+		command_buffer = vk.staging_command_buffer;
+
+		if ( update ) {
+			vk_record_image_layout_transition( command_buffer, image->handle, VK_IMAGE_ASPECT_COLOR_BIT, 
+				VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 0, 0 );
+		} else {
+			vk_record_image_layout_transition( command_buffer, image->handle, VK_IMAGE_ASPECT_COLOR_BIT, 
+				VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_HOST_BIT, 0 );
+		}
+
+		vkCmdCopyBufferToImage( command_buffer, vk.staging_buffer.handle, image->handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, num_regions, regions );
+
+		// final transition after upload comleted
+		vk_record_image_layout_transition( command_buffer, image->handle, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 0, 0 );
 	}
+	else
+	{
+		// One upload, one command buffer, submitted and waited on right here. The
+		// names below are the current ones: this branch used to say
+		// vk_world.staging_buffer_size / vk_world.staging_buffer_ptr and to call
+		// begin_command_buffer / record_image_layout_transition / end_command_buffer,
+		// none of which have existed for a long time, because nothing built it.
+		if ( vk.staging_buffer.size < buffer_size ) {
+			vk_alloc_staging_buffer( buffer_size );
+		}
 
-	if ( compressed ) {
-		vk.staging_buffer.offset = PAD(vk.staging_buffer.offset, 16);
+		Com_Memcpy( vk.staging_buffer.ptr, buf, buffer_size );
+
+		command_buffer = vk_begin_command_buffer();
+		if ( update ) {
+			vk_record_image_layout_transition( command_buffer, image->handle, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 0, 0 );
+		} else {
+			vk_record_image_layout_transition( command_buffer, image->handle, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_HOST_BIT, 0 );
+		}
+		vkCmdCopyBufferToImage( command_buffer, vk.staging_buffer.handle, image->handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, num_regions, regions );
+		vk_record_image_layout_transition( command_buffer, image->handle, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 0, 0 );
+		vk_end_command_buffer( command_buffer, __func__ );
 	}
-
-	if ( vk.staging_buffer.size - vk.staging_buffer.offset < buffer_size ) {
-		// try to flush staging buffer and reset offset
-		vk_flush_staging_buffer( qfalse );
-	}
-
-	if ( vk.staging_buffer.size /* - vk_world.staging_buffer_offset */ < buffer_size ) {
-		// if still not enough - reallocate staging buffer
-		vk_alloc_staging_buffer( buffer_size );
-	}
-
-	for ( n = 0; n < num_regions; n++ ) {
-		regions[n].bufferOffset += vk.staging_buffer.offset;
-	}
-
-	Com_Memcpy( vk.staging_buffer.ptr + vk.staging_buffer.offset, buf, buffer_size );
-
-	if ( vk.staging_buffer.offset == 0 ) {
-		VkCommandBufferBeginInfo begin_info;
-		begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-		begin_info.pNext = NULL;
-		begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-		begin_info.pInheritanceInfo = NULL;
-		VK_CHECK( vkBeginCommandBuffer( vk.staging_command_buffer, &begin_info ) );
-	}
-
-	//CL_RefPrintf( PRINT_WARNING, "batch @%6i + %i %s \n", (int)vk.staging_buffer.offset, (int)buffer_size, image->imgName );
-	vk.staging_buffer.offset += buffer_size;
-
-	command_buffer = vk.staging_command_buffer;
-
-	if ( update ) {
-		vk_record_image_layout_transition( command_buffer, image->handle, VK_IMAGE_ASPECT_COLOR_BIT, 
-			VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 0, 0 );
-	} else {
-		vk_record_image_layout_transition( command_buffer, image->handle, VK_IMAGE_ASPECT_COLOR_BIT, 
-			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_HOST_BIT, 0 );
-	}
-
-	vkCmdCopyBufferToImage( command_buffer, vk.staging_buffer.handle, image->handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, num_regions, regions );
-
-	// final transition after upload comleted
-	vk_record_image_layout_transition( command_buffer, image->handle, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 0, 0 );
-#else
-	// One upload, one command buffer, submitted and waited on right here. The
-	// names below are the current ones: this branch used to say
-	// vk_world.staging_buffer_size / vk_world.staging_buffer_ptr and to call
-	// begin_command_buffer / record_image_layout_transition / end_command_buffer,
-	// none of which have existed for a long time, because nothing built it.
-	if ( vk.staging_buffer.size < buffer_size ) {
-		vk_alloc_staging_buffer( buffer_size );
-	}
-
-	Com_Memcpy( vk.staging_buffer.ptr, buf, buffer_size );
-
-	command_buffer = vk_begin_command_buffer();
-	if ( update ) {
-		vk_record_image_layout_transition( command_buffer, image->handle, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 0, 0 );
-	} else {
-		vk_record_image_layout_transition( command_buffer, image->handle, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_HOST_BIT, 0 );
-	}
-	vkCmdCopyBufferToImage( command_buffer, vk.staging_buffer.handle, image->handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, num_regions, regions );
-	vk_record_image_layout_transition( command_buffer, image->handle, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 0, 0 );
-	vk_end_command_buffer( command_buffer, __func__ );
-#endif
 
 	// The frame that is being recorded right now may already sample this image.
 	//

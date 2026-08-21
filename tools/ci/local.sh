@@ -13,10 +13,6 @@
 #   release     the whole tree, Release
 #   debug       the whole tree, Debug: different code is compiled, and it is
 #               the configuration nobody looks at until it fails
-#   variants    the build options that REMOVE code, compiled. An option nobody
-#               switches on selects a branch nobody compiles, and that branch
-#               rots: JKX_NO_UPLOAD_QUEUE named struct members renamed years ago
-#               and functions that no longer existed
 #   windows     a MinGW-w64 cross-build. Not MSVC, but it compiles every
 #               #ifdef _WIN32 branch in the tree against real Windows headers -
 #               a whole platform's worth of code whose first compiler used to be
@@ -28,6 +24,9 @@
 #   smoke       the engine drawing frames on the Vulkan renderer, headless,
 #               under the validation layer
 #   smokeweather the retail weather system, which nothing had ever run
+#   smokenoqueue the same run with r_uploadQueue 0, which is the other texture
+#               upload path. It used to be a build option and so was compiled
+#               and never run; now the bench takes the branch
 #   smokewide   the same at 32:9, where the interface's arithmetic is checked
 #               against the picture: at 4:3 the fitted frame is the whole window
 #               and a wrong mapping looks exactly like a right one
@@ -80,7 +79,7 @@ JOBS="${JOBS:-$(nproc)}"
 
 STAGES=( "$@" )
 if [ "${#STAGES[@]}" -eq 0 ]; then
-    STAGES=( policy release debug variants windows sanitizers tests smoke smokewide smokejo smokesave smokejosave smokeskin smokeskinshift smokelightmap smokehdrlightmap smokegamecmd smokeshadow smokecloud smokemapent smokemenumodel smokemenulight smokepbrchar smokevidrestart smokevsync smokeresize smokemsaa smokedglow smokepicmip smokecubemap smoketransparency smokesoftparticles smokewater smokeweather smoketcmod smokedeform smokephys smokephysshaded smokepak move smokesan prepass fog noassets badbsp )
+    STAGES=( policy release debug windows sanitizers tests smoke smokenoqueue smokewide smokejo smokesave smokejosave smokeskin smokeskinshift smokelightmap smokehdrlightmap smokegamecmd smokeshadow smokecloud smokemapent smokemenumodel smokemenulight smokepbrchar smokevidrestart smokevsync smokeresize smokemsaa smokedglow smokepicmip smokecubemap smoketransparency smokesoftparticles smokewater smokeweather smoketcmod smokedeform smokephys smokephysshaded smokepak move smokesan prepass fog noassets badbsp )
 fi
 
 failed=()
@@ -219,12 +218,6 @@ stage_debug() {
 
 # Every option that compiles code OUT has to be compiled by somebody. Release,
 # because the point is that the branch exists and builds, not that it is fast.
-stage_variants() {
-    configure "$BUILD_ROOT/noqueue" -DCMAKE_BUILD_TYPE=Release \
-        -DJKX_BUILD_SHADERS=OFF -DJKX_NO_UPLOAD_QUEUE=ON &&
-    cmake --build "$BUILD_ROOT/noqueue" --parallel "$JOBS"
-}
-
 stage_windows() {
     bash "$ROOT/tools/ci/win_cross.sh" "$BUILD_ROOT/win"
 }
@@ -612,6 +605,19 @@ stage_noassets() {
 stage_badbsp() {
     JKX_BADBSP_DISPLAY="${JKX_BADBSP_DISPLAY:-:89}" \
         bash "$ROOT/tools/verify/bad_bsp.sh" "$BUILD_ROOT/release"
+}
+
+# The other upload path, run rather than merely compiled.
+#
+# This was a build option, and a build option that removes code selects a branch
+# nobody compiles - JKX_NO_UPLOAD_QUEUE named struct members renamed years ago
+# and functions that no longer existed. The answer then was a stage that BUILT
+# it; the answer now is better, because it is a cvar and the bench can take the
+# branch instead of only compiling it.
+stage_smokenoqueue() {
+    JKX_SMOKE_NO_UPLOAD_QUEUE=1 \
+    JKX_SMOKE_DISPLAY="${JKX_SMOKE_NOQUEUE_DISPLAY:-:94}" \
+        bash "$ROOT/tools/verify/smoke_headless.sh" "$BUILD_ROOT/release"
 }
 
 stage_smokewide() {

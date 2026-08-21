@@ -34,7 +34,7 @@ PAIRS = {
     "policy":               "Rule 1 - code is Latin-only",
     "release":              "Configure",
     "debug":                "Configure",
-    "variants":             "Configure without the upload queue",
+    "smokenoqueue":         "The same frames, without the upload queue",
     "windows":              "Configure",
     "sanitizers":           "Build with sanitizers",
     "tests":                "shader pak reader",

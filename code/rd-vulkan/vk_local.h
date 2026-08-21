@@ -110,7 +110,7 @@ typedef unsigned int uvec4_t[4];
 
 //#define USE_REVERSED_DEPTH
 
-// Texture and geometry uploads go through a second queue and a second pair of
+// Texture and geometry uploads go through a second command buffer and a pair of
 // semaphores rather than blocking the frame. Quake3e turned this off by default
 // in 512a2f4c, with the message "causes VK_UNKNOWN_ERROR when dealing with
 // stage buffer on some systems", and their non-queue path had rotted to the
@@ -120,16 +120,25 @@ typedef unsigned int uvec4_t[4];
 // Ours is on, and there is an open fault that reproduces only on one machine:
 // a crash inside vkDestroyDevice, in NVIDIA's presentation code, with our own
 // object census reporting nothing left alive and the validation layer silent.
-// Whether the upload queue is part of that is not known. JKX_NO_UPLOAD_QUEUE
-// exists so that finding out costs one build rather than one patch:
+// Whether the upload queue is part of that is not known.
 //
-//     cmake -B build-noqueue ... -DJKX_NO_UPLOAD_QUEUE=ON
+// It used to be a build option, JKX_NO_UPLOAD_QUEUE, and that was the wrong
+// shape for the one question it exists to answer. The person who can reproduce
+// the fault does not build this project - he installs an artifact - so a switch
+// that costs a build is a switch he cannot reach, which makes it not a switch.
+// The same reasoning is already written down beside JKX_VK_TRACE and it applied
+// here too and was missed.
 //
-// If it turns out to be the cause, this becomes the default and the switch
-// stays for the other direction.
-#ifndef JKX_NO_UPLOAD_QUEUE
-#define USE_UPLOAD_QUEUE
-#endif
+// So it is r_uploadQueue: archived, latched, read once into vk.useUploadQueue
+// when the device is made. Latched because the staging command buffer and both
+// semaphores are created with the device, and a queue that can be switched off
+// halfway through a frame is a fourth path nobody asked for.
+//
+//     r_uploadQueue 0, then restart the game
+//
+// The fields below exist in both cases. They are four handles and an offset,
+// and the alternative is a structure whose SHAPE depends on a switch - which is
+// exactly the class of difference that cost this project a fortnight elsewhere.
 
 //#define USE_VANILLA_SHADOWFINISH
 #define USE_VK_STATS
@@ -589,9 +598,7 @@ typedef struct vk_tess_s {
 	VkSemaphore			image_acquired;
 	uint32_t			swapchain_image_index;
 	qboolean			swapchain_image_acquired;
-#ifdef USE_UPLOAD_QUEUE
 	VkSemaphore			rendering_finished2;
-#endif
 	VkFence				rendering_finished_fence;
 	qboolean			waitForFence;
 
@@ -729,9 +736,7 @@ typedef struct {
 	uint32_t		image_memory_count;
 
 	VkCommandPool	command_pool;
-#ifdef USE_UPLOAD_QUEUE
 	VkCommandBuffer	staging_command_buffer;
-#endif
 
 	VkDescriptorSet	color_descriptor;
 	VkDescriptorSet bloom_image_descriptor[1 + VK_NUM_BLUR_PASSES * 2];
@@ -887,11 +892,15 @@ typedef struct {
 		} dglow;
 	} framebuffers;
 
-#ifdef USE_UPLOAD_QUEUE
+	// Set only while the upload queue is on; VK_NULL_HANDLE is what every site
+	// that reads them treats as "nothing outstanding", so the queue being off
+	// needs no test of its own at submission time.
 	VkSemaphore rendering_finished;	// reference to vk.cmd->rendering_finished2
 	VkSemaphore image_uploaded2;
 	VkSemaphore image_uploaded;		// reference to vk.image_uploaded2
-#endif
+
+	// r_uploadQueue as it stood when the device was made.
+	qboolean	useUploadQueue;
 
 	vk_tess_t tess[NUM_COMMAND_BUFFERS], *cmd;
 	int cmd_index;
@@ -1161,19 +1170,17 @@ typedef struct {
 	// a set at or above this.
 	uint32_t descriptorSetCount;
 	
-#ifdef USE_UPLOAD_QUEUE
 	VkFence aux_fence;
 	qboolean aux_fence_wait;
-#endif
 
 	struct staging_buffer_s {
 		VkBuffer handle;
 		VmaAllocation allocation;
 		VkDeviceSize size;
 		byte *ptr; // pointer to mapped staging buffer
-#ifdef USE_UPLOAD_QUEUE
+		// Stays 0 for the whole run when the queue is off: every upload is
+		// submitted where it is made, so nothing accumulates here.
 		VkDeviceSize offset;
-#endif
 	} staging_buffer;
 
 	struct samplers_s {

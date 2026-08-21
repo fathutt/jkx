@@ -264,6 +264,7 @@ cvar_t	*r_dlightScale;
 cvar_t	*r_dlightIntensity;
 #endif
 cvar_t	*r_dlightSaturation;
+cvar_t	*r_uploadQueue;
 cvar_t	*r_roundImagesDown;
 cvar_t	*r_nomip;
 #ifdef USE_VK_PBR
@@ -976,6 +977,13 @@ void R_Register( void )
 	// its name says. A dead knob is worse than an absent one.
 	r_vbo								= Cvar_Get( "r_vbo",								"1",						CVAR_ARCHIVE_ND|CVAR_LATCH,
 											"keep world, Ghoul2 and mdv geometry in vertex buffers" );
+	// Latched, because the staging command buffer and both semaphores are made
+	// with the device. See the note beside vk.useUploadQueue in vk_local.h for
+	// why this is a cvar rather than a build option: the one person who can
+	// reproduce the fault it exists to test installs an artifact and does not
+	// build.
+	r_uploadQueue						= Cvar_Get( "r_uploadQueue",						"1",						CVAR_ARCHIVE_ND|CVAR_LATCH,
+											"upload textures through a second command buffer instead of blocking the frame" );
 	// The rest of the Quake 3 family spells this "r_ext_compressed_textures".
 	// Ours was one letter short, so a config written for any other engine of the
 	// family did nothing here and said nothing about it - and check_cvars.py

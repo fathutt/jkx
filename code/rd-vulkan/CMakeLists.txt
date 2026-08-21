@@ -272,12 +272,9 @@ if(JKX_VK_TRACE)
 	target_compile_definitions(${RDVulkanRenderer} PRIVATE JKX_VK_TRACE=1)
 endif()
 
-# A lever for the open crash on hardware we do not have, not a setting anybody
-# is meant to ship with. See the note beside USE_UPLOAD_QUEUE in vk_local.h.
-option(JKX_NO_UPLOAD_QUEUE "Build without the asynchronous upload queue, to test whether it is behind the vkDestroyDevice crash" OFF)
-if(JKX_NO_UPLOAD_QUEUE)
-	target_compile_definitions(${RDVulkanRenderer} PRIVATE JKX_NO_UPLOAD_QUEUE=1)
-endif()
+# JKX_NO_UPLOAD_QUEUE used to be here. It is r_uploadQueue now - a latched cvar -
+# because the lever exists for one person to pull on one machine, and that person
+# installs an artifact rather than building. See the note in vk_local.h.
 
 target_compile_features(${RDVulkanRenderer} PRIVATE cxx_std_20)
 target_link_libraries(${RDVulkanRenderer} ${RDVulkanLibraries} Vulkan::Headers)

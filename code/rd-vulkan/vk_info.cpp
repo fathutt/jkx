@@ -456,11 +456,7 @@ void vk_info_f( void ) {
     CL_RefPrintf( PRINT_ALL, "IBO buffers: %i, \n", tr.numIBOs );
 #endif
     const char *yesno[] = {"no ", "yes"};
-#ifdef USE_UPLOAD_QUEUE
-    const int use_staging_queue = 1;
-#else
-    const int use_staging_queue = 0;
-#endif
+    const int use_staging_queue = vk.useUploadQueue ? 1 : 0;
     CL_RefPrintf( PRINT_ALL, "Use texture staging upload queue: %s\n", yesno[use_staging_queue] );
 
 #else

@@ -316,9 +316,7 @@ static void vk_render_splash( void )
 	//VK_CHECK( vkWaitForFences( vk.device, 1, &vk.cmd->rendering_finished_fence, VK_TRUE, 1e10 ) );
 	//VK_CHECK( vkResetFences( vk.device, 1, &vk.cmd->rendering_finished_fence ) );
 
-#ifdef USE_UPLOAD_QUEUE
 	vk_flush_staging_buffer( qfalse );
-#endif
 
 	vkAcquireNextImageKHR( vk.device, vk.swapchain, 1 * 1000000000ULL, vk.cmd->image_acquired, VK_NULL_HANDLE, &vk.cmd->swapchain_image_index );
 	imageBuffer = vk.swapchain_images[vk.cmd->swapchain_image_index];
@@ -594,6 +592,19 @@ void vk_initialize( void )
 	vk_install_crash_handler();
 
 	vk_init_library();
+
+	// Read once, here, because everything the queue owns is created below and
+	// destroyed with the device. r_uploadQueue is latched, so this is the value
+	// the whole run sees; changing it takes a restart, which is what latched
+	// means and what the cvar's help says.
+	vk.useUploadQueue = (qboolean)( r_uploadQueue->integer != 0 );
+
+	// Said out loud every run, for the same reason the validation-layer line is:
+	// this switch exists to be tried on a machine that cannot be asked
+	// questions, and a report that does not say which way it was set is a report
+	// about nothing.
+	CL_RefPrintf( PRINT_ALL, "Vulkan: texture upload queue is %s\n",
+		vk.useUploadQueue ? "on" : "off" );
 
 	vkGetDeviceQueue( vk.device, vk.queue_family_index, 0, &vk.queue );
 
